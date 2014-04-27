@@ -197,19 +197,20 @@ void *Initialise()
 	}
 #endif
 
+	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
 	switch( *(vu32*)0x800000CC )
 	{
 		default:
 		case 0:
 		{
-			if( VIDEO_HaveComponentCable() )
+			if(progressive)
 				rmode = &TVNtsc480Prog;
 			else
 				rmode = &TVNtsc480IntDf;
 		} break;
 		case 1:
 		{
-			if( VIDEO_HaveComponentCable() )
+			if(progressive)
 				rmode = &TVEurgb60Hz480Prog;
 			else
 				rmode = &TVPal528IntDf;
@@ -220,7 +221,7 @@ void *Initialise()
 		} break;
 		case 5:
 		{
-			if( VIDEO_HaveComponentCable() )
+			if(progressive)
 				rmode = &TVEurgb60Hz480Prog;
 			else
 				rmode = &TVEurgb60Hz480IntDf;
