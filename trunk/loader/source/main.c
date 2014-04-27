@@ -221,7 +221,8 @@ int main(int argc, char **argv)
 		ncfg.Language = NIN_LAN_AUTO;
 		ncfg.MaxPads = NIN_CFG_MAXPAD;
 	}
-	if(VIDEO_HaveComponentCable()) //important to prevent blackscreens
+	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
+	if(progressive) //important to prevent blackscreens
 		ncfg.VideoMode |= NIN_VID_PROG;
 	else
 		ncfg.VideoMode &= ~NIN_VID_PROG;
@@ -542,7 +543,7 @@ int main(int argc, char **argv)
 #endif
 			*(vu32*)0x800000CC = 0;
 
-			if( VIDEO_HaveComponentCable() )
+			if(progressive)
 				vmode = &TVNtsc480Prog;
 			else
 				vmode = &TVNtsc480IntDf;
@@ -555,7 +556,7 @@ int main(int argc, char **argv)
 #ifdef DEBUG
 				gprintf("PAL60\n");
 #endif
-				if( VIDEO_HaveComponentCable() )
+				if(progressive)
 					vmode = &TVEurgb60Hz480Prog;
 				else
 					vmode = &TVEurgb60Hz480IntDf;
@@ -564,7 +565,7 @@ int main(int argc, char **argv)
 #ifdef DEBUG
 				gprintf("MPAL\n");
 #endif
-				if( VIDEO_HaveComponentCable() )
+				if(progressive)
 					vmode = &TVEurgb60Hz480Prog;
 				else
 					vmode = &TVMpal480IntDf;
@@ -573,7 +574,7 @@ int main(int argc, char **argv)
 #ifdef DEBUG
 				gprintf("PAL50\n");
 #endif
-				if( VIDEO_HaveComponentCable() )
+				if(progressive)
 					vmode = &TVEurgb60Hz480Prog;
 				else
 					vmode = &TVPal528IntDf;
