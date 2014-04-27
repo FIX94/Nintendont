@@ -169,9 +169,7 @@ void SelectGame( void )
 
 	while(1)
 	{
-		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*1, "Nintendont Loader r%d (%s)", NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
-		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*2, "Built   : %s %s", __DATE__, __TIME__ );
-		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*3, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
+		PrintInfo();
 		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*1, "Home: Exit");
 		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
 		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
@@ -515,4 +513,11 @@ void SelectGame( void )
 		free(gi[i].Name);
 		free(gi[i].Path);
 	}
+}
+
+void PrintInfo()
+{
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*1, "Nintendont Loader v%d.%d (%s)", NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*2, "Built   : %s %s", __DATE__, __TIME__ );
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*3, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
 }

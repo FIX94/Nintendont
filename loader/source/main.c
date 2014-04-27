@@ -113,9 +113,7 @@ int main(int argc, char **argv)
 
 	FPAD_Init();
 
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*1, "Nintendont Loader r%d (%s)", NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*2, "Built   : %s %s", __DATE__, __TIME__ );
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*3, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
+	PrintInfo();
 	PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*1, "Home: Exit");
 	PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*2, "A   : Select");
 	
@@ -324,10 +322,8 @@ int main(int argc, char **argv)
 //sync changes
 	fatUnmount(GetRootDevice());
 	ClearScreen();
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*1, "Nintendont Loader r%d (%s)", NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*2, "Built   : %s %s", __DATE__, __TIME__ );
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*3, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
-	
+	PrintInfo();
+
 	WPAD_Disconnect(0);
 	WPAD_Disconnect(1);
 	WPAD_Disconnect(2);

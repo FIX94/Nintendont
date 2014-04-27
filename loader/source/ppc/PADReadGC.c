@@ -1,28 +1,18 @@
 #include "../../../common/include/CommonConfig.h"
+#include "global.h"
 #define PAD_CHAN0_BIT				0x80000000
-typedef struct _padstatus {
-	unsigned short button;
-	char stickX;
-	char stickY;
-	char substickX;
-	char substickY;
-	unsigned char triggerLeft;
-	unsigned char triggerRight;
-	unsigned char analogA;
-	unsigned char analogB;
-	char err;
-} PADStatus;
 
-static unsigned int chan, MaxPads;
-static volatile unsigned int PADButtonsStick, PADTriggerCStick;
-static unsigned int stubsize = 0x10000;
-static char *stubdest = (char*)0x80001800;
-static char *stubsrc = (char*)0x92010010;
-static volatile unsigned short* const _dspReg = (unsigned short*)0xCC005000;
-static volatile unsigned int* const _siReg = (unsigned int*)0xCD006400;
-static volatile unsigned int* const MotorCommand = (unsigned int*)0xD2003010;
-static char *a;
-unsigned int regs[29];
+static u32 chan, MaxPads;
+static vu32 PADButtonsStick, PADTriggerCStick;
+static u32 stubsize = 0x10000;
+static u8 *stubdest = (u8*)0x80001800;
+static u8 *stubsrc = (u8*)0x92010010;
+static vu16* const _dspReg = (u16*)0xCC005000;
+static vu32* const _siReg = (u32*)0xCD006400;
+static vu32* const MotorCommand = (u32*)0xD2003010;
+static u8 *a;
+u32 regs[29];
+const s8 DEADZONE = 0x1A;
 void _start()
 {
 	asm volatile(
@@ -58,15 +48,15 @@ void _start()
 		"stw %r30, 108(%r6)\n"
 		"stw %r31, 112(%r6)\n"
 	);
-	PADStatus *Pad = (PADStatus*)(((char*)regs[5])-0x30); //r5=return, 0x30 buffer before it
+	PADStatus *Pad = (PADStatus*)(((u8*)regs[5])-0x30); //r5=return, 0x30 buffer before it
 	MaxPads = ((NIN_CFG*)0xD2002A18)->MaxPads;
 	if ((MaxPads > NIN_CFG_MAXPAD) || (MaxPads == 0))
 		MaxPads = NIN_CFG_MAXPAD;
 	for (chan = 0; chan < MaxPads; ++chan)
 	{
 		/* transfer the actual data */
-		unsigned int x;
-		unsigned int addr = 0xCD006400 + (0x0c * chan);
+		u32 x;
+		u32 addr = 0xCD006400 + (0x0c * chan);
 		asm volatile("lwz %0,0(%1) ; sync" : "=r"(x) : "b"(addr));
 		//we just needed the first read to clear the status
 		asm volatile("lwz %0,4(%1) ; sync" : "=r"(x) : "b"(addr));
@@ -77,8 +67,8 @@ void _start()
 		Pad[chan].button = ((PADButtonsStick>>16)&0xFFFF);
 		if(Pad[chan].button & 0x8000) /* controller not enabled */
 		{
-			unsigned int psize = sizeof(PADStatus);
-			unsigned char *CurPad = (unsigned char*)(&Pad[chan]);
+			u32 psize = sizeof(PADStatus);
+			u8 *CurPad = (u8*)(&Pad[chan]);
 			while(psize--) *CurPad++ = 0;
 			Pad[chan].err = -1;
 			continue;
@@ -88,17 +78,27 @@ void _start()
 		Pad[chan].stickY = ((PADButtonsStick>>0)&0xFF)-128;
 		Pad[chan].substickX = ((PADTriggerCStick>>24)&0xFF)-128;
 		Pad[chan].substickY = ((PADTriggerCStick>>16)&0xFF)-128;
-		unsigned char tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
-		Pad[chan].triggerLeft = (tmp_triggerL > 0x24 ? tmp_triggerL : 0);	//apply DEADZONE
-		unsigned char tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
-		Pad[chan].triggerRight = (tmp_triggerR > 0x24 ? tmp_triggerR : 0);	//apply DEADZONE
-		
-		if((Pad[chan].button&0x234) == 0x234)	//shutdown by pressing B,Z,R,PAD_BUTTON_DOWN
+
+		/* Calculate left trigger with deadzone */
+		u8 tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
+		if(tmp_triggerL > DEADZONE)
+			Pad[0].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+		else
+			Pad[0].triggerLeft = 0;
+		/* Calculate right trigger with deadzone */
+		u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
+		if(tmp_triggerR > DEADZONE)
+			Pad[0].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
+		else
+			Pad[0].triggerRight = 0;
+
+		/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
+		if((Pad[chan].button&0x234) == 0x234)
 		{
 			/* stop audio dma */
 			_dspReg[27] = (_dspReg[27]&~0x8000);
 			/* reset status 1 */
-			volatile unsigned int* reset = (volatile unsigned int*)0x9200300C;
+			vu32* reset = (u32*)0x9200300C;
 			*reset = 1;
 			__asm("dcbf 0,%0" : : "b"(reset));
 			__asm("dcbst 0,%0 ; sync ; icbi 0,%0" : : "b"(reset));
@@ -110,7 +110,7 @@ void _start()
 			}
 			/* kernel accepted, load in stub */
 			while(stubsize--) *stubdest++ = *stubsrc++;
-			for (a = (char*)0x80001800; a < (char*)0x8000F000; a += 32)
+			for (a = (u8*)0x80001800; a < (u8*)0x8000F000; a += 32)
 			{
 				__asm("dcbf 0,%0" : : "b"(a));
 				__asm("dcbst 0,%0 ; sync ; icbi 0,%0" : : "b"(a));

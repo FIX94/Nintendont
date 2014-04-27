@@ -98,7 +98,7 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-	@cp $(OUTPUT).dol /g/apps/nintendont/boot.dol
+	@cp $(OUTPUT).dol ../nintendont/boot.dol
 
 #---------------------------------------------------------------------------------
 clean:
