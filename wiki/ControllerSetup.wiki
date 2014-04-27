@@ -1,0 +1,86 @@
+ 
+==Setting up the controller.ini==
+ 
+[http://det1re.de/a/sneek/sneek_div.png]
+ 
+
+ 
+Nintendont requires the sd:/controller.ini file when run on a Wii U, on a Wii this file is optional.
+ 
+
+ 
+When using Nintendont on Wii U HID is automatically enabled, it won't boot any game when no controller is connected.
+ 
+
+ 
+The file can only contain one controller config at a time.
+ 
+
+ 
+==Creating a new controller.ini for your controller==
+ 
+[http://det1re.de/a/sneek/sneek_div.png]
+ 
+
+ 
+You need my tool called HIDTest to determinate the values.
+ 
+
+ 
+Most entries should be obvious.
+ 
+
+ 
+All values are in hex, do not use the 0x prefix.
+ 
+
+ 
+Polltype:
+ 
+    Use 1 (so far only the PS3 controller needed 0)
+ 
+
+ 
+DPAD:
+ 
+    Certain pads use bits for each DPad direction other use numbers going
+ 
+    form 0 to 7 for each direction.
+ 
+
+ 
+    An easy test for this is if one direction doesn't change any bits then
+ 
+    use 1 and fill in all 8 values for the DPAD otherwise use 0 and just fill
+ 
+    in the four values. (see examples)
+ 
+
+ 
+DigitalLR:
+ 
+    If your pad doesn't have analog triggers for L and R, set this to 1.
+ 
+    It will consider the trigger buttons as fully pressed when you use L or R.
+ 
+
+ 
+MultiIn:
+ 
+    Certain USB adapters have multiple inputs here you can select
+ 
+    which port data to use.
+ 
+ 
+ 
+    First set MultiIn=1 and then set MultiInValue to either 0,1,2,..
+ 
+    it depends on the adapter and the port you are using.
+ 
+
+ 
+The rest uses [[Button]]=[[offset]],[[mask]] offset starts at 0.
+ 
+
+ 
+[http://det1re.de/a/sneek/sneek_div.png] 
