@@ -1,0 +1,54 @@
+ 
+==Installation==
+ 
+[http://det1re.de/a/sneek/sneek_div.png]
+ 
+
+ 
+Create a Nintendont folder in your sd:/apps folder and put the .dol renamed to boot.dol in there or directly load
+ 
+the .dol by any means.
+ 
+
+ 
+When loaded directly Nintendont looks for games at:
+ 
+
+ 
+`sd:/games/<anything>/game.iso`
+ 
+
+ 
+==General usage information==
+ 
+[http://det1re.de/a/sneek/sneek_div.png]
+ 
+
+ 
+The usage of HID devices is controlled via the nintendont config but forced on Wii U.
+ 
+
+ 
+When using HID a sd:/controller.ini must be present, a few samples are supplied.
+ 
+
+ 
+Nintendont uses a config file which is stored at sd:/nincfg.bin see nincfg.h.
+ 
+
+ 
+Loaders can use the auto boot flag in the config to directly boot games.
+ 
+
+ 
+When using the PS3 controller you must press the PS button first.
+ 
+
+ 
+When using the GC controller you can use R+Z+B+DPad-Down to shut down the console,
+ 
+when using a HID controller you have to map the Power entry to use this feature.
+ 
+
+ 
+On the first boot it will create a new memory card which takes some time. 
