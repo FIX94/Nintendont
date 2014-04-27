@@ -29,6 +29,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "patches.c"
 #include "debug.h"
 
+//#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
+
 #define GAME_ID		(read32(0))
 #define TITLE_ID	(GAME_ID >> 8)
 
@@ -136,6 +138,79 @@ const u32 DSPLength[] =
 	0x000017E0,		//	9
 	0x00001F00,		//	10
 };
+void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
+{
+	static const u32 MoveLength = 0x20;
+	static const u32 CopyLength = 0x12;
+	static const u32 CallLength = 0x2 + 0x2; // call (2) ; jmp (2)
+	static const u32 New1Length = 0x1 * 3 + 0x2 + 0x7; // 3 * orc (1) ; jmp (2) ; patch (7)
+	static const u32 New2Length = 0x1; // ret
+	u32 SourceAddr = Dup1 + MoveLength;
+	u32 DestAddr = Dup2 + CallLength + CopyLength + New2Length;
+	u32 Tmp;
+
+	DestAddr--;
+	W16((u32)ptr + (DestAddr)* 2, 0x02DF);  // nop (will be overwritten) ret
+	while (SourceAddr >= Dup1 + 1)  // ensure include Dup1 below
+	{
+		SourceAddr -= 2;
+		Tmp = R32((u32)ptr + (SourceAddr)* 2); // original instructions
+		if ((Tmp & 0xFFFFFFFF) == 0x195E2ED1) // lrri        $AC0.M srs         @SampleFormat, $AC0.M
+		{
+			DestAddr -= 7;
+			W32((u32)ptr + (DestAddr + 0x0) * 2, 0x03400003); // andi        $AC1.M, #0x0003
+			W32((u32)ptr + (DestAddr + 0x2) * 2, 0x8100009E); // clr         $ACC0 -
+			W32((u32)ptr + (DestAddr + 0x4) * 2, 0x200002CA); // lri         $AC0.M, 0x2000 lsrn
+			W16((u32)ptr + (DestAddr + 0x6) * 2, 0x1FFE);     // mrr     $AC1.M, $AC0.M
+			Tmp = Tmp | 0x00010100; // lrri        $AC1.M srs         @SampleFormat, $AC1.M
+		}
+		DestAddr -= 2;
+		W32((u32)ptr + (DestAddr)* 2, Tmp); // unchanged
+		if ((Tmp & 0x0000FFF1) == 0x00002ED0) // srs @ACxAH, $AC0.M
+		{
+			DestAddr -= 1;
+			W32((u32)ptr + (DestAddr)* 2, (Tmp & 0xFFFF0000) | 0x3E00); //  orc AC0.M AC1.M
+		}
+		if (DestAddr == Dup2 + CallLength) // CopyLength must be even
+		{
+			DestAddr = Dup1 + CallLength + MoveLength - CopyLength + New1Length;
+			DestAddr -= 2;
+			W32((u32)ptr + (DestAddr)* 2, 0x029F0000 | (Dup2 + CallLength)); // jmp Dup2+4
+		}
+	}
+	W32((u32)ptr + (Dup1 + 0x00) * 2, 0x02BF0000 | (Dup1 + CallLength)); // call Dup1+4
+	W32((u32)ptr + (Dup1 + 0x02) * 2, 0x029F0000 | (Dup1 + MoveLength)); // jmp Dup1+0x16
+	W32((u32)ptr + (Dup2 + 0x00) * 2, 0x02BF0000 | (Dup1 + CallLength)); // call Dup1+4
+	W32((u32)ptr + (Dup2 + 0x02) * 2, 0x029F0000 | (Dup2 + MoveLength)); // jmp Dup2+0x16
+	W32((u32)ptr + (Dup3 + 0x00) * 2, 0x02BF0000 | (Dup1 + CallLength)); // call Dup1+4
+	W32((u32)ptr + (Dup3 + 0x02) * 2, 0x029F0000 | (Dup3 + MoveLength)); // jmp Dup3+0x16
+	Tmp = R32((u32)ptr + (Dup1 + 0x98) * 2); // original instructions
+	W32((u32)ptr + (Dup1 + 0x98) * 2, 0x02BF0000 | (Dup3 + CallLength)); // call Dup3+4
+	W32((u32)ptr + (Dup2 + Dup2Offset) * 2, 0x02BF0000 | (Dup3 + CallLength)); // call Dup3+4
+
+	W16((u32)ptr + (Dup3 + 0x04) * 2, Tmp >> 16); //  original instructions (Start of Dup3+4 [0xB long])
+	W32((u32)ptr + (Dup3 + 0x05) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
+	W32((u32)ptr + (Dup3 + 0x07) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
+	W32((u32)ptr + (Dup3 + 0x09) * 2, 0x009E1FFF); // lri         $AC0.M, #0x1FFF
+	W16((u32)ptr + (Dup3 + 0x0B) * 2, 0x02CA);     // lsrn
+	W16((u32)ptr + (Dup3 + 0x0C) * 2, Tmp & 0xFFFF); //  original instructions
+	W32((u32)ptr + (Dup3 + 0x0D) * 2, 0x3D0002DF); // andc        $AC1.M, $AC0.M ret
+
+	W32((u32)ptr + (Dup3 + 0x0F) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
+	W32((u32)ptr + (Dup3 + 0x11) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
+	W32((u32)ptr + (Dup3 + 0x13) * 2, 0x009E1FFF); // lri         $AC0.M, #0x1FFF
+	W16((u32)ptr + (Dup3 + 0x15) * 2, 0x02CA);     // lsrn
+	Tmp = R32((u32)ptr + (Dup3 + 0x5D) * 2); // original instructions
+	W16((u32)ptr + (Dup3 + 0x16) * 2, Tmp >> 16); //  original instructions
+	W16((u32)ptr + (Dup3 + 0x17) * 2, 0x3D00); // andc        $AC1.M, $AC0.M
+	W16((u32)ptr + (Dup3 + 0x18) * 2, Tmp & 0xFFFF); //  original instructions
+	Tmp = R32((u32)ptr + (Dup3 + 0x5F) * 2); // original instructions
+	W32((u32)ptr + (Dup3 + 0x19) * 2, Tmp); //  original instructions includes ret
+
+	W32((u32)ptr + (Dup3 + 0x5D) * 2, 0x029F0000 | (Dup3 + CallLength + 0xB)); // jmp Dup3+0xF
+	return;
+}
+
 void write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
 {
 	if( read32(Offset) != CurrentValue )
@@ -441,6 +516,18 @@ void DoDSPPatch( char *ptr, u32 Version )
 			W32( (u32)ptr + 0xAF6 + 0, 0x02BF05D0 );
 
 		} break;
+		case 2:		// SSBM
+		{
+			PatchAX_Dsp( (u32)ptr, 0x5A8, 0x65D, 0x707, 0x8F);
+		} break;
+		case 3:		// Mario Party 5
+		{
+			PatchAX_Dsp( (u32)ptr, 0x6A3, 0x758, 0x802, 0x8F);
+		} break;
+		case 4:		// Beyond Good and Evil
+		{
+			PatchAX_Dsp( (u32)ptr, 0x6E0, 0x795, 0x83F, 0x8F);
+		} break;
 		case 5:
 		{		
 			// 5B2
@@ -452,6 +539,13 @@ void DoDSPPatch( char *ptr, u32 Version )
 			W32( (u32)ptr + 0xBE0 + 8, 0xFFD800FC );
 			W32( (u32)ptr + 0xBE0 +12, 0xFFD902DF );
 
+		} break;
+		case 6:		// Star Fox Assault
+		{
+			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, 0x814, 0xA4);
+		} break;
+		case 7:		// ??? Need example
+		{
 		} break;
 		case 8:			//	Donkey Kong Jungle Beat
 		{
@@ -472,6 +566,10 @@ void DoDSPPatch( char *ptr, u32 Version )
 
 			// 659
 			W32((u32)ptr + (0x0659 + 0) * 2, 0x02BF06E5); // call 0x06E5
+		} break; 
+		case 9:		// Paper Mario The Thousand Year Door
+		{
+			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, 0x7FD, 0x8F);
 		} break;
 		case 10:		// Animal Crossing
 		{
@@ -501,6 +599,9 @@ void DoDSPPatch( char *ptr, u32 Version )
 			// 109
 			W32((u32)ptr + (0x0109 + 0) * 2, 0x02BF0BE8); // call 0x0BE8
 
+		} break;
+		default:
+		{
 		} break;
 	}
 }
@@ -1193,7 +1294,15 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						if( memcmp( DSPHashes[m], hash, 0x14 ) == 0 )
 						{
 							Known = m;
-							DoDSPPatch( Buffer + i, m );
+#ifdef DEBUG_DSP
+							dbgprintf("DSP before Patch\n");
+							hexdump((void*)(Buffer + i), DSPLength[l]);
+#endif
+							DoDSPPatch(Buffer + i, m);
+#ifdef DEBUG_DSP
+							dbgprintf("DSP after Patch\n");
+							hexdump((void*)(Buffer + i), DSPLength[l]);
+#endif
 							break;
 						}
 					}

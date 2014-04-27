@@ -40,7 +40,13 @@ void BootStatusError(s32 Value, s32 error)
 	This automatically detects the misalignment and writes the value
 	via two 32bit writes
 */
-void W32( u32 Address, u32 Data )
+void W16(u32 Address, u16 Data)
+{
+	u32 Tmp = R32(Address);
+	W32(Address, (Tmp & 0xFFFF) | (Data << 16));
+}
+
+void W32(u32 Address, u32 Data)
 {
 	if( Address & 3 )
 	{		
