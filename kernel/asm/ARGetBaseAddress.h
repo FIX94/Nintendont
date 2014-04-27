@@ -1,0 +1,11 @@
+/*
+	Filename    : ARGetBaseAddress.bin
+	Date created: Sat Sep 28 10:11:43 2013
+*/
+
+#define ARGetBaseAddress_size 0xc
+
+const unsigned char ARGetBaseAddress[] = {
+
+	0x3C, 0x60, 0x20, 0x00, 	0x64, 0x63, 0x40, 0x00, 	0x4E, 0x80, 0x00, 0x20	
+};
