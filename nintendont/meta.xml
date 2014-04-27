@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="yes"?>
+<app version="1">
+<name>Nintendont</name>
+<coder>crediar, JoostinOnline</coder>
+<version>r22</version>
+<release_date>20131228000000</release_date>
+<short_description>Gamecube Loader</short_description>
+<long_description>Nintendont allows you to run GameCube games on a Wii or Wii U from an SD device.</long_description>
+<ahb_access/>
+</app>
