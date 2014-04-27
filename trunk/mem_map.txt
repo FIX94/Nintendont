@@ -1,0 +1,35 @@
+
+MEM1
+0x80002F00-0x00002F60=dvd interface
+0x00002F60=old memory card interface
+
+MEM2
+0x90000000-0x91000000=aram
+0x91000000-0x92000000(max)=memcard emu
+
+0x92000000-0x92002800=padread bin
+0x92002800-0x92002A18=nincfg
+
+0x92003000=ios58 rev
+0x92003004=hid thread status
+0x92003008=SIGetType Address
+0x9200300C=kernel reset
+
+0x92003010=pad rumble command chan0
+0x92003014=pad rumble command chan1
+0x92003018=pad rumble command chan2
+0x9200301C=pad rumble command chan3
+
+0x92003020-0x92003420=ios58 kernel path
+0x92003420-0x92005000=hid thread stack
+
+0x92005000-0x920050BC=hid controller positions
+0x920050C0=hid packet
+
+0x92010000=old memory card buffer,now EXI Interrupt Handler Status
+0x92010010-0x92020010=loader and our reload stub
+0x92100000=temporary di buffer
+
+Hardware Registers
+0x0D80600C=EXI Command/Loop
+0x0D806010=EXI Command Address
