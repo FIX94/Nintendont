@@ -189,15 +189,19 @@ void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 	W32((u32)ptr + (Dup2 + Dup2Offset) * 2, 0x02BF0000 | (Dup3 + CallLength)); // call Dup3+4
 
 	W16((u32)ptr + (Dup3 + 0x04) * 2, Tmp >> 16); //  original instructions (Start of Dup3+4 [0xB long])
-	W32((u32)ptr + (Dup3 + 0x05) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
-	W32((u32)ptr + (Dup3 + 0x07) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
+	//W32((u32)ptr + (Dup3 + 0x05) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
+	//W32((u32)ptr + (Dup3 + 0x07) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
+	W32((u32)ptr + (Dup3 + 0x05) * 2, 0x27D1009F); // lrs         $AC1.M, @SampleFormat -
+	W32((u32)ptr + (Dup3 + 0x07) * 2, 0x00038100); // lri         $AC1.M, #0x0003 clr         $ACC0
 	W32((u32)ptr + (Dup3 + 0x09) * 2, 0x009E1FFF); // lri         $AC0.M, #0x1FFF
 	W16((u32)ptr + (Dup3 + 0x0B) * 2, 0x02CA);     // lsrn
 	W16((u32)ptr + (Dup3 + 0x0C) * 2, Tmp & 0xFFFF); //  original instructions
 	W32((u32)ptr + (Dup3 + 0x0D) * 2, 0x3D0002DF); // andc        $AC1.M, $AC0.M ret
 
-	W32((u32)ptr + (Dup3 + 0x0F) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
-	W32((u32)ptr + (Dup3 + 0x11) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
+	//W32((u32)ptr + (Dup3 + 0x0F) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
+	//W32((u32)ptr + (Dup3 + 0x11) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
+	W32((u32)ptr + (Dup3 + 0x0F) * 2, 0x27D1009F); // lrs         $AC1.M, @SampleFormat -
+	W32((u32)ptr + (Dup3 + 0x11) * 2, 0x00038100); // lri         $AC1.M, #0x0003 clr         $ACC0
 	W32((u32)ptr + (Dup3 + 0x13) * 2, 0x009E1FFF); // lri         $AC0.M, #0x1FFF
 	W16((u32)ptr + (Dup3 + 0x15) * 2, 0x02CA);     // lsrn
 	Tmp = R32((u32)ptr + (Dup3 + 0x5D) * 2); // original instructions

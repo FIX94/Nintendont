@@ -40,6 +40,7 @@ u32 SRAMWriteCount=0;
 static u32 EXICommand = 0;
 static u32 BlockOff= 0;
 static u32 BlockOffLow = 0xFFFFFFFF;
+static u32 BlockOffHigh = 0x00000000;
 u8 *MCard = (u8 *)(0x11000000);
 u32 CARDWriteCount = 0;
 u32 IPLReadOffset;
@@ -167,7 +168,7 @@ void EXISaveCard(void)
 {
 	u32 wrote;
 	
-	if(BlockOffLow != 0xFFFFFFFF)
+	if (BlockOffLow < BlockOffHigh)
 	{
 //#ifdef DEBUG_EXI
 		dbgprintf("EXI: Saving memory card...");
@@ -177,7 +178,7 @@ void EXISaveCard(void)
 		{
 			sync_before_read(MCard, NIN_RAW_MEMCARD_SIZE);
 			f_lseek(&MemCard, BlockOffLow);
-			f_write(&MemCard, MCard + BlockOffLow, (NIN_RAW_MEMCARD_SIZE) - BlockOffLow, &wrote);
+			f_write(&MemCard, MCard + BlockOffLow, BlockOffHigh - BlockOffLow, &wrote);
 			f_close(&MemCard);
 	//#ifdef DEBUG_EXI
 			dbgprintf("Done!\n");
@@ -186,6 +187,7 @@ void EXISaveCard(void)
 			dbgprintf("Unable to open memory card file!\n");
 //#endif
 		BlockOffLow = 0xFFFFFFFF;
+		BlockOffHigh = 0x00000000;
 	}
 }
 
@@ -318,9 +320,6 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 #ifdef DEBUG_EXI
 						dbgprintf("EXI: CARDWritePage(%08X)\n", BlockOff );
 #endif
-						if(BlockOff < BlockOffLow)
-							BlockOffLow = BlockOff;
-							
 						EXICommand = MEM_BLOCK_WRITE;
 					} break;
 					case 0x52:
@@ -350,6 +349,11 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 				{
 					case MEM_BLOCK_WRITE:
 					{
+						if(BlockOff < BlockOffLow)
+							BlockOffLow = BlockOff;
+						if(BlockOff + Length > BlockOffHigh)
+							BlockOffHigh = BlockOff + Length;
+							
 						sync_before_read( Data, Length );
 
 						memcpy( MCard+BlockOff, Data, Length );
