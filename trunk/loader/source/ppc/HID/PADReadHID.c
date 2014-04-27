@@ -1,13 +1,14 @@
-#include "global.h"
 #include "../../../../common/include/CommonConfig.h"
+#include "../global.h"
 #include "HID.h"
 #include "hidmem.h"
-static unsigned int stubsize = 0x10000;
-static char *stubdest = (char*)0x80001800;
-static char *stubsrc = (char*)0x92010010;
-static volatile unsigned short* const _dspReg = (unsigned short*)0xCC005000;
-static char *a;
-unsigned int regs[29];
+
+static u32 stubsize = 0x10000;
+static u8 *stubdest = (u8*)0x80001800;
+static u8 *stubsrc = (u8*)0x92010010;
+static vu16* const _dspReg = (u16*)0xCC005000;
+static u8 *a;
+u32 regs[29];
 const s8 DEADZONE = 0x1A;
 void _start()
 {
@@ -51,7 +52,7 @@ void _start()
 		/* stop audio dma */
 		_dspReg[27] = (_dspReg[27]&~0x8000);
 		/* reset status 1 */
-		volatile unsigned int* reset = (volatile unsigned int*)0x9200300C;
+		vu32* reset = (u32*)0x9200300C;
 		*reset = 1;
 		__asm("dcbf 0,%0" : : "b"(reset));
 		__asm("dcbst 0,%0 ; sync ; icbi 0,%0" : : "b"(reset));
@@ -63,7 +64,7 @@ void _start()
 		}
 		/* kernel accepted, load in stub */
 		while(stubsize--) *stubdest++ = *stubsrc++;
-		for (a = (char*)0x80001800; a < (char*)0x8000F000; a += 32)
+		for (a = (u8*)0x80001800; a < (u8*)0x8000F000; a += 32)
 		{
 			__asm("dcbf 0,%0" : : "b"(a));
 			__asm("dcbst 0,%0 ; sync ; icbi 0,%0" : : "b"(a));
@@ -78,7 +79,7 @@ void _start()
 		return;
 	}
 
-	PADStatus *Pad = (PADStatus*)(((char*)regs[5])-0x30); //r5=return, 0x30 buffer before it
+	PADStatus *Pad = (PADStatus*)(((u8*)regs[5])-0x30); //r5=return, 0x30 buffer before it
 	Pad[0].err = 0;
 	Pad[1].err = -1;	// NO controller
 	Pad[2].err = -1;
@@ -191,32 +192,46 @@ void _start()
 	Pad[0].substickY = tmp_stick;
 
 	/* then triggers */
-	u8 tmp_triggerL = 0;
-	u8 tmp_triggerR = 0;
 	if( HID_CTRL->DigitalLR )
-	{
+	{	/* digital triggers, not much to do */
 		if(Pad[0].button & PAD_TRIGGER_L)
-			tmp_triggerL = 255;
+			Pad[0].triggerLeft = 255;
+		else
+			Pad[0].triggerLeft = 0;
 		if(Pad[0].button & PAD_TRIGGER_R)
-			tmp_triggerR = 255;
+			Pad[0].triggerRight = 255;
+		else
+			Pad[0].triggerRight = 0;
 	}
 	else
-	if ((HID_CTRL->VID == 0x0926) && (HID_CTRL->PID == 0x2526))	//Mayflash 3 in 1 Magic Joy Box 
-	{
-		tmp_triggerL =  HID_Packet[HID_CTRL->LAnalog] & 0xF0;	//high nibble raw 1x 2x ... Dx Ex 
-		tmp_triggerR = (HID_Packet[HID_CTRL->RAnalog] & 0x0F) * 16 ;	//low nibble raw x1 x2 ...xD xE
-		if(Pad[0].button & PAD_TRIGGER_L)
-			tmp_triggerL = 255;
-		if(Pad[0].button & PAD_TRIGGER_R)
-			tmp_triggerR = 255;
+	{	/* much to do with analog */
+		u8 tmp_triggerL = 0;
+		u8 tmp_triggerR = 0;
+		if ((HID_CTRL->VID == 0x0926) && (HID_CTRL->PID == 0x2526))	//Mayflash 3 in 1 Magic Joy Box 
+		{
+			tmp_triggerL =  HID_Packet[HID_CTRL->LAnalog] & 0xF0;	//high nibble raw 1x 2x ... Dx Ex 
+			tmp_triggerR = (HID_Packet[HID_CTRL->RAnalog] & 0x0F) * 16 ;	//low nibble raw x1 x2 ...xD xE
+			if(Pad[0].button & PAD_TRIGGER_L)
+				tmp_triggerL = 255;
+			if(Pad[0].button & PAD_TRIGGER_R)
+				tmp_triggerR = 255;
+		}
+		else	//standard analog triggers
+		{
+			tmp_triggerL = HID_Packet[HID_CTRL->LAnalog];
+			tmp_triggerR = HID_Packet[HID_CTRL->RAnalog];
+		}
+		/* Calculate left trigger with deadzone */
+		if(tmp_triggerL > DEADZONE)
+			Pad[0].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+		else
+			Pad[0].triggerLeft = 0;
+		/* Calculate right trigger with deadzone */
+		if(tmp_triggerR > DEADZONE)
+			Pad[0].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
+		else
+			Pad[0].triggerRight = 0;
 	}
-	else	//standard analog triggers
-	{
-		tmp_triggerL = HID_Packet[HID_CTRL->LAnalog];
-		tmp_triggerR = HID_Packet[HID_CTRL->RAnalog];
-	}
-	Pad[0].triggerLeft = (tmp_triggerL > 0x24 ? tmp_triggerL : 0);		//apply DEADZONE
-	Pad[0].triggerRight = (tmp_triggerR > 0x24 ? tmp_triggerR : 0);	//apply DEADZONE
 
 	asm volatile(
 		"lis %r6, regs@h\n"
