@@ -184,6 +184,10 @@ int _main( int argc, char *argv[] )
 	EXIInit();
 	BootStatus(11, s_size, s_cnt);
 
+//fixes issues in some japanese games
+	if((ConfigGetGameID() & 0xFF) == 'J')
+		write32(HW_PPCSPEED, 0x2A9E0);
+
 //Tell PPC side we are ready!
 	mdelay(1000);
 	BootStatus(0xdeadbeef, s_size, s_cnt);
