@@ -1,0 +1,49 @@
+==Troubleshooting==
+ 
+[http://det1re.de/a/sneek/sneek_div.png]
+ 
+
+ 
+When nintendont is loading a game you will see a running number unless it
+ 
+reaches 6 something went wrong:
+ 
+{{{
+ 
+-1: Kernel failed to load
+ 
+-3: HID init failed
+ 
+
+ 
+ 0: ES init failed
+ 
+ 1: SD init failed
+ 
+ 2: FAT init failed
+ 
+ 3: CFG init failed
+ 
+ 4: HID init failed
+ 
+ 5: DI init failed
+ 
+ 6: CARD init failed (It will wait here while creating a new memory card)
+ 
+ }}}
+ 
+If SD or FAT fail your SD card is probably not compatible.
+ 
+
+ 
+HID can fail if there are mistakes in the controller.ini or the controller isn't
+ 
+supported.
+ 
+
+ 
+DI fails if something is wrong with your game ISO.
+ 
+
+ 
+ES has a rare chance of crashing just reset your Wii/Wii U. 
