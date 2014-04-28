@@ -89,13 +89,15 @@ s32 __IOS_LoadStartupIOS(void)
 u32 entrypoint = 0;
 extern void __exception_closeall();
 extern void udelay(u32 us);
+static u8 loader_stub[0x1800]; //save internally to prevent overwriting
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
 	__exception_setreload(10);
 	CheckForGecko();
-	u8 *loader_stub = malloc(0x1800);
+	DCInvalidateRange(loader_stub, 0x1800);
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
+	DCFlushRange(loader_stub, 0x1800);
 
 	if( !IsWiiU() )
 	{
@@ -316,9 +318,10 @@ int main(int argc, char **argv)
 			char NullChar[1];
 			NullChar[0] = 0;
 			fwrite(NullChar, 1, NIN_RAW_MEMCARD_SIZE, f);
-			fclose(f);
 			gprintf("Memory Card File created!\n");
 		}
+		if(f != NULL)
+			fclose(f);
 	}
 //sync changes
 	fatUnmount(GetRootDevice());
@@ -632,12 +635,12 @@ int main(int argc, char **argv)
 	memcpy((void*)0x92010010, loader_stub, 0x1800);
 	memcpy((void*)0x9201A810, stub_bin, stub_bin_size); /* 0xC0 (our stub) - 0x18 (loader stub) = 0xA8 */
 	DCFlushRange((void*)0x92010010, 0x10000);
-	free(loader_stub);
 
 	DCInvalidateRange((void*)0x92003000, 0x20);
 	*(vu32*)0x92003000 = currev; //set kernel rev
 	*(vu32*)0x92003008 = 0x80000004; //just some address for SIGetType
-	DCFlushRange((void*)0x92003010, 0x20);
+	memset((void*)0x92003010, 0, 0x10); //disable rumble on bootup
+	DCFlushRange((void*)0x92003000, 0x20);
 
 	*(vu32*)(0xCD8B420A) = 0;	// Disable MEM2 protection again after ios reload
 	//u32 level = IRQ_Disable();

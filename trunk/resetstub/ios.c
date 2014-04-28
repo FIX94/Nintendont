@@ -330,4 +330,5 @@ void ios_reload(void)
 	ipc_wait_ack();
 	usbgecko_printf("got back ipc\n");
 	ipc_write(1,56);
+	ipc_wait_ack();
 }
