@@ -100,29 +100,21 @@ void _start()
 			/* reset status 1 */
 			vu32* reset = (u32*)0x9200300C;
 			*reset = 1;
-			__asm("dcbf 0,%0" : : "b"(reset));
-			__asm("dcbst 0,%0 ; sync ; icbi 0,%0" : : "b"(reset));
-			__asm("sync ; isync");
+			__asm("dcbst 0,%0 ; sync" : : "b"(reset));
 			while(*reset == 1)
-			{
-				__asm("dcbi 0,%0" : : "b"(reset) : "memory");
-				__asm("sync ; isync");
-			}
+				__asm("dcbi 0,%0 ; sync" : : "b"(reset) : "memory");
+
 			/* kernel accepted, load in stub */
 			while(stubsize--) *stubdest++ = *stubsrc++;
 			for (a = (u8*)0x80001800; a < (u8*)0x8000F000; a += 32)
-			{
-				__asm("dcbf 0,%0" : : "b"(a));
-				__asm("dcbst 0,%0 ; sync ; icbi 0,%0" : : "b"(a));
-			}
+				__asm("dcbst 0,%0 ; sync" : : "b"(a));
+
 			__asm(
-				"sync ; isync\n"
 				"lis %r3, 0x8000\n"
 				"ori %r3, %r3, 0xC000\n"
 				"mtlr %r3\n"
 				"blr\n"
 			);
-			return;
 		}
 		/* clear unneeded button attributes */
 		Pad[chan].button &= 0x9F7F;
