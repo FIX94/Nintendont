@@ -164,7 +164,7 @@ int main(int argc, char **argv)
     if(meta != NULL)
 	{
 		fprintf(meta, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
-		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>r%d</version>\r\n", META_AUTHOR, NIN_VERSION&0xFFFF);		
+		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);		
 		fprintf(meta, "\t<release_date>20131228000000</release_date>\r\n");		
 		fprintf(meta, "\t<short_description>%s</short_description>\r\n", META_SHORT);
 		fprintf(meta, "\t<long_description>%s\r\n\r\n%s</long_description>\r\n", META_LONG1, META_LONG2);
