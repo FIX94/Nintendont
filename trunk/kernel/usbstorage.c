@@ -77,6 +77,8 @@ distribution.
 
 #define DEVLIST_MAXSIZE    			8
 
+#include "debug.h"
+
 static int ums_init_done = 0;
 static int used_port = 0;
 
@@ -881,7 +883,7 @@ s32 USBStorage_Init(void)
 {
 	int i;
 	
-	//debug_printf("usbstorage init %d\n", ums_init_done);
+	//dbgprintf("usbstorage init %d\n", ums_init_done);
 	if(ums_init_done)
 		return 0;
 		

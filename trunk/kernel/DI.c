@@ -49,7 +49,7 @@ u32 StreamTimer		= 0;
 u32 StreamStopEnd	= 0;
 u32 DiscChangeIRQ	= 0;
 
-FIL GameFile;
+extern FIL GameFile;
 
 static char GamePath[256] ALIGNED(32);
 
@@ -60,7 +60,7 @@ void DIinit( void )
 {
 	u32 read;
 
-	dbgprintf("DIInit()\n");
+	dbgprintf("DIInit()\r\n");
 
 	s32 ret = f_open( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
 	if( ret != FR_OK )
@@ -70,7 +70,7 @@ void DIinit( void )
 		//Try to switch to FST mode
 		if( !FSTInit(GamePath) )
 		{
-			dbgprintf("Failed to open:%s Error:%u\n", ConfigGetGamePath(), ret );	
+			dbgprintf("Failed to open:%s Error:%u\r\n", ConfigGetGamePath(), ret );	
 			Shutdown();
 		}
 	} else {
@@ -109,12 +109,12 @@ void DIChangeDisc( u32 DiscNumber )
 	else
 		_sprintf( str+i, "disc2.iso" );
 
-	dbgprintf("New Gamepath:\"%s\"\n", str );
+	dbgprintf("New Gamepath:\"%s\"\r\n", str );
 	
 	s32 ret = f_open( &GameFile, str, FA_READ|FA_OPEN_EXISTING );
 	if( ret  != FR_OK )
 	{
-		dbgprintf("Failed to open:%s Error:%u\n", str, ret );
+		dbgprintf("Failed to open:%s Error:%u\r\n", str, ret );
 		Shutdown();
 	}
 
@@ -124,7 +124,7 @@ void DIChangeDisc( u32 DiscNumber )
 	f_lseek( &GameFile, 0 );
 	f_read( &GameFile, str, 0x400, &read );
 
-	dbgprintf("DIP:Loading game %.6s: %s\n", str, (char *)(str+0x20));
+	dbgprintf("DIP:Loading game %.6s: %s\r\n", str, (char *)(str+0x20));
 
 	f_lseek( &GameFile, 0x420 );
 	f_read( &GameFile, str, 0x40, &read );
@@ -166,11 +166,11 @@ void DIUpdateRegisters( void )
 			{
 				default:
 				{
-					dbgprintf("DI: Unknown command:%02X\n", DIcommand );
+					dbgprintf("DI: Unknown command:%02X\r\n", DIcommand );
 
 					for( i = 0; i < 0x30; i+=4 )
-						dbgprintf("0x%08X:0x%08X\t0x%08X\n", i, read32( DI_BASE + i ), read32( DI_SHADOW + i ) );
-					dbgprintf("\n");
+						dbgprintf("0x%08X:0x%08X\t0x%08X\r\n", i, read32( DI_BASE + i ), read32( DI_SHADOW + i ) );
+					dbgprintf("\r\n");
 
 					memset32( (void*)DI_BASE, 0xdeadbeef, 0x30 );
 					memset32( (void*)(DI_SHADOW), 0, 0x30 );
@@ -190,7 +190,7 @@ void DIUpdateRegisters( void )
 							if( read32(DI_SCMD_1) == 0 && read32(DI_SCMD_2) == 0 )
 							{	
 								StreamStopEnd = 1;						
-								dbgprintf("DIP:DVDPrepareStreamAbsAsync( %08X, %08X )\n", read32(DI_SCMD_1), read32(DI_SCMD_2) );
+								dbgprintf("DIP:DVDPrepareStreamAbsAsync( %08X, %08X )\r\n", read32(DI_SCMD_1), read32(DI_SCMD_2) );
 							} else {
 
 								StreamDiscOffset= read32(DI_SCMD_1)<<2;
@@ -200,16 +200,16 @@ void DIUpdateRegisters( void )
 								StreamStopEnd	= 0;
 								StreamTimer		= read32(HW_TIMER);
 								
-								dbgprintf("DIP:Streaming %ds of audio...\n", StreamSize / 32 * 28 / 48043 );
-								dbgprintf("DIP:Size:%u\n", StreamSize );
-								dbgprintf("DIP:Samples:%u\n", StreamSize / (SAMPLES_PER_BLOCK*sizeof(u16)) );
+								dbgprintf("DIP:Streaming %ds of audio...\r\n", StreamSize / 32 * 28 / 48043 );
+								dbgprintf("DIP:Size:%u\r\n", StreamSize );
+								dbgprintf("DIP:Samples:%u\r\n", StreamSize / (SAMPLES_PER_BLOCK*sizeof(u16)) );
 #ifdef AUDIOSTREAM
 								f_lseek( &GameFile, StreamDiscOffset );
 								ret = f_read( &GameFile, (void*)(StreamBuffer+0x1000), StreamSize, &read );
 
 								if( read != StreamSize )
 								{
-									dbgprintf("DIP:Failed to read:%u(%u) Error:%u\n", StreamSize, read, ret );
+									dbgprintf("DIP:Failed to read:%u(%u) Error:%u\r\n", StreamSize, read, ret );
 									Shutdown();
 								}
 								
@@ -291,8 +291,8 @@ void DIUpdateRegisters( void )
 								//sync_after_write( (void*)0, 0x20 );
 #endif
 								
-								dbgprintf("DIP:Streaming %ds of audio...\n", StreamSize / 32 * 28 / 48043 );  
-								dbgprintf("DIP:DVDPrepareStreamAbsAsync( %08X, %08X )\n", StreamDiscOffset, StreamSize );
+								dbgprintf("DIP:Streaming %ds of audio...\r\n", StreamSize / 32 * 28 / 48043 );  
+								dbgprintf("DIP:DVDPrepareStreamAbsAsync( %08X, %08X )\r\n", StreamDiscOffset, StreamSize );
 							}
 						} break;
 						case 0x01:
@@ -302,11 +302,11 @@ void DIUpdateRegisters( void )
 							StreamOffset	= 0;
 							Streaming		= 0;
 							
-							dbgprintf("DIP:DVDCancelStreamAsync()\n");
+							dbgprintf("DIP:DVDCancelStreamAsync()\r\n");
 						} break;
 						default:
 						{
-							dbgprintf("DIP:DVDStream(%d)\n", (read32(DI_SCMD_0) >> 16 ) & 0xFF );
+							dbgprintf("DIP:DVDStream(%d)\r\n", (read32(DI_SCMD_0) >> 16 ) & 0xFF );
 						} break;
 					} 
 					
@@ -323,7 +323,7 @@ void DIUpdateRegisters( void )
 						} break;
 						case 0x01000000:	// What is the current address?
 						{
-							dbgprintf("DIP:StreamInfo:Cur:%08X End:%08X\n", StreamOffset, StreamSize );
+							dbgprintf("DIP:StreamInfo:Cur:%08X End:%08X\r\n", StreamOffset, StreamSize );
 							write32( DI_SIMM, ((StreamDiscOffset+StreamOffset) >> 2) & (~0x1FFF) );
 						} break;
 						case 0x02000000:	// disc offset of file
@@ -336,16 +336,16 @@ void DIUpdateRegisters( void )
 						} break;
 					}
 
-				//	dbgprintf("DIP:DVDLowAudioGetConfig( %d, %08X )\n", (read32(DI_SCMD_0)>>16)&0xFF, read32(DI_SIMM) );
+				//	dbgprintf("DIP:DVDLowAudioGetConfig( %d, %08X )\r\n", (read32(DI_SCMD_0)>>16)&0xFF, read32(DI_SIMM) );
 					
 					DIOK = 2;		
 
 				} break;
 				case 0xE3:	// stop Motor
 				{
-					dbgprintf("DIP:DVDLowStopMotor()\n");
+					dbgprintf("DIP:DVDLowStopMotor()\r\n");
 					u32 CDiscNumber = (read32(4) << 16 ) >> 24;
-					dbgprintf("DIP:Current disc number:%u\n", CDiscNumber + 1 );
+					dbgprintf("DIP:Current disc number:%u\r\n", CDiscNumber + 1 );
 
 					DIChangeDisc( CDiscNumber ^ 1 );
 
@@ -363,13 +363,13 @@ void DIUpdateRegisters( void )
 				} break;
 				case 0xA7:
 				case 0xA9:
-					//dbgprintf("DIP:Async!\n");
+					//dbgprintf("DIP:Async!\r\n");
 				case 0xA8:
 				{
 					u32 Buffer	= P2C(read32(DI_SDMA_ADR));
 					u32 Length	= read32(DI_SCMD_2);
 					u32 Offset	= read32(DI_SCMD_1) << 2;
-					dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", read32(DI_SCMD_0) >> 24, Offset, Length, Buffer|0x80000000 );
+					dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\r\n", read32(DI_SCMD_0) >> 24, Offset, Length, Buffer|0x80000000 );
 					memset32((void*)0x12100000, 0, Length);
 					if( FSTMode )
 						FSTRead( GamePath, (char*)0x12100000, Length, Offset );
@@ -379,10 +379,10 @@ void DIUpdateRegisters( void )
 							f_lseek( &GameFile, Offset );
 
 						s32 ret = f_read( &GameFile, (void*)0x12100000, Length, &read );
-				//		dbgprintf( "%d\n", read );
+				//		dbgprintf( "%d\r\n", read );
 						if( ret != FR_OK )
 						{
-							dbgprintf( "f_read failed(%u,%u):%d\n", Length, read, ret );
+							dbgprintf( "f_read failed(%u,%u):%d\r\n", Length, read, ret );
 							Shutdown();
 						}
 					}

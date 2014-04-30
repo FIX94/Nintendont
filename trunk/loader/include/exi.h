@@ -25,12 +25,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdarg.h>
 #include <string.h>
 #include <ogc/usbgecko.h>
-
-
-#define	EXI_BASE	0xCD006800
-#define EXI			0xCD006814
+#include "global.h"
 
 void CheckForGecko(void);
+
+#ifdef DEBUG
 int gprintf(const char *str, ...);
+#else
+#define gprintf(...) 0
+#endif
 
 #endif

@@ -260,7 +260,7 @@ s32 SDHCInit()
 	status = (u32*)malloc(sizeof(u32));
 	struct _sdioresponse resp;
 	
-	dbgprintf("SDHCInit()\n");
+	dbgprintf("SDHCInit()\r\n");
 
 	__sd0_rca = 0;
 	__sd0_initialized = 0;
@@ -273,12 +273,12 @@ s32 SDHCInit()
 	request = (struct _sdiorequest*)malloc( sizeof(struct _sdiorequest) );
 	response = (struct _sdioresponse*)malloc( sizeof(struct _sdioresponse) );
 	
-	dbgprintf("SD:Heap:%X\n", rw_buffer );
+	dbgprintf("SD:Heap:%X\r\n", rw_buffer );
 
 	__sd0_fd = IOS_Open(_sd0_fs,1);
 	if ( __sd0_fd < 0 )
 	{
-		dbgprintf("Failed to SD\n");
+		dbgprintf("Failed to SD\r\n");
 		return __sd0_fd;
 	}
 
@@ -387,7 +387,7 @@ s32 SDHCInit()
 	return true;
 
 fail:
-	dbgprintf("SDInit failed\n");
+	dbgprintf("SDInit failed\r\n");
 	__sdio_sethcr(SDIOHCR_SOFTWARERESET, 1, 7);
 	__sdio_waithcr(SDIOHCR_SOFTWARERESET, 1, 1, 7);
 	IOS_Close(__sd0_fd);

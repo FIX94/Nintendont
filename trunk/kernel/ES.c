@@ -86,11 +86,11 @@ u32 ES_Init( u8 *MessageHeap )
 	SetGID( pid, 0 );
 #ifdef DEBUG_ES
 	u32 version = KernelGetVersion();
-	dbgprintf("ES:KernelVersion:%08X, %d\n", version, (version<<8)>>0x18 );
+	dbgprintf("ES:KernelVersion:%08X, %d\r\n", version, (version<<8)>>0x18 );
 #endif
 	ES_BootSystem();
 	
-	dbgprintf("ES:TitleID:%08x-%08x version:%d\n", (u32)((TitleID)>>32), (u32)(TitleID), TitleVersion );
+	dbgprintf("ES:TitleID:%08x-%08x version:%d\r\n", (u32)((TitleID)>>32), (u32)(TitleID), TitleVersion );
 		
 	return MessageQueue;
 }
@@ -102,7 +102,7 @@ s32 ES_BootSystem( void )
 
 	u32 IOSVersion = 55;
 	
-	dbgprintf("ES:Loading IOS%d ...\n", IOSVersion );
+	dbgprintf("ES:Loading IOS%d ...\r\n", IOSVersion );
 
 //Load TMD of the requested IOS and build KernelVersion
 	_sprintf( path, "/title/00000001/%08x/content/title.tmd", IOSVersion );
@@ -110,7 +110,7 @@ s32 ES_BootSystem( void )
 	TitleMetaData *TMD = (TitleMetaData *)NANDLoadFile( path, size );
 	if( TMD == NULL )
 	{
-		dbgprintf("ES:Failed to open:\"%s\":%d\n", path, *size );
+		dbgprintf("ES:Failed to open:\"%s\":%d\r\n", path, *size );
 		free( path );
 		free( size );		
 		Shutdown();
@@ -121,13 +121,13 @@ s32 ES_BootSystem( void )
 	KernelSetVersion( KernelVersion );
 #ifdef DEBUG_ES
 	u32 version = KernelGetVersion();
-	dbgprintf("ES:KernelVersion:%08X, %d\n", version, (version<<8)>>0x18 );
+	dbgprintf("ES:KernelVersion:%08X, %d\r\n", version, (version<<8)>>0x18 );
 #endif
 	free( TMD );
 #ifndef NINTENDONT_USB
 
 	s32 r = LoadModules( IOSVersion );
-	dbgprintf("ES:ES_LoadModules(%d):%d\n", IOSVersion, r );
+	dbgprintf("ES:ES_LoadModules(%d):%d\r\n", IOSVersion, r );
 	if( r < 0 )
 	{
 		Shutdown();
@@ -166,14 +166,14 @@ s32 LoadModules( u32 IOSVersion )
 
 	if( TMD->ContentCount == 3 )	// STUB detected!
 	{
-		dbgprintf("ES:STUB IOS detected, falling back to IOS35\n");
+		dbgprintf("ES:STUB IOS detected, falling back to IOS35\r\n");
 		free( path );
 		free( KeyID );
 		free( size );
 		return LoadModules( 35 );
 	}
 	
-	dbgprintf("ES:ContentCount:%d\n", TMD->ContentCount );
+	dbgprintf("ES:ContentCount:%d\r\n", TMD->ContentCount );
 
 	for( i=0; i < TMD->ContentCount; ++i )
 	{
@@ -223,8 +223,8 @@ s32 LoadModules( u32 IOSVersion )
 
 			if( (s32)ID == ES_FATAL )
 			{
-				dbgprintf("ES:Fatal error: required shared content not found!\n");
-				dbgprintf("Hash:\n");
+				dbgprintf("ES:Fatal error: required shared content not found!\r\n");
+				dbgprintf("Hash:\r\n");
 				hexdump( TMD->Contents[i].SHA1, 0x14 );
 				Shutdown();
 
@@ -236,12 +236,12 @@ s32 LoadModules( u32 IOSVersion )
 			_sprintf( path, "/title/00000001/%08x/content/%08x.app", IOSVersion, TMD->Contents[i].ID );
 		}		
 		
-		dbgprintf("ES:Loaded Module(%d):\"%s\"\n", i, path );
+		dbgprintf("ES:Loaded Module(%d):\"%s\"\r\n", i, path );
 		r = LoadModule( path );
 		if( r < 0 )
 		{
-			dbgprintf("ES:Fatal error: module failed to start!\n");
-			dbgprintf("ret:%d\n", r );
+			dbgprintf("ES:Fatal error: module failed to start!\r\n");
+			dbgprintf("ret:%d\r\n", r );
 			Shutdown();
 		}
 	}
@@ -346,7 +346,7 @@ s32 GetUID( u64 *TitleID, u16 *UID )
 	if( uid == NULL )
 	{
 		free( path );
-		dbgprintf("ES:ESP_GetUID():Could not open \"/sys/uid.sys\"! Error:%d\n", *size );
+		dbgprintf("ES:ESP_GetUID():Could not open \"/sys/uid.sys\"! Error:%d\r\n", *size );
 		return *size;		
 	}
 
@@ -383,7 +383,7 @@ s32 GetUID( u64 *TitleID, u16 *UID )
 
 		*UID = 0x1000+*size/12+1;
 		
-		dbgprintf("ES:TitleID not found adding new UID:0x%04x\n", *UID );
+		dbgprintf("ES:TitleID not found adding new UID:0x%04x\r\n", *UID );
 
 		s32 r = IOS_Seek( fd, 0, SEEK_END );
 		if( r < 0 )
@@ -416,7 +416,7 @@ s32 ES_CheckSharedContent( void *ContentHash )
 {
 	if( *CNTMapDirty )
 	{
-		dbgprintf("ES:Loading content.map...\n");
+		dbgprintf("ES:Loading content.map...\r\n");
 
 		if( CNTMap != NULL )
 		{
@@ -451,7 +451,7 @@ s32 GetSharedContentID( void *ContentHash )
 {
 	if( *CNTMapDirty )
 	{
-		dbgprintf("ES:Loading content.map...\n");
+		dbgprintf("ES:Loading content.map...\r\n");
 
 		if( CNTMap != NULL )
 		{

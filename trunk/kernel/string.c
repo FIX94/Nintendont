@@ -161,7 +161,7 @@ void hexdump(void *d, int len)
     for(i=0; i<16; i++)
       if((i+off)>=len) dbgprintf(" ");
       else dbgprintf("%c",ascii(data[off+i]));
-    dbgprintf("\n");
+    dbgprintf("\r\n");
   }
 }
 #endif

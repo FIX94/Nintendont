@@ -74,7 +74,7 @@ DSTATUS disk_initialize(BYTE drv, WORD *ss)
 	
 	while(1)
 	{
-		dbgprintf("USB:Discovering EHCI devices...\n");
+		dbgprintf("USB:Discovering EHCI devices...\r\n");
 		while(ehci_discover() == -ENODEV)
 			udelay(4000);
 	
@@ -92,7 +92,7 @@ DSTATUS disk_initialize(BYTE drv, WORD *ss)
 	
 	buffer = (u8*)malloca(max_sec * s_size, 32);
 	
-	dbgprintf("USB:Drive size: %dMB SectorSize:%d\n", s_cnt / 1024 * s_size / 1024, s_size);
+	dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
 
 	return r;
 }
@@ -116,7 +116,7 @@ DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 
 		if(USBStorage_Read_Sectors(sector+t_read, r_sec, buffer) != 1)
 		{
-			dbgprintf("USB:Failed to read from USB device... Sector: %d Count: %d dst: %p\n", sector, count, buff);
+			dbgprintf("USB:Failed to read from USB device... Sector: %d Count: %d dst: %p\r\n", sector, count, buff);
 			return RES_ERROR;
 		}
 		memcpy(buff, buffer, r_sec * s_size);
@@ -142,7 +142,7 @@ DRESULT disk_write(BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
 
 		if(USBStorage_Write_Sectors(sector + t_write, w_sec, buffer) != 1)
 		{
-			dbgprintf("USB: Failed to write to USB device... Sector: %d Count: %d dst: %p\n", sector, count, buff);
+			dbgprintf("USB: Failed to write to USB device... Sector: %d Count: %d dst: %p\r\n", sector, count, buff);
 			return RES_ERROR;
 		}
 	
