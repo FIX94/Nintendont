@@ -94,7 +94,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 	*NKernelSize = 0;
 
 #ifdef DEBUG_MODULE_PATCH
-	gprintf("LoaderSize:%08X\n", loadersize );
+	gprintf("LoaderSize:%08X\r\n", loadersize );
 #endif
 
 	if( loadersize == 0 )
@@ -112,14 +112,14 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 	Elf32_Ehdr *outhdr = (Elf32_Ehdr *)(buf+loadersize);
 	
 #ifdef DEBUG_MODULE_PATCH
-	gprintf("PHeaders:%d\n", inhdr->e_phnum );
-	gprintf("PHOffset:%d\n", inhdr->e_phoff );
+	gprintf("PHeaders:%d\r\n", inhdr->e_phnum );
+	gprintf("PHOffset:%d\r\n", inhdr->e_phoff );
 #endif
 
 	if( inhdr->e_phnum == 0 )
 	{
 #ifdef DEBUG_MODULE_PATCH
-		gprintf("Error program header entries are zero!\n");
+		gprintf("Error program header entries are zero!\r\n");
 #endif
 	} else {
 	
@@ -130,7 +130,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 			if( (phdr->p_vaddr & 0xF0000000) == 0x20000000  )
 			{
 #ifdef DEBUG_MODULE_PATCH
-				gprintf("Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\n", (phdr->p_type), (phdr->p_offset), (phdr->p_vaddr), (phdr->p_paddr), (phdr->p_filesz), (phdr->p_memsz) );
+				gprintf("Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (phdr->p_type), (phdr->p_offset), (phdr->p_vaddr), (phdr->p_paddr), (phdr->p_filesz), (phdr->p_memsz) );
 #endif
 				if( (phdr->p_filesz) > 100*1024*1024 )
 					continue;
@@ -157,7 +157,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
 												
 #ifdef DEBUG_MODULE_PATCH
-						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
+						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
 						break;
 					} else if( (ophdr->p_vaddr) == 0x2010D000 && (phdr->p_vaddr) == 0x2010D000 )
@@ -177,7 +177,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
 						
 #ifdef DEBUG_MODULE_PATCH
-						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
+						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
 						break;
 					}
@@ -190,7 +190,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
 						
 #ifdef DEBUG_MODULE_PATCH
-						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
+						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
 						goto done;
 					}
@@ -213,7 +213,7 @@ done:
 			if( memcmp( NKernel+i, UnusedSWI, sizeof(UnusedSWI) ) == 0 )
 			{
 #ifdef DEBUG_MODULE_PATCH
-				gprintf("Found Unused SWI at %08X\n", i );
+				gprintf("Found Unused SWI at %08X\r\n", i );
 #endif
 				memcpy( NKernel+i, EXISendBuffer, sizeof( EXISendBuffer ) );
 				PatchCount |= 1;
@@ -222,7 +222,7 @@ done:
 			if( memcmp( NKernel+i, swi_v80, sizeof(swi_v80) ) == 0 )
 			{
 #ifdef DEBUG_MODULE_PATCH
-				gprintf("Found SWI at %08X\n", i );
+				gprintf("Found SWI at %08X\r\n", i );
 #endif
 				memcpy( NKernel+i, swipatch_v80, sizeof( swipatch_v80 ) );
 				PatchCount |= 2;
@@ -232,7 +232,7 @@ done:
 		if( memcmp( NKernel+i, HWAccess_ES, sizeof(HWAccess_ES) ) == 0 )
 		{
 #ifdef DEBUG_MODULE_PATCH
-			gprintf("Found HWAccess_ES at %08X\n", i );
+			gprintf("Found HWAccess_ES at %08X\r\n", i );
 #endif
 			// Hollywood21 patch works with all Wiis, but breaks Shutdown call.
 			// If possible combine with this fixed.
@@ -262,23 +262,23 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	s32 r = ES_GetStoredTMDSize( 0x000000010000003aLL, &TMDSize );
 	if( r < 0 )
 	{
-		gprintf("ES_GetStoredTMDSize():%d\n", r );
+		gprintf("ES_GetStoredTMDSize():%d\r\n", r );
 		return r;
 	}
 
-	gprintf("TMDSize:%u\n", TMDSize );
+	gprintf("TMDSize:%u\r\n", TMDSize );
 
 	TitleMetaData *TMD = (TitleMetaData*)memalign( 32, TMDSize );
 	if( TMD == (TitleMetaData*)NULL )
 	{
-		gprintf("Failed to alloc:%u\n", TMDSize );
+		gprintf("Failed to alloc:%u\r\n", TMDSize );
 		return r;	//todo errors are < 0 r still has >= 0 from previous call
 	}
 
 	r = ES_GetStoredTMD( 0x000000010000003aLL, (signed_blob *)TMD, TMDSize );
 	if( r < 0 )
 	{
-		gprintf("ES_GetStoredTMD():%d\n", r );
+		gprintf("ES_GetStoredTMD():%d\r\n", r );
 		return r;
 	}
 
@@ -289,12 +289,12 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 			break;
 	}
 	
-	gprintf("BootIndex:%u\n", i );
+	gprintf("BootIndex:%u\r\n", i );
 
 	s32 cfd = IOS_Open( "/shared1/content.map", 1 );
 	if( cfd < 0 )
 	{
-		gprintf("IOS_Open():%d\n", cfd );
+		gprintf("IOS_Open():%d\r\n", cfd );
 		return cfd;
 	}
 
@@ -304,7 +304,7 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	{
 		if( IOS_Read( cfd, Entry, 0x1C ) != 0x1C )
 		{
-			gprintf("Hash not found in content.map\n");
+			gprintf("Hash not found in content.map\r\n");
 			return -2;
 		}
 
@@ -320,12 +320,12 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	memset(Path, 0, 1024);
 	sprintf( Path, "/shared1/%.8s.app", (char*)Entry );
 	DCFlushRange(Path, 1024);
-	gprintf("Kernel:\"%s\"\n", Path );
+	gprintf("Kernel:\"%s\"\r\n", Path );
 
 	s32 kfd = IOS_Open( Path, 1 );
 	if( kfd < 0 )
 	{
-		gprintf("IOS_Open():%d\n", cfd );
+		gprintf("IOS_Open():%d\r\n", cfd );
 		
 		free(Entry);
 		return kfd;
@@ -334,11 +334,11 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	*KernelSize = IOS_Seek( kfd, 0, SEEK_END );
 	IOS_Seek( kfd, 0, 0);
 
-	gprintf("KernelSize:%u\n", *KernelSize );
+	gprintf("KernelSize:%u\r\n", *KernelSize );
 
 	if( IOS_Read( kfd, Kernel, *KernelSize ) != *KernelSize )
 	{
-		gprintf("IOS_Read() failed\n");
+		gprintf("IOS_Read() failed\r\n");
 
 		IOS_Close(kfd);		
 		free(Entry);

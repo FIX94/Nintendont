@@ -69,10 +69,10 @@ int _main( int argc, char *argv[] )
 	#ifdef DEBUG
 	u32 v = read32(0x3140);
 	#endif
-	dbgprintf("Nintendont IOS%d v%d.%d\n", v >> 16, (v >> 8) & 0xff, v & 0xff);
+	dbgprintf("Nintendont IOS%d v%d.%d\r\n", v >> 16, (v >> 8) & 0xff, v & 0xff);
 
-	dbgprintf("Built   : %s %s\n", __DATE__, __TIME__ );
-	dbgprintf("Version : %d.%d\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
+	dbgprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
+	dbgprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
 
 	//MessageQueue = ES_Init( MessageHeap );
 	ES_Init( MessageHeap );
@@ -84,7 +84,7 @@ int _main( int argc, char *argv[] )
 	ret = SDHCInit();
 	if(!ret)
 	{
-		dbgprintf("SD:SDHCInit() failed:%d\n", ret );
+		dbgprintf("SD:SDHCInit() failed:%d\r\n", ret );
 		BootStatusError(-2, ret);
 		mdelay(2000);
 		Shutdown();
@@ -96,7 +96,7 @@ int _main( int argc, char *argv[] )
 	s32 res = f_mount( 0, fatfs );
 	if( res != FR_OK )
 	{
-		dbgprintf("ES:f_mount() failed:%d\n", res );
+		dbgprintf("ES:f_mount() failed:%d\r\n", res );
 		BootStatusError(-3, res);
 		mdelay(2000);
 		Shutdown();
@@ -138,7 +138,7 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(6, s_size, s_cnt);
 	s32 r = LoadModules(55);
-	dbgprintf("ES:ES_LoadModules(%d):%d\n", 55, r );
+	dbgprintf("ES:ES_LoadModules(%d):%d\r\n", 55, r );
 	if( r < 0 )
 	{
 		BootStatusError(-6, r);
@@ -162,7 +162,7 @@ int _main( int argc, char *argv[] )
 		ret = HIDInit();
 		if(ret < 0 )
 		{
-			dbgprintf("ES:HIDInit() failed\n" );
+			dbgprintf("ES:HIDInit() failed\r\n" );
 			BootStatusError(-8, ret);
 			mdelay(2000);
 			Shutdown();
@@ -236,7 +236,7 @@ int _main( int argc, char *argv[] )
 		{
 			if( read32(HW_TIMER) * 128 / 243000000 > 2 )
 			{
-				//dbgprintf("DIP:IRQ mon!\n");
+				//dbgprintf("DIP:IRQ mon!\r\n");
 
 				while( read32(DI_SCONTROL) & 1 )
 					clear32( DI_SCONTROL, 1 );
@@ -269,7 +269,7 @@ int _main( int argc, char *argv[] )
 		{
 			write32((u32)reset, 0);
 			sync_after_write(reset, 0x20);
-			dbgprintf("loop quit\n");
+			dbgprintf("loop quit\r\n");
 			break;
 		}
 		cc_ahbMemFlush(1);

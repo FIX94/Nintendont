@@ -60,9 +60,7 @@ u32 LoadGame( void )
 		ExitToLoader(0);
 	}
 	
-#ifdef DEBUG
-	gprintf("AppLoader Size:%08X\n", *(vu32*)(AppInfo+0x14) +  *(vu32*)(AppInfo+0x18) );
-#endif
+	gprintf("AppLoader Size:%08X\r\r\n", *(vu32*)(AppInfo+0x14) +  *(vu32*)(AppInfo+0x18) );
 
 	ret = DVDLowRead( (void*)0x81200000, *(vu32*)(AppInfo+0x14) + *(vu32*)(AppInfo+0x18), 0x2460 );
 	if( !ret )
@@ -77,9 +75,7 @@ u32 LoadGame( void )
 	*(vu32*)0x800000FC = 729000000;				// CPU Clock Speed		
 
 	app_entry = ((void*)(*(vu32*)(AppInfo+0x10)));
-#ifdef DEBUG
-	gprintf("Apploader Entry:%p\n", app_entry );
-#endif
+	gprintf("Apploader Entry:%p\r\r\n", app_entry );
 	
 	if( (u32)app_entry < 0x81200000 || (u32)app_entry > 0x81300000 )
 	{
@@ -91,11 +87,9 @@ u32 LoadGame( void )
 
 	app_entry( &app_init, &app_main, &app_final );
 
-#ifdef DEBUG
-	gprintf("Apploader Init: %p\n", app_init);
-	gprintf("Apploader Main: %p\n", app_main);
-	gprintf("Apploader Final:%p\n", app_final);
-#endif
+	gprintf("Apploader Init: %p\r\r\n", app_init);
+	gprintf("Apploader Main: %p\r\r\n", app_main);
+	gprintf("Apploader Final:%p\r\n", app_final);
 
 	if( IsWiiU() )
 		app_init(dummy);
@@ -119,15 +113,13 @@ u32 LoadGame( void )
 		
 		if( (u32)Data < 0x80000000 || (u32)Data >= 0x81800000 )
 		{
-#ifdef DEBUG
-			gprintf("app_main(dst:%p)\n", Data );
-#endif
+			gprintf("app_main(dst:%p)\r\n", Data );
 			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal error app_main:Data not in MEM1!");
 			ExitToLoader(0);
 		}
-#ifdef DEBUG
-		gprintf("Game:RunGame->DVDLowRead( %p, %08x, %08x)\n", Data, Length, Offset );
-#endif
+
+		gprintf("Game:RunGame->DVDLowRead( %p, %08x, %08x)\r\n", Data, Length, Offset );
+
 
 		ret = DVDLowRead( Data, Length, Offset );
 		if( !ret )
@@ -139,18 +131,14 @@ u32 LoadGame( void )
 		if( Offset == 0x440 && Length == 0x20 )
 		{
 			Region = *(vu32*)(Data+0x18);
-#ifdef DEBUG
-			gprintf("Game:Region:%u\n", Region );
-#endif
+			gprintf("Game:Region:%u\r\n", Region );
 		}
 		counter++;
 	}
 	
 	entrypoint = app_final();
 	
-#ifdef DEBUG
-	gprintf("Game:RunGame->entrypoint(%x)\n", entrypoint );
-#endif
+	gprintf("Game:RunGame->entrypoint(%x)\r\n", entrypoint );
 	
 	if( (u32)entrypoint < 0x80000000 || (u32)app_entry >= 0x81800000 )
 	{
@@ -158,7 +146,7 @@ u32 LoadGame( void )
 		ExitToLoader(0);
 	}
 
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*10, "Loading complete\n");
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*10, "Loading complete\r\n");
 
 	return (u32)entrypoint;
 }

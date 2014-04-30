@@ -19,8 +19,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include "global.h"
-#include "exi.h"
 #include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include <ogc/usbgecko.h>
+
+#define	EXI_BASE	0xCD006800
+#define EXI			0xCD006814
 
 static FILE *nl_log = NULL;
 static u32 GeckoFound = 0;
@@ -57,12 +62,12 @@ int gprintf( const char *str, ... )
 	{
 		// We're running on a vWii, log the results to a file
 		
-		// Open the file if it hasn't been alread
+		// Open the file if it hasn't been already
 		if (nl_log == NULL)
 		{
 			char LogPath[20];
 			sprintf(LogPath, "%s:/nloader.log", GetRootDevice());
-			nl_log = fopen(LogPath, "a");
+			nl_log = fopen(LogPath, "w");
 		}
 		if (nl_log != NULL)
 		{

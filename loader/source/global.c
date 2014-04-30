@@ -159,41 +159,41 @@ void *Initialise()
 	if( !IsWiiU() )
 	{
 		if( rmode == &TVNtsc480Int )
-			gprintf("VI:TVNtsc480Int\n");
+			gprintf("VI:TVNtsc480Int\r\n");
 		else if( rmode == &TVNtsc480IntDf )
-			gprintf("VI:TVNtsc480IntDf\n");
+			gprintf("VI:TVNtsc480IntDf\r\n");
 		else if( rmode == &TVNtsc480IntAa )
-			gprintf("VI:TVNtsc480IntAa\n");
+			gprintf("VI:TVNtsc480IntAa\r\n");
 		else if( rmode == &TVNtsc480Prog )
-			gprintf("VI:TVNtsc480Prog\n");
+			gprintf("VI:TVNtsc480Prog\r\n");
 		else if( rmode == &TVNtsc480ProgSoft )
-			gprintf("VI:TVNtsc480ProgSoft\n");
+			gprintf("VI:TVNtsc480ProgSoft\r\n");
 		else if( rmode == &TVNtsc480ProgAa )
-			gprintf("VI:TVNtsc480ProgAa\n");
+			gprintf("VI:TVNtsc480ProgAa\r\n");
 
 		else if( rmode == &TVPal524IntAa )
-			gprintf("VI:TVPal524IntAa\n");
+			gprintf("VI:TVPal524IntAa\r\n");
 		else if( rmode == &TVPal528Int )
-			gprintf("VI:TVPal528Int\n");
+			gprintf("VI:TVPal528Int\r\n");
 		else if( rmode == &TVPal528IntDf )
-			gprintf("VI:TVPal528IntDf\n");
+			gprintf("VI:TVPal528IntDf\r\n");
 		else if( rmode == &TVPal528IntDf )
-			gprintf("VI:TVPal528IntDf\n");
+			gprintf("VI:TVPal528IntDf\r\n");
 		else if( rmode == &TVPal528IntDf )
-			gprintf("VI:TVPal528IntDf\n");
+			gprintf("VI:TVPal528IntDf\r\n");
 	
 		else if( rmode == &TVEurgb60Hz480Int )
-			gprintf("VI:TVEurgb60Hz480Int\n");
+			gprintf("VI:TVEurgb60Hz480Int\r\n");
 		else if( rmode == &TVEurgb60Hz480IntDf )
-			gprintf("VI:TVEurgb60Hz480IntDf\n");
+			gprintf("VI:TVEurgb60Hz480IntDf\r\n");
 		else if( rmode == &TVEurgb60Hz480IntAa )
-			gprintf("VI:TVEurgb60Hz480IntAa\n");
+			gprintf("VI:TVEurgb60Hz480IntAa\r\n");
 		else if( rmode == &TVEurgb60Hz480Prog )
-			gprintf("VI:TVEurgb60Hz480Prog\n");
+			gprintf("VI:TVEurgb60Hz480Prog\r\n");
 		else if( rmode == &TVEurgb60Hz480ProgSoft )
-			gprintf("VI:TVEurgb60Hz480ProgSoft\n");
+			gprintf("VI:TVEurgb60Hz480ProgSoft\r\n");
 		else if( rmode == &TVEurgb60Hz480ProgAa )
-			gprintf("VI:TVEurgb60Hz480ProgAa\n");
+			gprintf("VI:TVEurgb60Hz480ProgAa\r\n");
 	}
 #endif
 
@@ -240,7 +240,7 @@ void *Initialise()
 	if(rmode->viTVMode&VI_NON_INTERLACE)
 		VIDEO_WaitVSync();
 	
-//	gprintf("X:%u Y:%u M:%u\n", rmode->viWidth, rmode->viHeight, rmode->viTVMode );
+//	gprintf("X:%u Y:%u M:%u\r\n", rmode->viWidth, rmode->viHeight, rmode->viTVMode );
 
 	while( VIDEO_GetCurrentFramebuffer() == NULL )
 		VIDEO_WaitVSync();
@@ -309,6 +309,6 @@ void hexdump(void *d, int len)
 			else
 				gprintf("%c",ascii(data[off+i]));
 
-		gprintf("\n");
+		gprintf("\r\n");
 	}
 }

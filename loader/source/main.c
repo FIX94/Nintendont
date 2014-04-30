@@ -101,9 +101,9 @@ int main(int argc, char **argv)
 
 	if( !IsWiiU() )
 	{
-		gprintf("Nintendont Loader\n");
-		gprintf("Built   : %s %s\n", __DATE__, __TIME__ );
-		gprintf("Version : %d.%d\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );	
+		gprintf("Nintendont Loader\r\n");
+		gprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
+		gprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );	
 	}
 	u32 currev = *(vu32*)0x80003140;
 	HollywoodRevision = SYS_GetHollywoodRevision();	//RAMInit overwrites this
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 	if( *(vu32*)(0xCd800064) != -1 )
 	{
 		ClearScreen();
-		gprintf("Please load Nintendont with AHBProt disabled!\n");
+		gprintf("Please load Nintendont with AHBProt disabled!\r\n");
 		PrintFormat( 25, 232, "Please load Nintendont with AHBProt disabled!" );
 		ExitToLoader(1);
 	}
@@ -131,7 +131,7 @@ int main(int argc, char **argv)
 	if( *(vu16*)0x80003140 != 58 || *(vu8*)0x80003142 != fw || *(vu8*)0x80003143 != 32 )
 	{
 		ClearScreen();
-		gprintf("This version of IOS58 is not supported!\n");
+		gprintf("This version of IOS58 is not supported!\r\n");
 		PrintFormat( 25, 232, "This version of IOS58 is not supported!" );
 		ExitToLoader(1);
 	}
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 	{
 		if( memcmp( (void*)(u), FSAccessPattern, sizeof(FSAccessPattern) ) == 0 )
 		{
-		//	gprintf("FSAccessPatch:%08X\n", u );
+		//	gprintf("FSAccessPatch:%08X\r\n", u );
 			memcpy( (void*)u, FSAccessPatch, sizeof(FSAccessPatch) );
 		}
 	}
@@ -154,9 +154,9 @@ int main(int argc, char **argv)
 
 	if( IsWiiU() )
 	{
-		gprintf("Built   : %s %s\n", __DATE__, __TIME__ );
-		gprintf("Version : %d.%d\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );	
-		gprintf("Firmware: %d.%d.%d\n", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
+		gprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
+		gprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );	
+		gprintf("Firmware: %d.%d.%d\r\n", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
 	}
 	
 	// Simple code to autoupdate the meta.xml in Nintendont's folder
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 	{
 		fprintf(meta, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
 		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);		
-		fprintf(meta, "\t<release_date>20131228000000</release_date>\r\n");		
+		fprintf(meta, "\t<release_date>20140430000000</release_date>\r\n");		
 		fprintf(meta, "\t<short_description>%s</short_description>\r\n", META_SHORT);
 		fprintf(meta, "\t<long_description>%s\r\n\r\n%s</long_description>\r\n", META_LONG1, META_LONG2);
 		fprintf(meta, "\t<ahb_access/>\r\n</app>");
@@ -270,7 +270,7 @@ int main(int argc, char **argv)
 	if( LoadKernel( Kernel, &KernelSize ) < 0 )
 	{
 		ClearScreen();
-		gprintf("Failed to load kernel from NAND!\n");
+		gprintf("Failed to load kernel from NAND!\r\n");
 		PrintFormat( 25, 232, "Failed to load kernel from NAND!" );
 		ExitToLoader(1);
 	}
@@ -288,7 +288,7 @@ int main(int argc, char **argv)
 
 	if( ncfg.Config & NIN_CFG_AUTO_BOOT )
 	{
-		gprintf("Autobooting:\"%s\"\n", ncfg.GamePath );
+		gprintf("Autobooting:\"%s\"\r\n", ncfg.GamePath );
 	} else {
 		SelectGame();
 	}
@@ -304,7 +304,7 @@ int main(int argc, char **argv)
 		memcpy(MemCardName, &ncfg.GameID, 4);
 		char MemCard[30];
 		sprintf(MemCard, "%s/%s.raw", BasePath, MemCardName);
-		gprintf("Using %s as Memory Card.\n", MemCard);
+		gprintf("Using %s as Memory Card.\r\n", MemCard);
 		FILE *f = fopen(MemCard, "rb");
 		if(f == NULL)
 		{
@@ -318,7 +318,7 @@ int main(int argc, char **argv)
 			char NullChar[1];
 			NullChar[0] = 0;
 			fwrite(NullChar, 1, NIN_RAW_MEMCARD_SIZE, f);
-			gprintf("Memory Card File created!\n");
+			gprintf("Memory Card File created!\r\n");
 		}
 		if(f != NULL)
 			fclose(f);
@@ -357,24 +357,15 @@ int main(int argc, char **argv)
 	*(vu32*)0x9200300C = 0;
 	DCFlushRange( (void*)0x9200300C, 0x20 );
 
-#ifdef DEBUG
 	gprintf("ES_ImportBoot():");
-#endif
 
 	write32(0x80003140, 0);
 	__MaskIrq(IRQ_PI_ACR);
 	raw_irq_handler_t irq_handler = IRQ_Free(IRQ_PI_ACR);
 
-#ifdef DEBUG
 	u32 ret = IOS_IoctlvAsync( fd, 0x1F, 0, 0, (ioctlv*)buffer, NULL, NULL );
-	if( !IsWiiU() )
-	{
-		gprintf("%d\n", ret );
-		gprintf("Waiting ...\n");
-	}
-#else
-	IOS_IoctlvAsync( fd, 0x1F, 0, 0, (ioctlv*)buffer, NULL, NULL );
-#endif
+	gprintf("%d\r\n", ret );
+	gprintf("Waiting ...\r\n");
 
 	while((read32(0x80003140)) != 0x00000D25)
 		udelay(1000);
@@ -385,12 +376,12 @@ int main(int argc, char **argv)
 		if (counter >= 40000)
 			break;
 	}
-	gprintf("IPC started (%u)\n", counter);
+	gprintf("IPC started (%u)\r\n", counter);
 	IRQ_Request(IRQ_PI_ACR, irq_handler, NULL);
 	__UnmaskIrq(IRQ_PI_ACR);
 	__IPC_Reinitialize();
 
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel ...\n");
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel ...\r\n");
 	while(1)
 	{
 		DCInvalidateRange( (void*)0x90004100, 0x20 );
@@ -413,17 +404,17 @@ int main(int argc, char **argv)
 		if(*(vu32*)(0x90004100) == -2)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device...FAILED! %d  Shutting down", *(vu32*)(0x90004100 + 20));
 		if(*(vu32*)(0x90004100) == 3)
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...\n");
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...");
 		if(*(vu32*)(0x90004100) > 3 && *(vu32*)(0x90004100) < 20)
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Done!\n");
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Done!");
 		if(*(vu32*)(0x90004100) == -3)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Failed! %d  Shutting down", *(vu32*)(0x90004100 + 20));
 		if(*(vu32*)(0x90004100) == 5)
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS...\n");
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS...");
 		if(*(vu32*)(0x90004100) > 5 && *(vu32*)(0x90004100) < 20)
 		{
 			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... OK!");
-			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %d%s SectorSize: %d\n", *(vu32*)(0x90004100 + 12), *(vu32*)(0x90004100 + 16) ? "gb" : "Mb", *(vu32*)(0x90004100 + 8));
+			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %d%s SectorSize: %d", *(vu32*)(0x90004100 + 12), *(vu32*)(0x90004100 + 16) ? "gb" : "Mb", *(vu32*)(0x90004100 + 8));
 		}
 		if(*(vu32*)(0x90004100) == -5)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Error! %d Shutting down", *(vu32*)(0x90004100 + 20));
@@ -488,23 +479,18 @@ int main(int argc, char **argv)
 		VIDEO_WaitVSync();
 	}
 
-#ifdef DEBUG
 	if( !IsWiiU() )
-		gprintf("Nintendont at your service!\n");
-#endif
+		gprintf("Nintendont at your service!\r\n");
+
 	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*17, "Nintendont kernel looping, loading game...");
 //	memcpy( (void*)0x80000000, (void*)0x90140000, 0x1200000 );
 	entrypoint = LoadGame();
 
-#ifdef DEBUG
 	gprintf("GameRegion:");
-#endif
 
 	if( ncfg.VideoMode & NIN_VID_FORCE )
 	{
-#ifdef DEBUG
-		gprintf("Force:%u (%02X)\n", ncfg.VideoMode & NIN_VID_FORCE, ncfg.VideoMode & NIN_VID_FORCE_MASK );
-#endif
+		gprintf("Force:%u (%02X)\r\n", ncfg.VideoMode & NIN_VID_FORCE, ncfg.VideoMode & NIN_VID_FORCE_MASK );
 
 		switch( ncfg.VideoMode & NIN_VID_FORCE_MASK )
 		{
@@ -531,9 +517,7 @@ int main(int argc, char **argv)
 		}
 	}
 	
-#ifdef DEBUG
-	gprintf("Region:%u\n", Region );
-#endif
+	gprintf("Region:%u\r\n", Region );
 
 	switch(Region)
 	{
@@ -541,9 +525,8 @@ int main(int argc, char **argv)
 		case 0:
 		case 1:
 		{
-#ifdef DEBUG
-			gprintf("NTSC\n");
-#endif
+			gprintf("NTSC\r\n");
+
 			*(vu32*)0x800000CC = 0;
 
 			if(progressive)
@@ -556,27 +539,24 @@ int main(int argc, char **argv)
 		{
 			if( *(vu32*)0x800000CC == 5 )
 			{
-#ifdef DEBUG
-				gprintf("PAL60\n");
-#endif
+				gprintf("PAL60\r\n");
+
 				if(progressive)
 					vmode = &TVEurgb60Hz480Prog;
 				else
 					vmode = &TVEurgb60Hz480IntDf;
 
 			} else if( *(vu32*)0x800000CC == 3 ) {
-#ifdef DEBUG
-				gprintf("MPAL\n");
-#endif
+				gprintf("MPAL\r\n");
+
 				if(progressive)
 					vmode = &TVEurgb60Hz480Prog;
 				else
 					vmode = &TVMpal480IntDf;
 			} else {
 				
-#ifdef DEBUG
-				gprintf("PAL50\n");
-#endif
+				gprintf("PAL50\r\n");
+
 				if(progressive)
 					vmode = &TVEurgb60Hz480Prog;
 				else
@@ -647,10 +627,7 @@ int main(int argc, char **argv)
 	__exception_closeall();
 	__lwp_thread_closeall();
 
-#ifdef DEBUG
-	if( !IsWiiU() )
-		gprintf("entrypoint(0x%08X)\n", entrypoint );
-#endif
+	gprintf("entrypoint(0x%08X)\r\n", entrypoint );
 
 	asm volatile (
 		"lis %r3, entrypoint@h\n"

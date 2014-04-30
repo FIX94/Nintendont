@@ -43,7 +43,7 @@ req_args *req = (req_args *)NULL;
 s32 HIDInit( void )
 {
 	s32 ret;
-	dbgprintf("HIDInit()\n");
+	dbgprintf("HIDInit()\r\n");
 	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
 
 	char *HIDHeap = (char*)malloca( 0x600, 32 );
@@ -55,15 +55,15 @@ s32 HIDInit( void )
 	BootStatusError(8, 0);
 	if( ret < 0 )
 	{
-		dbgprintf("HID:GetDeviceChange():%d\n", ret );
+		dbgprintf("HID:GetDeviceChange():%d\r\n", ret );
 		return -1;
 	}
 
 	DeviceID	= *(vu32*)(HIDHeap+4);
 	HIDHandle	= HIDHandle;
 
-	dbgprintf("HID:DeviceID:%u\n", DeviceID );
-	dbgprintf("HID:VID:%04X PID:%04X\n", *(vu16*)(HIDHeap+0x10), *(vu16*)(HIDHeap+0x12) );
+	dbgprintf("HID:DeviceID:%u\r\n", DeviceID );
+	dbgprintf("HID:VID:%04X PID:%04X\r\n", *(vu16*)(HIDHeap+0x10), *(vu16*)(HIDHeap+0x12) );
 			
 	u32 Offset = 8;
 		
@@ -86,12 +86,12 @@ s32 HIDInit( void )
 	bEndpointAddress = *(vu8*)(HIDHeap+Offset+2);
 	wMaxPacketSize	 = *(vu16*)(HIDHeap+Offset+4);
 
-	dbgprintf("HID:bEndpointAddress:%02X\n", bEndpointAddress );
-	dbgprintf("HID:wMaxPacketSize  :%u\n", wMaxPacketSize );
+	dbgprintf("HID:bEndpointAddress:%02X\r\n", bEndpointAddress );
+	dbgprintf("HID:wMaxPacketSize  :%u\r\n", wMaxPacketSize );
 
 	if( *(vu16*)(HIDHeap+0x10) == 0x054c && *(vu16*)(HIDHeap+0x12) == 0x0268 )
 	{
-		dbgprintf("HID:PS3 Dualshock Controller detected\n");
+		dbgprintf("HID:PS3 Dualshock Controller detected\r\n");
 
 		HIDPS3Init();
 
@@ -116,8 +116,8 @@ s32 HIDInit( void )
 
 		if( *(vu16*)(HIDHeap+0x10) != HID_CTRL->VID || *(vu16*)(HIDHeap+0x12) != HID_CTRL->PID )
 		{
-			dbgprintf("HID:Config does not match device VID/PID\n");
-			dbgprintf("HID:Config VID:%04X PID:%04X\n", HID_CTRL->VID, HID_CTRL->PID );
+			dbgprintf("HID:Config does not match device VID/PID\r\n");
+			dbgprintf("HID:Config VID:%04X PID:%04X\r\n", HID_CTRL->VID, HID_CTRL->PID );
 
 			return -3;
 		}
@@ -130,8 +130,8 @@ s32 HIDInit( void )
 		{
 			HID_CTRL->MultiInValue= ConfigGetValue( Data, "MultiInValue", 0 );
 		
-			dbgprintf("HID:MultIn:%u\n", HID_CTRL->MultiIn );
-			dbgprintf("HID:MultiInValue:%u\n", HID_CTRL->MultiInValue );
+			dbgprintf("HID:MultIn:%u\r\n", HID_CTRL->MultiIn );
+			dbgprintf("HID:MultiInValue:%u\r\n", HID_CTRL->MultiInValue );
 		}
 
 		if( Packet == (u8*)NULL )
@@ -142,14 +142,14 @@ s32 HIDInit( void )
 			} else if( HID_CTRL->Polltype == 0 ) {
 				Packet = (u8*)malloca(128, 32);
 			} else {
-				dbgprintf("HID: %u is an invalid Polltype value\n", HID_CTRL->Polltype );
+				dbgprintf("HID: %u is an invalid Polltype value\r\n", HID_CTRL->Polltype );
 				return -4;
 			}
 		}
 
 		if( HID_CTRL->DPAD > 1 )
 		{
-			dbgprintf("HID: %u is an invalid DPAD value\n", HID_CTRL->DPAD );
+			dbgprintf("HID: %u is an invalid DPAD value\r\n", HID_CTRL->DPAD );
 			return -5;
 		}
 	
@@ -188,7 +188,7 @@ s32 HIDInit( void )
 		HID_CTRL->Down.Mask		= ConfigGetValue( Data, "Down", 1 );
 	
 		HID_CTRL->Right.Offset	= ConfigGetValue( Data, "Right", 0 );
-		HID_CTRL->Right.Mask		= ConfigGetValue( Data, "Right", 1 );
+		HID_CTRL->Right.Mask	= ConfigGetValue( Data, "Right", 1 );
 	
 		HID_CTRL->Up.Offset		= ConfigGetValue( Data, "Up", 0 );
 		HID_CTRL->Up.Mask		= ConfigGetValue( Data, "Up", 1 );
@@ -217,9 +217,9 @@ s32 HIDInit( void )
 		HID_CTRL->LAnalog	= ConfigGetValue( Data, "LAnalog", 0 );
 		HID_CTRL->RAnalog	= ConfigGetValue( Data, "RAnalog", 0 );
 
-		dbgprintf("HID:Config file for VID:%04X PID:%04X loaded\n", HID_CTRL->VID, HID_CTRL->PID );
+		dbgprintf("HID:Config file for VID:%04X PID:%04X loaded\r\n", HID_CTRL->VID, HID_CTRL->PID );
 	} else {
-		dbgprintf("HID:Failed to open config file:%u\n", ret );
+		dbgprintf("HID:Failed to open config file:%u\r\n", ret );
 		free(HIDHeap);
 		return -2;
 	}
@@ -246,14 +246,14 @@ void HIDPS3Init()
 	s32 ret = IOS_Ioctl( HIDHandle, /*ControlMessage*/2, req, 32, 0, 0 );
 	if( ret < 0 )
 	{
-		dbgprintf("HID:HIDPS3Init:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\n", HIDHandle, 2, req, 32, 0, 0, ret );
+		dbgprintf("HID:HIDPS3Init:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\r\n", HIDHandle, 2, req, 32, 0, 0, ret );
 		BootStatusError(-8, -6);
 		mdelay(2000);
 		Shutdown();
 	}
 	free(buf);
 }
-unsigned char rawData[49] =
+unsigned char rawData[] =
 {
     0x01, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x27, 0x10, 0x00, 0x32, 
     0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0x00, 
@@ -268,7 +268,7 @@ void HIDPS3SetLED( u8 led )
 	char *buf = (char*)malloca( 64, 32 );
 	memset32( buf, 0, 64 );
 
-	memcpy( buf, rawData, 49 );
+	memcpy( buf, rawData, sizeof(rawData) );
 
     buf[10] = ss_led_pattern[led];
 	
@@ -279,7 +279,7 @@ void HIDPS3SetLED( u8 led )
 
 	s32 ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/4, req, 32, 0, 0 );
 	if( ret < 0 ) 
-		dbgprintf("ES:IOS_Ioctl():%d\n", ret );
+		dbgprintf("ES:IOS_Ioctl():%d\r\n", ret );
 	
 	free(buf);
 }
@@ -303,7 +303,7 @@ void HIDPS3SetRumble( u8 duration_right, u8 power_right, u8 duration_left, u8 po
 	
 	s32 ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/4, req, 32, 0, 0 );
 	if( ret < 0 )
-		dbgprintf("ES:IOS_Ioctl():%d\n", ret );
+		dbgprintf("ES:IOS_Ioctl():%d\r\n", ret );
 }
 
 u32 HIDRumbleLast = 0;
@@ -324,7 +324,7 @@ void HIDPS3Read()
 	ret = IOS_Ioctl( HIDHandle, /*ControlMessage*/2, req, 32, 0, 0 );
 	if( ret < 0 )
 	{
-		dbgprintf("HID:HIDPS3Read:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\n", HIDHandle, 2, req, 32, 0, 0, ret );
+		dbgprintf("HID:HIDPS3Read:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\r\n", HIDHandle, 2, req, 32, 0, 0, ret );
 		//Shutdown();
 	}
 
@@ -357,7 +357,7 @@ retry:
 	ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/3, req, 32, 0, 0 );
 	if( ret < 0 )
 	{
-		dbgprintf("ES:HIDIRQRead:IOS_Ioctl():%d\n", ret );
+		dbgprintf("ES:HIDIRQRead:IOS_Ioctl():%d\r\n", ret );
 		Shutdown();
 	}
 	if(HID_CTRL->MultiIn && Packet[0] != HID_CTRL->MultiInValue)
@@ -387,12 +387,12 @@ void HIDRumble( u32 Enable )
 u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 {
 	char entryname[128];
-	_sprintf( entryname, "\n%s=", EntryName );
+	_sprintf( entryname, "\r\n%s=", EntryName );
 
 	char *str = strstr( Data, entryname );
 	if( str == (char*)NULL )
 	{
-		dbgprintf("Entry:\"%s\" not found!\n", EntryName );
+		dbgprintf("Entry:\"%s\" not found!\r\n", EntryName );
 		return 0;
 	}
 
@@ -407,7 +407,7 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 		str = strstr( str, "," );
 		if( str == (char*)NULL )
 		{
-			dbgprintf("No \",\" found in entry.\n");
+			dbgprintf("No \",\" found in entry.\r\n");
 			return 0;
 		}
 
@@ -422,13 +422,13 @@ u32 HID_Run(void *arg)
 {
 	IOS_Close(HIDHandle);
 	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
-	dbgprintf("HID_Run, waiting for signal\n");
+	dbgprintf("HID_Run, waiting for signal\r\n");
 	while(read32(0x12003004) == 0)
 	{
 		sync_before_read((void*)0x12003004, 0x20);
 		mdelay(100);
 	}
-	dbgprintf("Starting HID Thread!\n");
+	dbgprintf("Starting HID Thread!\r\n");
 	bool Polltype = HID_CTRL->Polltype;
 	while(1)
 	{

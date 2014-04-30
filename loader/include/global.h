@@ -29,6 +29,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define HW_RVL
 #endif
 
+/*
+ Add to CFLAGS in Makefile
+*/
 //#define DEBUG
 //#define DEBUG_PATCHES
 //#define DEBUG_MODULE_PATCH

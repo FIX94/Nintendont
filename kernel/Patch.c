@@ -216,7 +216,7 @@ void write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
 	if( read32(Offset) != CurrentValue )
 	{
 		//if( ShowAssert)
-		//	dbgprintf("AssertFailed: Offset:%08X is:%08X should:%08X\n", Offset, read32(Offset), CurrentValue );
+		//	dbgprintf("AssertFailed: Offset:%08X is:%08X should:%08X\r\n", Offset, read32(Offset), CurrentValue );
 		return;
 	}
 
@@ -287,9 +287,7 @@ void PatchFuncAI( char *dst, u32 Length )
 			if( src == LISReg )
 			{
 				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD00 );	// Patch to: lis rX, 0xCD00
-#ifdef DEBUG
-				dbgprintf("[%08X] %08X: lis r%u, 0xCD00\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-#endif
+				dbgprintf("[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 
 				LISReg = -1;
 			}
@@ -309,10 +307,7 @@ void PatchFuncAI( char *dst, u32 Length )
 				if( (val & 0xFF00) == 0x6C00 )	// case with 0x60XY(rZ)
 				{
 					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD00 );	// Patch to: lis rX, 0xCD00
-#ifdef DEBUG
-					dbgprintf("[%08X] %08X: lis r%u, 0xCD00\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-#endif
-
+					dbgprintf("[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					LISReg = -1;
 				}
 			}
@@ -332,9 +327,7 @@ void PatchFuncAI( char *dst, u32 Length )
 				if( (val & 0xFF00) == 0x6C00 )	// case with 0x60XY(rZ)
 				{
 					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD00 );	// Patch to: lis rX, 0xCD00
-#ifdef DEBUG
-					dbgprintf("[%08X] %08X: lis r%u, 0xCD00\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-#endif
+					dbgprintf("[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 
 					LISReg = -1;
 				}
@@ -368,17 +361,13 @@ void PatchFunc( char *ptr )
 			reg = (op & 0x3E00000) >> 21;
 			
 			write32( (u32)ptr + i, (reg<<21) | 0x3C00C000 );	// Patch to: lis rX, 0xC000
-#ifdef DEBUG
-			dbgprintf("[%08X] %08X: lis r%u, 0xC000\n", (u32)ptr+i, read32( (u32)ptr+i), reg );
-#endif
+			dbgprintf("[%08X] %08X: lis r%u, 0xC000\r\n", (u32)ptr+i, read32( (u32)ptr+i), reg );
 		}
 		
 		if( (op & 0xFC00FFFF) == 0x3C00A800 )	// lis rX, 0xA800
 		{			
 			write32( (u32)ptr + i, (op & 0x3E00000) | 0x3C00A700 );		// Patch to: lis rX, 0xA700
-#ifdef DEBUG
-			dbgprintf("[%08X] %08X: lis rX, 0xA700\n", (u32)ptr+i, read32( (u32)ptr+i) );
-#endif
+			dbgprintf("[%08X] %08X: lis rX, 0xA700\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
 		}
 
 		if( (op & 0xFC00FFFF) == 0x38006000 )	// addi rX, rY, 0x6000
@@ -389,9 +378,7 @@ void PatchFunc( char *ptr )
 			if( src == reg )
 			{
 				write32( (u32)ptr + i, (dst<<21) | (src<<16) | 0x38002F00 );	// Patch to: addi rX, rY, 0x2F00
-#ifdef DEBUG
-				dbgprintf("[%08X] %08X: addi r%u, r%u, 0x2F00\n", (u32)ptr+i, read32( (u32)ptr+i), dst, src );
-#endif
+				dbgprintf("[%08X] %08X: addi r%u, r%u, 0x2F00\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, src );
 
 			}
 		}
@@ -407,9 +394,7 @@ void PatchFunc( char *ptr )
 				if( (val & 0xFF00) == 0x6000 )	// case with 0x60XY(rZ)
 				{
 					write32( (u32)ptr + i,  (dst<<21) | (src<<16) | 0x2F00 | (val&0xFF) | 0x90000000 );	// Patch to: stw rX, 0x2FXY(rZ)
-#ifdef DEBUG
-					dbgprintf("[%08X] %08X: stw r%u, 0x%04X(r%u)\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
-#endif
+					dbgprintf("[%08X] %08X: stw r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
 				}
 			}			
 		}
@@ -464,10 +449,7 @@ void MPattern( u8 *Data, u32 Length, FuncPattern *FunctionPattern )
 }
 int CPattern( FuncPattern *FPatA, FuncPattern *FPatB  )
 {
-	if( memcmp( FPatA, FPatB, sizeof(u32) * 6 ) == 0 )
-		return 1;
-	else
-		return 0;
+	return ( memcmp( FPatA, FPatB, sizeof(u32) * 6 ) == 0 );
 }
 void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2) 
 { 
@@ -478,7 +460,7 @@ void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2)
         *c1 += buf[0x06 + i]; 
         *c2 += (buf[0x06 + i] ^ 0xFFFF); 
     }
-	//dbzprintf("New Checksum: %04X %04X\n", *c1, *c2 );
+	//dbzprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
 } 
 void DoDSPPatch( char *ptr, u32 Version )
 {
@@ -630,7 +612,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 	if( ((u32)Buffer <= 0x31A0)  && ((u32)Buffer + Length >= 0x31A0) )
 	{
-	//	dbgprintf("Patch:[Patch31A0]\n");
+	//	dbgprintf("Patch:[Patch31A0]\r\n");
 		Patch31A0();
 	}
 
@@ -647,14 +629,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				DOLSize		= Length;
 				DOLOffset	= (u32)Buffer;
 
-				dbgprintf("Patch: PSO 1&2 loading AppSwitcher:0x%p %u\n", Buffer, Length );
+				dbgprintf("Patch: PSO 1&2 loading AppSwitcher:0x%p %u\r\n", Buffer, Length );
 
 			} break;
 			case 0x5668FE20:	// psov3.dol [EUR]
 			case 0x56750660:	// [USA] v1.1
 			case 0x56753EC0:	// [USA] v1.0
 			{
-				dbgprintf("Patch: PSO 1&2 loading psov3.dol:0x%p %u\n", Buffer, Length );
+				dbgprintf("Patch: PSO 1&2 loading psov3.dol:0x%p %u\r\n", Buffer, Length );
 
 				PSOHack = 1;
 			} break;
@@ -714,7 +696,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					DOLMaxOff = (u32)Buffer + DOLSize;
 				}
 #ifdef DEBUG_DI
-				dbgprintf("DIP:DOLSize:%d DOLMinOff:0x%08X DOLMaxOff:0x%08X\n", DOLSize, DOLMinOff, DOLMaxOff );
+				dbgprintf("DIP:DOLSize:%d DOLMinOff:0x%08X DOLMaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
 #endif
 
 				PatchState = 1;
@@ -724,7 +706,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		} else if( read32( (u32)Buffer ) == 0x7F454C46 )
 		{
 #ifdef DEBUG_DI
-			dbgprintf("DIP:Game is loading an ELF 0x%08x (%u)\n", Offset, Length );
+			dbgprintf("DIP:Game is loading an ELF 0x%08x (%u)\r\n", Offset, Length );
 #endif
 			DOLMinOff = (u32)Buffer;
 			DOLOffset = Offset;
@@ -737,7 +719,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 			Elf32_Ehdr *ehdr = (Elf32_Ehdr*)Buffer;
 #ifdef DEBUG_DI
-			dbgprintf("DIP:ELF Programheader Entries:%u\n", ehdr->e_phnum );	
+			dbgprintf("DIP:ELF Programheader Entries:%u\r\n", ehdr->e_phnum );	
 #endif
 			for( i=0; i < ehdr->e_phnum; ++i )
 			{
@@ -750,7 +732,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			}
 			
 #ifdef DEBUG_DI
-			dbgprintf("DIP:ELF size:%u\n", DOLSize );
+			dbgprintf("DIP:ELF size:%u\r\n", DOLSize );
 #endif
 
 			PatchState = 1;
@@ -762,9 +744,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			DOLMinOff = (u32)Buffer;
 
 		DOLReadSize += Length;
-#ifdef DEBUG
-		dbgprintf("DIP:DOLsize:%d DOL read:%d\n", DOLSize, DOLReadSize );
-#endif
+		dbgprintf("DIP:DOLsize:%d DOL read:%d\r\n", DOLSize, DOLReadSize );
 		if( DOLReadSize >= DOLSize )
 		{
 			DOLMaxOff = DOLMinOff + DOLSize;
@@ -780,13 +760,9 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	Buffer = (char*)DOLMinOff;
 	Length = DOLMaxOff - DOLMinOff;
 	
-#ifdef DEBUG
-	dbgprintf("Patch: Offset:0x%08X EOffset:0x%08X Length:%08X\n", DOLMinOff, DOLMaxOff, Length );
-#endif
+	dbgprintf("Patch: Offset:0x%08X EOffset:0x%08X Length:%08X\r\n", DOLMinOff, DOLMaxOff, Length );
 
-#ifdef DEBUG
-	dbgprintf("Patch:  Game ID = %x\n", read32(0));
-#endif
+	dbgprintf("Patch:  Game ID = %x\r\n", read32(0));
 
 	// HACK: PokemonXD and Pokemon Colosseum low memory clear patch
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
@@ -840,9 +816,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				read32((u32)Buffer + i + 4 ) == 0x83E33000  
 				)
 			{
-#ifdef DEBUG
-				dbgprintf("Patch:[__OSDispatchInterrupt] 0x%08X\n", (u32)Buffer + i );
-#endif
+				dbgprintf("Patch:[__OSDispatchInterrupt] 0x%08X\r\n", (u32)Buffer + i );
 				POffset -= sizeof(FakeInterrupt);
 				memcpy( (void*)(POffset), FakeInterrupt, sizeof(FakeInterrupt) );
 				PatchBL( POffset, (u32)Buffer + i + 4 );
@@ -862,9 +836,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			(read32( (u32)Buffer + i +12 )	& 0xFC00FFFF)	== 0x64002000
 			)  
 		{
-#ifdef DEBUG
-			dbgprintf("Patch:Found [__OSDispatchInterrupt]: 0x%08X 0x%08X\n", (u32)Buffer + i + 0, (u32)Buffer + i + 0x1A8 );
-#endif
+			dbgprintf("Patch:Found [__OSDispatchInterrupt]: 0x%08X 0x%08X\r\n", (u32)Buffer + i + 0, (u32)Buffer + i + 0x1A8 );
 			write32( (u32)Buffer + i + 0x1A8,	(read32( (u32)Buffer + i + 0x1A8 )	& 0xFFFF0000) | 0x0463 );
 			
 			PatchCount |= 1;
@@ -877,9 +849,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			(read32( (u32)Buffer + i +12 )&0xFC00FFFF) == 0x60000004
 			) 
 		{
-#ifdef DEBUG
-			dbgprintf("Patch:Found [SetInterruptMask]: 0x%08X\n", (u32)Buffer + i + 12 );
-#endif
+			dbgprintf("Patch:Found [SetInterruptMask]: 0x%08X\r\n", (u32)Buffer + i + 12 );
 
 			write32( (u32)Buffer + i + 12, (read32( (u32)Buffer + i + 12 ) & 0xFFFF0000) | 0x4004 );
 
@@ -897,9 +867,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			if ((read32(Offset + 4) & 0xFFFF) == 0xCC00)	// Loader
 				HwOffset = Offset + 4;
 			
-#ifdef DEBUG
-			dbgprintf("Patch:Found [__DVDIntrruptHandler]: 0x%08X (0x%08X)\n", Offset, HwOffset );
-#endif
+			dbgprintf("Patch:Found [__DVDIntrruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 			POffset -= sizeof(DCInvalidateRange);
 			memcpy( (void*)(POffset), DCInvalidateRange, sizeof(DCInvalidateRange) );
 			PatchBL(POffset, (u32)HwOffset);
@@ -911,9 +879,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				Offset -= 8;
 			}
 			
-#ifdef DEBUG
-			dbgprintf("Patch:[__DVDInterruptHandler] 0x%08X\n", Offset );		
-#endif		
+			dbgprintf("Patch:[__DVDInterruptHandler] 0x%08X\r\n", Offset );		
 			
 				value = *(vu32*)Offset;
 				value&= 0xFFFF0000;
@@ -933,9 +899,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				) 
 			{
 				u32 Offset = (u32)Buffer + i;				
-#ifdef DEBUG
-				dbgprintf("Patch:[cbForStateBusy] 0x%08X\n", Offset );
-#endif
+				dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset );
 				value = *(vu32*)(Offset+8);
 				value&= 0x03E00000;
 				value|= 0x38000000;
@@ -958,9 +922,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				)
 			{
 				u32 Offset = (u32)Buffer + i;				
-#ifdef DEBUG
-				dbgprintf("Patch:[cbForStateBusy] 0x%08X\n", Offset );
-#endif
+				dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset );
 				write32( Offset, 0x3C60C000 );
 				write32( Offset+4, 0x80832F48 );
 		
@@ -975,9 +937,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			{
 				if( ((read32( (u32)Buffer + i + 4 ) & 0xFC1FFFFF ) == 0x800300CC) && ((read32( (u32)Buffer + i + 8 ) >> 24) == 0x54 ) )
 				{
-#ifdef DEBUG
-					dbgprintf( "Patch:[VIConfgiure] 0x%08X\n", (u32)(Buffer+i) );
-#endif
+					dbgprintf( "Patch:[VIConfgiure] 0x%08X\r\n", (u32)(Buffer+i) );
 					write32( (u32)Buffer + i + 4, 0x5400F0BE | ((read32( (u32)Buffer + i + 4 ) & 0x3E00000) >> 5	) );
 					PatchCount |= 16;
 				}
@@ -991,15 +951,11 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				if( read32( (u32)Buffer + i + 0x10 ) == 0x80010014  )
 				{
 					write32( (u32)Buffer + i + 0x10, 0x3800009C );
-#ifdef DEBUG
-					dbgprintf( "Patch:[ARInit] 0x%08X\n", (u32)(Buffer+i) );
-#endif
+					dbgprintf( "Patch:[ARInit] 0x%08X\r\n", (u32)(Buffer+i) );
 				}
 //				else
 //				{
-//#ifdef DEBUG
-//					dbgprintf("Patch skipped:[ARInit] 0x%08X\n", (u32)(Buffer + i));
-//#endif
+//					dbgprintf("Patch skipped:[ARInit] 0x%08X\r\n", (u32)(Buffer + i));
 //				}
 
 				PatchCount |= 32;
@@ -1022,18 +978,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 				u32 DebuggerHook = (u32)Buffer + i + j;
 				
-#ifdef DEBUG
-				dbgprintf("Patch:[Hook:OSSleepThread] at 0x%08X\n", DebuggerHook | 0x80000000 );
-#endif
+				dbgprintf("Patch:[Hook:OSSleepThread] at 0x%08X\r\n", DebuggerHook | 0x80000000 );
 
 				u32 DBGSize;
 
 				FIL fs;
 				if( f_open( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
 				{
-#ifdef DEBUG
-					dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\n", "/sneek/kenobiwii.bin" );
-#endif
+					dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
 
 				} else {
 										
@@ -1045,9 +997,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						s32 ret = f_read( &fs, (void*)0x1800, fs.fsize, &read );
 						if( ret != FR_OK )
 						{
-#ifdef DEBUG
-							dbgprintf( "Patch:Could not read:\"%s\":%d\n", "/sneek/kenobiwii.bin", ret );
-#endif
+							dbgprintf( "Patch:Could not read:\"%s\":%d\r\n", "/sneek/kenobiwii.bin", ret );
 							f_close( &fs );
 
 						} else {
@@ -1092,29 +1042,21 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 								{
 									if( CodeFD.fsize >= 0x2E60 - (0x1800+DBGSize-8) )
 									{
-#ifdef DEBUG
-										dbgprintf("Patch:Cheatfile is too large, it must not be large than %d bytes!\n", 0x2E60 - (0x1800+DBGSize-8));
-#endif
+										dbgprintf("Patch:Cheatfile is too large, it must not be large than %d bytes!\r\n", 0x2E60 - (0x1800+DBGSize-8));
 									} else {
 										if( f_read( &CodeFD, (void*)(0x1800+DBGSize-8), CodeFD.fsize, &read ) == FR_OK )
 										{
-#ifdef DEBUG
-											dbgprintf("Patch:Copied cheat file to memory\n");
-#endif
+											dbgprintf("Patch:Copied cheat file to memory\r\n");
 											write32( 0x1804, 1 );
 										} else {
-#ifdef DEBUG
-											dbgprintf("Patch:Failed to read cheat file:\"%s\"\n", path );
-#endif
+											dbgprintf("Patch:Failed to read cheat file:\"%s\"\r\n", path );
 										}
 									}
 
 									f_close( &CodeFD );
 
 								} else {
-#ifdef DEBUG
-									dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\n", path );
-#endif
+									dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", path );
 								}
 
 								free(path);
@@ -1134,9 +1076,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			{
 				if( memcmp( Buffer+i, GXMObjects[j], 0x3C ) == 0 )
 				{
-#ifdef DEBUG
-					dbgprintf("Patch:Found GX pattern %u at %08X\n", j, (u32)Buffer+i );
-#endif
+					dbgprintf("Patch:Found GX pattern %u at %08X\r\n", j, (u32)Buffer+i );
 					if( ConfigGetConfig(NIN_CFG_FORCE_PROG) )
 					{
 						switch( ConfigGetVideoMode() & NIN_VID_FORCE_MASK )
@@ -1211,9 +1151,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			if( read32( (u32)Buffer + i ) == 0x3C00E300 )
 			{
 				u32 Offset = (u32)Buffer + i;
-#ifdef DEBUG
-				dbgprintf("Patch:[DVDLowStopMotor] 0x%08X\n", Offset );
-#endif
+				dbgprintf("Patch:[DVDLowStopMotor] 0x%08X\r\n", Offset );
 				
 				value = *(vu32*)(Offset-12);
 				value&= 0xFFFF0000;
@@ -1240,9 +1178,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			{
 				u32 Offset = (u32)Buffer + i;
 				
-#ifdef DEBUG
-				dbgprintf("Patch:[DVDLowReadDiskID] 0x%08X\n", Offset );
-#endif
+				dbgprintf("Patch:[DVDLowReadDiskID] 0x%08X\r\n", Offset );
 
 				value = *(vu32*)(Offset);
 				value&= 0xFFFF0000;
@@ -1277,9 +1213,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			{
 				if( memcmp( (void*)(Buffer+i), DSPPattern[l], 0x10 ) == 0 )
 				{
-#ifdef DEBUG
-					dbgprintf("Patch:[DSPPattern] 0x%08X v%u\n", (u32)Buffer + i, l );
-#endif
+					dbgprintf("Patch:[DSPPattern] 0x%08X v%u\r\n", (u32)Buffer + i, l );
 					u8 *SHA1i = (u8*)malloca( 0x60, 0x40 );
 					u8 *hash  = (u8*)malloca( 0x14, 0x40 );
 
@@ -1295,12 +1229,12 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							Known = m;
 #ifdef DEBUG_DSP
-							dbgprintf("DSP before Patch\n");
+							dbgprintf("DSP before Patch\r\n");
 							hexdump((void*)(Buffer + i), DSPLength[l]);
 #endif
 							DoDSPPatch(Buffer + i, m);
 #ifdef DEBUG_DSP
-							dbgprintf("DSP after Patch\n");
+							dbgprintf("DSP after Patch\r\n");
 							hexdump((void*)(Buffer + i), DSPLength[l]);
 #endif
 							break;
@@ -1309,9 +1243,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 					if( Known != -1 )
 					{
-#ifdef DEBUG
-						dbgprintf("Patch:[DSPROM] DSPv%u\n", Known );
-#endif
+						dbgprintf("Patch:[DSPROM] DSPv%u\r\n", Known );
 						PatchCount |= 1024;
 						break;
 					}
@@ -1326,22 +1258,16 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			break;
 	}
 
-#ifdef DEBUG
-	dbgprintf("PatchCount:%08X\n", PatchCount );
-#endif
+	dbgprintf("PatchCount:%08X\r\n", PatchCount );
 
 	if( (PatchCount & 1024) == 0  )	
 	{
-#ifdef DEBUG
-		dbgprintf("Patch:Unknown DSP ROM\n");
-#endif
+		dbgprintf("Patch:Unknown DSP ROM\r\n");
 	}
 
 	if( (PatchCount & (1|2|4|8|2048)) != (1|2|4|8|2048) )
 	{
-#ifdef DEBUG
-		dbgprintf("Patch:Could not apply all required patches!\n");
-#endif
+		dbgprintf("Patch:Could not apply all required patches!\r\n");
 		Shutdown();
 	}
 	
@@ -1365,9 +1291,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				u32 FOffset = (u32)Buffer + i;
 
 				FPatterns[j].Found = FOffset;
-#ifdef DEBUG
-				dbgprintf("Patch:Found [%s]: 0x%08X\n", FPatterns[j].Name, FOffset );
-#endif
+				dbgprintf("Patch:Found [%s]: 0x%08X\r\n", FPatterns[j].Name, FOffset );
 
 				switch( FPatterns[j].PatchLength )
 				{
@@ -1396,16 +1320,12 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					{
 						if( read32( FOffset+0x34 ) == 0x5400023E )
 						{
-#ifdef DEBUG
-							dbgprintf("Patch:[GXInitTlutObj] 0x%08X\n", FOffset );
-#endif
+							dbgprintf("Patch:[GXInitTlutObj] 0x%08X\r\n", FOffset );
 							write32( FOffset+0x34, 0x5400033E );
 
 						} else if( read32( FOffset+0x28 ) == 0x5004C00E )
 						{
-#ifdef DEBUG
-							dbgprintf("Patch:[GXInitTlutObj] 0x%08X\n", FOffset );
-#endif
+							dbgprintf("Patch:[GXInitTlutObj] 0x%08X\r\n", FOffset );
 							write32( FOffset+0x28, 0x5004C016 );
 						} else {
 							FPatterns[j].Found = 0; // False hit
@@ -1413,9 +1333,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					} break;
 					case 0xdead0006:	// AXSetVoiceState
 					{
-#ifdef DEBUG
-						dbgprintf("Patch:[AXSetVoiceState] 0x%08X\n", FOffset );
-#endif
+						dbgprintf("Patch:[AXSetVoiceState] 0x%08X\r\n", FOffset );
 
 						POffset -= sizeof(AXSetVoiceState);
 						memcpy( (void*)POffset, AXSetVoiceState, sizeof(AXSetVoiceState));
@@ -1425,9 +1343,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					} break;
 					case 0xdead0008:	// __ARChecksize
 					{
-#ifdef DEBUG
-						dbgprintf("Patch:[__ARChecksize] 0x%08X\n", FOffset );
-#endif
+						dbgprintf("Patch:[__ARChecksize] 0x%08X\r\n", FOffset );
 						u32 EndOffset = FOffset + FPatterns[j].Length;
 						u32 Register = (*(vu32*)(EndOffset-24) >> 21) & 0x1F;
 
@@ -1440,9 +1356,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					} break;
 					case 0xdead0009:	// AXSetVoiceAddress
 					{
-#ifdef DEBUG
-						dbgprintf("Patch:[AXSetVoiceAddress] 0x%08X\n", FOffset );
-#endif
+						dbgprintf("Patch:[AXSetVoiceAddress] 0x%08X\r\n", FOffset );
 						write32A( FOffset + 0x10, 0x649F2000, 0x3BE40000, 0 );
 
 						FPatterns[j].Found = 0; // at least three hits!
@@ -1454,9 +1368,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
 							break;
 						
-#ifdef DEBUG
-						dbgprintf("Patch:[C_MTXPerspective] 0x%08X\n", FOffset );
-#endif
+						dbgprintf("Patch:[C_MTXPerspective] 0x%08X\r\n", FOffset );
 						*(volatile float *)0x50 = 0.5625f;
 
 						memcpy((void*)(FOffset+ 28),(void*)(FOffset+ 36),44);
@@ -1473,9 +1385,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
 							break;
 						
-#ifdef DEBUG
-						dbgprintf("Patch:[C_MTXLightPerspective] 0x%08X\n", FOffset );
-#endif
+						dbgprintf("Patch:[C_MTXLightPerspective] 0x%08X\r\n", FOffset );
 						*(volatile float *)0x50 = 0.5625f;
 
 						*(u32*)(FOffset+36) = *(u32*)(FOffset+32);
@@ -1496,16 +1406,12 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						
 						write32( FOffset,   0x38600000 );
 						write32( FOffset+4, 0x4E800020 );
-#ifdef DEBUG
-						dbgprintf("Patch:[Clip] 0x%08X\n", FOffset );
-#endif
+						dbgprintf("Patch:[Clip] 0x%08X\r\n", FOffset );
 					} break;
 					case 0xdead000E:	//	__OSReadROM
 					{
 						memcpy( (void*)FOffset, __OSReadROM, sizeof(__OSReadROM) );
-#ifdef DEBUG
-						dbgprintf("Patch:[__OSReadROM] 0x%08X\n", FOffset );
-#endif
+						dbgprintf("Patch:[__OSReadROM] 0x%08X\r\n", FOffset );
 					} break;
 					case 0xdead000F:	// Patch for __GXSetVAT, fixes the dungeon map freeze in Wind Waker
 					{
@@ -1518,9 +1424,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							{
 								write32(FOffset, (read32(FOffset) & 0xff00ffff) | 0x00220000);
 								memcpy( (void *)(FOffset + 4), __GXSetVAT_patch, sizeof(__GXSetVAT_patch) );	
-#ifdef DEBUG
-								dbgprintf("Patch:Applied __GXSetVAT patch\n");
-#endif
+								dbgprintf("Patch:Applied __GXSetVAT patch\r\n");
 							} break;
 							default:
 							break;
@@ -1533,9 +1437,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							PatchOffset += 4;
 						if (read32(FOffset + PatchOffset) != 0x90010004) 	// stw r0, 0x0004(sp)
 						{
-#ifdef DEBUG
-							dbgprintf("Patch:Skipped **IntrruptHandler patch 0x%X (PatchOffset=Not Found) \n", FOffset, PatchOffset);
-#endif
+							dbgprintf("Patch:Skipped **IntrruptHandler patch 0x%X (PatchOffset=Not Found) \r\n", FOffset, PatchOffset);
 							break;
 						}
 
@@ -1545,9 +1447,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						write32(POffset, read32((FOffset + PatchOffset)));
 
 						PatchBL( POffset, (FOffset + PatchOffset) );						
-#ifdef DEBUG
-						dbgprintf("Patch:Applied **IntrruptHandler patch 0x%X (PatchOffset=0x%X) \n", FOffset, PatchOffset);
-#endif
+						dbgprintf("Patch:Applied **IntrruptHandler patch 0x%X (PatchOffset=0x%X) \r\n", FOffset, PatchOffset);
 					} break;
 					case 0xdead0021:	// EXIDMA
 					{
@@ -1568,7 +1468,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 								if( reg == 3 )
 								{
 									value  = read32( FOffset + off ) & 0x0000FFFF;
-								//	dbgprintf("lis:%08X value:%04X\n", FOffset+off, value );
+								//	dbgprintf("lis:%08X value:%04X\r\n", FOffset+off, value );
 								}
 							}
 
@@ -1580,7 +1480,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 								if( src == reg )
 								{
 									valueB = read32( FOffset + off ) & 0x0000FFFF;
-								//	dbgprintf("addi:%08X value:%04X\n", FOffset+off, valueB);
+								//	dbgprintf("addi:%08X value:%04X\r\n", FOffset+off, valueB);
 									break;
 								}
 							}
@@ -1594,7 +1494,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						else
 							value =  (value << 16) + valueB;
 	
-				//		dbgprintf("F:%08X\n", value );
+				//		dbgprintf("F:%08X\r\n", value );
 
 						memcpy( (void*)(FOffset), EXIDMA, sizeof(EXIDMA) );
 						
@@ -1628,9 +1528,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							if( FPatterns[j].Patch == patch_fwrite_GC )
 							{
-#ifdef DEBUG
-								dbgprintf("Patch:Skipped [patch_fwrite_GC]\n");
-#endif
+								dbgprintf("Patch:Skipped [patch_fwrite_GC]\r\n");
 								break;
 							}
 						}
@@ -1639,9 +1537,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							if( FPatterns[j].Patch == patch_fwrite_GC )
 							{
-#ifdef DEBUG
-								dbgprintf("Patch:Skipped [patch_fwrite_GC]\n");
-#endif
+								dbgprintf("Patch:Skipped [patch_fwrite_GC]\r\n");
 								break;
 							}
 						}
@@ -1651,9 +1547,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
 								(TITLE_ID) == 0x474B59 )	// Kirby Air Ride
 							{
-#ifdef DEBUG
-								dbgprintf("Patch:Skipped [ARQPostRequest]\n");
-#endif
+								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
 								break;
 							}
 						}
@@ -1662,16 +1556,12 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							if( (TITLE_ID) != 0x474754 &&	// Chibi-Robo!
 								(TITLE_ID) != 0x475041 )	// Pok駑on Channel
 								break;
-#ifdef DEBUG
-							dbgprintf("Patch:DVDGetDriveStatus\n");
-#endif
+							dbgprintf("Patch:DVDGetDriveStatus\r\n");
 						}
 
 						if( (FPatterns[j].Length >> 16) == 0xdead )
 						{
-#ifdef DEBUG
-							dbgprintf("DIP:Unhandled dead case:%08X\n", FPatterns[j].Length );
-#endif
+							dbgprintf("DIP:Unhandled dead case:%08X\r\n", FPatterns[j].Length );
 						} else
 						{
 
@@ -1691,7 +1581,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							if( !FPatterns[k].Found )		// Don't overwrite the offset!
 								FPatterns[k].Found = -1;	// Usually this holds the offset, to determinate it from a REALLY found pattern we set it -1 which still counts a logical TRUE
 							
-							//dbzdbgprintf("Setting [%s] to found!\n", FPatterns[k].Name );
+							//dbgprintf("Setting [%s] to found!\r\n", FPatterns[k].Name );
 						}
 					}
 				}
@@ -1710,28 +1600,28 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			//	write32( 0x03945B0, 0x8039408C );	// Test menu
 			*(vu32*)(0x00221A28) = 0x48000034;
 			*(vu32*)(0x00256424) = 0x48000068;
-			dbgprintf("Patch:Patched WW NTSC-U\n");
+			dbgprintf("Patch:Patched WW NTSC-U\r\n");
 		}
 		/* NTSC-U Demo */
 		if(*(vu32*)(0x0021D33C) == 0x40820034 && *(vu32*)(0x00251EF8) == 0x41820068)
 		{
 			*(vu32*)(0x0021D33C) = 0x48000034;
 			*(vu32*)(0x00251EF8) = 0x48000068;
-			dbgprintf("Patch:Patched WW NTSC-U Demo\n");
+			dbgprintf("Patch:Patched WW NTSC-U Demo\r\n");
 		}
 		/* PAL Final */
 		if(*(vu32*)(0x001F1FE0) == 0x40820034 && *(vu32*)(0x0025B5C4) == 0x41820068)
 		{
 			*(vu32*)(0x001F1FE0) = 0x48000034;
 			*(vu32*)(0x0025B5C4) = 0x48000068;
-			dbgprintf("Patch:Patched WW PAL\n");
+			dbgprintf("Patch:Patched WW PAL\r\n");
 		}
 		/* NTSC-J Final */
 		if(*(vu32*)(0x0021EDD4) == 0x40820034 && *(vu32*)(0x00253BCC) == 0x41820068)
 		{
 			*(vu32*)(0x0021EDD4) = 0x48000034;
 			*(vu32*)(0x00253BCC) = 0x48000068;
-			dbgprintf("Patch:Patched WW NTSC-J\n");
+			dbgprintf("Patch:Patched WW NTSC-J\r\n");
 		}
 		/*if( ConfigGetConfig( NIN_CFG_OSREPORT ) )
 		{
@@ -1741,7 +1631,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	}
 	/*else if( ((GAME_ID & 0xFFFFFF00) == 0x47414C00) || GAME_ID == 0x474C4D45 ) //Melee or NTSC Luigis Mansion
 	{
-		dbgprintf("Patch:Skipping Wait for Handler\n");
+		dbgprintf("Patch:Skipping Wait for Handler\r\n");
 		SkipHandlerWait = true; //some patch doesnt get applied so without this it would freeze
 	}*/
 
@@ -1750,7 +1640,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		if( FPatterns[j].Found ) //Skip already found patches
 			continue;
 
-		dbgprintf("Patch: [%s] not found\n", FPatterns[j].Name );
+		dbgprintf("Patch: [%s] not found\r\n", FPatterns[j].Name );
 	}
 
 	return;

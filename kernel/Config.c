@@ -9,11 +9,11 @@ void ConfigInit( void )
 	FIL cfg;
 	u32 read;
 
-	dbgprintf("CFGInit()\n");
+	dbgprintf("CFGInit()\r\n");
 
 	if( f_open( &cfg, "/nincfg.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
 	{
-		dbgprintf("CFG:Failed to open config\n");
+		dbgprintf("CFG:Failed to open config\r\n");
 		Shutdown();
 	}
 
@@ -23,7 +23,7 @@ void ConfigInit( void )
 
 	if( read != sizeof(NIN_CFG) )
 	{
-		dbgprintf("CFG:Failed to read config\n");
+		dbgprintf("CFG:Failed to read config\r\n");
 		Shutdown();
 	}
 

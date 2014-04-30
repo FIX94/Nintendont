@@ -62,9 +62,9 @@ void W32(u32 Address, u32 Data)
 		valB |= Data << ((4-Off)*8) ;
 		
 		write32( Address & (~3), valA );
-	//	dbgprintf("[%08X] %08X\n", Address & (~3), valA );
+	//	dbgprintf("[%08X] %08X\r\n", Address & (~3), valA );
 		write32( (Address+3) & (~3), valB );
-	//	dbgprintf("[%08X] %08X\n", (Address+3) & (~3), valB );
+	//	dbgprintf("[%08X] %08X\r\n", (Address+3) & (~3), valB );
 
 	} else {
 		write32( Address, Data );
@@ -126,16 +126,16 @@ void Shutdown( void )
 	//if( ConfigGetConfig(NIN_CFG_MEMEMU) )
 	//{
 	//	for( i = 0; i < 0x20; i+=4 )
-	//		dbgprintf("0x%08X:0x%08X\t0x%08X\n", i, read32( EXI_BASE + i ), read32( EXI_SHADOW + i ) );
-	//	dbgprintf("\n");
+	//		dbgprintf("0x%08X:0x%08X\t0x%08X\r\n", i, read32( EXI_BASE + i ), read32( EXI_SHADOW + i ) );
+	//	dbgprintf("\r\n");
 	//}
 
 	for( i = 0; i < 0x30; i+=4 )
-		dbgprintf("0x%08X:0x%08X\t0x%08X\n", i, read32( DI_BASE + i ), read32( DI_SHADOW + i ) );
-	dbgprintf("\n");
+		dbgprintf("0x%08X:0x%08X\t0x%08X\r\n", i, read32( DI_BASE + i ), read32( DI_SHADOW + i ) );
+	dbgprintf("\r\n");
 
 	for( i = 0; i < 0x30; i+=4 )
-		dbgprintf("0x%08X:0x%08X\t0x%08X\n", 0x0D806000 + i, read32( 0x0D806000 + i ), read32( 0x0D006000 + i ) );
+		dbgprintf("0x%08X:0x%08X\t0x%08X\r\n", 0x0D806000 + i, read32( 0x0D806000 + i ), read32( 0x0D006000 + i ) );
 #endif
 
 	if( IsWiiU )
