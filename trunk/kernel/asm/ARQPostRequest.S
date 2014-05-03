@@ -35,6 +35,9 @@ ARQPostRequest:
 
 	stw		%r10,	0x1C(%r3)	#	ARQCallback     callback
 	
+	cmpwi	%r9,	0
+	beq		callback
+
 	lis		%r4,	0x0FFF
 	ori		%r4,	%r4,	0xFFFF
 	
@@ -84,6 +87,7 @@ DCFlushRangeA:
 	addi	%r4,	%r4,	0x20
 	bdnz	DCFlushRangeA
 		
+callback:
 	cmpwi	%r10,	0
 	beq		end
 
