@@ -14,6 +14,9 @@ ARStartDMA:
 	mflr    %r0
 	stw     %r0,	8(%sp)
 
+	cmpwi	%r6,	0
+	beq		end
+
 	lis		%r7,	0x0FFF
 	ori		%r7,	%r7,	0xFFFF
 	
