@@ -1992,7 +1992,7 @@ BYTE check_fs (	/* 0:The FAT BR, 1:Valid BR but not an FAT, 2:Not a BR, 3:Disk e
 	if (disk_read(fs->drv, fs->win, sect, 1) != RES_OK)	/* Load boot record */
 		return 3;
 	// AA55=FAT AB55=UStealth USB (won't hurt sd)
-	if (LD_WORD(&fs->win[BS_55AA]) != 0xAA55 && LD_WORD(&fs->win[BS_55AA]) != 0xBA55)		/* Check record signature (always placed at offset 510 even if the sector size is >512) */
+	if (LD_WORD(&fs->win[BS_55AA]) != 0xAA55 && LD_WORD(&fs->win[BS_55AA]) != 0xAB55)		/* Check record signature (always placed at offset 510 even if the sector size is >512) */
 		return 2;
 
 	if ((LD_DWORD(&fs->win[BS_FilSysType]) & 0xFFFFFF) == 0x544146)	/* Check "FAT" string */
@@ -2151,7 +2151,7 @@ FRESULT chk_mounted (	/* FR_OK(0): successful, !=0: any error occurred */
 		fs->fsi_sector = bsect + LD_WORD(fs->win+BPB_FSInfo);
 		// AA55=FAT AB55=UStealth USB (won't hurt sd)
 		if (disk_read(fs->drv, fs->win, fs->fsi_sector, 1) == RES_OK &&
-			(LD_WORD(fs->win+BS_55AA) == 0xAA55 || LD_WORD(fs->win+BS_55AA) == 0xBA55) &&
+			(LD_WORD(fs->win+BS_55AA) == 0xAA55 || LD_WORD(fs->win+BS_55AA) == 0xAB55) &&
 			LD_DWORD(fs->win+FSI_LeadSig) == 0x41615252 &&
 			LD_DWORD(fs->win+FSI_StrucSig) == 0x61417272) {
 				fs->last_clust = LD_DWORD(fs->win+FSI_Nxt_Free);
