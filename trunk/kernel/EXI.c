@@ -133,15 +133,17 @@ void EXIInit( void )
 		} break;
 		case 2:
 		{
-#ifdef DEBUG_EXI
 			if( *(vu32*)0xCC == 5 )
 			{
-				dbgprintf("SRAM:PAL60\r\n");
+#ifdef DEBUG_EXI
+				dbgprintf("SRAM:PAL60\n");
+#endif
 			} else {
-				dbgprintf("SRAM:PAL50\r\n");
+#ifdef DEBUG_EXI
+				dbgprintf("SRAM:PAL50\n");
+#endif
 				*(vu32*)0xCC = 1;
 			}
-#endif
 			sram->Flags		|= 1;
 			sram->BootMode	|= 0x40;
 
@@ -180,11 +182,11 @@ void EXISaveCard(void)
 			f_lseek(&MemCard, BlockOffLow);
 			f_write(&MemCard, MCard + BlockOffLow, BlockOffHigh - BlockOffLow, &wrote);
 			f_close(&MemCard);
-	//#ifdef DEBUG_EXI
+//#ifdef DEBUG_EXI
 			dbgprintf("Done!\r\n");
 		}
 		else
-			dbgprintf("Unable to open memory card file!\r\n");
+			dbgprintf("Unable to open memory card file:%u\r\n", ret );
 //#endif
 		BlockOffLow = 0xFFFFFFFF;
 		BlockOffHigh = 0x00000000;
@@ -208,7 +210,7 @@ void EXIShutdown( void )
 		f_close( &MemCard );
 	}
 	else
-		dbgprintf("Unable to open memory card file!\r\n");
+		dbgprintf("Unable to open memory card file:%u\r\n", ret );
 //#ifdef DEBUG_EXI
 	dbgprintf("Done!\r\n");
 //#endif
@@ -490,27 +492,27 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 		{
 			case IPL_READ_FONT_ANSI:
 			{
+#ifdef DEBUG_SRAM	
+					dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
+#endif
 				FIL ipl;
 				if( f_open( &ipl, "/ipl.bin", FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 				{
 					f_lseek( &ipl, IPLReadOffset );
-					f_read( &ipl, Data, Length, &read );
+					f_read( &ipl, (void*)0x11200000, Length, &read );
 					f_close( &ipl );
 
+					memcpy( Data, (void*)0x11200000, Length );
 					sync_after_write( Data, Length );
-#ifdef DEBUG_SRAM	
-					dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
-#endif
 				}
 			} break;
 			case SRAM_READ:
 			{
-				memcpy( Data, SRAM, Length );
-
-				sync_after_write( Data, Length );
 #ifdef DEBUG_SRAM	
 				dbgprintf("EXI: SRAMRead(%p,%u)\r\n", Data, Length );
 #endif
+				memcpy( Data, SRAM, Length );
+				sync_after_write( Data, Length );
 			} break;
 #ifdef DEBUG_SRAM
 			default:

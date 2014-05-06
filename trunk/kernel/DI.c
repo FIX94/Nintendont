@@ -78,6 +78,9 @@ void DIinit( void )
 		f_read( &GameFile, &Region, sizeof(u32), &read );
 	}
 
+	f_lseek( &GameFile, 0 );
+	f_read( &GameFile, (void*)0, 0x20, &read );
+
 	memset32( (void*)DI_BASE, 0xdeadbeef, 0x30 );
 	memset32( (void*)DI_SHADOW, 0, 0x30 );
 
@@ -362,6 +365,7 @@ void DIUpdateRegisters( void )
 				
 				} break;
 				case 0xA7:
+					CacheInit();
 				case 0xA9:
 					//dbgprintf("DIP:Async!\r\n");
 				case 0xA8:
@@ -369,26 +373,23 @@ void DIUpdateRegisters( void )
 					u32 Buffer	= P2C(read32(DI_SDMA_ADR));
 					u32 Length	= read32(DI_SCMD_2);
 					u32 Offset	= read32(DI_SCMD_1) << 2;
+
 					dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\r\n", read32(DI_SCMD_0) >> 24, Offset, Length, Buffer|0x80000000 );
-					memset32((void*)0x12100000, 0, Length);
+					memset32((void*)0x11200000, 0, Length);
+
 					if( FSTMode )
-						FSTRead( GamePath, (char*)0x12100000, Length, Offset );
+						FSTRead( GamePath, (char*)0x11200000, Length, Offset );
 					else
 					{
-						if( GameFile.fptr != Offset )
-							f_lseek( &GameFile, Offset );
-
-						s32 ret = f_read( &GameFile, (void*)0x12100000, Length, &read );
-				//		dbgprintf( "%d\r\n", read );
-						if( ret != FR_OK )
-						{
-							dbgprintf( "f_read failed(%u,%u):%d\r\n", Length, read, ret );
-							Shutdown();
-						}
+            CacheRead( (void*)0x11200000, Length, Offset );
 					}
-					memcpy((void*)Buffer, (void*)0x12100000, Length);
+
+					memcpy((void*)Buffer, (void*)0x11200000, Length);
+
 					DoPatches( (char*)Buffer, Length, Offset );
+
 					sync_after_write( (void*)Buffer, Length );
+
 					if( DIcommand == 0xA7 )
 					{
 						DIOK = 2;

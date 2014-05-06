@@ -15,6 +15,7 @@ EXIImm:
 	mflr	%r0
 	stw		%r0,		4(%sp)
 	stwu	%sp,	-0x40(%sp)
+	stmw    %r25,	 0x24(%sp)
 
 	mr		%r8,	%r7
 
@@ -66,6 +67,7 @@ NoCB:
 	li		%r3,	1
 
 	lwz		%r0,	0x44(%sp)
+	lmw     %r25,	0x24(%sp)
 	addi	%sp,	%sp,		0x40
 	mtlr	%r0
 	blr
