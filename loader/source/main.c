@@ -59,6 +59,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "stub_bin.h"
 extern void __exception_setreload(int t);
 
+#define STATUS_LOADING	(*(vu32*)(0x90004100))
+#define STATUS_SECTOR	(*(vu32*)(0x90004100 + 8))
+#define STATUS_DRIVE	(*(vu32*)(0x90004100 + 12))
+#define STATUS_GB_MB	(*(vu32*)(0x90004100 + 16))
+#define STATUS_ERROR	(*(vu32*)(0x90004100 + 20))
+
 static GXRModeObj *vmode = NULL;
 
 static const unsigned char Boot2Patch[] =
@@ -385,65 +391,65 @@ int main(int argc, char **argv)
 	while(1)
 	{
 		DCInvalidateRange( (void*)0x90004100, 0x20 );
-		if( *(vu32*)(0x90004100) == 0xdeadbeef )
+		if( STATUS_LOADING == 0xdeadbeef )
 			break;
 
-		PrintFormat(MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel... %d", *(vu32*)(0x90004100));
-		if(*(vu32*)(0x90004100) == 0)
+		PrintFormat(MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel... %d", STATUS_LOADING);
+		if(STATUS_LOADING == 0)
 		{
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init...");
 		// Cleans the -1 when it's past it to avoid confusion if another error happens. e.g. before it showed "81" instead of "8" if the controller was unplugged.
 			PrintFormat(MENU_POS_X + 163, MENU_POS_Y + 20*6, " ");
 		}
-		if(*(vu32*)(0x90004100) > 0 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 0 && STATUS_LOADING < 20)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init... Done!");
-		if(*(vu32*)(0x90004100) == 2)
+		if(STATUS_LOADING == 2)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device...");
-		if(*(vu32*)(0x90004100) > 2 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 2 && STATUS_LOADING < 20)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device... Done!");
-		if(*(vu32*)(0x90004100) == -2)
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device...FAILED! %d  Shutting down", *(vu32*)(0x90004100 + 20));
-		if(*(vu32*)(0x90004100) == 3)
+		if(STATUS_LOADING == -2)
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device... Error! %d  Shutting down", STATUS_ERROR);
+		if(STATUS_LOADING == 3)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...");
-		if(*(vu32*)(0x90004100) > 3 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 3 && STATUS_LOADING < 20)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Done!");
-		if(*(vu32*)(0x90004100) == -3)
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Failed! %d  Shutting down", *(vu32*)(0x90004100 + 20));
-		if(*(vu32*)(0x90004100) == 5)
+		if(STATUS_LOADING == -3)
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Error! %d  Shutting down", STATUS_ERROR);
+		if(STATUS_LOADING == 5)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS...");
-		if(*(vu32*)(0x90004100) > 5 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 5 && STATUS_LOADING < 20)
 		{
-			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... OK!");
-			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %d%s SectorSize: %d", *(vu32*)(0x90004100 + 12), *(vu32*)(0x90004100 + 16) ? "gb" : "Mb", *(vu32*)(0x90004100 + 8));
+			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Done!");
+			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %d%s Sector size: %d", STATUS_DRIVE, STATUS_GB_MB ? "GB" : "MB", STATUS_SECTOR);
 		}
-		if(*(vu32*)(0x90004100) == -5)
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Error! %d Shutting down", *(vu32*)(0x90004100 + 20));
-		if(*(vu32*)(0x90004100) == 6)
+		if(STATUS_LOADING == -5)
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Error! %d Shutting down", STATUS_ERROR);
+		if(STATUS_LOADING == 6)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules...");
-		if(*(vu32*)(0x90004100) > 6 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 6 && STATUS_LOADING < 20)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Done!");
-		if(*(vu32*)(0x90004100) == -6)
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Error! %d Shutting down", *(vu32*)(0x90004100 + 20));
-		if(*(vu32*)(0x90004100) == 7)
+		if(STATUS_LOADING == -6)
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Error! %d Shutting down", STATUS_ERROR);
+		if(STATUS_LOADING == 7)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*13, "Loading config...");
-		if(*(vu32*)(0x90004100) > 7 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 7 && STATUS_LOADING < 20)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*13, "Loading config... Done!");
-		if(*(vu32*)(0x90004100) == 8)
+		if(STATUS_LOADING == 8)
 		{
  			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... ");
-			if ( *(vu32*)(0x90004100 + 20) == 1)
+			if ( STATUS_ERROR == 1)
 			{
 				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "          Plug Controller in %s usb port", IsWiiU() ? "BOTTOM REAR" : "TOP");
 			}
 			else
 				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "%50s", " ");
 		}
-		if(*(vu32*)(0x90004100) > 8 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 8 && STATUS_LOADING < 20)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Done!");
-		if(*(vu32*)(0x90004100) == -8)
+		if(STATUS_LOADING == -8)
 		{
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Failed! Shutting down");
-			switch (*(vu32*)(0x90004100 + 20))
+			switch (STATUS_ERROR)
 			{
 				case -1:
 					PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "No Controller plugged in %s usb port %10s", IsWiiU() ? "BOTTOM REAR" : "TOP", " ");
@@ -464,17 +470,17 @@ int main(int argc, char **argv)
 					PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "PS3 controller init error %25s", " ");
 					break;	
 				default:
-					PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "Unknown error %d %35s", *(vu32*)(0x90004100 + 20), " ");
+					PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "Unknown error %d %35s", STATUS_ERROR, " ");
 					break;	
 			}
 		}
-		if(*(vu32*)(0x90004100) == 9)
+		if(STATUS_LOADING == 9)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "Init DI... %40s", " ");
-		if(*(vu32*)(0x90004100) > 9 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 9 && STATUS_LOADING < 20)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "Init DI... Done! %35s", " ");
-		if(*(vu32*)(0x90004100) == 10)
+		if(STATUS_LOADING == 10)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD...");
-		if(*(vu32*)(0x90004100) > 10 && *(vu32*)(0x90004100) < 20)
+		if(STATUS_LOADING > 10 && STATUS_LOADING < 20)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD... Done!");
 		VIDEO_WaitVSync();
 	}
