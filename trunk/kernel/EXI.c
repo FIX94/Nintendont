@@ -505,6 +505,15 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 					memcpy( Data, (void*)0x11200000, Length );
 					sync_after_write( Data, Length );
 				}
+				else if (f_open(&ipl, "/font_ansi.bin", FA_OPEN_EXISTING | FA_READ) == FR_OK)
+				{
+					f_lseek( &ipl, IPLReadOffset - 0x1FCF00 );
+					f_read( &ipl, (void*)0x11200000, Length, &read );
+					f_close( &ipl );
+
+					memcpy(Data, (void*)0x11200000, Length);
+					sync_after_write(Data, Length);
+				}
 			} break;
 			case SRAM_READ:
 			{
