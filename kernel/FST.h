@@ -38,9 +38,21 @@ typedef struct
 	FIL File;
 } FileCache;
 
+typedef struct
+{
+	u32   Offset;
+	u32   Size;
+	char *Data;
+} DataCache;
+
 #define FILECACHE_MAX	2
+#define DATACACHE_MAX	220
 
 u32		FSTInit	( char *GamePath );
 void	FSTRead	( char *GamePath, char *Buffer, u32 Length, u32 Offset );
+
+void  CacheInit( void );
+void  CacheFile( char *FileName );
+void  CacheRead( char *Buffer, u32 Length, u32 Offset );
 
 #endif

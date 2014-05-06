@@ -43,7 +43,7 @@ FuncPattern FPatterns[] =
 	{ 0x17F0,       204,    51,     27,     5,      178,(u8*)NULL,					0xdead0008,						"__ARChecksize B",				3,		0 },
 	{ 0xEC8,        129,    29,     32,     9,      80, (u8*)NULL,					0xdead0008,						"__ARChecksize C",				3,		0 },
 	
-	{ 0x120,        28,     6,      10,     2,      7,	(u8*)NULL,					0xdead000E,						"__OSReadROM",					0,		0 },	
+	//{ 0x120,        28,     6,      10,     2,      7,	(u8*)NULL,					0xdead000E,						"__OSReadROM",					0,		0 },	
 
 	{ 0xCC,			3,		3,		1,		0,		3,	(u8*)NULL,					0xdead000C,						"C_MTXPerspective",				0,		0 },
 	{ 0xC8,			3,      3,      1,      0,      3,	(u8*)NULL,					0xdead000D,						"C_MTXLightPerspective",		0,		0 },
@@ -51,11 +51,6 @@ FuncPattern FPatterns[] =
 	{ 0x2E4,        39,     8,      3,      13,     9,	(u8*)NULL,					0xdead0010,						"J3DUClipper::clip()",			0,		0 },
 //	{ 0x94,			0,      0,      0,      0,      0,	(u8*)NULL,					0xdead0010,						"C_MTXOrtho",					0,		0 },
 
-
-//	{ 0x10C,        15,     31,     2,      7,      2,	(u8*)NULL,					0xdead0006,						"AXSetVoiceAddr A",				0,		0 },
-//	{ 0x58,			6,      6,      2,      0,      2, 	(u8*)NULL,					0xdead0006,						"AXSetVoiceState",				0,		0 },
-
-//	{ 0x50,			5,      5,      2,      0,      2, 	(u8*)NULL,					0xdead0009,						"AXSetVoiceAddresses",			0,		0 },
 
 	{ 0x10C,        30,     18,     5,      2,      3,	(u8*)NULL,					0xdead0002,						"DVDLowRead A",					5,		0 },
 	{ 0xDC,			23,     18,     3,      2,      4,	(u8*)NULL,					0xdead0002,						"DVDLowRead B",					5,		0 },

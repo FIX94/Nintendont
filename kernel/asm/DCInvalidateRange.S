@@ -6,6 +6,10 @@ DCInvalidateRange:
 	lwz		%r3,	0x2F44(%r3)
 
 	srwi	%r4,	%r4,	5
+	cmpwi	%r4,	0
+	bne		NoZero
+	li		%r4,	1
+NoZero:
 	mtctr	%r4
 
 InvalidateRange:

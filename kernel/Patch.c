@@ -820,7 +820,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				POffset -= sizeof(FakeInterrupt);
 				memcpy( (void*)(POffset), FakeInterrupt, sizeof(FakeInterrupt) );
 				PatchBL( POffset, (u32)Buffer + i + 4 );
-
+				
+				// EXI Device 0 Control Register
 				write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
 				write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
 
@@ -828,11 +829,10 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			}
 		}
 
-
 		if( (PatchCount & 1) == 0 )	// 803463EC 8034639C
 		if( (read32( (u32)Buffer + i )		& 0xFC00FFFF)	== 0x5400077A &&
 			(read32( (u32)Buffer + i + 4 )	& 0xFC00FFFF)	== 0x28000000 &&
-			 read32( (u32)Buffer + i + 8 )					== 0x41820008 &&
+			 read32( (u32)Buffer + i + 8 )								== 0x41820008 &&
 			(read32( (u32)Buffer + i +12 )	& 0xFC00FFFF)	== 0x64002000
 			)  
 		{
@@ -1331,16 +1331,6 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							FPatterns[j].Found = 0; // False hit
 						}
 					} break;
-					case 0xdead0006:	// AXSetVoiceState
-					{
-						dbgprintf("Patch:[AXSetVoiceState] 0x%08X\r\n", FOffset );
-
-						POffset -= sizeof(AXSetVoiceState);
-						memcpy( (void*)POffset, AXSetVoiceState, sizeof(AXSetVoiceState));
-
-						PatchBL( POffset, FOffset + 0x30 );
-
-					} break;
 					case 0xdead0008:	// __ARChecksize
 					{
 						dbgprintf("Patch:[__ARChecksize] 0x%08X\r\n", FOffset );
@@ -1352,14 +1342,6 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						*(vu32*)(FOffset+8) = *(vu32*)(EndOffset-24);
 						*(vu32*)(FOffset+12)= *(vu32*)(EndOffset-20);
 						*(vu32*)(FOffset+16)= 0x4E800020;
-
-					} break;
-					case 0xdead0009:	// AXSetVoiceAddress
-					{
-						dbgprintf("Patch:[AXSetVoiceAddress] 0x%08X\r\n", FOffset );
-						write32A( FOffset + 0x10, 0x649F2000, 0x3BE40000, 0 );
-
-						FPatterns[j].Found = 0; // at least three hits!
 
 					} break;
 // Widescreen hack by Extrems
@@ -1506,8 +1488,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 						valueB+=4;
 						
-						write32( FOffset+0x0C, value );
-						write32( FOffset+0x10, valueB );
+						write32( FOffset+0x10, value );
+						write32( FOffset+0x14, valueB );
 
 					} break;
 					case 0xdead0022:	// CARD timeout
