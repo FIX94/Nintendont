@@ -412,11 +412,11 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 	//dbgprintf("%08x %08x %08x %08x\r\n", (u32)Data >> 16, Mode, Length, EXICommand);
 	write32( 0x0D80600C, 0 ); //exit EXIDMA / EXIImm
 	write32(0x12010000,1);
-	sync_after_write((void*)0x12010000,0x20);
+	sync_after_write((void*)0x12010000,4);
 	if( EXIOK == 2 )
 	{
 		write32( 0x14, 0x10 );		// EXI(TC) IRQ
-		sync_after_write( 0, 0x20 );
+		sync_after_write( (void*)0x14, 4 );
 		wait_for_ppc(1);
 		if(SkipHandlerWait == true)
 			write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
@@ -425,7 +425,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 			while(read32(0x12010000) == 1)
 			{
 				write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-				sync_before_read((void*)0x12010000, 0x20);
+				sync_before_read((void*)0x12010000, 4);
 			}
 		}
 		/*write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );

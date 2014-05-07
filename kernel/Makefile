@@ -10,7 +10,7 @@ LDFLAGS	=	-nostartfiles -nodefaultlibs -mbig-endian -Wl,-T,kernel.ld,-Map,kernel
 LIBS	=	-lgcc
 
 TARGET	=	kernel.elf
-OBJECTS	=	start.o common.o alloc.o gecko.o FST.o DI.o Patch.o StreamADPCM.o EXI.o ff.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o main.o syscalls.o vsprintf.o string.o
+OBJECTS	=	start.o common.o alloc.o gecko.o FST.o DI.o Patch.o StreamADPCM.o EXI.o SI.o ff.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o main.o syscalls.o vsprintf.o string.o
 ifeq ($(usb), 1)
 	OBJECTS	+= tiny_ehci_glue.o usb_os.o
 	CFLAGS	+= -DNINTENDONT_USB

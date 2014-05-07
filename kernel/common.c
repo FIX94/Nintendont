@@ -121,6 +121,8 @@ void Shutdown( void )
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
 
+#if 0
+
 #ifdef DEBUG
 	int i;
 	//if( ConfigGetConfig(NIN_CFG_MEMEMU) )
@@ -138,6 +140,7 @@ void Shutdown( void )
 		dbgprintf("0x%08X:0x%08X\t0x%08X\r\n", 0x0D806000 + i, read32( 0x0D806000 + i ), read32( 0x0D006000 + i ) );
 #endif
 
+#endif
 	if( IsWiiU )
 	{
 		write32( 0x0D8005E0, 0xFFFFFFFE );

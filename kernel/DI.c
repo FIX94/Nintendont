@@ -137,7 +137,7 @@ void DIChangeDisc( u32 DiscNumber )
 }
 void DIUpdateRegisters( void )
 {
-	u32 read,i;
+	u32 i;
 	u32 DIOK = 0,DIcommand;
 
 	u32 *DInterface	 = (u32*)(DI_BASE);
@@ -380,9 +380,7 @@ void DIUpdateRegisters( void )
 					if( FSTMode )
 						FSTRead( GamePath, (char*)0x11200000, Length, Offset );
 					else
-					{
-            CacheRead( (void*)0x11200000, Length, Offset );
-					}
+						CacheRead( (void*)0x11200000, Length, Offset );
 
 					memcpy((void*)Buffer, (void*)0x11200000, Length);
 

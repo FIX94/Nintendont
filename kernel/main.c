@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "alloc.h"
 #include "DI.h"
 #include "ES.h"
+#include "SI.h"
 #include "StreamADPCM.h"
 #include "HID.h"
 #include "EXI.h"
@@ -52,6 +53,7 @@ extern u32 s_cnt;
 
 FATFS *fatfs;
 extern u32 HIDHandle;
+extern bool SI_IRQ;
 //u32 Loopmode=0;
 int _main( int argc, char *argv[] )
 {
@@ -65,14 +67,18 @@ int _main( int argc, char *argv[] )
 	thread_set_priority( 0, 0x79 );	// do not remove this, this waits for FS to be ready!
 	thread_set_priority( 0, 0x50 );
 	thread_set_priority( 0, 0x79 );
-	
+
+	#if 0
+
 	#ifdef DEBUG
 	u32 v = read32(0x3140);
-	#endif
 	dbgprintf("Nintendont IOS%d v%d.%d\r\n", v >> 16, (v >> 8) & 0xff, v & 0xff);
 
 	dbgprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
 	dbgprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
+	#endif
+
+	#endif
 
 	//MessageQueue = ES_Init( MessageHeap );
 	ES_Init( MessageHeap );
@@ -138,7 +144,7 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(6, s_size, s_cnt);
 	s32 r = LoadModules(55);
-	dbgprintf("ES:ES_LoadModules(%d):%d\r\n", 55, r );
+	//dbgprintf("ES:ES_LoadModules(%d):%d\r\n", 55, r );
 	if( r < 0 )
 	{
 		BootStatusError(-6, r);
@@ -198,7 +204,10 @@ int _main( int argc, char *argv[] )
 	set32( HW_PPCIRQMASK, (1<<31) );
 	set32( HW_IPC_PPCCTRL, 0x30 );
 */
+	SIInit();
 	u32 Now = read32(HW_TIMER);
+	u32 PADTimer = Now;
+
 	bool SaveCard = false;
 
 	//thread_set_priority( 0, 127 );
@@ -207,6 +216,16 @@ int _main( int argc, char *argv[] )
 	while (1)
 	{
 		_ahbMemFlush(0);
+
+		if(SI_IRQ == true)
+		{
+			if((read32(HW_TIMER) - PADTimer) >= 65000)	// about 29 times a second
+			{
+				SIInterrupt();
+				PADTimer = read32(HW_TIMER);
+			}
+		}
+
 		//Baten Kaitos save hax
 		if( read32(0) == 0x474B4245 )
 		{
@@ -218,7 +237,7 @@ int _main( int argc, char *argv[] )
 
 		if( Streaming )
 		{
-			if( (*(vu32*)0x0d800010 * 19 / 10) - StreamTimer >= 5000000 )
+			if( (read32(HW_TIMER) * 19 / 10) - StreamTimer >= 5000000 )
 			{
 			//	dbgprintf(".");
 				StreamOffset += 64*1024;
@@ -254,22 +273,26 @@ int _main( int argc, char *argv[] )
 		_ahbMemFlush(1);
 		DIUpdateRegisters();
 		EXIUpdateRegistersNEW();
+		SIUpdateRegisters();
 		if(EXICheckCard() && !SaveCard)
 		{
 			Now = read32(HW_TIMER);
 			SaveCard = true;
 		}
-		if((read32(HW_TIMER)-Now) * 1024 / 243000000 > 5 && SaveCard)
+		if(SaveCard == true)
 		{
-			EXISaveCard();
-			SaveCard = false;
+			if((read32(HW_TIMER) - Now) * 1024 / 243000000 > 5)
+			{
+				EXISaveCard();
+				SaveCard = false;
+			}
 		}
 		sync_before_read(reset, 0x20);
 		if(read32((u32)reset) == 1)
 		{
 			write32((u32)reset, 0);
 			sync_after_write(reset, 0x20);
-			dbgprintf("loop quit\r\n");
+			//dbgprintf("loop quit\r\n");
 			break;
 		}
 		cc_ahbMemFlush(1);
@@ -278,11 +301,6 @@ int _main( int argc, char *argv[] )
 	{
 		/* we're done reading inputs */
 		thread_cancel(HID_Thread, 0);
-	}
-	if((read32(HW_TIMER)-Now) * 1024 / 243000000 > 2 && SaveCard)
-	{
-		EXISaveCard();
-		SaveCard = false;
 	}
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();

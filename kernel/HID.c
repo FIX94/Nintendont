@@ -436,7 +436,7 @@ u32 HID_Run(void *arg)
 			HIDIRQRead();
 		else
 			HIDPS3Read();
-		mdelay(25);
+		mdelay(34);	// about 29 times a second
 	}
 	return 0;
 }
