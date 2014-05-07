@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "alloc.h"
 #include "vsprintf.h"
 #include "Config.h"
+
 #ifndef DEBUG_DI
 #define dbgprintf(...)
 #else

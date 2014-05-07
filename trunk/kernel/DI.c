@@ -207,8 +207,14 @@ void DIUpdateRegisters( void )
 								dbgprintf("DIP:Size:%u\r\n", StreamSize );
 								dbgprintf("DIP:Samples:%u\r\n", StreamSize / (SAMPLES_PER_BLOCK*sizeof(u16)) );
 #ifdef AUDIOSTREAM
+								u32 read;
 								f_lseek( &GameFile, StreamDiscOffset );
-								ret = f_read( &GameFile, (void*)(StreamBuffer+0x1000), StreamSize, &read );
+								
+								#ifdef DEBUG_DI
+								u32 ret = f_read( &GameFile, (void*)(StreamBuffer+0x1000), StreamSize, &read );
+								#else
+								f_read( &GameFile, (void*)(StreamBuffer+0x1000), StreamSize, &read );
+								#endif
 
 								if( read != StreamSize )
 								{
@@ -272,6 +278,7 @@ void DIUpdateRegisters( void )
 										0x62,  -0x37
 									};
 
+									u32 j;
 									for (j = 0; j < 16; j+=2)
 									{
 										u32 val = coef[j+1]<<5;

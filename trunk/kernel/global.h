@@ -5,9 +5,9 @@
 #define false		0
 #define true		1
 //#define CHEATMENU	1
-#define EXIPATCH 1
-#define CHEATS 1
-//#define HID 1
+#define EXIPATCH	1
+#define CHEATS		1
+//#define HID		1
 //#define CARDDEBUG 1
 //#define AUDIOSTREAM 1
 
