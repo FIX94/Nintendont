@@ -44,10 +44,10 @@ u32 FCState[FILECACHE_MAX];
 
 extern FIL GameFile;
 
-u32 CacheIsInit    = 0;
-u32 DataCacheCount = 0;
-u32 DataCacheOffset= 0;
-char *DCCache = (char*)0x11280000;
+u32 CacheIsInit		= 0;
+u32 DataCacheCount 	= 0;
+u32 DataCacheOffset	= 0;
+char *DCCache		= (char*)0x11280000;
 DataCache DC[DATACACHE_MAX];
 
 extern u32 Region;
@@ -58,7 +58,7 @@ u32 FSTInit( char *GamePath )
 	FIL fd;
 	u32 read;
 
-  FSTable = NULL;
+	FSTable = NULL;
 	
 	_sprintf( Path, "%ssys/boot.bin", GamePath );
 	if( f_open( &fd, Path, FA_READ ) != FR_OK )
@@ -67,7 +67,6 @@ u32 FSTInit( char *GamePath )
 		return 0;
 
 	} else {
-
 		u8 *rbuf = (u8*)malloc( 0x100 );
 		
 		f_lseek( &fd, 0 );
@@ -112,15 +111,14 @@ void FSTRead( char *GamePath, char *Buffer, u32 Length, u32 Offset )
 	u32 read;
 	int i,j;
 	
-	if( Offset >= FSTableOffset+FSTableSize ) {
-				
+	if( Offset >= FSTableOffset+FSTableSize ) {	
 		//Get FSTTable offset from low memory, must be set by apploader
 		if( FSTable == NULL )
 		{
 			FSTable	= (u8*)((*(vu32*)0x38) & 0x7FFFFFFF);
 			//dbgprintf("DIP:FSTOffset:  %08X\r\n", (u32)FSTable );
 		}
-		
+
 		//try cache first!
 		for( i=0; i < FILECACHE_MAX; ++i )
 		{
@@ -170,16 +168,15 @@ void FSTRead( char *GamePath, char *Buffer, u32 Length, u32 Offset )
 				//printf("[%03X]Entering:\"%s\" Level:%d leave:%04X\r\n", i, buffer + NameOff + swap24( fe[i].NameOffset ), level, swap32( fe[i].NextOffset ) );
 				Entry[level] = i;
 				LEntry[level++] = fe[i].NextOffset;
-				if( level > 15 )	// something is wrong!
+				if( level > 15 )  // something is wrong!
 					break;
 			} else {
-
 				if( Offset >= fe[i].FileOffset )
 				{
 					u32 nOffset = (Offset - fe[i].FileOffset);
 					if( nOffset < fe[i].FileLength )
 					{
-					//	dbgprintf("DIP:Offset:%08X FOffset:%08X Dif:%08X Flen:%08X nOffset:%08X\r\n", Offset, fe[i].FileOffset, Offset-fe[i].FileOffset, fe[i].FileLength, nOffset );
+						//dbgprintf("DIP:Offset:%08X FOffset:%08X Dif:%08X Flen:%08X nOffset:%08X\r\n", Offset, fe[i].FileOffset, Offset-fe[i].FileOffset, fe[i].FileLength, nOffset );
 
 						//Do not remove!
 						memset32( Path, 0, 256 );					
@@ -206,7 +203,7 @@ void FSTRead( char *GamePath, char *Buffer, u32 Length, u32 Offset )
 
 						Asciify( Path );
 
-					//	dbgprintf("DIP:[%s]\r\n", Path+strlen(GamePath)+5 );
+						//dbgprintf("DIP:[%s]\r\n", Path+strlen(GamePath)+5 );
 
 						f_open( &(FC[FCEntry].File), Path, FA_READ );
 
@@ -322,110 +319,111 @@ void FSTRead( char *GamePath, char *Buffer, u32 Length, u32 Offset )
 }
 void CacheInit( void )
 {
-  if(CacheIsInit)
-    return;
+	if(CacheIsInit)
+		return;
 
-  FIL file;
-  u32 read;
-  u32 offset = 0;
-  char *path = (char*)malloc( 128 );
+	FIL file;
+	u32 read;
+	u32 offset = 0;
+	char *path = (char*)malloc( 128 );
 
-  _sprintf( path, "%s", ConfigGetGamePath() );
+	_sprintf( path, "%s", ConfigGetGamePath() );
 
-  offset = strlen(path);
+	offset = strlen(path);
 
-  //Clear ISO name
-  while(offset > 1)
-  {
-    if( path[offset] == '/' )
-      break;
+	//Clear ISO name
+	while(offset > 1)
+	{
+		if( path[offset] == '/' )
+			break;
 
-    path[offset] = 0;
-    offset--; 
-  }
+		path[offset] = 0;
+		offset--; 
+	}
 
-  memcpy( path + strlen(path), "cache.txt", 11 );
-  
-  dbgprintf("DIP:opening:\"%s\"\n", path );
+	memcpy( path + strlen(path), "cache.txt", 11 );
+	
+	dbgprintf("DIP:opening:\"%s\"\n", path );
 
-  if( f_open( &file, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
-  {
-    char *data = (char*)malloc( file.fsize );
-    if( data == NULL )
-    {
-      dbgprintf("DIP:Failed to alloc %u bytes\n", file.fsize );
-    } else {
+	if( f_open( &file, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+	{
+		char *data = (char*)malloc( file.fsize );
+		if( data == NULL )
+		{
+			dbgprintf("DIP:Failed to alloc %u bytes\n", file.fsize );
+		} else {
 
-      f_read( &file, data, file.fsize, &read );
-      f_close( &file );
+			f_read( &file, data, file.fsize, &read );
+			f_close( &file );
 
-      offset     = 0;
-      u32 len    = strlen( data );
-      u32 elen   = 0;
-      char *str  = data;
+			offset		= 0;
+			u32 len		= strlen( data );
+			u32 elen	= 0;
+			char *str	= data;
 
-      while(offset <= len)
-      {
-        elen = 0;
-        //find \0xa or \0xd
-        while(1)
-        {
-          if( str[offset+elen] == 0x0A || str[offset+elen] == 0x0D )
-            break;
-          if( offset+elen >= len )
-            break;
+			while(offset <= len)
+			{
+				elen = 0;
+				//find \0xa or \0xd
+				while(1)
+				{
+					if( str[offset+elen] == 0x0A || str[offset+elen] == 0x0D )
+						break;
+					if( offset+elen >= len )
+						break;
 
-          elen++;
-        }
+					elen++;
+				}
 
-        if( offset+elen >= len )
-          break;
+				if( offset+elen >= len )
+					break;
 
-        memset( path, 0, 128 );
-        memcpy( path, str + offset, elen );
-        CacheFile( path );
+				memset( path, 0, 128 );
+				memcpy( path, str + offset, elen );
+				CacheFile( path );
 
-        offset += elen;
+				offset += elen;
 
-        while(offset <= len)
-        {
-          if( str[offset] == 0x0A || str[offset] == 0x0D )
-          {
-            offset++;
-            continue;
-          }
-          break;
-        }
-      }
+				while(offset <= len)
+				{
+					if( str[offset] == 0x0A || str[offset] == 0x0D )
+					{
+						offset++;
+						continue;
+					}
+					break;
+				}
+			}
 
-      free(data);
-    }
-  } else {
-    dbgprintf("DIP:Couldn't open:\"%s\"\n", path );
-  }
+			free(data);
+		}
+	} else {
+		dbgprintf("DIP:Couldn't open:\"%s\"\n", path );
+	}
 
-  free(path);
+	free(path);
 
-  CacheIsInit = 1;
+	CacheIsInit = 1;
 }
+
 void CacheFile( char *FileName )
 {
-  if( DataCacheCount >= DATACACHE_MAX )
-    return;
-  if( DataCacheOffset >= 0x1D80000 )
-    return;
+	if( DataCacheCount >= DATACACHE_MAX )
+		return;
+	if( DataCacheOffset >= 0x1D80000 )
+		return;
 
-  FSTable	= (u8*)((*(vu32*)0x38) & 0x7FFFFFFF);
-  
-	u32 Entries   = *(u32*)(FSTable+0x08);
-	char *NameOff = (char*)(FSTable + Entries * 0x0C);
-	FEntry *fe    = (FEntry*)(FSTable);
+	FSTable = (u8*)((*(vu32*)0x38) & 0x7FFFFFFF);
+	
+	u32 Entries		= *(u32*)(FSTable+0x08);
+	char *NameOff	= (char*)(FSTable + Entries * 0x0C);
+	FEntry *fe		= (FEntry*)(FSTable);
 
 	//u32 Entry[16];
 	u32 LEntry[16];
 	u32 level=0;
-  u32 i=0;
-  u32 read;
+	u32 i=0;
+	u32 read;
 
 	for( i=1; i < Entries; ++i )
 	{
@@ -447,41 +445,40 @@ void CacheFile( char *FileName )
 			//printf("[%03X]Entering:\"%s\" Level:%d leave:%04X\n", i, buffer + NameOff + swap24( fe[i].NameOffset ), level, swap32( fe[i].NextOffset ) );
 			//Entry[level] = i;
 			LEntry[level++] = fe[i].NextOffset;
-			if( level > 15 )	// something is wrong!
+			if( level > 15 )  // something is wrong!
 				break;
 		} else {
-      if( strcmp( FileName, NameOff + fe[i].NameOffset ) == 0 )
-      {
-        dbgprintf("[%s] Offset:%08X Size:%u\n", NameOff + fe[i].NameOffset, fe[i].FileOffset, fe[i].FileLength );
+			if( strcmp( FileName, NameOff + fe[i].NameOffset ) == 0 )
+			{
+				dbgprintf("[%s] Offset:%08X Size:%u\n", NameOff + fe[i].NameOffset, fe[i].FileOffset, fe[i].FileLength );
 
-        if( (DataCacheOffset <= 0xD80000) && ((DataCacheOffset + fe[i].FileLength) >= 0xD80000) )
-        {
-          DataCacheOffset = 0xDA0000;
-        }
+				if( (DataCacheOffset <= 0xD80000) && ((DataCacheOffset + fe[i].FileLength) >= 0xD80000) )
+				{
+					DataCacheOffset = 0xDA0000;
+				}
 
-        f_lseek( &GameFile, fe[i].FileOffset );
-        f_read( &GameFile, DCCache + DataCacheOffset, fe[i].FileLength, &read );
+				f_lseek( &GameFile, fe[i].FileOffset );
+				f_read( &GameFile, DCCache + DataCacheOffset, fe[i].FileLength, &read );
 
-        sync_after_write( DCCache + DataCacheOffset, fe[i].FileLength );
-  
-        DC[DataCacheCount].Data   = DCCache + DataCacheOffset;
-        DC[DataCacheCount].Offset = fe[i].FileOffset;
-        DC[DataCacheCount].Size   = (fe[i].FileLength + 3) & (~3);
+				sync_after_write( DCCache + DataCacheOffset, fe[i].FileLength );
+			
+				DC[DataCacheCount].Data		= DCCache + DataCacheOffset;
+				DC[DataCacheCount].Offset	= fe[i].FileOffset;
+				DC[DataCacheCount].Size		= (fe[i].FileLength + 3) & (~3);
 
-        DataCacheOffset += (fe[i].FileLength + 31) & (~31);
+				DataCacheOffset += (fe[i].FileLength + 31) & (~31);
 
-        dbgprintf("DI: Cached Offset:%08X Size:%08X Buffer:%p\n", fe[i].FileOffset, fe[i].FileLength, DC[DataCacheCount].Data );
+				dbgprintf("DI: Cached Offset:%08X Size:%08X Buffer:%p\n", fe[i].FileOffset, fe[i].FileLength, DC[DataCacheCount].Data );
 
-        DataCacheCount++;
-        return;
-      }
-    }
-  }
+				DataCacheCount++;
+				return;
+			}
+		}
+	}
 }
 void CacheRead( char *Buffer, u32 Length, u32 Offset )
 {
-  u32 read;
-  u32 i;
+	u32 read, i;
 	//try cache first!
 	for( i=0; i < DataCacheCount; ++i )
 	{
@@ -497,6 +494,6 @@ void CacheRead( char *Buffer, u32 Length, u32 Offset )
 		}
 	}
 
-  f_lseek( &GameFile, Offset );
-  f_read( &GameFile, Buffer, Length, &read );  
+	f_lseek( &GameFile, Offset );
+	f_read( &GameFile, Buffer, Length, &read );	
 }
