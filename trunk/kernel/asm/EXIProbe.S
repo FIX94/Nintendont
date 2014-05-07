@@ -9,8 +9,8 @@
 EXIProbe:
 	cmpwi	%r3,	0
 	bne		False
-#   NIN_CFG.Config = 0x12002A18 + 0x8
-	lis		%r3,	0xD200
+#   NIN_CFG.Config = 0x13002A18 + 0x8
+	lis		%r3,	0xD300
 	lwz		%r3,	0x2A20(%r3)
 	andi.	%r3,	%r3,	0x8
 	cmpwi	%r3,	0

@@ -8,7 +8,7 @@ TCIntrruptHandler:
 	li		%r0,	0x34
 	stw		%r0,	4(%r8)
 
-	lis		%r8,	0xD201
+	lis		%r8,	0xD301
 	li		%r0,	0
 	stw		%r0,	0(%r8)
 

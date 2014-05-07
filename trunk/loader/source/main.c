@@ -359,9 +359,9 @@ int main(int argc, char **argv)
 	DCFlushRange( (void*)0x91000000, 0x20 );
 
 	/* dont directly reset the kernel */
-	DCInvalidateRange( (void*)0x9200300C, 0x20 );
-	*(vu32*)0x9200300C = 0;
-	DCFlushRange( (void*)0x9200300C, 0x20 );
+	DCInvalidateRange( (void*)0x9300300C, 0x20 );
+	*(vu32*)0x9300300C = 0;
+	DCFlushRange( (void*)0x9300300C, 0x20 );
 
 	gprintf("ES_ImportBoot():");
 
@@ -595,7 +595,7 @@ int main(int argc, char **argv)
 		SI_SetCommand(chan,(0x00000300|0x00400000));
 		SI_EnablePolling(bits);
 	}
-	*(vu32*)0xD2003004 = 1; //ready up HID Thread
+	*(vu32*)0xD3003004 = 1; //ready up HID Thread
 
 	VIDEO_SetBlack(TRUE);
 	VIDEO_Flush();
@@ -609,25 +609,31 @@ int main(int argc, char **argv)
 	ICFlashInvalidate();
 	if(IsWiiU() || ncfg.Config & NIN_CFG_HID)
 	{
-		memcpy((void*)0x92000000, PADReadHID_bin, PADReadHID_bin_size);
-		DCFlushRange((void*)0x92000000, PADReadHID_bin_size);
+		memcpy((void*)0x93000000, PADReadHID_bin, PADReadHID_bin_size);
+		DCFlushRange((void*)0x93000000, PADReadHID_bin_size);
 	}
 	else
 	{
-		memcpy((void*)0x92000000, PADReadGC_bin, PADReadGC_bin_size);
-		DCFlushRange((void*)0x92000000, PADReadGC_bin_size);
+		memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
+		DCFlushRange((void*)0x93000000, PADReadGC_bin_size);
 	}
-	DCInvalidateRange((void*)0x92010010, 0x10000);
-	memcpy((void*)0x92010010, loader_stub, 0x1800);
-	memcpy((void*)0x9201A810, stub_bin, stub_bin_size); /* 0xC0 (our stub) - 0x18 (loader stub) = 0xA8 */
-	DCFlushRange((void*)0x92010010, 0x10000);
+	DCInvalidateRange((void*)0x93010010, 0x10000);
+	memcpy((void*)0x93010010, loader_stub, 0x1800);
+	memcpy((void*)0x9301A810, stub_bin, stub_bin_size); /* 0xC0 (our stub) - 0x18 (loader stub) = 0xA8 */
+	DCFlushRange((void*)0x93010010, 0x10000);
 
-	DCInvalidateRange((void*)0x92003000, 0x20);
-	*(vu32*)0x92003000 = currev; //set kernel rev
-	*(vu32*)0x92003008 = 0x80000004; //just some address for SIGetType
-	memset((void*)0x92003010, 0, 0x10); //disable rumble on bootup
-	DCFlushRange((void*)0x92003000, 0x20);
+	DCInvalidateRange((void*)0x93003000, 0x20);
+	*(vu32*)0x93003000 = currev; //set kernel rev
+	*(vu32*)0x93003008 = 0x80000004; //just some address for SIGetType
+	//*(vu32*)0x9300300C = 3; //init cache if needed
+	memset((void*)0x93003010, 0, 0x10); //disable rumble on bootup
+	DCFlushRange((void*)0x93003000, 0x20);
 
+	/*while(*(vu32*)0x9300300C == 3)
+	{
+		DCFlushRange((void*)0x9300300C, 4);
+		usleep(500);
+	}*/
 	*(vu32*)(0xCD8B420A) = 0;	// Disable MEM2 protection again after ios reload
 	//u32 level = IRQ_Disable();
 	__exception_closeall();

@@ -333,10 +333,10 @@ void HIDPS3Read()
 		HIDPS3SetLED(1);
 		PS3LedSet = 1;
 	}
-	if( HIDRumbleLast != *(vu32*)(0x12003010) )
+	if( HIDRumbleLast != *(vu32*)(0x13003010) )
 	{
-		HIDRumble( *(vu32*)(0x12003010) );
-		HIDRumbleLast = *(vu32*)(0x12003010);
+		HIDRumble( *(vu32*)(0x13003010) );
+		HIDRumbleLast = *(vu32*)(0x13003010);
 	}
 	memcpy(HID_Packet, Packet, SS_DATA_LEN);
 	sync_after_write(HID_Packet, SS_DATA_LEN);
@@ -423,10 +423,10 @@ u32 HID_Run(void *arg)
 	IOS_Close(HIDHandle);
 	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
 	dbgprintf("HID_Run, waiting for signal\r\n");
-	while(read32(0x12003004) == 0)
+	while(read32(0x13003004) == 0)
 	{
-		sync_before_read((void*)0x12003004, 0x20);
-		mdelay(100);
+		sync_before_read((void*)0x13003004, 0x20);
+		mdelay(500);
 	}
 	dbgprintf("Starting HID Thread!\r\n");
 	bool Polltype = HID_CTRL->Polltype;

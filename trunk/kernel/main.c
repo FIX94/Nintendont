@@ -45,7 +45,7 @@ int heapid=0;
 int FFSHandle=0;
 u32 FSUSB=0;
 FIL GameFile;
-void *reset = (void*)0x1200300C;
+void *reset = (void*)0x1300300C;
 //#undef DEBUG
 
 extern u32 s_size;
@@ -53,7 +53,8 @@ extern u32 s_cnt;
 
 FATFS *fatfs;
 extern u32 HIDHandle;
-extern bool SI_IRQ;
+extern bool SI_IRQ, DI_IRQ;
+extern u32 DI_Thread;
 //u32 Loopmode=0;
 int _main( int argc, char *argv[] )
 {
@@ -173,12 +174,12 @@ int _main( int argc, char *argv[] )
 			mdelay(2000);
 			Shutdown();
 		}
-		write32(0x12003004, 0);
-		sync_after_write((void*)0x12003004, 0x20);
+		write32(0x13003004, 0);
+		sync_after_write((void*)0x13003004, 0x20);
 
-		memset32((void*)0x12003420, 0, 0x1BE0);
-		sync_after_write((void*)0x12003420, 0x1BE0);
-		HID_Thread = thread_create(HID_Run, NULL, (u32*)0x12003420, 0x1BE0, 0x50, 1);
+		memset32((void*)0x13003420, 0, 0x1BE0);
+		sync_after_write((void*)0x13003420, 0x1BE0);
+		HID_Thread = thread_create(HID_Run, NULL, (u32*)0x13003420, 0x1BE0, 0x78, 1);
 		thread_continue(HID_Thread);
 		mdelay(500);
 	}
@@ -225,7 +226,19 @@ int _main( int argc, char *argv[] )
 				PADTimer = read32(HW_TIMER);
 			}
 		}
-
+		if(DI_IRQ == true)
+		{
+			if(DI_Args->Buffer == 0xdeadbeef)
+				DIInterrupt();
+		}
+		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
+		{
+			if((read32(HW_TIMER) - Now) * 1024 / 243000000 > 10)
+			{
+				EXISaveCard();
+				SaveCard = false;
+			}
+		}
 		//Baten Kaitos save hax
 		if( read32(0) == 0x474B4245 )
 		{
@@ -256,17 +269,9 @@ int _main( int argc, char *argv[] )
 			if( read32(HW_TIMER) * 128 / 243000000 > 2 )
 			{
 				//dbgprintf("DIP:IRQ mon!\r\n");
-
-				while( read32(DI_SCONTROL) & 1 )
-					clear32( DI_SCONTROL, 1 );
-
 				set32( DI_SSTATUS, 0x3A );
-
-				write32( 0x0D806000, 0x3E );
-				write32( 0x0D806008, 0xE0000000 );
-				write32( 0x0D806020, 0 );
-				write32( 0x0D80601C, 1 );
-
+				sync_after_write((void*)DI_SSTATUS, 4);
+				DIInterrupt();
 				DiscChangeIRQ = 0;
 			}
 		}
@@ -279,40 +284,38 @@ int _main( int argc, char *argv[] )
 			Now = read32(HW_TIMER);
 			SaveCard = true;
 		}
-		if(SaveCard == true)
-		{
-			if((read32(HW_TIMER) - Now) * 1024 / 243000000 > 5)
-			{
-				EXISaveCard();
-				SaveCard = false;
-			}
-		}
-		sync_before_read(reset, 0x20);
+		sync_before_read(reset, 4);
 		if(read32((u32)reset) == 1)
 		{
+			wait_for_ppc(1);
 			write32((u32)reset, 0);
-			sync_after_write(reset, 0x20);
+			sync_after_write(reset, 4);
 			//dbgprintf("loop quit\r\n");
 			break;
 		}
 		cc_ahbMemFlush(1);
+		thread_yield();
 	}
 	if( UseHID )
 	{
 		/* we're done reading inputs */
 		thread_cancel(HID_Thread, 0);
 	}
-	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
-		EXIShutdown();
+	thread_cancel(DI_Thread, 0);
+
 	/* reset time */
 	while(1)
 	{
 		_ahbMemFlush(0);
-		sync_before_read(reset, 0x20);
+		sync_before_read(reset, 4);
 		if(read32((u32)reset) == 2)
 			break;
+		wait_for_ppc(1);
 		cc_ahbMemFlush(1);
 	}
-	IOSBoot((char*)0x12003020, 0, read32(0x12003000));
+
+	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
+		EXIShutdown();
+	IOSBoot((char*)0x13003020, 0, read32(0x13003000));
 	return 0;
 }

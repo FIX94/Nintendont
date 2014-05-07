@@ -1,7 +1,7 @@
 #include <asm.h>
 
 PADControlMotor:
-	lis		%r5,	0xD200
+	lis		%r5,	0xD300
 	ori		%r5,	%r5,	0x3010 #chan0 base
 findchan:
 	cmpwi	%r3,	0

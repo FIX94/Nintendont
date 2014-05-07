@@ -47,6 +47,7 @@ void SIInterrupt()
 	write32(SI_CONTROL, cur_control);
 	sync_after_write((void*)SI_CONTROL, 4);
 
+	wait_for_ppc(1);
 	write32( 0x14, 0x8 );		// SI IRQ
 	sync_after_write( (void*)0x14, 4 );
 	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq

@@ -3,7 +3,7 @@
 PADRead:
 	#to stub instead of arm
 	mflr	%r4
-	lis		%r6,	0x9200
+	lis		%r6,	0x9300
 	ori		%r6,	%r6,	0x0000
 	bl		4
 	mflr	%r5 #our point
@@ -17,7 +17,7 @@ PADRead:
 	#calculate buffer position
 	subi	%r5, 		%r5,		0x30
 	#set pointer to real PADStatus
-	lis		%r4,	0xD200
+	lis		%r4,	0xD300
 	ori		%r4,	%r4,	0x3008
 	stw		%r5,		0(%r4)
 

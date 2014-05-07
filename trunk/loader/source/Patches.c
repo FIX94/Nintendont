@@ -315,7 +315,7 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	IOS_Close( cfd );
 
 	//char Path[32];
-	char *Path = (char*)0x92003020;
+	char *Path = (char*)0x93003020;
 	DCInvalidateRange(Path, 1024);
 	memset(Path, 0, 1024);
 	sprintf( Path, "/shared1/%.8s.app", (char*)Entry );

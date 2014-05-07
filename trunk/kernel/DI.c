@@ -38,6 +38,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int dbgprintf( const char *fmt, ...);
 #endif
 
+void DIReadAsync(u32 Buffer, u32 Length, u32 Offset);
+bool DI_IRQ = false;
+u32 DI_Thread = 0;
+
 u32	StreamBufferSize= 0x1E00000;
 u32 StreamBuffer	= 0x11200000+0x60;
 u32 Streaming		= 0;
@@ -55,7 +59,6 @@ static char GamePath[256] ALIGNED(32);
 
 extern u32 Region;
 extern u32 FSTMode;
-
 void DIinit( void )
 {
 	u32 read;
@@ -89,6 +92,14 @@ void DIinit( void )
 	write32( DIP_IMM, 0 ); //reset errors
 	write32( DIP_STATUS, 0x2E );
 	write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
+
+	memset32(DI_Args, 0xdeadbeef, sizeof(DI_ThreadArgs));
+	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
+	memset32((void*)0x13007420, 0, 0x1BE0);
+	sync_after_write((void*)0x13007420, 0x1BE0);
+	DI_Thread = thread_create(DIReadThread, NULL, (u32*)0x13007420, 0x1BE0, 0x78, 1);
+	thread_continue(DI_Thread);
+	mdelay(500);
 }
 void DIChangeDisc( u32 DiscNumber )
 {
@@ -117,7 +128,7 @@ void DIChangeDisc( u32 DiscNumber )
 	s32 ret = f_open( &GameFile, str, FA_READ|FA_OPEN_EXISTING );
 	if( ret  != FR_OK )
 	{
-		dbgprintf("Failed to open:%s Error:%u\r\n", str, ret );
+		//dbgprintf("Failed to open:%s Error:%u\r\n", str, ret );
 		Shutdown();
 	}
 
@@ -134,6 +145,19 @@ void DIChangeDisc( u32 DiscNumber )
 
 	free(str);
 
+}
+void DIInterrupt()
+{
+	DI_IRQ = false;
+	wait_for_ppc(1);
+
+	write32( DIP_CONTROL, 1 ); //start transfer, causes an interrupt, game gets its data
+	while( read32(DIP_CONTROL) & 1 ) ;
+
+	set32( DI_SSTATUS, 0x3A );
+	sync_after_write((void*)DI_SSTATUS, 4);
+	write32(DI_SCONTROL, 0); //game shadow controls
+	sync_after_write((void*)DI_SCONTROL, 4);
 }
 void DIUpdateRegisters( void )
 {
@@ -171,9 +195,9 @@ void DIUpdateRegisters( void )
 				{
 					dbgprintf("DI: Unknown command:%02X\r\n", DIcommand );
 
-					for( i = 0; i < 0x30; i+=4 )
-						dbgprintf("0x%08X:0x%08X\t0x%08X\r\n", i, read32( DI_BASE + i ), read32( DI_SHADOW + i ) );
-					dbgprintf("\r\n");
+					//for( i = 0; i < 0x30; i+=4 )
+					//	dbgprintf("0x%08X:0x%08X\t0x%08X\r\n", i, read32( DI_BASE + i ), read32( DI_SHADOW + i ) );
+					//dbgprintf("\r\n");
 
 					memset32( (void*)DI_BASE, 0xdeadbeef, 0x30 );
 					memset32( (void*)(DI_SHADOW), 0, 0x30 );
@@ -382,23 +406,17 @@ void DIUpdateRegisters( void )
 					u32 Offset	= read32(DI_SCMD_1) << 2;
 
 					dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\r\n", read32(DI_SCMD_0) >> 24, Offset, Length, Buffer|0x80000000 );
-					memset32((void*)0x11200000, 0, Length);
-
-					if( FSTMode )
-						FSTRead( GamePath, (char*)0x11200000, Length, Offset );
-					else
-						CacheRead( (void*)0x11200000, Length, Offset );
-
-					memcpy((void*)Buffer, (void*)0x11200000, Length);
-
-					DoPatches( (char*)Buffer, Length, Offset );
-
-					sync_after_write( (void*)Buffer, Length );
+					DIReadAsync(Buffer, Length, Offset);
 
 					if( DIcommand == 0xA7 )
 					{
 						DIOK = 2;
 					} else {
+						while(DI_Args->Buffer != 0xdeadbeef)
+						{
+							sync_before_read(DI_Args, sizeof(DI_ThreadArgs));
+							mdelay(1);
+						}
 						DIOK = 1;
 					}
 				}
@@ -407,16 +425,14 @@ void DIUpdateRegisters( void )
 			if( DIOK )
 			{
 				//write32( DI_SDMA_LEN, 0 );
-				set32( DI_SSTATUS, 0x3A );
-				sync_after_write( (void*)DI_BASE, 0x60 );
 
 				if( DIOK == 2 )
+					DI_IRQ = true;
+				else
 				{
-					//wait_for_ppc(5); //wait so game expects it
-					write32( DIP_CONTROL, 1 ); //start transfer so game gets its data
-					while( read32(DIP_CONTROL) & 1 ) ;
+					set32( DI_SSTATUS, 0x3A );
+					write32(DI_SCONTROL, 0);
 				}
-				write32(DI_SCONTROL, 0);
 				//while( read32(DI_SCONTROL) & 1 )
 				//	clear32( DI_SCONTROL, 1 );
 			}
@@ -426,4 +442,33 @@ void DIUpdateRegisters( void )
 	else //give the hid thread some time
 		udelay(10);
 	return;
+}
+void DIReadAsync(u32 Buffer, u32 Length, u32 Offset)
+{
+	DI_Args->Length = Length; DI_Args->Offset = Offset; DI_Args->Buffer = Buffer;
+	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
+}
+u32 DIReadThread(void *arg)
+{
+	dbgprintf("DI Thread Running\n");
+	while(1)
+	{
+		sync_before_read(DI_Args, sizeof(DI_ThreadArgs));
+		if(DI_Args->Buffer != 0xdeadbeef)
+		{
+			memset32((void*)0x11200000, 0, DI_Args->Length);
+			if( FSTMode )
+				FSTRead( GamePath, (char*)0x11200000, DI_Args->Length, DI_Args->Offset );
+			else
+				CacheRead( (void*)0x11200000, DI_Args->Length, DI_Args->Offset );
+
+			memcpy((void*)DI_Args->Buffer, (void*)0x11200000, DI_Args->Length);
+			DoPatches( (char*)DI_Args->Buffer, DI_Args->Length, DI_Args->Offset );
+			sync_after_write( (void*)DI_Args->Buffer, DI_Args->Length );
+			memset32(DI_Args, 0xdeadbeef, sizeof(DI_ThreadArgs));
+			sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
+		}
+		mdelay(1);
+		thread_yield();
+	}
 }

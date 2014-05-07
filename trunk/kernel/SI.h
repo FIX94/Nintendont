@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef __SI_H__
 #define __SI_H__
 
-#define		SI_BASE		0x12026400
+#define		SI_BASE		0x13026400
 
 #define		SI_CHAN_0	(SI_BASE+0x00)
 #define		SI_CHAN_1	(SI_BASE+0x0C)
