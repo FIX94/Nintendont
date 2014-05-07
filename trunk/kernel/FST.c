@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "common.h"
 #include "alloc.h"
 #include "vsprintf.h"
-
+#include "Config.h"
 #ifndef DEBUG_DI
 #define dbgprintf(...)
 #else
@@ -420,7 +420,7 @@ void CacheFile( char *FileName )
 	char *NameOff = (char*)(FSTable + Entries * 0x0C);
 	FEntry *fe    = (FEntry*)(FSTable);
 
-	u32 Entry[16];
+	//u32 Entry[16];
 	u32 LEntry[16];
 	u32 level=0;
   u32 i=0;
@@ -444,7 +444,7 @@ void CacheFile( char *FileName )
 				continue;
 
 			//printf("[%03X]Entering:\"%s\" Level:%d leave:%04X\n", i, buffer + NameOff + swap24( fe[i].NameOffset ), level, swap32( fe[i].NextOffset ) );
-			Entry[level] = i;
+			//Entry[level] = i;
 			LEntry[level++] = fe[i].NextOffset;
 			if( level > 15 )	// something is wrong!
 				break;

@@ -28,6 +28,7 @@ MEM2
 
 0x92010000=old memory card buffer,now EXI Interrupt Handler Status
 0x92010010-0x92020010=loader and our reload stub
+0x92026400-0x92026500=serial interface
 0x92100000=temporary di buffer
 
 Hardware Registers

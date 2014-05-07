@@ -251,7 +251,8 @@ void Patch31A0( void )
 	PatchB( POffset, 0x319C );
 	PatchB( 0x31AC, POffset+0x10 );
 }
-void PatchFuncAI( char *dst, u32 Length )
+
+void PatchFuncInterface( char *dst, u32 Length )
 {
 	int i;
 
@@ -261,7 +262,7 @@ void PatchFuncAI( char *dst, u32 Length )
 	for( i=0; i < Length; i+=4 )
 	{
 		u32 op = read32( (u32)dst + i );
-				
+
 		if( (op & 0xFC1FFFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
 		{
 			LISReg = (op & 0x3E00000) >> 21;
@@ -279,19 +280,29 @@ void PatchFuncAI( char *dst, u32 Length )
 			}
 		}
 
-		if( (op & 0xFC00FF00) == 0x38006C00 )	// addi rX, rY, 0x6000
+		if( (op & 0xFC00FF00) == 0x38006C00 ) // addi rX, rY, 0x6C00 (ai)
 		{
 			u32 src = (op >> 16) & 0x1F;
-			u32 dst = (op >> 21) & 0x1F;
-
 			if( src == LISReg )
 			{
 				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD00 );	// Patch to: lis rX, 0xCD00
-				dbgprintf("[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-
+				//dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				LISReg = -1;
 			}
-
+			u32 dst = (op >> 21) & 0x1F;
+			if( dst == LISReg )
+				LISReg = -1;
+		}
+		else if( (op & 0xFC00FF00) == 0x38006400 ) // addi rX, rY, 0x6400 (si)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if( src == LISReg )
+			{
+				write32( (u32)LISOff, (LISReg<<21) | 0x3C00D202 );	// Patch to: lis rX, 0xD202
+				//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD202\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				LISReg = -1;
+			}
+			u32 dst = (op >> 21) & 0x1F;
 			if( dst == LISReg )
 				LISReg = -1;
 		}
@@ -304,10 +315,16 @@ void PatchFuncAI( char *dst, u32 Length )
 			
 			if( src == LISReg )
 			{
-				if( (val & 0xFF00) == 0x6C00 )	// case with 0x60XY(rZ)
+				if( (val & 0xFF00) == 0x6C00 ) // case with 0x6CXY(rZ) (ai)
 				{
 					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD00 );	// Patch to: lis rX, 0xCD00
-					dbgprintf("[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					//dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					LISReg = -1;
+				}
+				else if((val & 0xFF00) == 0x6400) // case with 0x64XY(rZ) (si)
+				{
+					write32( (u32)LISOff, (LISReg<<21) | 0x3C00D202 );	// Patch to: lis rX, 0xD202
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD202\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					LISReg = -1;
 				}
 			}
@@ -324,11 +341,16 @@ void PatchFuncAI( char *dst, u32 Length )
 			
 			if( src == LISReg )
 			{
-				if( (val & 0xFF00) == 0x6C00 )	// case with 0x60XY(rZ)
+				if( (val & 0xFF00) == 0x6C00 ) // case with 0x6CXY(rZ) (ai)
 				{
 					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD00 );	// Patch to: lis rX, 0xCD00
-					dbgprintf("[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-
+					//dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					LISReg = -1;
+				}
+				else if((val & 0xFF00) == 0x6400) // case with 0x64XY(rZ) (si)
+				{
+					write32( (u32)LISOff, (LISReg<<21) | 0x3C00D202 );	// Patch to: lis rX, 0xD202
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD202\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					LISReg = -1;
 				}
 			}
@@ -342,8 +364,8 @@ void PatchFuncAI( char *dst, u32 Length )
 			LISReg=-1;
 		}
 	}
-
 }
+
 void PatchFunc( char *ptr )
 {
 	u32 i	= 0;
@@ -788,8 +810,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		write32(0x00003194, 0x48000028);
 	}
 
-	PatchFuncAI( Buffer, Length );
-	
+	PatchFuncInterface( Buffer, Length );
+
 	CardLowestOff = 0;
 	
 	u32 PatchCount = 64|128|1;
