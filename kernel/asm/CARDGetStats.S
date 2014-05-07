@@ -45,7 +45,7 @@ wait_loop:
 
 memcpy_pre:	
 	li		%r6,	0x6C
-	lis		%r4,	0xD201
+	lis		%r4,	0xD301
 
 	lwz		%r0,	0(%r4)
 	stw		%r0,	0(%r5)

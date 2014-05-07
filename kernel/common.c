@@ -1,7 +1,6 @@
 #include "string.h"
 #include "syscalls.h"
 #include "global.h"
-#include "DI.h"
 #include "EXI.h"
 #include "Config.h"
 #include "debug.h"

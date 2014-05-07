@@ -5,7 +5,6 @@
 #include "ipc.h"
 #include "global.h"
 #include "string.h"
-#include "DI.h"
 #include "Config.h"
 #include "ff.h"
 #include "NAND.h"

@@ -50,7 +50,7 @@ wait_loop:
 	beq		wait_loop
 
 memcpy_pre:	
-	lis		%r6,	0xD201
+	lis		%r6,	0xD301
 
 	lwz		%r0,	0(%r6)
 	stw		%r0,	0(%r4)

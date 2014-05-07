@@ -298,8 +298,8 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				write32( (u32)LISOff, (LISReg<<21) | 0x3C00D202 );	// Patch to: lis rX, 0xD202
-				//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD202\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				write32( (u32)LISOff, (LISReg<<21) | 0x3C00D302 );	// Patch to: lis rX, 0xD302
+				//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				LISReg = -1;
 			}
 			u32 dst = (op >> 21) & 0x1F;
@@ -323,8 +323,8 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6400) // case with 0x64XY(rZ) (si)
 				{
-					write32( (u32)LISOff, (LISReg<<21) | 0x3C00D202 );	// Patch to: lis rX, 0xD202
-					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD202\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					write32( (u32)LISOff, (LISReg<<21) | 0x3C00D302 );	// Patch to: lis rX, 0xD302
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					LISReg = -1;
 				}
 			}
@@ -349,8 +349,8 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6400) // case with 0x64XY(rZ) (si)
 				{
-					write32( (u32)LISOff, (LISReg<<21) | 0x3C00D202 );	// Patch to: lis rX, 0xD202
-					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD202\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					write32( (u32)LISOff, (LISReg<<21) | 0x3C00D302 );	// Patch to: lis rX, 0xD302
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					LISReg = -1;
 				}
 			}

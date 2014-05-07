@@ -5,7 +5,7 @@
 #	r3	channel
 
 SIGetType:
-	lis		%r4,	0xD200
+	lis		%r4,	0xD300
 	addi	%r4,	%r4,	0x3008
 	lwz		%r4,	0(%r4) #pointer to real address
 

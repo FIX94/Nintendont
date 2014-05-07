@@ -5,7 +5,7 @@
 
 static u32 stubsize = 0x10000;
 static u8 *stubdest = (u8*)0x80001800;
-static u8 *stubsrc = (u8*)0x92010010;
+static u8 *stubsrc = (u8*)0x93010010;
 static vu16* const _dspReg = (u16*)0xCC005000;
 static u8 *a;
 u32 regs[29];
@@ -52,11 +52,10 @@ void _start()
 		/* stop audio dma */
 		_dspReg[27] = (_dspReg[27]&~0x8000);
 		/* reset status 1 */
-		vu32* reset = (u32*)0x9200300C;
+		vu32* reset = (u32*)0xD300300C;
 		*reset = 1;
-		__asm("dcbst 0,%0 ; sync" : : "b"(reset));
-		while(*reset == 1)
-			__asm("dcbi 0,%0 ; sync" : : "b"(reset) : "memory");
+		asm("dcbi 0,%0 ; sync" : : "b"(reset) : "memory");
+		while(*reset == 1) ;
 
 		/* kernel accepted, load in stub */
 		while(stubsize--) *stubdest++ = *stubsrc++;

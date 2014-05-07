@@ -319,8 +319,9 @@ void ios_reload(void)
 	usbgecko_printf("waiting for reset\n");
 	*(volatile unsigned int*)0x80003140 = 0;//wait for right ios version
 	sync_after_write( (void*)0x80003140, 0x20 );
-	*(volatile unsigned int*)0x9200300C = 2; //reset status 2
-	sync_after_write( (void*)0x9200300C, 0x20 );
+	/* reset status 2 */
+	volatile unsigned int* reset = (u32*)0xD300300C;
+	*reset = 2;
 	while(((*(volatile unsigned int*)0x80003140) >> 16) != 58)
 	{
 		usleep(1000);

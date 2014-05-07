@@ -36,7 +36,7 @@ CardWrite:
 	stw     %r0,	0x2F70(%r7)	
 
 memcpy_pre:	
-	lis		%r6,	0xD201
+	lis		%r6,	0xD301
 
 	lwz		%r0,	0(%r4)
 	stw		%r0,	0(%r6)
