@@ -13,7 +13,7 @@
 
 //#define DEBUG_ES	1
 //#define DEBUG_HID	1
-//#define DEBUG_DI	1
+//#define DEBUG_DI	1 // disable DEBUG before enabling this
 //#define DEBUG_SD	1
 //#define DEBUG_EXI	1
 
