@@ -40,8 +40,11 @@ enum EXICommands {
 	SRAM_READ,
 	SRAM_WRITE,
 
-	IPL_READ_FONT_ANSI,
+	IPL_READ_FONT,
 };
+
+#define IPL_ROM_FONT_SJIS               0x1AFF00
+#define IPL_ROM_FONT_ANSI               0x1FCF00
 
 #define MC_STATUS_BUSY					0x80   
 #define MC_STATUS_UNLOCKED				0x40
@@ -62,6 +65,7 @@ void EXIUpdateRegistersNEW( void );
 void EXIShutdown( void );
 void EXISaveCard(void);
 bool EXICheckCard(void);
+bool EXIReadFontFile(char* FileName, u8* Data, u32 Length, u32 FileOffset);
 
 #endif
 

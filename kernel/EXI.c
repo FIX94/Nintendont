@@ -437,8 +437,6 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 }
 u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 {
-	u32 read;
-
 	if( Mode == 1 )		// Write
 	{
 		switch( Length )
@@ -473,9 +471,9 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 					break;
 				}
 
-				if( ((u32)Data >> 6 ) >= 0x1FCF00 )
+				if( ((u32)Data >> 6 ) >= IPL_ROM_FONT_SJIS )
 				{
-					EXICommand = IPL_READ_FONT_ANSI;
+					EXICommand = IPL_READ_FONT;
 #ifdef DEBUG_SRAM
 					dbgprintf("EXI: IPLReadFont()\r\n");
 #endif
@@ -490,29 +488,17 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 
 		switch( EXICommand )
 		{
-			case IPL_READ_FONT_ANSI:
+			case IPL_READ_FONT:
 			{
 #ifdef DEBUG_SRAM	
 					dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
 #endif
-				FIL ipl;
-				if( f_open( &ipl, "/ipl.bin", FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+				if (!EXIReadFontFile("/ipl.bin", Data, Length, 0))
 				{
-					f_lseek( &ipl, IPLReadOffset );
-					f_read( &ipl, (void*)0x11200000, Length, &read );
-					f_close( &ipl );
-
-					memcpy( Data, (void*)0x11200000, Length );
-					sync_after_write( Data, Length );
-				}
-				else if (f_open(&ipl, "/font_ansi.bin", FA_OPEN_EXISTING | FA_READ) == FR_OK)
-				{
-					f_lseek( &ipl, IPLReadOffset - 0x1FCF00 );
-					f_read( &ipl, (void*)0x11200000, Length, &read );
-					f_close( &ipl );
-
-					memcpy(Data, (void*)0x11200000, Length);
-					sync_after_write(Data, Length);
+					if (IPLReadOffset >= IPL_ROM_FONT_ANSI)
+						EXIReadFontFile("/font_ansi.bin", Data, Length, IPL_ROM_FONT_ANSI);
+					else if (IPLReadOffset >= IPL_ROM_FONT_SJIS)
+						EXIReadFontFile("/font_sjis.bin", Data, Length, IPL_ROM_FONT_SJIS);
 				}
 			} break;
 			case SRAM_READ:
@@ -707,3 +693,19 @@ void EXIUpdateRegistersNEW( void )
 	}
 }
 
+bool EXIReadFontFile(char* FileName, u8* Data, u32 Length, u32 FileOffset)
+{
+	u32 read;
+	FIL ipl;
+	if (f_open(&ipl, FileName, FA_OPEN_EXISTING | FA_READ) == FR_OK)
+	{
+		f_lseek(&ipl, IPLReadOffset - FileOffset);
+		f_read(&ipl, (void*)0x11200000, Length, &read);
+		f_close(&ipl);
+
+		memcpy(Data, (void*)0x11200000, Length);
+		sync_after_write(Data, Length);
+		return true;
+	}
+	return false;
+}
