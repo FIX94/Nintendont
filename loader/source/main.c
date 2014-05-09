@@ -48,7 +48,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "font.h"
 #include "Config.h"
-#include "FPAD.h"
+#include "FPad.h"
 #include "menu.h"
 #include "loader.h"
 #include "Patches.h"
