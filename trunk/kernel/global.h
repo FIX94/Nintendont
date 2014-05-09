@@ -17,6 +17,7 @@
 //#define DEBUG_DI	1
 //#define DEBUG_SD	1
 //#define DEBUG_EXI	1
+//#define DEBUG_FST	1
 #define DEBUG_PATCH	1
 
 

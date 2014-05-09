@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "vsprintf.h"
 #include "Config.h"
 
-#ifndef DEBUG_DI
+#ifndef DEBUG_FST
 #define dbgprintf(...)
 #else
 extern int dbgprintf( const char *fmt, ...);
@@ -317,7 +317,7 @@ void FSTRead( char *GamePath, char *Buffer, u32 Length, u32 Offset )
 		}
 	}
 }
-void CacheInit( void )
+void CacheInit( char *Table )
 {
 	if(CacheIsInit)
 		return;
@@ -380,7 +380,7 @@ void CacheInit( void )
 
 				memset( path, 0, 128 );
 				memcpy( path, str + offset, elen );
-				CacheFile( path );
+				CacheFile( path, Table );
 
 				offset += elen;
 
@@ -403,21 +403,19 @@ void CacheInit( void )
 
 	free(path);
 
-	CacheIsInit = 1;
+	CacheIsInit++;
 }
 
-void CacheFile( char *FileName )
+void CacheFile( char *FileName, char *Table )
 {
 	if( DataCacheCount >= DATACACHE_MAX )
 		return;
 	if( DataCacheOffset >= 0x1D80000 )
 		return;
 
-	FSTable = (u8*)((*(vu32*)0x38) & 0x7FFFFFFF);
-	
-	u32 Entries		= *(u32*)(FSTable+0x08);
-	char *NameOff	= (char*)(FSTable + Entries * 0x0C);
-	FEntry *fe		= (FEntry*)(FSTable);
+	u32 Entries		= *(u32*)(Table + 0x08);
+	char *NameOff	= (char*)(Table + Entries * 0x0C);
+	FEntry *fe		= (FEntry*)(Table);
 
 	//u32 Entry[16];
 	u32 LEntry[16];
@@ -453,18 +451,15 @@ void CacheFile( char *FileName )
 				dbgprintf("[%s] Offset:%08X Size:%u\n", NameOff + fe[i].NameOffset, fe[i].FileOffset, fe[i].FileLength );
 
 				if( (DataCacheOffset <= 0xD80000) && ((DataCacheOffset + fe[i].FileLength) >= 0xD80000) )
-				{
 					DataCacheOffset = 0xDA0000;
-				}
 
 				f_lseek( &GameFile, fe[i].FileOffset );
 				f_read( &GameFile, DCCache + DataCacheOffset, fe[i].FileLength, &read );
-
 				sync_after_write( DCCache + DataCacheOffset, fe[i].FileLength );
-			
+
 				DC[DataCacheCount].Data		= DCCache + DataCacheOffset;
-				DC[DataCacheCount].Offset	= fe[i].FileOffset;
 				DC[DataCacheCount].Size		= (fe[i].FileLength + 3) & (~3);
+				DC[DataCacheCount].Offset	= fe[i].FileOffset;
 
 				DataCacheOffset += (fe[i].FileLength + 31) & (~31);
 

@@ -53,3 +53,11 @@ int DVDLowRead( void *ptr, u32 len, u32 offset )
 		}
 	}
 }
+void DVDStartCache(void)
+{
+	DI_STATUS	= 0x2A | 0x14;			// clear IRQs
+	DI_CMD_0	= 0xF9000000;
+	DI_CONTROL = 3;
+	while( DI_CONTROL == 3 );
+	while( DI_SCONTROL & 1 );
+}

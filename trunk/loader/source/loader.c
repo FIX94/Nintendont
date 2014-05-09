@@ -146,7 +146,8 @@ u32 LoadGame( void )
 		ExitToLoader(0);
 	}
 
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*10, "Loading complete\r\n");
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*20, "Loading complete, caching...\r\n");
+	DVDStartCache();
 
 	return (u32)entrypoint;
 }
