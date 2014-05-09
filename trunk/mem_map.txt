@@ -32,6 +32,7 @@ MEM2
 0x93010000=old memory card buffer,now EXI Interrupt Handler Status
 0x93010010-0x93020010=loader and our reload stub
 0x93026400-0x93026500=serial interface
+0x93100000-0x93300000=ipl buffer
 
 Hardware Registers
 0x0D80600C=EXI Command/Loop

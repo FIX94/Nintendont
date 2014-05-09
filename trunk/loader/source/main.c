@@ -619,7 +619,7 @@ int main(int argc, char **argv)
 	}
 	DCInvalidateRange((void*)0x93010010, 0x10000);
 	memcpy((void*)0x93010010, loader_stub, 0x1800);
-	memcpy((void*)0x9301A810, stub_bin, stub_bin_size); /* 0xC0 (our stub) - 0x18 (loader stub) = 0xA8 */
+	memcpy((void*)0x93011810, stub_bin, stub_bin_size);
 	DCFlushRange((void*)0x93010010, 0x10000);
 
 	DCInvalidateRange((void*)0x93003000, 0x20);

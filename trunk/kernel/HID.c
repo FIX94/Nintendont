@@ -361,7 +361,10 @@ retry:
 		Shutdown();
 	}
 	if(HID_CTRL->MultiIn && Packet[0] != HID_CTRL->MultiInValue)
+	{
+		udelay(500);
 		goto retry;
+	}
 	memcpy(HID_Packet, Packet, wMaxPacketSize);
 	sync_after_write(HID_Packet, wMaxPacketSize);
 	return;
@@ -436,7 +439,7 @@ u32 HID_Run(void *arg)
 			HIDIRQRead();
 		else
 			HIDPS3Read();
-		mdelay(34);	// about 29 times a second
+		mdelay(33);	// about 29 times a second
 	}
 	return 0;
 }

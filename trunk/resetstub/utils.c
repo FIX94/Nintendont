@@ -14,8 +14,7 @@
 #include "types.h"
 #include "utils.h"
 
-static u32
-get_time(void)
+static u32 get_time(void)
 {
 	u32 x;
 
@@ -24,10 +23,15 @@ get_time(void)
 	return x;
 }
 
-void
-usleep(u32 us)
+void usleep(u32 us)
 {
 	u32 _start = get_time();
 	while ((get_time() - _start) < (91*us)) ;
 }
 
+void _memcpy(void *ptr, const void *src, u32 size)
+{
+	char* ptr2 = ptr;
+	const char* src2 = src;
+	while(size--) *ptr2++ = *src2++;
+}

@@ -13,5 +13,6 @@
 #include "types.h"
 
 void usleep(u32 us);
+void _memcpy(void *ptr, const void *src, u32 size);
 
 #endif

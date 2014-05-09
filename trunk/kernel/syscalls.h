@@ -29,6 +29,8 @@ int syscall_0a(void *ptr, int n);
 #define mqueue_destroy(a) syscall_0b(a)
 void syscall_0b(int queue);
 
+#define mqueue_send_now(a, b, c) syscall_0d(a, b, c)
+int syscall_0d(int queue, void *message, int flags);
 
 #define mqueue_recv(a, b, c) syscall_0e(a, b, c)
 int syscall_0e(int queue, void *message, int flags);
@@ -56,6 +58,9 @@ s32 IOS_Seek( u32 fd, u32 where, u32 whence );
 s32 IOS_Ioctl(s32 fd, s32 request, void *buffer_in, s32 bytes_in, void *buffer_io, s32 bytes_io);
 s32 IOS_Ioctlv(s32 fd, s32 request, s32 InCount, s32 OutCont, void *vec);
 s32 IOS_IoctlAsync(s32 fd, s32 request, void *buffer_in, s32 bytes_in, void *buffer_io, s32 bytes_io, int id, void *message);
+
+#define mqueue_ack(a, b) syscall_2a(a, b)
+void syscall_2a(void *message, int retval);
 
 #define SetUID(PID, b) syscall_2b(PID, b)
 u32 syscall_2b( u32 PID, u32 b);

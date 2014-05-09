@@ -284,13 +284,10 @@ int _main( int argc, char *argv[] )
 			Now = read32(HW_TIMER);
 			SaveCard = true;
 		}
-		sync_before_read(reset, 4);
-		if(read32((u32)reset) == 1)
+		if(read32(DI_SCONFIG) == 0x1DEA)
 		{
-			wait_for_ppc(1);
-			write32((u32)reset, 0);
-			sync_after_write(reset, 4);
-			//dbgprintf("loop quit\r\n");
+			while(DI_Args->Buffer != 0xdeadbeef)
+				udelay(100);
 			break;
 		}
 		cc_ahbMemFlush(1);
@@ -303,12 +300,14 @@ int _main( int argc, char *argv[] )
 	}
 	thread_cancel(DI_Thread, 0);
 
+	write32( DI_SCONFIG, 0 );
+	sync_after_write( (void*)DI_SCONFIG, 4 );
 	/* reset time */
 	while(1)
 	{
 		_ahbMemFlush(0);
-		sync_before_read(reset, 4);
-		if(read32((u32)reset) == 2)
+		sync_before_read( (void*)DI_SCONFIG, 4 );
+		if(read32(DI_SCONFIG) == 0x2DEA)
 			break;
 		wait_for_ppc(1);
 		cc_ahbMemFlush(1);

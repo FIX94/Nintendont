@@ -55,6 +55,12 @@ syscall_0b:
 	.long 0xe6000170
 	bx lr
 
+	.global syscall_0d
+	.type   syscall_0d STT_FUNC
+syscall_0d:
+	.long 0xe60001b0
+	bx lr
+
 	.global syscall_0e
 	.type   syscall_0e STT_FUNC
 syscall_0e:
@@ -144,7 +150,13 @@ IOS_Ioctlv:
 IOS_IoctlAsync:
 	.long 0xe6000510
 	bx lr
-	
+
+	.global syscall_2a
+	.type   syscall_2a STT_FUNC
+syscall_2a:
+	.long 0xe6000550
+	bx lr
+
 	.global syscall_2b
 	.type   syscall_2b STT_FUNC
 syscall_2b:
