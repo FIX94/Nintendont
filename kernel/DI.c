@@ -39,6 +39,7 @@ extern int dbgprintf( const char *fmt, ...);
 #endif
 
 void DIReadAsync(u32 Buffer, u32 Length, u32 Offset);
+u32 DI_MessageQueue = 0xFFFFFFFF;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
 
@@ -92,6 +93,9 @@ void DIinit( void )
 	write32( DIP_IMM, 0 ); //reset errors
 	write32( DIP_STATUS, 0x2E );
 	write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
+
+	u8 DI_MessageHeap[0x10];
+	DI_MessageQueue = mqueue_create( DI_MessageHeap, 1 );
 
 	memset32(DI_Args, 0xdeadbeef, sizeof(DI_ThreadArgs));
 	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
@@ -447,28 +451,29 @@ void DIReadAsync(u32 Buffer, u32 Length, u32 Offset)
 {
 	DI_Args->Length = Length; DI_Args->Offset = Offset; DI_Args->Buffer = Buffer;
 	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
+	mqueue_send_now( DI_MessageQueue, NULL, 0 );
 }
+char *DI_Read_Buffer = (char*)(0x11200000);
 u32 DIReadThread(void *arg)
 {
+	struct ipcmessage *message=NULL;
 	dbgprintf("DI Thread Running\n");
 	while(1)
 	{
+		mqueue_recv( DI_MessageQueue, (void *)&message, 0);
+		mqueue_ack( (void *)message, 0 ); //directly accept message so main thread continues
 		sync_before_read(DI_Args, sizeof(DI_ThreadArgs));
-		if(DI_Args->Buffer != 0xdeadbeef)
-		{
-			memset32((void*)0x11200000, 0, DI_Args->Length);
-			if( FSTMode )
-				FSTRead( GamePath, (char*)0x11200000, DI_Args->Length, DI_Args->Offset );
-			else
-				CacheRead( (void*)0x11200000, DI_Args->Length, DI_Args->Offset );
 
-			memcpy((void*)DI_Args->Buffer, (void*)0x11200000, DI_Args->Length);
-			DoPatches( (char*)DI_Args->Buffer, DI_Args->Length, DI_Args->Offset );
-			sync_after_write( (void*)DI_Args->Buffer, DI_Args->Length );
-			memset32(DI_Args, 0xdeadbeef, sizeof(DI_ThreadArgs));
-			sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
-		}
-		mdelay(1);
-		thread_yield();
+		memset32( DI_Read_Buffer, 0, DI_Args->Length );
+		if( FSTMode )
+			FSTRead( GamePath, DI_Read_Buffer, DI_Args->Length, DI_Args->Offset );
+		else
+			CacheRead( DI_Read_Buffer, DI_Args->Length, DI_Args->Offset );
+
+		memcpy((void*)DI_Args->Buffer, DI_Read_Buffer, DI_Args->Length);
+		DoPatches( (char*)DI_Args->Buffer, DI_Args->Length, DI_Args->Offset );
+		sync_after_write( (void*)DI_Args->Buffer, DI_Args->Length );
+		memset32(DI_Args, 0xdeadbeef, sizeof(DI_ThreadArgs));
+		sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
 	}
 }

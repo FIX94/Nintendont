@@ -42,6 +42,7 @@ static u32 BlockOff= 0;
 static u32 BlockOffLow = 0xFFFFFFFF;
 static u32 BlockOffHigh = 0x00000000;
 u8 *MCard = (u8 *)(0x11000000);
+u8 *FontBuf = (u8 *)(0x13100000);
 u32 CARDWriteCount = 0;
 u32 IPLReadOffset;
 FIL MemCard;
@@ -496,9 +497,9 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 				if (!EXIReadFontFile("/ipl.bin", Data, Length, 0))
 				{
 					if (IPLReadOffset >= IPL_ROM_FONT_ANSI)
-						EXIReadFontFile("/font_ansi.bin", Data, Length, IPL_ROM_FONT_ANSI);
+						EXIReadFontFile("/font_ansi.bin", Data, Length, 1);
 					else if (IPLReadOffset >= IPL_ROM_FONT_SJIS)
-						EXIReadFontFile("/font_sjis.bin", Data, Length, IPL_ROM_FONT_SJIS);
+						EXIReadFontFile("/font_sjis.bin", Data, Length, 2);
 				}
 			} break;
 			case SRAM_READ:
@@ -689,22 +690,29 @@ void EXIUpdateRegistersNEW( void )
 			default:
 			{
 			} break;
-		}		
+		}
 	}
 }
-
-bool EXIReadFontFile(char* FileName, u8* Data, u32 Length, u32 FileOffset)
+bool FontCached[3] = {false,false,false};
+u32 FileOffset[3] = {0,IPL_ROM_FONT_SJIS,IPL_ROM_FONT_ANSI};
+bool EXIReadFontFile(char* FileName, u8* Data, u32 Length, u8 i)
 {
+	if(FontCached[i])
+	{
+		memcpy(Data, FontBuf + IPLReadOffset, Length);
+		sync_after_write(Data, Length);
+		return true;
+	}
 	u32 read;
 	FIL ipl;
 	if (f_open(&ipl, FileName, FA_OPEN_EXISTING | FA_READ) == FR_OK)
 	{
-		f_lseek(&ipl, IPLReadOffset - FileOffset);
-		f_read(&ipl, (void*)0x11200000, Length, &read);
+		f_read(&ipl, FontBuf + FileOffset[i], ipl.fsize, &read);
 		f_close(&ipl);
 
-		memcpy(Data, (void*)0x11200000, Length);
+		memcpy(Data, FontBuf + IPLReadOffset, Length);
 		sync_after_write(Data, Length);
+		FontCached[i] = true;
 		return true;
 	}
 	return false;

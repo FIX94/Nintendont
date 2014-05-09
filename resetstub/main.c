@@ -72,6 +72,8 @@ _main(void)
 	usbgecko_printf("ios_reload()\n");
 #endif
 
+	_memcpy((void*)0x80001800, (void*)0x93010010, 0x1800);
+	sync_after_write((void*)0x80001800, 0x1800);
 	if(*(vu32*)0xC0001804 == 0x53545542 && *(vu32*)0xC0001808 == 0x48415858) //stubhaxx
 	{
 		__asm(

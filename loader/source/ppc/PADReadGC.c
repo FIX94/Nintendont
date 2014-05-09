@@ -4,13 +4,13 @@
 
 static u32 chan, MaxPads;
 static vu32 PADButtonsStick, PADTriggerCStick;
-static u32 stubsize = 0x10000;
-static u8 *stubdest = (u8*)0x80001800;
-static u8 *stubsrc = (u8*)0x93010010;
+static u32 stubsize = 0x1800;
+static vu32 *stubdest = (u32*)0xC1330000;
+static vu32 *stubsrc = (u32*)0xD3011810;
 static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* const _siReg = (u32*)0xCD006400;
 static vu32* const MotorCommand = (u32*)0xD3003010;
-static u8 *a;
+static vu32* reset = (u32*)0xC0002F54;
 u32 regs[29];
 const s8 DEADZONE = 0x1A;
 void _start()
@@ -98,19 +98,21 @@ void _start()
 			/* stop audio dma */
 			_dspReg[27] = (_dspReg[27]&~0x8000);
 			/* reset status 1 */
-			vu32* reset = (u32*)0xD300300C;
-			*reset = 1;
-			asm("dcbi 0,%0 ; sync" : : "b"(reset) : "memory");
-			while(*reset == 1) ;
-
-			/* kernel accepted, load in stub */
-			while(stubsize--) *stubdest++ = *stubsrc++;
-			for (a = (u8*)0x80001800; a < (u8*)0x8000F000; a += 32)
-				__asm("dcbst 0,%0 ; sync" : : "b"(a));
-
+			*reset = 0x1DEA;
+			while(*reset == 0x1DEA) ;
+			/* load in stub */
+			u32 a = (u32)stubdest;
+			u32 end = (u32)(stubdest + stubsize);
+			for ( ; a < end; a += 32)
+			{
+				u8 b;
+				for(b = 0; b < 4; ++b)
+					*stubdest++ = *stubsrc++;
+				__asm("dcbi 0,%0 ; sync ; icbi 0,%0" : : "b"(a));
+			}
 			__asm(
-				"lis %r3, 0x8000\n"
-				"ori %r3, %r3, 0xC000\n"
+				"sync ; isync\n"
+				"lis %r3, 0x8133\n"
 				"mtlr %r3\n"
 				"blr\n"
 			);

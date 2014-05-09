@@ -46,7 +46,7 @@ enum EXICommands {
 #define IPL_ROM_FONT_SJIS               0x1AFF00
 #define IPL_ROM_FONT_ANSI               0x1FCF00
 
-#define MC_STATUS_BUSY					0x80   
+#define MC_STATUS_BUSY					0x80
 #define MC_STATUS_UNLOCKED				0x40
 #define MC_STATUS_SLEEP					0x20
 #define MC_STATUS_ERASEERROR			0x10
@@ -65,7 +65,7 @@ void EXIUpdateRegistersNEW( void );
 void EXIShutdown( void );
 void EXISaveCard(void);
 bool EXICheckCard(void);
-bool EXIReadFontFile(char* FileName, u8* Data, u32 Length, u32 FileOffset);
+bool EXIReadFontFile(char* FileName, u8* Data, u32 Length, u8 i);
 
 #endif
 
