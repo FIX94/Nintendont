@@ -883,7 +883,7 @@ s32 USBStorage_Init(void)
 {
 	int i;
 	
-	//dbgprintf("usbstorage init %d\n", ums_init_done);
+	//dbgprintf("usbstorage init %d\r\n", ums_init_done);
 	if(ums_init_done)
 		return 0;
 		
