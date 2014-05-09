@@ -5,8 +5,9 @@ DI.c
 ES.c
 FST.c
 HID.c
+Patch.c
 SDI.c
-or any other header files.
+or any header files.
 */
 
 #ifndef __DEBUG_H___
