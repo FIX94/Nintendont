@@ -28,11 +28,11 @@ MEM2
 0x93005000-0x930050BC=hid controller positions
 0x930050C0=hid packet
 
-0x12007420-0x12009000=di thread stack
+0x93007420-0x93009000=di thread stack
 0x93010000=old memory card buffer,now EXI Interrupt Handler Status
 0x93010010-0x93020010=loader and our reload stub
 0x93026400-0x93026500=serial interface
-0x93100000-0x93300000=ipl buffer
+0x93100000-0x93150100=ipl fonts buffer (0x1aff00-0x1fffff)
 
 Hardware Registers
 0x0D80600C=EXI Command/Loop
