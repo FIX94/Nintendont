@@ -62,7 +62,7 @@ void SIUpdateRegisters()
 	//cur_status = read32(SI_STATUS);
 	if(cur_control != prev_control)
 	{
-		//dbgprintf("Read SI Control: %08x\n", cur_control);
+		//dbgprintf("Read SI Control: %08x\r\n", cur_control);
 		if(cur_control & 0x40000001) //enable interrupts and transfer
 		{
 			cur_control |= (1<<29); //we normally always have some communication error?
@@ -73,7 +73,7 @@ void SIUpdateRegisters()
 				cur_status |= (1<<11);
 			else if((cur_control & 7) == 7) //chan 3
 				cur_status |= (1<<3);
-			//dbgprintf("New SI Control: %08x\n", cur_control);
+			//dbgprintf("New SI Control: %08x\r\n", cur_control);
 			write32(SI_STATUS, cur_status);
 			sync_after_write((void*)SI_STATUS, 4);*/
 			write32(SI_CONTROL, cur_control);
@@ -84,7 +84,7 @@ void SIUpdateRegisters()
 	}
 	/*if(cur_status != prev_status)
 	{
-		//dbgprintf("Read SI Status: %08x\n", cur_status);
+		//dbgprintf("Read SI Status: %08x\r\n", cur_status);
 		prev_status = cur_status;
 	}*/
 }

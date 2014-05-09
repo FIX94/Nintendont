@@ -470,7 +470,7 @@ char *DI_Read_Buffer = (char*)(0x11200000);
 u32 DIReadThread(void *arg)
 {
 	struct ipcmessage *message=NULL;
-	dbgprintf("DI Thread Running\n");
+	dbgprintf("DI Thread Running\r\n");
 	while(1)
 	{
 		mqueue_recv( DI_MessageQueue, (void *)&message, 0);

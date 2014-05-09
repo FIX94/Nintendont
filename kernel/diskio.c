@@ -110,7 +110,7 @@ DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 	while(t_read < count)
 	{
 		u32 r_sec = (count - t_read);
-				
+
 		if(r_sec > max_sec)
 			r_sec = max_sec;
 
@@ -122,7 +122,7 @@ DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 		memcpy(buff, buffer, r_sec * s_size);
 		buff += r_sec * s_size;
 		t_read += r_sec;
-	}				
+	}
 
 	return RES_OK;
 }

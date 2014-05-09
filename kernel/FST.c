@@ -343,14 +343,14 @@ void CacheInit( char *Table )
 
 	memcpy( path + strlen(path), "cache.txt", 11 );
 	
-	dbgprintf("DIP:opening:\"%s\"\n", path );
+	dbgprintf("DIP:opening:\"%s\"\r\n", path );
 
 	if( f_open( &file, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 	{
 		char *data = (char*)malloc( file.fsize );
 		if( data == NULL )
 		{
-			dbgprintf("DIP:Failed to alloc %u bytes\n", file.fsize );
+			dbgprintf("DIP:Failed to alloc %u bytes\r\n", file.fsize );
 		} else {
 
 			f_read( &file, data, file.fsize, &read );
@@ -398,7 +398,7 @@ void CacheInit( char *Table )
 			free(data);
 		}
 	} else {
-		dbgprintf("DIP:Couldn't open:\"%s\"\n", path );
+		dbgprintf("DIP:Couldn't open:\"%s\"\r\n", path );
 	}
 
 	free(path);
@@ -448,7 +448,7 @@ void CacheFile( char *FileName, char *Table )
 		} else {
 			if( strcmp( FileName, NameOff + fe[i].NameOffset ) == 0 )
 			{
-				dbgprintf("[%s] Offset:%08X Size:%u\n", NameOff + fe[i].NameOffset, fe[i].FileOffset, fe[i].FileLength );
+				dbgprintf("[%s] Offset:%08X Size:%u\r\n", NameOff + fe[i].NameOffset, fe[i].FileOffset, fe[i].FileLength );
 
 				if( (DataCacheOffset <= 0xD80000) && ((DataCacheOffset + fe[i].FileLength) >= 0xD80000) )
 					DataCacheOffset = 0xDA0000;
@@ -463,7 +463,7 @@ void CacheFile( char *FileName, char *Table )
 
 				DataCacheOffset += (fe[i].FileLength + 31) & (~31);
 
-				dbgprintf("DI: Cached Offset:%08X Size:%08X Buffer:%p\n", fe[i].FileOffset, fe[i].FileLength, DC[DataCacheCount].Data );
+				dbgprintf("DI: Cached Offset:%08X Size:%08X Buffer:%p\r\n", fe[i].FileOffset, fe[i].FileLength, DC[DataCacheCount].Data );
 
 				DataCacheCount++;
 				return;
@@ -483,7 +483,7 @@ void CacheRead( char *Buffer, u32 Length, u32 Offset )
 			if( nOffset < DC[i].Size )
 			{
 				memcpy( Buffer, DC[i].Data + nOffset, Length );
-				//dbgprintf("DI: Cached Read Offset:%08X Size:%08X Buffer:%p\n", DC[i].Offset, DC[i].Size, DC[i].Data );
+				//dbgprintf("DI: Cached Read Offset:%08X Size:%08X Buffer:%p\r\n", DC[i].Offset, DC[i].Size, DC[i].Data );
 				return;
 			}
 		}

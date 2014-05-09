@@ -137,11 +137,11 @@ void EXIInit( void )
 			if( *(vu32*)0xCC == 5 )
 			{
 #ifdef DEBUG_EXI
-				dbgprintf("SRAM:PAL60\n");
+				dbgprintf("SRAM:PAL60\r\n");
 #endif
 			} else {
 #ifdef DEBUG_EXI
-				dbgprintf("SRAM:PAL50\n");
+				dbgprintf("SRAM:PAL50\r\n");
 #endif
 				*(vu32*)0xCC = 1;
 			}
