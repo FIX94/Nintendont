@@ -57,7 +57,7 @@ u32 DiscChangeIRQ	= 0;
 extern FIL GameFile;
 
 static char GamePath[256] ALIGNED(32);
-
+static char *FSTBuf = (char *)(0x13200000);
 extern u32 Region;
 extern u32 FSTMode;
 void DIinit( void )
@@ -78,6 +78,15 @@ void DIinit( void )
 			Shutdown();
 		}
 	} else {
+		/* Prepare Cache Files */
+		u32 FSTOffset, FSTSize;
+		f_lseek( &GameFile, 0x424 );
+		f_read( &GameFile, &FSTOffset, sizeof(u32), &read );
+		f_lseek( &GameFile, 0x428 );
+		f_read( &GameFile, &FSTSize, sizeof(u32), &read );
+		f_lseek( &GameFile, FSTOffset );
+		f_read( &GameFile, FSTBuf, FSTSize, &read );
+		/* Get Region */
 		f_lseek( &GameFile, 0x458 );
 		f_read( &GameFile, &Region, sizeof(u32), &read );
 	}
@@ -400,7 +409,6 @@ void DIUpdateRegisters( void )
 				
 				} break;
 				case 0xA7:
-					CacheInit();
 				case 0xA9:
 					//dbgprintf("DIP:Async!\r\n");
 				case 0xA8:
@@ -423,6 +431,11 @@ void DIUpdateRegisters( void )
 						}
 						DIOK = 1;
 					}
+				} break;
+				case 0xF9:
+				{
+					CacheInit(FSTBuf);
+					DIOK = 1;
 				}
 			}
 

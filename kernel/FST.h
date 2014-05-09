@@ -51,8 +51,8 @@ typedef struct
 u32		FSTInit	( char *GamePath );
 void	FSTRead	( char *GamePath, char *Buffer, u32 Length, u32 Offset );
 
-void  CacheInit( void );
-void  CacheFile( char *FileName );
+void  CacheInit( char *Table );
+void  CacheFile( char *FileName, char *Table );
 void  CacheRead( char *Buffer, u32 Length, u32 Offset );
 
 #endif

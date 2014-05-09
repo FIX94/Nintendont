@@ -33,6 +33,7 @@ MEM2
 0x93010010-0x93020010=loader and our reload stub
 0x93026400-0x93026500=serial interface
 0x93100000-0x93150100=ipl fonts buffer (0x1aff00-0x1fffff)
+0x93200000=Cache FST Buffer
 
 Hardware Registers
 0x0D80600C=EXI Command/Loop
