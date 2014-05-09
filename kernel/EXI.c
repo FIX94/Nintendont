@@ -492,15 +492,9 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 			case IPL_READ_FONT:
 			{
 #ifdef DEBUG_SRAM	
-					dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
+				dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
 #endif
-				if (!EXIReadFontFile("/ipl.bin", Data, Length, 0))
-				{
-					if (IPLReadOffset >= IPL_ROM_FONT_ANSI)
-						EXIReadFontFile("/font_ansi.bin", Data, Length, 1);
-					else if (IPLReadOffset >= IPL_ROM_FONT_SJIS)
-						EXIReadFontFile("/font_sjis.bin", Data, Length, 2);
-				}
+				EXIReadFontFile(Data, Length);
 			} break;
 			case SRAM_READ:
 			{
@@ -693,26 +687,38 @@ void EXIUpdateRegistersNEW( void )
 		}
 	}
 }
-bool FontCached[3] = {false,false,false};
-u32 FileOffset[3] = {0,IPL_ROM_FONT_SJIS,IPL_ROM_FONT_ANSI};
-bool EXIReadFontFile(char* FileName, u8* Data, u32 Length, u8 i)
-{
-	if(FontCached[i])
-	{
-		memcpy(Data, FontBuf + IPLReadOffset, Length);
-		sync_after_write(Data, Length);
-		return true;
-	}
-	u32 read;
-	FIL ipl;
-	if (f_open(&ipl, FileName, FA_OPEN_EXISTING | FA_READ) == FR_OK)
-	{
-		f_read(&ipl, FontBuf + FileOffset[i], ipl.fsize, &read);
-		f_close(&ipl);
 
-		memcpy(Data, FontBuf + IPLReadOffset, Length);
+// Cache starts at IPL_ROM_FONT_SJIS
+u8 FontsCached = 0;
+bool TriedCache = false;
+bool EXIReadFontFile(u8* Data, u32 Length)
+{
+	if (!TriedCache)
+	{
+		TriedCache = true;
+		u8 i;
+		u32 read;
+		FIL ipl;
+		// ipl.bin:0x0-0x1fffff (start at 0x1aff00); sjis=0x1aff00-0x1fceff; ansi=0x1fcf00-1fffff
+		char* FileNames[] = { "/ipl.bin", "/font_sjis.bin", "/font_ansi.bin" };
+		u32 FileOffset[] = { IPL_ROM_FONT_SJIS, 0, 0 };
+		u32 BufferOffset[] = { 0, 0, IPL_ROM_FONT_ANSI - IPL_ROM_FONT_SJIS };
+		// Stop caching if ipl.bin; font_ansi and font_sjis done in pair
+		for (i = 0; i < 3 && ((FontsCached & 0x1) == 0); i++)
+		{
+			if (f_open(&ipl, FileNames[i], FA_OPEN_EXISTING | FA_READ) == FR_OK)
+			{
+				f_lseek(&ipl, FileOffset[i]);
+				f_read(&ipl, FontBuf + BufferOffset[i], ipl.fsize - FileOffset[i], &read);
+				f_close(&ipl);
+				FontsCached |= (3 - i);
+			}
+		}
+	}
+	if (FontsCached)
+	{
+		memcpy(Data, FontBuf + IPLReadOffset - IPL_ROM_FONT_SJIS, Length);
 		sync_after_write(Data, Length);
-		FontCached[i] = true;
 		return true;
 	}
 	return false;
