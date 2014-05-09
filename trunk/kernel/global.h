@@ -11,11 +11,13 @@
 //#define CARDDEBUG 1
 //#define AUDIOSTREAM 1
 
+// Enabling too many of these will cause the kernel to run out of room.  At least disable DEBUG first.
 //#define DEBUG_ES	1
 //#define DEBUG_HID	1
-//#define DEBUG_DI	1 // disable DEBUG before enabling this
+//#define DEBUG_DI	1
 //#define DEBUG_SD	1
 //#define DEBUG_EXI	1
+#define DEBUG_PATCH	1
 
 
 #define UINT_MAX ((unsigned int)0xffffffff)
