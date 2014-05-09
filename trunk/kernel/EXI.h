@@ -65,6 +65,7 @@ void EXIUpdateRegistersNEW( void );
 void EXIShutdown( void );
 void EXISaveCard(void);
 bool EXICheckCard(void);
+void EXICacheFonts(void);
 bool EXIReadFontFile(u8* Data, u32 Length);
 
 #endif
