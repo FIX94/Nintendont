@@ -313,8 +313,19 @@ int dbgprintf( const char *fmt, ...)
 	u32 read;	
 	if( SDisInit )
 	{
-		if(file_opened != FR_OK)
+		if(file_opened != FR_OK)	//if log not open yet
+		{
 			file_opened = f_open(&dbgfile, "/ndebug.log", FA_OPEN_ALWAYS|FA_WRITE);
+
+			if (file_opened == FR_OK)	//new log opened write header
+			{
+				u32 v = read32(0x3140);
+				dbgprintf("Nintendont IOS%d v%d.%d\r\n", v >> 16, (v >> 8) & 0xff, v & 0xff);
+
+				dbgprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
+				dbgprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
+			}
+		}
 			
 		if (file_opened == FR_OK) {
 			f_lseek(&dbgfile, dbgfile.fsize);
