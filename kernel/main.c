@@ -176,15 +176,6 @@ int _main( int argc, char *argv[] )
 
 	DIinit();
 	BootStatus(10, s_size, s_cnt);
-	
-	#ifdef DEBUG
-	// Odd placment, but it won't show up in the file log otherwise
-	u32 v = read32(0x3140);
-	dbgprintf("Nintendont IOS%d v%d.%d\r\n", v >> 16, (v >> 8) & 0xff, v & 0xff);
-
-	dbgprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
-	dbgprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
-	#endif
 
 	EXIInit();
 	BootStatus(11, s_size, s_cnt);
