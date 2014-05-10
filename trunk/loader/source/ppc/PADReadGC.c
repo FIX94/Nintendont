@@ -82,15 +82,15 @@ void _start()
 		/* Calculate left trigger with deadzone */
 		u8 tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
 		if(tmp_triggerL > DEADZONE)
-			Pad[0].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+			Pad[chan].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
 		else
-			Pad[0].triggerLeft = 0;
+			Pad[chan].triggerLeft = 0;
 		/* Calculate right trigger with deadzone */
 		u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
 		if(tmp_triggerR > DEADZONE)
-			Pad[0].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
+			Pad[chan].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
 		else
-			Pad[0].triggerRight = 0;
+			Pad[chan].triggerRight = 0;
 
 		/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
 		if((Pad[chan].button&0x234) == 0x234)
