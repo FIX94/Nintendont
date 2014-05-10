@@ -174,8 +174,8 @@ void DIInterrupt()
 }
 void DIUpdateRegisters( void )
 {
-	if(DI_IRQ == true)
-		return;
+	//if(DI_IRQ == true) //breaks some consoles?
+	//	return;
 	u32 i;
 	u32 DIOK = 0,DIcommand;
 
