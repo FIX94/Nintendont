@@ -7,7 +7,7 @@
 .arm
 
 	.EQU	ios_thread_arg,			5
-	.EQU	ios_thread_priority,	255
+	.EQU	ios_thread_priority,	0x7F
 	.EQU	ios_thread_stacksize,	16384
 
 _start:

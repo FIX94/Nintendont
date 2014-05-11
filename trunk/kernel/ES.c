@@ -250,8 +250,9 @@ s32 LoadModules( u32 IOSVersion )
 	free( TMD );
 	free( path );
 
-	thread_set_priority( 0, 0x50 );
+	thread_set_priority( 0, 0x7F );
 	mdelay(500); //devices finish init
+	thread_set_priority( 0, 0x50 );
 	return ES_SUCCESS;
 }
 u64 GetTitleID( void )
