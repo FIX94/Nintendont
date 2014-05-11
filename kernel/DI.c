@@ -110,9 +110,8 @@ void DIinit( void )
 	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
 	memset32((void*)0x13007420, 0, 0x1BE0);
 	sync_after_write((void*)0x13007420, 0x1BE0);
-	DI_Thread = thread_create(DIReadThread, NULL, (u32*)0x13007420, 0x1BE0, 0x78, 1);
+	DI_Thread = thread_create(DIReadThread, NULL, (u32*)0x13007420, 0x1BE0, 0x50, 1);
 	thread_continue(DI_Thread);
-	mdelay(500);
 }
 void DIChangeDisc( u32 DiscNumber )
 {
@@ -174,8 +173,9 @@ void DIInterrupt()
 }
 void DIUpdateRegisters( void )
 {
-	//if(DI_IRQ == true) //breaks some consoles?
-	//	return;
+	if(DI_IRQ == true)
+		return;
+
 	u32 i;
 	u32 DIOK = 0,DIcommand;
 
@@ -429,7 +429,7 @@ void DIUpdateRegisters( void )
 						while(DI_Args->Buffer != 0xdeadbeef)
 						{
 							sync_before_read(DI_Args, sizeof(DI_ThreadArgs));
-							mdelay(1);
+							udelay(40);
 						}
 						DIOK = 1;
 					}
@@ -458,8 +458,6 @@ void DIUpdateRegisters( void )
 		}
 		sync_after_write( (void*)DI_BASE, 0x60 );
 	}
-	else //give the hid thread some time
-		udelay(10);
 	return;
 }
 void DIReadAsync(u32 Buffer, u32 Length, u32 Offset)
@@ -479,7 +477,6 @@ u32 DIReadThread(void *arg)
 		mqueue_ack( (void *)message, 0 ); //directly accept message so main thread continues
 		sync_before_read(DI_Args, sizeof(DI_ThreadArgs));
 
-		memset32( DI_Read_Buffer, 0, DI_Args->Length );
 		if( FSTMode )
 			FSTRead( GamePath, DI_Read_Buffer, DI_Args->Length, DI_Args->Offset );
 		else

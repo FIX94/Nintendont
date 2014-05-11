@@ -149,8 +149,6 @@ int _main( int argc, char *argv[] )
 
 	SDisInit = 1;
 
-	thread_set_priority( 0, 127 );
-
 	u32 HID_Thread = 0;
 	bool UseHID = ConfigGetConfig(NIN_CFG_HID);
 	if( UseHID )
@@ -168,9 +166,8 @@ int _main( int argc, char *argv[] )
 
 		memset32((void*)0x13003420, 0, 0x1BE0);
 		sync_after_write((void*)0x13003420, 0x1BE0);
-		HID_Thread = thread_create(HID_Run, NULL, (u32*)0x13003420, 0x1BE0, 0x78, 1);
+		HID_Thread = thread_create(HID_Run, NULL, (u32*)0x13003420, 0x1BE0, 0x20, 1);
 		thread_continue(HID_Thread);
-		mdelay(500);
 	}
 	BootStatus(9, s_size, s_cnt);
 
@@ -180,11 +177,14 @@ int _main( int argc, char *argv[] )
 	EXIInit();
 	BootStatus(11, s_size, s_cnt);
 
+	SIInit();
+
 //fixes issues in some japanese games
 	if((ConfigGetGameID() & 0xFF) == 'J')
 		write32(HW_PPCSPEED, 0x2A9E0);
 
 //Tell PPC side we are ready!
+	cc_ahbMemFlush(1);
 	mdelay(1000);
 	BootStatus(0xdeadbeef, s_size, s_cnt);
 /*
@@ -194,14 +194,11 @@ int _main( int argc, char *argv[] )
 	set32( HW_PPCIRQMASK, (1<<31) );
 	set32( HW_IPC_PPCCTRL, 0x30 );
 */
-	SIInit();
 	u32 Now = read32(HW_TIMER);
 	u32 PADTimer = Now;
 
 	bool SaveCard = false;
 
-	//thread_set_priority( 0, 127 );
-	cc_ahbMemFlush(1);
 	write32(0xd8006a0, 0x30000004), mask32(0xd8006a8, 0, 2);
 	while (1)
 	{
@@ -219,6 +216,8 @@ int _main( int argc, char *argv[] )
 		{
 			if(DI_Args->Buffer == 0xdeadbeef)
 				DIInterrupt();
+			else
+				udelay(40);
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
 		{
@@ -228,6 +227,8 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
+		else //no io, just wait for hid thread
+			udelay(10);
 		//Baten Kaitos save hax
 		if( read32(0) == 0x474B4245 )
 		{
@@ -280,7 +281,6 @@ int _main( int argc, char *argv[] )
 			break;
 		}
 		cc_ahbMemFlush(1);
-		thread_yield();
 	}
 	if( UseHID )
 	{
