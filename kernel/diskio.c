@@ -12,8 +12,6 @@
 #include "common.h"
 #endif
 
-#define GPIO_SLOT_LED	(1<<5)
-
 u32 s_size;
 u32 s_cnt;
 u32 max_sec = 4;

@@ -144,8 +144,11 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define HW_BASE			0x0d800000
 #define HW_GPIO_ENABLE	(HW_BASE+0xDC)
 #define HW_GPIO_OUT		(HW_BASE+0xE0)
+#define HW_GPIO_DIR		(HW_BASE+0xE4)
+#define HW_GPIO_OWNER	(HW_BASE+0xFC)
 
-#define GPIO_POWER	(1<<1)
+#define GPIO_POWER		(1<<1)
+#define GPIO_SLOT_LED	(1<<5)
 #define P2C(x)			((x)&0x7FFFFFFF)
 
 #define		CARD_BASE		0x00002F60
