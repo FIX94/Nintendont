@@ -107,8 +107,9 @@ s32 HIDInit( void )
 	ret = f_open( &f, "/controller.ini", FA_OPEN_EXISTING|FA_READ);
 	if( ret == FR_OK )
 	{
-		char *Data = (char*)malloc( f.fsize );
+		char *Data = (char*)malloc( f.fsize + 1 );
 		f_read( &f, Data, f.fsize, &read );
+		Data[f.fsize] = 0x00;	//null terminate the file
 		f_close(&f);
 
 		HID_CTRL->VID = ConfigGetValue( Data, "VID", 0 );

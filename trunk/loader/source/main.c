@@ -436,7 +436,7 @@ int main(int argc, char **argv)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*13, "Loading config... Done!");
 		if(STATUS_LOADING == 8)
 		{
- 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... ");
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... ");
 			if ( STATUS_ERROR == 1)
 			{
 				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "          Plug Controller in %s usb port", IsWiiU() ? "BOTTOM REAR" : "TOP");
@@ -445,7 +445,12 @@ int main(int argc, char **argv)
 				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*15, "%50s", " ");
 		}
 		if(STATUS_LOADING > 8 && STATUS_LOADING < 20)
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Done!");
+		{
+			if (ncfg.Config & NIN_CFG_HID)
+				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Done!");
+			else
+				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube Ports... Done!");
+		}
 		if(STATUS_LOADING == -8)
 		{
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Failed! Shutting down");
