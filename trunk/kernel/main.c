@@ -199,7 +199,12 @@ int _main( int argc, char *argv[] )
 	u32 PADTimer = Now;
 
 	bool SaveCard = false;
-
+	if( ConfigGetConfig(NIN_CFG_LED) )
+	{
+		set32(HW_GPIO_ENABLE, GPIO_SLOT_LED);
+		clear32(HW_GPIO_DIR, GPIO_SLOT_LED);
+		clear32(HW_GPIO_OWNER, GPIO_SLOT_LED);
+	}
 	write32(0xd8006a0, 0x30000004), mask32(0xd8006a8, 0, 2);
 	while (1)
 	{
@@ -302,6 +307,9 @@ int _main( int argc, char *argv[] )
 		wait_for_ppc(1);
 		cc_ahbMemFlush(1);
 	}
+
+	if( ConfigGetConfig(NIN_CFG_LED) )
+		clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
