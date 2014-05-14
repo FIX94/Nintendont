@@ -167,7 +167,7 @@ int _main( int argc, char *argv[] )
 
 		memset32((void*)0x13003420, 0, 0x1BE0);
 		sync_after_write((void*)0x13003420, 0x1BE0);
-		HID_Thread = thread_create(HID_Run, NULL, (u32*)0x13003420, 0x1BE0, 0x20, 1);
+		HID_Thread = thread_create(HID_Run, NULL, (u32*)0x13003420, 0x1BE0, 0x50, 1);
 		thread_continue(HID_Thread);
 	}
 	BootStatus(9, s_size, s_cnt);

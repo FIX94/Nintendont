@@ -21,9 +21,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "string.h"
 
 bool SI_IRQ = false;
-bool complete = false;
+bool complete = true;
 u32 cur_control = 0, cur_status = 0, prev_control = 0, prev_status = 0;
-
+u8 cur_chan = 0, prev_chan = 0;
 void SIInit()
 {
 	memset((void*)SI_BASE, 0, 0x100);
@@ -66,6 +66,7 @@ void SIUpdateRegisters()
 		if(cur_control & 0x40000001) //enable interrupts and transfer
 		{
 			cur_control |= (1<<29); //we normally always have some communication error?
+			cur_chan = (cur_control & 6) >> 1;
 			/* set controller responses, not needed with patched PADRead
 			if((cur_control & 7) == 3) //chan 1
 				cur_status |= (1<<19);
@@ -81,6 +82,11 @@ void SIUpdateRegisters()
 			SI_IRQ = true; //we will give the game regular updates
 		}
 		prev_control = cur_control;
+		if(cur_chan != prev_chan) //force repeat
+		{
+			complete = true;
+			prev_chan = cur_chan;
+		}
 	}
 	/*if(cur_status != prev_status)
 	{
