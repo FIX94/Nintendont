@@ -201,5 +201,5 @@ unsigned int atox( char *String )
 
 void wait_for_ppc(u8 multi)
 {
-	udelay(90*multi);
+	udelay(45*multi);
 }

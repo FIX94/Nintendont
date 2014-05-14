@@ -420,7 +420,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 	{
 		write32( 0x14, 0x10 );		// EXI(TC) IRQ
 		sync_after_write( (void*)0x14, 4 );
-		wait_for_ppc(1);
+		wait_for_ppc(4);
 		if(SkipHandlerWait == true)
 			write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 		else
