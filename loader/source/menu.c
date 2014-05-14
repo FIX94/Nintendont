@@ -198,10 +198,10 @@ void SelectGame( void )
 
 			}  else {
 
-				ListMax = 12;
+				ListMax = 13;
 
 				if( (ncfg.VideoMode & NIN_VID_MASK) == NIN_VID_FORCE )
-					ListMax = 13;
+					ListMax = 14;
 			}
 			
 			redraw = 1;
@@ -344,36 +344,40 @@ void SelectGame( void )
 					} break;
 					case 11:
 					{
+						ncfg.Config ^= NIN_CFG_LED;
+					} break;
+					case 12:
+					{
 						switch( ncfg.VideoMode & NIN_VID_MASK )
 						{
 							case NIN_VID_AUTO:
 								ncfg.VideoMode &= ~NIN_VID_MASK;
 								ncfg.VideoMode |= NIN_VID_FORCE;
 
-								ListMax = 13;
+								ListMax = 14;
 							break;
 							case NIN_VID_FORCE:
 								ncfg.VideoMode &= ~NIN_VID_MASK;
 								ncfg.VideoMode |= NIN_VID_NONE;
 
-								ListMax = 12;
+								ListMax = 13;
 
-								PrintFormat( MENU_POS_X+50, 164+16*12, "                             " );
+								PrintFormat( MENU_POS_X+50, 164+16*13, "                             " );
 
 							break;
 							case NIN_VID_NONE:
 								ncfg.VideoMode &= ~NIN_VID_MASK;
 								ncfg.VideoMode |= NIN_VID_AUTO;
 
-								ListMax = 12;
+								ListMax = 13;
 
-								PrintFormat( MENU_POS_X+50, 164+16*12, "                             " );
+								PrintFormat( MENU_POS_X+50, 164+16*13, "                             " );
 
 							break;
 						}
 
 					} break;
-					case 12:
+					case 13:
 					{
 						switch( ncfg.VideoMode & NIN_VID_FORCE_MASK )
 						{
@@ -440,16 +444,18 @@ void SelectGame( void )
 					break;			
 				}
 
+				PrintFormat( MENU_POS_X+50, 164+16*11, "Drive Read LED    :%s", (ncfg.Config&NIN_CFG_LED)		? "On " : "Off" );
+
 				switch( ncfg.VideoMode & NIN_VID_MASK )
 				{
 					case NIN_VID_AUTO:
-						PrintFormat( MENU_POS_X+50, 164+16*11,"Video             :%s", "Auto " );
+						PrintFormat( MENU_POS_X+50, 164+16*12,"Video             :%s", "Auto " );
 					break;
 					case NIN_VID_FORCE:
-						PrintFormat( MENU_POS_X+50, 164+16*11,"Video             :%s", "Force" );
+						PrintFormat( MENU_POS_X+50, 164+16*12,"Video             :%s", "Force" );
 					break;
 					case NIN_VID_NONE:
-						PrintFormat( MENU_POS_X+50, 164+16*11,"Video             :%s", "None " );
+						PrintFormat( MENU_POS_X+50, 164+16*12,"Video             :%s", "None " );
 					break;		
 					default:
 						ncfg.VideoMode &= ~NIN_VID_MASK;
@@ -461,16 +467,16 @@ void SelectGame( void )
 				switch( ncfg.VideoMode & NIN_VID_FORCE_MASK )
 				{
 					case NIN_VID_FORCE_PAL50:
-						PrintFormat( MENU_POS_X+50, 164+16*12, "Videomode         :%s", "PAL50" );
+						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "PAL50" );
 					break;
 					case NIN_VID_FORCE_PAL60:
-						PrintFormat( MENU_POS_X+50, 164+16*12, "Videomode         :%s", "PAL60" );
+						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "PAL60" );
 					break;
 					case NIN_VID_FORCE_NTSC:
-						PrintFormat( MENU_POS_X+50, 164+16*12, "Videomode         :%s", "NTSC " );
+						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "NTSC " );
 					break;
 					case NIN_VID_FORCE_MPAL:
-						PrintFormat( MENU_POS_X+50, 164+16*12, "Videomode         :%s", "MPAL " );
+						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "MPAL " );
 					break;
 					default:
 						ncfg.VideoMode &= ~NIN_VID_FORCE_MASK;

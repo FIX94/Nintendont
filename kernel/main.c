@@ -98,7 +98,7 @@ int _main( int argc, char *argv[] )
 	}
 	
 	BootStatus(4, 0, 0);
-#ifdef NINTENDONT_USB
+
 	BootStatus(5, 0, 0);
 	
 	int MountFail = 0;
@@ -131,6 +131,7 @@ int _main( int argc, char *argv[] )
 		}
 	}
 
+#ifdef NINTENDONT_USB
 	BootStatus(6, s_size, s_cnt);
 	s32 r = LoadModules(55);
 	//dbgprintf("ES:ES_LoadModules(%d):%d\r\n", 55, r );

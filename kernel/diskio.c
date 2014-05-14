@@ -1,6 +1,8 @@
 #include "diskio.h"
 #include "string.h"
 #include "debug.h"
+#include "config.h"
+
 #ifndef NINTENDONT_USB
 #include "SDI.h"
 #include "syscalls.h"
@@ -9,6 +11,9 @@
 #include "alloc.h"
 #include "common.h"
 #endif
+
+#define HW_GPIOB_OUT	(*(vu32*)(0x0d8000c0))
+#define GPIO_SLOT_LED	(1<<5)
 
 
 u32 s_size;
@@ -29,6 +34,10 @@ DSTATUS disk_status( BYTE drv )
 DRESULT disk_read( BYTE drv, BYTE *buff, DWORD sector, BYTE count )
 {
 	s32 Retry=10;
+
+	if (ConfigGetConfig(NIN_CFG_LED))
+		HW_GPIOB_OUT |= GPIO_SLOT_LED;	//turn on drive light
+
 	while(1)
 	{
 		if( sdio_ReadSectors( sector, count, buff ) )
@@ -36,8 +45,15 @@ DRESULT disk_read( BYTE drv, BYTE *buff, DWORD sector, BYTE count )
 
 		Retry--;
 		if( Retry < 0 )
+		{
+			if (ConfigGetConfig(NIN_CFG_LED))
+				HW_GPIOB_OUT &= ~GPIO_SLOT_LED; //turn off drive light
 			return RES_ERROR;		
+		}
 	}
+
+	if (ConfigGetConfig(NIN_CFG_LED))
+		HW_GPIOB_OUT &= ~GPIO_SLOT_LED; //turn off drive light
 
 	return RES_OK;
 }
@@ -107,6 +123,9 @@ DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 {
 	u32 t_read = 0;
 
+	if (ConfigGetConfig(NIN_CFG_LED))
+		HW_GPIOB_OUT |= GPIO_SLOT_LED;	//turn on drive light
+
 	while(t_read < count)
 	{
 		u32 r_sec = (count - t_read);
@@ -116,6 +135,8 @@ DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 
 		if(USBStorage_Read_Sectors(sector+t_read, r_sec, buffer) != 1)
 		{
+			if (ConfigGetConfig(NIN_CFG_LED))
+				HW_GPIOB_OUT &= ~GPIO_SLOT_LED; //turn off drive light
 			dbgprintf("USB:Failed to read from USB device... Sector: %d Count: %d dst: %p\r\n", sector, count, buff);
 			return RES_ERROR;
 		}
@@ -123,6 +144,9 @@ DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 		buff += r_sec * s_size;
 		t_read += r_sec;
 	}
+
+	if (ConfigGetConfig(NIN_CFG_LED))
+		HW_GPIOB_OUT &= ~GPIO_SLOT_LED; //turn off drive light
 
 	return RES_OK;
 }

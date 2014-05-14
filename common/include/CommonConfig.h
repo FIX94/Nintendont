@@ -35,6 +35,7 @@ enum ninconfig
 	NIN_CFG_HID			= (1<<8),
 	NIN_CFG_OSREPORT	= (1<<9),
 	NIN_CFG_USB			= (1<<10),
+	NIN_CFG_LED			= (1<<11),
 };
 
 enum ninvideomode
