@@ -227,7 +227,7 @@ int _main( int argc, char *argv[] )
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
 		{
-			if((read32(HW_TIMER) - Now) * 1024 / 243000000 > 10)
+			if((read32(HW_TIMER) - Now) / 1898437 > 2) /* after 3 second earliest */
 			{
 				EXISaveCard();
 				SaveCard = false;
@@ -275,7 +275,7 @@ int _main( int argc, char *argv[] )
 		DIUpdateRegisters();
 		EXIUpdateRegistersNEW();
 		SIUpdateRegisters();
-		if(EXICheckCard() && !SaveCard)
+		if(EXICheckCard())
 		{
 			Now = read32(HW_TIMER);
 			SaveCard = true;
