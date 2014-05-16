@@ -39,6 +39,7 @@ u32 Device=0;
 u32 SRAMWriteCount=0;
 static u32 EXICommand = 0;
 static u32 BlockOff= 0;
+static bool changed = false;
 static u32 BlockOffLow = 0xFFFFFFFF;
 static u32 BlockOffHigh = 0x00000000;
 u8 *MCard = (u8 *)(0x11000000);
@@ -163,9 +164,11 @@ void EXIInit( void )
 
 bool EXICheckCard(void)
 {
-	if(BlockOffLow != 0xFFFFFFFF)
+	if(changed == true)
+	{
+		changed = false;
 		return true;
-	
+	}
 	return false;
 }
 
@@ -358,7 +361,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 							BlockOffLow = BlockOff;
 						if(BlockOff + Length > BlockOffHigh)
 							BlockOffHigh = BlockOff + Length;
-							
+						changed = true;
 						sync_before_read( Data, Length );
 
 						memcpy( MCard+BlockOff, Data, Length );
@@ -420,16 +423,20 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 	{
 		write32( 0x14, 0x10 );		// EXI(TC) IRQ
 		sync_after_write( (void*)0x14, 4 );
-		wait_for_ppc(4);
 		if(SkipHandlerWait == true)
+		{
+			wait_for_ppc(4);
 			write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+		}
 		else
 		{
+			wait_for_ppc(1);
 			while(read32(0x13010000) == 1)
 			{
 				write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 				sync_before_read((void*)0x13010000, 4);
 			}
+			wait_for_ppc(2);
 		}
 		/*write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );
 		write32( HW_ARMIRQFLAG, read32(HW_ARMIRQFLAG) );
