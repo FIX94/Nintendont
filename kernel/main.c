@@ -53,7 +53,7 @@ extern u32 s_cnt;
 
 FATFS *fatfs;
 extern u32 HIDHandle;
-extern bool SI_IRQ, DI_IRQ;
+extern bool SI_IRQ, DI_IRQ, EXI_IRQ;
 extern u32 DI_Thread;
 //u32 Loopmode=0;
 int _main( int argc, char *argv[] )
@@ -167,7 +167,7 @@ int _main( int argc, char *argv[] )
 
 		memset32((void*)0x13003420, 0, 0x1BE0);
 		sync_after_write((void*)0x13003420, 0x1BE0);
-		HID_Thread = thread_create(HID_Run, NULL, (u32*)0x13003420, 0x1BE0, 0x50, 1);
+		HID_Thread = thread_create(HID_Run, NULL, (u32*)0x13003420, 0x1BE0, 0x78, 1);
 		thread_continue(HID_Thread);
 	}
 	BootStatus(9, s_size, s_cnt);
@@ -210,6 +210,11 @@ int _main( int argc, char *argv[] )
 	{
 		_ahbMemFlush(0);
 
+		if(EXI_IRQ == true)
+		{
+			if(EXICheckTimer())
+				EXIInterrupt();
+		}
 		if(SI_IRQ == true)
 		{
 			if((read32(HW_TIMER) - PADTimer) >= 65000)	// about 29 times a second
@@ -222,8 +227,6 @@ int _main( int argc, char *argv[] )
 		{
 			if(DI_Args->Buffer == 0xdeadbeef)
 				DIInterrupt();
-			else
-				udelay(40);
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
 		{
@@ -233,8 +236,8 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
-		else //no io, just wait for hid thread
-			udelay(10);
+		udelay(10); //wait for other threads
+
 		//Baten Kaitos save hax
 		if( read32(0) == 0x474B4245 )
 		{

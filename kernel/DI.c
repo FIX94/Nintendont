@@ -161,15 +161,19 @@ void DIChangeDisc( u32 DiscNumber )
 void DIInterrupt()
 {
 	DI_IRQ = false;
-	wait_for_ppc(1);
+	write32( 0x10, 0 );
+	write32( 0x14, 2 ); //DI IRQ
+	sync_after_write( (void*)0x10, 8 );
+
+	clear32(DI_SSTATUS, (1<<2) | (1<<4)); //transfer complete, no errors
+	sync_after_write((void*)DI_SSTATUS, 4);
 
 	write32( DIP_CONTROL, 1 ); //start transfer, causes an interrupt, game gets its data
-	while( read32(DIP_CONTROL) & 1 ) ;
 
-	set32( DI_SSTATUS, 0x3A );
-	sync_after_write((void*)DI_SSTATUS, 4);
-	write32(DI_SCONTROL, 0); //game shadow controls
-	sync_after_write((void*)DI_SCONTROL, 4);
+	//some games might need this
+	//while( read32(DIP_CONTROL) & 1 ) ;
+	//clear32(DI_SCONTROL, (1<<0)); //game shadow controls, just in case its not interrupt based
+	//sync_after_write((void*)DI_SCONTROL, 4);
 }
 void DIUpdateRegisters( void )
 {
@@ -188,7 +192,7 @@ void DIUpdateRegisters( void )
 	{
 		write32( DI_SCONTROL, read32(DI_CONTROL) & 3 );
 
-		*(vu32*)DI_SSTATUS &= ~0x14;
+		//*(vu32*)DI_SSTATUS &= ~0x14;
 
 		write32( DI_CONTROL, 0xdeadbeef );
 		sync_after_write( (void*)DI_BASE, 0x60 );
