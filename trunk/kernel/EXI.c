@@ -48,7 +48,9 @@ u32 CARDWriteCount = 0;
 u32 IPLReadOffset;
 FIL MemCard;
 bool SkipHandlerWait = false;
-
+bool EXI_IRQ = false;
+static u32 IRQ_Timer = 0;
+static u32 IRQ_Cause = 0;
 static TCHAR MemCardName[9];
 void EXIInit( void )
 {
@@ -159,9 +161,32 @@ void EXIInit( void )
 		sram->Flags &= 0x7F;
 
 	SRAM_Checksum( (unsigned short *)SRAM, (unsigned short *)SRAM, (unsigned short *)( ((u8*)SRAM) + 2 ) );
-
 }
+bool EXICheckTimer(void)
+{
+	return (read32(HW_TIMER) - IRQ_Timer) >= 3800;	// about 500 times a second
+}
+void EXIInterrupt(void)
+{
+	write32(0x13010000,1); //setup IRQ Handler check
+	sync_after_write((void*)0x13010000,4);
 
+	write32( 0x10, IRQ_Cause);
+	write32( 0x14, 0x10 );		// EXI(TC) IRQ
+	sync_after_write( (void*)0x10, 8 );
+
+	if(SkipHandlerWait == true)
+		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+	else while(read32(0x13010000) == 1)
+	{
+		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+		wait_for_ppc(1);
+		sync_before_read((void*)0x13010000, 4);
+	}
+	EXI_IRQ = false;
+	IRQ_Timer = 0;
+	IRQ_Cause = 0;
+}
 bool EXICheckCard(void)
 {
 	if(changed == true)
@@ -295,7 +320,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 #endif
 						EXICommand = MEM_BLOCK_ERASE;
 						CARDWriteCount = 0;
-						write32( 0x10, 2 );			// EXI IRQ
+						IRQ_Cause = 2;			// EXI IRQ
 						EXIOK = 2;
 					} break;
 				}
@@ -317,7 +342,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 #endif
 						EXICommand = MEM_BLOCK_ERASE;
 						CARDWriteCount = 0;
-						write32( 0x10, 2 );			// EXI IRQ
+						IRQ_Cause = 2;			// EXI IRQ
 						EXIOK = 2;
 					} break;
 					case 0xF2:
@@ -368,7 +393,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 
 						sync_after_write( MCard+BlockOff, Length );	
 
-						write32( 0x10, 10 );	// TC(8) & EXI(2) IRQ
+						IRQ_Cause = 10;	// TC(8) & EXI(2) IRQ
 						EXIOK = 2;
 					} break;
 				}
@@ -409,7 +434,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 
 				sync_after_write( Data, Length );
 
-				write32( 0x10, 8 );		// TC IRQ
+				IRQ_Cause = 8;		// TC IRQ
 
 				EXIOK = 2;
 			} break;
@@ -417,32 +442,12 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 	}
 	//dbgprintf("%08x %08x %08x %08x\r\n", (u32)Data >> 16, Mode, Length, EXICommand);
 	write32( 0x0D80600C, 0 ); //exit EXIDMA / EXIImm
-	write32(0x13010000,1);
-	sync_after_write((void*)0x13010000,4);
+
 	if( EXIOK == 2 )
 	{
-		write32( 0x14, 0x10 );		// EXI(TC) IRQ
-		sync_after_write( (void*)0x14, 4 );
-		if(SkipHandlerWait == true)
-		{
-			wait_for_ppc(4);
-			write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-		}
-		else
-		{
-			wait_for_ppc(1);
-			while(read32(0x13010000) == 1)
-			{
-				write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-				sync_before_read((void*)0x13010000, 4);
-			}
-			wait_for_ppc(2);
-		}
-		/*write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );
-		write32( HW_ARMIRQFLAG, read32(HW_ARMIRQFLAG) );
-		set32( HW_IPC_ARMCTRL, (1<<2) );*/
+		EXI_IRQ = true;
+		IRQ_Timer = read32(HW_TIMER);
 	}
-
 	return 1;
 }
 u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
@@ -573,7 +578,7 @@ void EXIUpdateRegistersNEW( void )
 		{
 			case 0x10:	// EXISelect
 			{
-				chn	=  command & 0xFF;
+				chn = command & 0xFF;
 				dev = (command>>8) & 0xFF;
 				//frq = (command>>16) & 0xFF;
 				

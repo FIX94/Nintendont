@@ -61,6 +61,8 @@ enum EXICommands {
 #define EXI_READWRITE	2 
 
 void EXIInit();
+bool EXICheckTimer();
+void EXIInterrupt();
 void EXIUpdateRegistersNEW( void );
 void EXIShutdown( void );
 void EXISaveCard(void);
