@@ -391,7 +391,7 @@ void HIDRumble( u32 Enable )
 u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 {
 	char entryname[128];
-	_sprintf( entryname, "\r\n%s=", EntryName );
+	_sprintf( entryname, "\n%s=", EntryName );
 
 	char *str = strstr( Data, entryname );
 	if( str == (char*)NULL )
