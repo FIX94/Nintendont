@@ -63,10 +63,9 @@ void SIUpdateRegisters()
 	if(cur_control != prev_control)
 	{
 		//dbgprintf("Read SI Control: %08x\r\n", cur_control);
-		if(cur_control & 0x40000001) //enable interrupts and transfer
+		if(cur_control & (1<<30) && cur_control & (1<<0)) //enable interrupts and transfer
 		{
 			cur_control |= (1<<29); //we normally always have some communication error?
-			cur_chan = (cur_control & 6) >> 1;
 			/* set controller responses, not needed with patched PADRead
 			if((cur_control & 7) == 3) //chan 1
 				cur_status |= (1<<19);
@@ -82,6 +81,9 @@ void SIUpdateRegisters()
 			SI_IRQ = true; //we will give the game regular updates
 		}
 		prev_control = cur_control;
+		if((cur_control & 0x7F0000) != 0)
+			complete = true; //requested some bytes
+		cur_chan = (cur_control & 6) >> 1;
 		if(cur_chan != prev_chan) //force repeat
 		{
 			complete = true;
