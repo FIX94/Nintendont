@@ -16,6 +16,7 @@ const s8 DEADZONE = 0x1A;
 void _start()
 {
 	asm volatile(
+		"mflr %r5\n"
 		"lis %r6, regs@h\n"
 		"ori %r6, %r6, regs@l\n"
 		"stw %r0, 0(%r6)\n"
@@ -48,8 +49,8 @@ void _start()
 		"stw %r30, 108(%r6)\n"
 		"stw %r31, 112(%r6)\n"
 	);
-	PADStatus *Pad = (PADStatus*)(((u8*)regs[5])-0x30); //r5=return, 0x30 buffer before it
-	MaxPads = ((NIN_CFG*)0xD3002A18)->MaxPads;
+	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
+	MaxPads = ((NIN_CFG*)0xD3002900)->MaxPads;
 	if ((MaxPads > NIN_CFG_MAXPAD) || (MaxPads == 0))
 		MaxPads = NIN_CFG_MAXPAD;
 	for (chan = 0; chan < MaxPads; ++chan)

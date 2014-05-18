@@ -1,14 +1,14 @@
 #include <asm.h>
 
+.set		PadBuff,	0x93002800
+
 #
 #
 #	r3	channel
 
 SIGetType:
-	lis		%r4,	0xD300
-	addi	%r4,	%r4,	0x3008
-	lwz		%r4,	0(%r4) #pointer to real address
-
+	lis		%r4,			PadBuff@h
+	ori		%r4,	%r4,	PadBuff@l
 	mulli 	%r3,	%r3,	12
 	add		%r4, 	%r4,	%r3
 	lwz 	%r5,	8(%r4)

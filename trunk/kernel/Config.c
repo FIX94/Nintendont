@@ -2,7 +2,7 @@
 #include "ff.h"
 #include "debug.h"
 
-NIN_CFG *ncfg = (NIN_CFG*)0x13002A18;
+NIN_CFG *ncfg = (NIN_CFG*)0x13002900;
 
 void ConfigInit( void )
 {

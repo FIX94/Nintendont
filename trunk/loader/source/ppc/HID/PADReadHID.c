@@ -13,6 +13,7 @@ const s8 DEADZONE = 0x1A;
 void _start()
 {
 	asm volatile(
+		"mflr %r5\n"
 		"lis %r6, regs@h\n"
 		"ori %r6, %r6, regs@l\n"
 		"stw %r0, 0(%r6)\n"
@@ -72,7 +73,7 @@ void _start()
 		);
 	}
 
-	PADStatus *Pad = (PADStatus*)(((u8*)regs[5])-0x30); //r5=return, 0x30 buffer before it
+	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
 	Pad[0].err = 0;
 	Pad[1].err = -1;	// NO controller
 	Pad[2].err = -1;

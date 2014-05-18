@@ -1,25 +1,19 @@
 #include <asm.h>
 
+.set		PadStub,	0x93000000
+.set		PadBuff,	0x93002800
+
 PADRead:
 	#to stub instead of arm
 	mflr	%r4
-	lis		%r6,	0x9300
-	ori		%r6,	%r6,	0x0000
-	bl		4
-	mflr	%r5 #our point
-	addi	%r5,	%r5,	0x40 #to real return 0x10 plus 0x30 buffer
-	mtlr	%r6
-	blr
-	#0x30 buffer
-	.int 0; .int 0; .int 0; .int 0; .int 0; .int 0; .int 0; .int 0; .int 0; .int 0; .int 0; .int 0;
-	#real return
+	lis		%r6,			PadStub@h
+	ori		%r6,	%r6,	PadStub@l
+	mtctr	%r6
+	bctrl
+	#Assumes r4 is unmodified by PadStub
 	mtlr	%r4
-	#calculate buffer position
-	subi	%r5, 		%r5,		0x30
-	#set pointer to real PADStatus
-	lis		%r4,	0xD300
-	ori		%r4,	%r4,	0x3008
-	stw		%r5,		0(%r4)
+	lis		%r5,			PadBuff@h
+	ori		%r5,	%r5,	PadBuff@l
 
 	#original code
 	li		%r4,	0x30
@@ -36,4 +30,5 @@ memcpy:
 	subi	%r4, 		%r4,		0xC
 	cmpwi 	%r4,		0
 	bne		memcpy
+
 	blr
