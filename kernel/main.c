@@ -150,6 +150,8 @@ int _main( int argc, char *argv[] )
 
 	SDisInit = 1;
 
+	memset32((void*)0x13002800, 0, 0x30);
+	sync_after_write((void*)0x13002800, 0x30);
 	u32 HID_Thread = 0;
 	bool UseHID = ConfigGetConfig(NIN_CFG_HID);
 	if( UseHID )

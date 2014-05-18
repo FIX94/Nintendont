@@ -1,6 +1,13 @@
 @echo off
 
-cd resetstub
+cd kernel\asm
+echo.
+echo Building asm files
+echo.
+make clean
+make
+
+cd ..\..\resetstub
 echo.
 echo Building Reset Stub
 echo.
