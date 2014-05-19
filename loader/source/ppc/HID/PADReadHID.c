@@ -131,60 +131,65 @@ void _start()
 	s8 stickX, stickY, substickX, substickY;
 	if ((HID_CTRL->VID == 0x044F) && (HID_CTRL->PID == 0xB303))	//Logitech Thrustmaster Firestorm Dual Analog 2
 	{
-		stickX		= HID_Packet[HID_CTRL->StickX];			//raw 80 81...FF 00 ... 7E 7F (left...center...right)
-		stickY		= -1 - HID_Packet[HID_CTRL->StickY];	//raw 80 81...FF 00 ... 7E 7F (up...center...down)
-		substickX	= HID_Packet[HID_CTRL->CStickX];		//raw 80 81...FF 00 ... 7E 7F (left...center...right)
-		substickY	= 127 - HID_Packet[HID_CTRL->CStickY];	//raw 00 01...7F 80 ... FE FF (up...center...down)
+		stickX		= HID_Packet[HID_CTRL->StickX.Offset];			//raw 80 81...FF 00 ... 7E 7F (left...center...right)
+		stickY		= -1 - HID_Packet[HID_CTRL->StickY.Offset];		//raw 80 81...FF 00 ... 7E 7F (up...center...down)
+		substickX	= HID_Packet[HID_CTRL->CStickX.Offset];			//raw 80 81...FF 00 ... 7E 7F (left...center...right)
+		substickY	= 127 - HID_Packet[HID_CTRL->CStickY.Offset];	//raw 00 01...7F 80 ... FE FF (up...center...down)
 	}
 	else
 	if ((HID_CTRL->VID == 0x0926) && (HID_CTRL->PID == 0x2526))	//Mayflash 3 in 1 Magic Joy Box 
 	{
-		stickX		= HID_Packet[HID_CTRL->StickX] - 128;	//raw 1A 1B...80 81 ... E4 E5 (left...center...right)
-		stickY		= 127 - HID_Packet[HID_CTRL->StickY];	//raw 0E 0F...7E 7F ... E4 E5 (up...center...down)
-		if (HID_Packet[HID_CTRL->CStickX] >= 0)
-			substickX	= (HID_Packet[HID_CTRL->CStickX] * 2) - 128;	//raw 90 91 10 11...41 42...68 69 EA EB (left...center...right) the 90 91 EA EB are hard right and left almost to the point of breaking
-		else if (HID_Packet[HID_CTRL->CStickX] < 0xD0)
+		stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1A 1B...80 81 ... E4 E5 (left...center...right)
+		stickY		= 127 - HID_Packet[HID_CTRL->StickY.Offset];	//raw 0E 0F...7E 7F ... E4 E5 (up...center...down)
+		if (HID_Packet[HID_CTRL->CStickX.Offset] >= 0)
+			substickX	= (HID_Packet[HID_CTRL->CStickX.Offset] * 2) - 128;	//raw 90 91 10 11...41 42...68 69 EA EB (left...center...right) the 90 91 EA EB are hard right and left almost to the point of breaking
+		else if (HID_Packet[HID_CTRL->CStickX.Offset] < 0xD0)
 			substickX	= 0xFE;
 		else
 			substickX	= 0;
-		substickY	= 127 - ((HID_Packet[HID_CTRL->CStickY] - 128) * 4);	//raw 88 89...9E 9F A0 A1 ... BA BB (up...center...down)
+		substickY	= 127 - ((HID_Packet[HID_CTRL->CStickY.Offset] - 128) * 4);	//raw 88 89...9E 9F A0 A1 ... BA BB (up...center...down)
 	}
 	else	//standard sticks
 	{
-		stickX		= HID_Packet[HID_CTRL->StickX] - 128;
-		stickY		= 127 - HID_Packet[HID_CTRL->StickY];
-		substickX	= HID_Packet[HID_CTRL->CStickX] - 128;
-		substickY	= 127 - HID_Packet[HID_CTRL->CStickY];
+		stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
+		stickY		= 127 - HID_Packet[HID_CTRL->StickY.Offset];
+		substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;
+		substickY	= 127 - HID_Packet[HID_CTRL->CStickY.Offset];
 	}
 
 	s8 tmp_stick = 0;
-	if(stickX > DEADZONE && stickX > 0)
-		tmp_stick = (stickX - DEADZONE) * 1.25f;
-	else if(stickX < -DEADZONE && stickX < 0)
-		tmp_stick = (stickX + DEADZONE) * 1.25f;
+	if(stickX > HID_CTRL->StickX.DeadZone && stickX > 0)
+		tmp_stick = (double)(stickX - HID_CTRL->StickX.DeadZone) * HID_CTRL->StickX.Radius / 1000;
+	else if(stickX < -HID_CTRL->StickX.DeadZone && stickX < 0)
+		tmp_stick = (double)(stickX + HID_CTRL->StickX.DeadZone) * HID_CTRL->StickX.Radius / 1000;
 	Pad[0].stickX = tmp_stick;
 
 	tmp_stick = 0;
-	if(stickY > DEADZONE && stickY > 0)
-		tmp_stick = (stickY - DEADZONE) * 1.25f;
-	else if(stickY < -DEADZONE && stickY < 0)
-		tmp_stick = (stickY + DEADZONE) * 1.25f;
+	if(stickY > HID_CTRL->StickY.DeadZone && stickY > 0)
+		tmp_stick = (double)(stickY - HID_CTRL->StickY.DeadZone) * HID_CTRL->StickY.Radius / 1000;
+	else if(stickY < -HID_CTRL->StickY.DeadZone && stickY < 0)
+		tmp_stick = (double)(stickY + HID_CTRL->StickY.DeadZone) * HID_CTRL->StickY.Radius / 1000;
 	Pad[0].stickY = tmp_stick;
 
 	tmp_stick = 0;
-	if(substickX > DEADZONE && substickX > 0)
-		tmp_stick = (substickX - DEADZONE) * 1.25f;
-	else if(substickX < -DEADZONE && substickX < 0)
-		tmp_stick = (substickX + DEADZONE) * 1.25f;
+	if(substickX > HID_CTRL->CStickX.DeadZone && substickX > 0)
+		tmp_stick = (double)(substickX - HID_CTRL->CStickX.DeadZone) * HID_CTRL->CStickX.Radius / 1000;
+	else if(substickX < -HID_CTRL->CStickX.DeadZone && substickX < 0)
+		tmp_stick = (double)(substickX + HID_CTRL->CStickX.DeadZone) * HID_CTRL->CStickX.Radius / 1000;
 	Pad[0].substickX = tmp_stick;
 
 	tmp_stick = 0;
-	if(substickY > DEADZONE && substickY > 0)
-		tmp_stick = (substickY - DEADZONE) * 1.25f;
-	else if(substickY < -DEADZONE && substickY < 0)
-		tmp_stick = (substickY + DEADZONE) * 1.25f;
+	if(substickY > HID_CTRL->CStickY.DeadZone && substickY > 0)
+		tmp_stick = (double)(substickY - HID_CTRL->CStickY.DeadZone) * HID_CTRL->CStickY.Radius / 1000;
+	else if(substickY < -HID_CTRL->CStickY.DeadZone && substickY < 0)
+		tmp_stick = (double)(substickY + HID_CTRL->CStickY.DeadZone) * HID_CTRL->CStickY.Radius / 1000;
 	Pad[0].substickY = tmp_stick;
-
+/*
+	Pad[0].stickX = stickX;
+	Pad[0].stickY = stickY;
+	Pad[0].substickX = substickX;
+	Pad[0].substickY = substickY;
+*/
 	/* then triggers */
 	if( HID_CTRL->DigitalLR )
 	{	/* digital triggers, not much to do */

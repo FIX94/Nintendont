@@ -9,6 +9,13 @@ typedef struct Layout
 	u32 Mask;
 } layout;
 
+typedef struct StickLayout
+{
+	u32 	Offset;
+	s8		DeadZone;
+	u32		Radius;
+} stickLayout;
+
 typedef struct Controller
 {
 	u32 VID;
@@ -41,10 +48,10 @@ typedef struct Controller
 	layout DownLeft;
 	layout UpLeft;
 
-	u32 StickX;
-	u32 StickY;
-	u32 CStickX;
-	u32 CStickY;
+	stickLayout StickX;
+	stickLayout StickY;
+	stickLayout CStickX;
+	stickLayout CStickY;
 	u32 LAnalog;
 	u32 RAnalog;
 
