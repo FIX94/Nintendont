@@ -14,6 +14,13 @@ typedef struct Layout
 	u32 Mask;
 } layout;
 
+typedef struct StickLayout
+{
+	u32 	Offset;
+	s8		DeadZone;
+	u32		Radius;
+} stickLayout;
+
 typedef struct Controller
 {
 	u32 VID;
@@ -46,10 +53,10 @@ typedef struct Controller
 	layout DownLeft;
 	layout UpLeft;
 
-	u32 StickX;
-	u32 StickY;
-	u32 CStickX;
-	u32 CStickY;
+	stickLayout StickX;
+	stickLayout StickY;
+	stickLayout CStickX;
+	stickLayout CStickY;
 	u32 LAnalog;
 	u32 RAnalog;
 
@@ -135,6 +142,7 @@ void HIDRead( void );
 void HIDPS3SetLED( u8 led );
 void HIDRumble( u32 Enable );
 u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry );
+u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry );
 void HIDPS3SetRumble( u8 duration_right, u8 power_right, u8 duration_left, u8 power_left);
 u32 HID_Run(void *arg);
 #endif
