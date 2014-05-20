@@ -26,8 +26,8 @@ MEM2
 0x93003020-0x93003420=ios58 kernel path
 0x93003420-0x93005000=hid thread stack
 
-0x93005000-0x930050BC=hid controller positions
-0x930050C0=hid packet
+0x93005000-0x930050d0=hid controller positions
+0x930050E0=hid packet
 
 0x93007420-0x93009000=di thread stack
 0x93010000=old memory card buffer,now EXI Interrupt Handler Status
