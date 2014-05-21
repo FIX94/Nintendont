@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 		ExitToLoader(1);
 	}
 	
-	*(vu32*)(0xCD8B420A) = 0;	// Disable MEM2 protection
+	write16(0xD8B420A, 0); //disable MEMPROT for patches
 
 //Patch FS access
 
@@ -612,16 +612,24 @@ int main(int argc, char **argv)
 	GX_AbortFrame();
 	settime(secs_to_ticks(time(NULL) - 927466348));
 	ICFlashInvalidate();
-	if(IsWiiU() || ncfg.Config & NIN_CFG_HID)
+
+	DCInvalidateRange((void*)0x93000000, 0x3000);
+	if(IsWiiU())
 	{
-		memcpy((void*)0x93000000, PADReadHID_bin, PADReadHID_bin_size);
-		DCFlushRange((void*)0x93000000, PADReadHID_bin_size);
+		*(vu32*)0x93000000 = 0x4E800020; //blr, no gc controller on wiiu
+		memcpy((void*)0x93001000, PADReadHID_bin, PADReadHID_bin_size);
 	}
 	else
 	{
 		memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
-		DCFlushRange((void*)0x93000000, PADReadGC_bin_size);
+		if( ncfg.Config & NIN_CFG_HID )
+			memcpy((void*)0x93001000, PADReadHID_bin, PADReadHID_bin_size);
+		else
+			*(vu32*)0x93001000 = 0x4E800020; //blr, no HID requested
 	}
+	memset((void*)0x93002700, 0, 4); //set HID controller to 0
+	DCFlushRange((void*)0x93000000, 0x3000);
+
 	DCInvalidateRange((void*)0x93010010, 0x10000);
 	memcpy((void*)0x93010010, loader_stub, 0x1800);
 	memcpy((void*)0x93011810, stub_bin, stub_bin_size);
@@ -639,7 +647,7 @@ int main(int argc, char **argv)
 		DCFlushRange((void*)0x9300300C, 4);
 		usleep(500);
 	}*/
-	*(vu32*)(0xCD8B420A) = 0;	// Disable MEM2 protection again after ios reload
+	write16(0xD8B420A, 0); //disable MEMPROT again after reload
 	//u32 level = IRQ_Disable();
 	__exception_closeall();
 	__lwp_thread_closeall();
