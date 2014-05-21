@@ -61,7 +61,7 @@ u32 ES_Init( u8 *MessageHeap )
 	path		= (char*)malloca(		0x40,  32 );
 	size		= (u32*) malloca( sizeof(u32), 32 );
 	iTitleID	= (u64*) malloca( sizeof(u64), 32 );
-	
+
 	CNTMap		= (u8*)NULL;
 	DITicket	= (u8*)NULL;
 	KeyID		= (u32*)NULL;
@@ -89,9 +89,9 @@ u32 ES_Init( u8 *MessageHeap )
 	dbgprintf("ES:KernelVersion:%08X, %d\r\n", version, (version<<8)>>0x18 );
 #endif
 	ES_BootSystem();
-	
+
 	dbgprintf("ES:TitleID:%08x-%08x version:%d\r\n", (u32)((TitleID)>>32), (u32)(TitleID), TitleVersion );
-		
+
 	return MessageQueue;
 }
 
@@ -101,7 +101,7 @@ s32 ES_BootSystem( void )
 	u32 *size	= (u32*)malloca( sizeof(u32), 32 );
 
 	u32 IOSVersion = 55;
-	
+
 	dbgprintf("ES:Loading IOS%d ...\r\n", IOSVersion );
 
 //Load TMD of the requested IOS and build KernelVersion
@@ -112,7 +112,7 @@ s32 ES_BootSystem( void )
 	{
 		dbgprintf("ES:Failed to open:\"%s\":%d\r\n", path, *size );
 		free( path );
-		free( size );		
+		free( size );
 		Shutdown();
 	}
 
@@ -234,8 +234,8 @@ s32 LoadModules( u32 IOSVersion )
 
 		} else {
 			_sprintf( path, "/title/00000001/%08x/content/%08x.app", IOSVersion, TMD->Contents[i].ID );
-		}		
-		
+		}
+
 		dbgprintf("ES:Loaded Module(%d):\"%s\"\r\n", i, path );
 		r = LoadModule( path );
 		if( r < 0 )
@@ -348,7 +348,7 @@ s32 GetUID( u64 *TitleID, u16 *UID )
 	{
 		free( path );
 		dbgprintf("ES:ESP_GetUID():Could not open \"/sys/uid.sys\"! Error:%d\r\n", *size );
-		return *size;		
+		return *size;
 	}
 
 	*UID = 0xdead;

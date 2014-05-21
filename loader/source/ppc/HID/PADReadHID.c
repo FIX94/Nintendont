@@ -8,6 +8,7 @@ static vu32 *stubdest = (u32*)0xC1330000;
 static vu32 *stubsrc = (u32*)0xD3011810;
 static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* reset = (u32*)0xC0002F54;
+static vu32* HIDPad = (u32*)0xD3002700;
 u32 regs[29];
 const s8 DEADZONE = 0x1A;
 void _start()
@@ -72,12 +73,9 @@ void _start()
 			"blr\n"
 		);
 	}
-
+	u32 chan = *HIDPad;
 	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
-	Pad[0].err = 0;
-	Pad[1].err = -1;	// NO controller
-	Pad[2].err = -1;
-	Pad[3].err = -1;
+	Pad[chan].err = 0;
 
 	/* first buttons */
 	u16 button = 0;
@@ -125,7 +123,7 @@ void _start()
 		button |= PAD_TRIGGER_R;
 	if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 		button |= PAD_BUTTON_START;
-	Pad[0].button = button;
+	Pad[chan].button = button;
 
 	/* then analog sticks */
 	s8 stickX, stickY, substickX, substickY;
@@ -162,45 +160,45 @@ void _start()
 		tmp_stick = (double)(stickX - HID_CTRL->StickX.DeadZone) * HID_CTRL->StickX.Radius / 1000;
 	else if(stickX < -HID_CTRL->StickX.DeadZone && stickX < 0)
 		tmp_stick = (double)(stickX + HID_CTRL->StickX.DeadZone) * HID_CTRL->StickX.Radius / 1000;
-	Pad[0].stickX = tmp_stick;
+	Pad[chan].stickX = tmp_stick;
 
 	tmp_stick = 0;
 	if(stickY > HID_CTRL->StickY.DeadZone && stickY > 0)
 		tmp_stick = (double)(stickY - HID_CTRL->StickY.DeadZone) * HID_CTRL->StickY.Radius / 1000;
 	else if(stickY < -HID_CTRL->StickY.DeadZone && stickY < 0)
 		tmp_stick = (double)(stickY + HID_CTRL->StickY.DeadZone) * HID_CTRL->StickY.Radius / 1000;
-	Pad[0].stickY = tmp_stick;
+	Pad[chan].stickY = tmp_stick;
 
 	tmp_stick = 0;
 	if(substickX > HID_CTRL->CStickX.DeadZone && substickX > 0)
 		tmp_stick = (double)(substickX - HID_CTRL->CStickX.DeadZone) * HID_CTRL->CStickX.Radius / 1000;
 	else if(substickX < -HID_CTRL->CStickX.DeadZone && substickX < 0)
 		tmp_stick = (double)(substickX + HID_CTRL->CStickX.DeadZone) * HID_CTRL->CStickX.Radius / 1000;
-	Pad[0].substickX = tmp_stick;
+	Pad[chan].substickX = tmp_stick;
 
 	tmp_stick = 0;
 	if(substickY > HID_CTRL->CStickY.DeadZone && substickY > 0)
 		tmp_stick = (double)(substickY - HID_CTRL->CStickY.DeadZone) * HID_CTRL->CStickY.Radius / 1000;
 	else if(substickY < -HID_CTRL->CStickY.DeadZone && substickY < 0)
 		tmp_stick = (double)(substickY + HID_CTRL->CStickY.DeadZone) * HID_CTRL->CStickY.Radius / 1000;
-	Pad[0].substickY = tmp_stick;
+	Pad[chan].substickY = tmp_stick;
 /*
-	Pad[0].stickX = stickX;
-	Pad[0].stickY = stickY;
-	Pad[0].substickX = substickX;
-	Pad[0].substickY = substickY;
+	Pad[chan].stickX = stickX;
+	Pad[chan].stickY = stickY;
+	Pad[chan].substickX = substickX;
+	Pad[chan].substickY = substickY;
 */
 	/* then triggers */
 	if( HID_CTRL->DigitalLR )
 	{	/* digital triggers, not much to do */
-		if(Pad[0].button & PAD_TRIGGER_L)
-			Pad[0].triggerLeft = 255;
+		if(Pad[chan].button & PAD_TRIGGER_L)
+			Pad[chan].triggerLeft = 255;
 		else
-			Pad[0].triggerLeft = 0;
-		if(Pad[0].button & PAD_TRIGGER_R)
-			Pad[0].triggerRight = 255;
+			Pad[chan].triggerLeft = 0;
+		if(Pad[chan].button & PAD_TRIGGER_R)
+			Pad[chan].triggerRight = 255;
 		else
-			Pad[0].triggerRight = 0;
+			Pad[chan].triggerRight = 0;
 	}
 	else
 	{	/* much to do with analog */
@@ -210,9 +208,9 @@ void _start()
 		{
 			tmp_triggerL =  HID_Packet[HID_CTRL->LAnalog] & 0xF0;	//high nibble raw 1x 2x ... Dx Ex 
 			tmp_triggerR = (HID_Packet[HID_CTRL->RAnalog] & 0x0F) * 16 ;	//low nibble raw x1 x2 ...xD xE
-			if(Pad[0].button & PAD_TRIGGER_L)
+			if(Pad[chan].button & PAD_TRIGGER_L)
 				tmp_triggerL = 255;
-			if(Pad[0].button & PAD_TRIGGER_R)
+			if(Pad[chan].button & PAD_TRIGGER_R)
 				tmp_triggerR = 255;
 		}
 		else	//standard analog triggers
@@ -222,14 +220,14 @@ void _start()
 		}
 		/* Calculate left trigger with deadzone */
 		if(tmp_triggerL > DEADZONE)
-			Pad[0].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+			Pad[chan].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
 		else
-			Pad[0].triggerLeft = 0;
+			Pad[chan].triggerLeft = 0;
 		/* Calculate right trigger with deadzone */
 		if(tmp_triggerR > DEADZONE)
-			Pad[0].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
+			Pad[chan].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
 		else
-			Pad[0].triggerRight = 0;
+			Pad[chan].triggerRight = 0;
 	}
 
 	asm volatile(

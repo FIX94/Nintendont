@@ -11,6 +11,7 @@ static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* const _siReg = (u32*)0xCD006400;
 static vu32* const MotorCommand = (u32*)0xD3003010;
 static vu32* reset = (u32*)0xC0002F54;
+static vu32* HIDPad = (u32*)0xD3002700;
 u32 regs[29];
 const s8 DEADZONE = 0x1A;
 void _start()
@@ -53,6 +54,7 @@ void _start()
 	MaxPads = ((NIN_CFG*)0xD3002900)->MaxPads;
 	if ((MaxPads > NIN_CFG_MAXPAD) || (MaxPads == 0))
 		MaxPads = NIN_CFG_MAXPAD;
+	u8 HIDPadSet = 0;
 	for (chan = 0; chan < MaxPads; ++chan)
 	{
 		/* transfer the actual data */
@@ -71,6 +73,11 @@ void _start()
 			u32 psize = sizeof(PADStatus);
 			u8 *CurPad = (u8*)(&Pad[chan]);
 			while(psize--) *CurPad++ = 0;
+			if(HIDPadSet == 0)
+			{
+				*HIDPad = chan;
+				HIDPadSet = 1;
+			}
 			Pad[chan].err = -1;
 			continue;
 		}
@@ -122,9 +129,10 @@ void _start()
 		Pad[chan].button &= 0x9F7F;
 		/* set current command */
 		_siReg[chan*3] = (MotorCommand[chan]&0x3) | 0x00400300;
+		/* transfer command */
+		_siReg[14] |= (1<<31);
+		while(_siReg[14] & (1<<31));
 	}
-	/* transfer all commands */
-	_siReg[14] = 0x80000000;
 	asm volatile(
 		"lis %r6, regs@h\n"
 		"ori %r6, %r6, regs@l\n"

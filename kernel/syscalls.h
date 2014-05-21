@@ -98,7 +98,7 @@ s32 syscall_4d(void);
 
 void *VirtualToPhysical(void *ptr);
 
-#define DoStuff(a) syscall_54(a)
+#define EnableAHBProt(a) syscall_54(a)
 void syscall_54( u32 a );
 
 #define LoadPPC( TMD ) syscall_59( TMD )

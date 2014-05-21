@@ -207,7 +207,8 @@ int _main( int argc, char *argv[] )
 		clear32(HW_GPIO_DIR, GPIO_SLOT_LED);
 		clear32(HW_GPIO_OWNER, GPIO_SLOT_LED);
 	}
-	write32(0xd8006a0, 0x30000004), mask32(0xd8006a8, 0, 2);
+	EnableAHBProt(-1); //disable AHBPROT
+	write32(0xd8006a0, 0x30000004), mask32(0xd8006a8, 0, 2); //widescreen fix
 	while (1)
 	{
 		_ahbMemFlush(0);
