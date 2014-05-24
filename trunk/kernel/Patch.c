@@ -1653,7 +1653,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
 								(TITLE_ID) == 0x474D38 ||	// Metroid Prime
-								(TITLE_ID) == 0x474B59 )	// Kirby Air Ride
+								(TITLE_ID) == 0x47324D ||	// Metroid Prime 2
+								(TITLE_ID) == 0x474B59)	// Kirby Air Ride
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
