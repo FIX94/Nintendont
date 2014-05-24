@@ -213,7 +213,7 @@ s32 HIDInit( void )
 	if (HID_CTRL->StickX.Radius == 0)
 		HID_CTRL->StickX.Radius = 80;
 	HID_CTRL->StickX.Radius = (u64)HID_CTRL->StickX.Radius * 1280 / (128 - HID_CTRL->StickX.DeadZone);	//adjust for DeadZone
-//		dbgprintf("HID:StickX:  Deadzone=%3d Radius=%d\r\n", HID_CTRL->StickX.DeadZone, HID_CTRL->StickX.Radius);
+//		dbgprintf("HID:StickX:  Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->StickX.Offset, HID_CTRL->StickX.DeadZone, HID_CTRL->StickX.Radius);
 
 	HID_CTRL->StickY.Offset		= ConfigGetValue( Data, "StickY", 0 );
 	HID_CTRL->StickY.DeadZone	= ConfigGetValue( Data, "StickY", 1 );
@@ -221,7 +221,7 @@ s32 HIDInit( void )
 	if (HID_CTRL->StickY.Radius == 0)
 		HID_CTRL->StickY.Radius = 80;
 	HID_CTRL->StickY.Radius = (u64)HID_CTRL->StickY.Radius * 1280 / (128 - HID_CTRL->StickY.DeadZone);	//adjust for DeadZone
-//		dbgprintf("HID:StickY:  Deadzone=%3d Radius=%d\r\n", HID_CTRL->StickY.DeadZone, HID_CTRL->StickY.Radius);
+//		dbgprintf("HID:StickY:  Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->StickY.Offset, HID_CTRL->StickY.DeadZone, HID_CTRL->StickY.Radius);
 
 	HID_CTRL->CStickX.Offset	= ConfigGetValue( Data, "CStickX", 0 );
 	HID_CTRL->CStickX.DeadZone	= ConfigGetValue( Data, "CStickX", 1 );
@@ -229,7 +229,7 @@ s32 HIDInit( void )
 	if (HID_CTRL->CStickX.Radius == 0)
 		HID_CTRL->CStickX.Radius = 80;
 	HID_CTRL->CStickX.Radius = (u64)HID_CTRL->CStickX.Radius * 1280 / (128 - HID_CTRL->CStickX.DeadZone);	//adjust for DeadZone
-//		dbgprintf("HID:CStickX: Deadzone=%3d Radius=%d\r\n", HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius);
+//		dbgprintf("HID:CStickX: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickX.Offset, HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius);
 
 	HID_CTRL->CStickY.Offset	= ConfigGetValue( Data, "CStickY", 0 );
 	HID_CTRL->CStickY.DeadZone	= ConfigGetValue( Data, "CStickY", 1 );
@@ -237,7 +237,7 @@ s32 HIDInit( void )
 	if (HID_CTRL->CStickY.Radius == 0)
 		HID_CTRL->CStickY.Radius = 80;
 	HID_CTRL->CStickY.Radius = (u64)HID_CTRL->CStickY.Radius * 1280 / (128 - HID_CTRL->CStickY.DeadZone);	//adjust for DeadZone
-//		dbgprintf("HID:CStickY: Deadzone=%3d Radius=%d\r\n", HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius);
+//		dbgprintf("HID:CStickY: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickY.Offset, HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius);
 
 	HID_CTRL->LAnalog	= ConfigGetValue( Data, "LAnalog", 0 );
 	HID_CTRL->RAnalog	= ConfigGetValue( Data, "RAnalog", 0 );
@@ -435,6 +435,8 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 
 	str += strlen(entryname); // Skip '='
 
+	char *strEnd = strchr( str, 0x0A );
+
 	if( Entry == 0 )
 	{
 		return atox(str);
@@ -442,7 +444,7 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 	} else if ( Entry == 1 ) {
 
 		str = strstr( str, "," );
-		if( str == (char*)NULL )
+		if( str == (char*)NULL || str > strEnd )
 		{
 			dbgprintf("No \",\" found in entry.\r\n");
 			return 0;
@@ -454,7 +456,7 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 	} else if ( Entry == 2 ) {
 
 		str = strstr( str, "," );
-		if( str == (char*)NULL )
+		if( str == (char*)NULL || str > strEnd )
 		{
 			dbgprintf("No \",\" found in entry.\r\n");
 			return 0;
@@ -463,7 +465,7 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 		str++; //Skip the first ,
 
 		str = strstr( str, "," );
-		if( str == (char*)NULL )
+		if( str == (char*)NULL || str > strEnd )
 		{
 			dbgprintf("No \",\" found in entry.\r\n");
 			return 0;
@@ -503,6 +505,8 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 
 	str += strlen(entryname); // Skip '='
 
+	char *strEnd = strchr( str, 0x0A );
+
 	if( Entry == 0 )
 	{
 		return atoi(str);
@@ -510,7 +514,7 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 	} else if ( Entry == 1 ) {
 
 		str = strstr( str, "," );
-		if( str == (char*)NULL )
+		if( str == (char*)NULL || str > strEnd )
 		{
 			dbgprintf("No \",\" found in entry.\r\n");
 			return 0;
@@ -522,7 +526,7 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 	} else if ( Entry == 2 ) {
 
 		str = strstr( str, "," );
-		if( str == (char*)NULL )
+		if( str == (char*)NULL  || str > strEnd )
 		{
 			dbgprintf("No \",\" found in entry.\r\n");
 			return 0;
@@ -531,7 +535,7 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 		str++; //Skip the first ,
 
 		str = strstr( str, "," );
-		if( str == (char*)NULL )
+		if( str == (char*)NULL  || str > strEnd )
 		{
 			dbgprintf("No \",\" found in entry.\r\n");
 			return 0;
