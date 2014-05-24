@@ -212,7 +212,7 @@ void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 	return;
 }
 
-void write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
+bool write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
 {
 	if( read32(Offset) != CurrentValue )
 	{
@@ -220,10 +220,11 @@ void write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
 		//if( ShowAssert)
 			//dbgprintf("AssertFailed: Offset:%08X is:%08X should:%08X\r\n", Offset, read32(Offset), CurrentValue );
 		#endif
-		return;
+		return false;
 	}
 
 	write32( Offset, Value );
+	return true;
 }
 void PatchB( u32 dst, u32 src )
 {
@@ -932,12 +933,10 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			dbgprintf("Patch:[__DVDInterruptHandler] 0x%08X\r\n", Offset );	
 			#endif
 			
-				value = *(vu32*)Offset;
-				value&= 0xFFFF0000;
-				value|= 0x0000CD80;
+			value = *(vu32*)Offset;
+			value&= 0xFFFF0000;
+			value|= 0x0000CD80;
 			*(vu32*)Offset = value;
-
-			Offset += 4;
 
 			PatchCount |= 4;
 		}
@@ -958,15 +957,26 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				value|= 0x38000000;
 				*(vu32*)(Offset+8) = value;
 				
-				write32A( Offset+0x1CC,	0x3C60C000, 0x3C60CC00, 0 );
-				write32A( Offset+0x1D0,	0x80032f50, 0x80036020, 0 );
-				
-				write32A( Offset+0x1DC,	0x3C60C000, 0x3C60CC00, 0 );
-				write32A( Offset+0x1E0,	0x38632f30, 0x38636000, 0 );
+				u32 SearchIndex = 0;
+				for (SearchIndex = 0; SearchIndex < 2; SearchIndex++)
+				{
+					if (write32A(Offset + 0x1CC, 0x3C60C000, 0x3C60CC00, 0))
+						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x1CC);
+					if (write32A(Offset + 0x1D0, 0x80032f50, 0x80036020, 0))
+						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x1D0);
 
-				write32A( Offset+0x238,	0x3C60c000, 0x3C60CC00, 0 );
-				write32A( Offset+0x23C,	0x80032f50, 0x80036020, 0 );
-		
+					if (write32A(Offset + 0x1DC, 0x3C60C000, 0x3C60CC00, 0))
+						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x1DC);
+					if (write32A(Offset + 0x1E0, 0x38632f30, 0x38636000, 0))
+						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x1E0);
+
+					if (write32A(Offset + 0x238, 0x3C60c000, 0x3C60CC00, 0))
+						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x238);
+					if (write32A(Offset + 0x23C, 0x80032f50, 0x80036020, 0))
+						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x23C);
+					Offset += 0x4C;
+				}
+
 				PatchCount |= 8;
 
 			} else if(	(read32( (u32)Buffer + i + 0 ) & 0xFFFF) == 0xCC00 && // Loader
@@ -1642,6 +1652,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
 						{
 							if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
+								(TITLE_ID) == 0x474D38 ||	// Metroid Prime
 								(TITLE_ID) == 0x474B59 )	// Kirby Air Ride
 							{
 								#ifdef DEBUG_PATCH

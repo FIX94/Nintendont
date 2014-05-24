@@ -34,5 +34,5 @@ end:
  	li      %r3,1
  	lwz     %r0,0x08(%sp)
  	mtlr    %r0
- 	addi    %sp,%sp,16
+ 	addi    %sp,%sp,0x10
  	blr
