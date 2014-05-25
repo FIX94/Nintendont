@@ -27,7 +27,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <sys/dir.h>
 #include <unistd.h>
 #include <string.h>
-#include <malloc.h>
 #include <stdarg.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -96,6 +95,7 @@ u32 entrypoint = 0;
 extern void __exception_closeall();
 extern void udelay(u32 us);
 static u8 loader_stub[0x1800]; //save internally to prevent overwriting
+static ioctlv IOCTL_Buf __attribute__((aligned(32)));
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -349,9 +349,6 @@ int main(int argc, char **argv)
 
 	s32 fd = IOS_Open( "/dev/es", 0 );
 
-	u8 *buffer = (u8*)memalign( 32, 0x100 );
-	memset( buffer, 0, 0x100 );
-
 	memset( (void*)0x90004100, 0xFFFFFFFF, 0x20  );
 	DCFlushRange( (void*)0x90004100, 0x20 );
 
@@ -369,7 +366,7 @@ int main(int argc, char **argv)
 	__MaskIrq(IRQ_PI_ACR);
 	raw_irq_handler_t irq_handler = IRQ_Free(IRQ_PI_ACR);
 
-	u32 ret = IOS_IoctlvAsync( fd, 0x1F, 0, 0, (ioctlv*)buffer, NULL, NULL );
+	u32 ret = IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
 	gprintf("%d\r\n", ret );
 	gprintf("Waiting ...\r\n");
 

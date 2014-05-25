@@ -1653,10 +1653,11 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
 						{
-							//if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
-							//	(TITLE_ID) == 0x474D38 ||	// Metroid Prime
-							//	(TITLE_ID) == 0x47324D ||	// Metroid Prime 2
-							//	(TITLE_ID) == 0x474B59)	// Kirby Air Ride
+							if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
+								(TITLE_ID) == 0x474D38 ||	// Metroid Prime
+								(TITLE_ID) == 0x47324D ||	// Metroid Prime 2
+								(TITLE_ID) == 0x474B59 ||	// Kirby Air Ride
+								(TITLE_ID) == 0x474654)		// Mario Golf Toadstool Tour
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
