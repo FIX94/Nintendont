@@ -793,6 +793,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			DOLMaxOff = DOLMinOff + DOLSize;
 			PatchState = 2;
 		}
+		if ((TITLE_ID == 0x473441) && (DOLMaxOff == DOLMinOff))
+			PatchState = 0;
 	}
 
 	if( PatchState != 2 )
