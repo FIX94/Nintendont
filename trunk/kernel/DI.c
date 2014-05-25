@@ -64,7 +64,8 @@ void DIinit( void )
 {
 	u32 read;
 
-	dbgprintf("DIInit()\r\n");
+	//This debug statement seems to cause crashing.
+	//dbgprintf("DIInit()\r\n");
 
 	s32 ret = f_open( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
 	if( ret != FR_OK )
