@@ -86,6 +86,8 @@ const unsigned char HWAccess_ES[] =
 	0x00, 0x00, 0x00, 0x02, 
 } ;
 
+static char Entry[0x1C] __attribute__((aligned(32)));
+
 void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, char *NKernel, u32 *NKernelSize )
 {
 	u32 loadersize = *(vu32*)(Kernel) + *(vu32*)(Kernel+4);
@@ -279,6 +281,7 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	if( r < 0 )
 	{
 		gprintf("ES_GetStoredTMD():%d\r\n", r );
+		free(TMD);
 		return r;
 	}
 
@@ -295,22 +298,23 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	if( cfd < 0 )
 	{
 		gprintf("IOS_Open():%d\r\n", cfd );
+		free(TMD);
 		return cfd;
 	}
-
-	char *Entry = (char*)memalign( 32, 0x1C );
 
 	for( u=0;; u+=0x1C )
 	{
 		if( IOS_Read( cfd, Entry, 0x1C ) != 0x1C )
 		{
 			gprintf("Hash not found in content.map\r\n");
+			free(TMD);
 			return -2;
 		}
 
 		if( memcmp( (char*)(Entry+8), TMD->Contents[i].SHA1, 0x14 ) == 0 )
 			break;
 	}
+	free(TMD);
 
 	IOS_Close( cfd );
 
@@ -318,16 +322,14 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	char *Path = (char*)0x93003020;
 	DCInvalidateRange(Path, 1024);
 	memset(Path, 0, 1024);
-	sprintf( Path, "/shared1/%.8s.app", (char*)Entry );
+	sprintf( Path, "/shared1/%.8s.app", Entry );
 	DCFlushRange(Path, 1024);
 	gprintf("Kernel:\"%s\"\r\n", Path );
 
 	s32 kfd = IOS_Open( Path, 1 );
 	if( kfd < 0 )
 	{
-		gprintf("IOS_Open():%d\r\n", cfd );
-		
-		free(Entry);
+		gprintf("IOS_Open():%d\r\n", kfd );
 		return kfd;
 	}
 
@@ -340,12 +342,10 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 	{
 		gprintf("IOS_Read() failed\r\n");
 
-		IOS_Close(kfd);		
-		free(Entry);
+		IOS_Close(kfd);
 		return -1;
 	}
+	IOS_Close(kfd);
 
-	IOS_Close(kfd);	
-	free(Entry);
 	return 0;
 }

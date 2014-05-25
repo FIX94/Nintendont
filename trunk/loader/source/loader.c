@@ -33,7 +33,7 @@ int dummy( const char *str, ... )
 {
 	return 0;
 }
-
+static u8 AppInfo[32] __attribute__((aligned(32)));
 u32 LoadGame( void )
 {
 	void	(*app_init)(int (*report)(const char *fmt, ...));
@@ -49,17 +49,13 @@ u32 LoadGame( void )
 		ExitToLoader(0);
 	}
 
-	u8 *AppInfo = (u8 *)memalign( 32, 0x20 );
-
-	memset( AppInfo, 0, 32 );
-
 	ret = DVDLowRead( (void*)AppInfo, 32, 0x2440 );
 	if( !ret )
 	{
 		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
 		ExitToLoader(0);
 	}
-	
+
 	gprintf("AppLoader Size:%08X\r\r\n", *(vu32*)(AppInfo+0x14) +  *(vu32*)(AppInfo+0x18) );
 
 	ret = DVDLowRead( (void*)0x81200000, *(vu32*)(AppInfo+0x14) + *(vu32*)(AppInfo+0x18), 0x2460 );
