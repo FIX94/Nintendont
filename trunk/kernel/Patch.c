@@ -624,7 +624,12 @@ void DoDSPPatch( char *ptr, u32 Version )
 	}
 }
 
-u32 PatchState = 0;
+#define PATCH_STATE_NONE  0
+#define PATCH_STATE_LOAD  1
+#define PATCH_STATE_PATCH 2
+#define PATCH_STATE_DONE  4
+
+u32 PatchState = PATCH_STATE_NONE;
 u32 PSOHack    = 0;
 u32 DOLSize	   = 0;
 u32 DOLReadSize= 0;
@@ -663,7 +668,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			case 0x56C49600:	// [USA] v1.1
 			case 0x56C4C980:	// [USA] v1.0
 			{
-				PatchState	= 2;
+				PatchState	= PATCH_STATE_PATCH;
 				DOLSize		= Length;
 				DOLOffset	= (u32)Buffer;
 				#ifdef DEBUG_PATCH
@@ -684,7 +689,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		}
 	}
 
-	if( PatchState == 0 )
+	if( (PatchState & 0x3) == PATCH_STATE_NONE )
 	{
 		if( Length == 0x100 || PSOHack )
 		{
@@ -740,7 +745,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				dbgprintf("DIP:DOLSize:%d DOLMinOff:0x%08X DOLMaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
 #endif
 
-				PatchState = 1;
+				PatchState |= PATCH_STATE_LOAD;
 			}
 						
 			PSOHack = 0;
@@ -776,10 +781,10 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			dbgprintf("DIP:ELF size:%u\r\n", DOLSize );
 #endif
 
-			PatchState = 1;
+			PatchState |= PATCH_STATE_LOAD;
 		}
 	} 
-	else if ( PatchState == 1 )
+	else if ( PatchState & PATCH_STATE_LOAD )
 	{
 		if( DOLReadSize == 0 )
 			DOLMinOff = (u32)Buffer;
@@ -791,13 +796,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		if( DOLReadSize >= DOLSize )
 		{
 			DOLMaxOff = DOLMinOff + DOLSize;
-			PatchState = 2;
+			PatchState |= PATCH_STATE_PATCH;
+			PatchState &= ~PATCH_STATE_LOAD;
 		}
-		if ((TITLE_ID == 0x473441) && (DOLMaxOff == DOLMinOff))
-			PatchState = 0;
+		if ((PatchState & PATCH_STATE_DONE) && (DOLMaxOff == DOLMinOff))
+			PatchState = PATCH_STATE_DONE;
 	}
 
-	if( PatchState != 2 )
+	if (!(PatchState & PATCH_STATE_PATCH))
 		return;
 	
 	sync_before_read( (char*)Buffer, Length );
@@ -853,8 +859,9 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 #endif
 	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) )
 		PatchCount &= ~128;
-
-	for( i=0; i < DOLMaxOff; i+=4 )
+	u32 ARQPostRequestOffset = 0;
+	u32 DspKnown = -1;
+	for( i=0; i < Length; i+=4 )
 	{
 		if( (PatchCount & 2048) == 0  )	// __OSDispatchInterrupt
 		{
@@ -1297,7 +1304,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 		if( (PatchCount & 1024) == 0  )	// DSP patch
 		{
-			u32 l,m,Known=-1;
+			u32 l,m=-1;
 
 			// for each pattern/length combo
 			for( l=0; l < sizeof(DSPPattern) / 0x10; ++l )
@@ -1320,7 +1327,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					{
 						if( memcmp( DSPHashes[m], hash, 0x14 ) == 0 )
 						{
-							Known = m;
+							DspKnown = m;
 #ifdef DEBUG_DSP
 							dbgprintf("DSP before Patch\r\n");
 							hexdump((void*)(Buffer + i), DSPLength[l]);
@@ -1334,10 +1341,10 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						}
 					}
 
-					if( Known != -1 )
+					if (DspKnown != -1)
 					{
 						#ifdef DEBUG_PATCH
-						dbgprintf("Patch:[DSPROM] DSPv%u\r\n", Known );
+						dbgprintf("Patch:[DSPROM] DSPv%u\r\n", DspKnown);
 						#endif
 						PatchCount |= 1024;
 						break;
@@ -1653,17 +1660,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
 						{
-							if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
-								(TITLE_ID) == 0x474D38 ||	// Metroid Prime
-								(TITLE_ID) == 0x47324D ||	// Metroid Prime 2
-								(TITLE_ID) == 0x474B59 ||	// Kirby Air Ride
-								(TITLE_ID) == 0x474654)		// Mario Golf Toadstool Tour
-							{
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
-								#endif
-								break;
-							}
+							ARQPostRequestOffset = FOffset;
+							break;
 						}
 						if( FPatterns[j].Patch == (u8*)DVDGetDriveStatus )
 						{
@@ -1708,8 +1706,46 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			}
 		}
 	}
+	if (ARQPostRequestOffset != 0)
+	{
+		switch (DspKnown)
+		{
+			//if( (TITLE_ID) != 0x474C4D &&	// Luigi's Mansion								v11
+			//	(TITLE_ID) != 0x475049 &&	// Pikmin										v10/v11
+			//	(TITLE_ID) != 0x474146 &&	// Animal Crossing								v10
+			//	(TITLE_ID) != 0x474D53 &&	// Super Mario Sunshine							v1
+			//	(TITLE_ID) != 0x475A4C &&	// The Legend of Zelda: The Wind Waker			v0
+			//	(TITLE_ID) != 0x475058 &&	// Pokémon Box: Ruby and Sapphire				v3???
+			//	(TITLE_ID) != 0x474D34 &&	// Mario Kart: Double Dash!!					v5
+			//	(TITLE_ID) != 0x50524A &&	// Pac-Man Vs.									v5
+			//	(TITLE_ID) != 0x473453 &&	// The Legend of Zelda: Four Swords Adventures	v5
+			//	(TITLE_ID) != 0x475056 &&	// Pikmin 2										v5
+			//	(TITLE_ID) != 0x475942 &&	// Donkey Kong Jungle Beat						v8
+			//	(TITLE_ID) != 0x475A32 &&	// The Legend of Zelda: Twilight Princess		v8
+			//	(TITLE_ID) != 0x505A4C)		// The Legend of Zelda: Collector's Edition		v5
+			case 0:
+			case 1:
+			case 5:
+			case 8:
+			case 10:
+			case 11:
+				memcpy((void*)(ARQPostRequestOffset), ARQPostRequest, sizeof(ARQPostRequest));
+				break;
+			//if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
+			//	(TITLE_ID) == 0x474D38 ||	// Metroid Prime
+			//	(TITLE_ID) == 0x47324D ||	// Metroid Prime 2
+			//	(TITLE_ID) == 0x474B59 ||	// Kirby Air Ride
+			//	(TITLE_ID) == 0x475852 ||	// Mega Man X Command Mission
+			//	(TITLE_ID) == 0x474654)		// Mario Golf Toadstool Tour
+			default:
+#ifdef DEBUG_PATCH
+				dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
+#endif
+				break;
+		}
+	}
 
-	PatchState = 0;
+	PatchState = PATCH_STATE_DONE;
 		
 	if( (GAME_ID & 0xFFFFFF00) == 0x475A4C00 )	// GZL=Wind Waker
 	{
