@@ -1,5 +1,7 @@
 #include <asm.h>
 
+.set	AR_DMA_CNT,	0xCC005028
+
 #in
 #	r3	u32 type
 #	r4	u32 mainmem_addr
@@ -31,12 +33,12 @@ memcpy_pre:
 	mr		%r7,	%r6		#save length
 	lwz		%r0,	0(%r4)
 	stw		%r0,	0(%r5)
-	addic.	%r6,	%r6,	-4
+	addic.	%r7,	%r7,	-4
 
 memcpy:
 	lwzu	%r0,	4(%r4)
 	stwu	%r0,	4(%r5)
-	addic.	%r6,	%r6,	-4
+	addic.	%r7,	%r7,	-4
 	bne		memcpy
 	
 	cmpwi	%r3,	1
@@ -44,7 +46,7 @@ memcpy:
 
 	addi	%r5,	%r5,	4
 	sub		%r5,	%r5,	%r7
-	srwi	%r7,	%r7,	5
+	srwi	%r7,	%r6,	5
 	mtctr	%r7
 
 	li		%r0,	0
@@ -67,8 +69,10 @@ end:
 
 #ARAM Transfer Fake
 	
-	lis		%r3,	0xCC00
-	stw		%r6,	0x5028(%r3)
+	#Command a DMA with size.
+	#Assumes no actual data transfer; only affects timing of interrupt.
+	lis		%r3,	AR_DMA_CNT@h
+	stw		%r6,	AR_DMA_CNT@l(%r3)
 
 	lwz     %r0, 8(%sp)
 	mtlr    %r0
