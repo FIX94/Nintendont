@@ -247,10 +247,20 @@ void Patch31A0( void )
 {
 	POffset -= sizeof(u32) * 5;
 	
-	*(vu32*)(POffset)	   = *(vu32*)(0x319C);
-	*(vu32*)(POffset+0x04) = *(vu32*)(0x31A0);
-	*(vu32*)(POffset+0x08) = *(vu32*)(0x31A4);
-	*(vu32*)(POffset+0x0C) = *(vu32*)(0x31A8);
+	u32 i;
+	for (i = 0; i < (4 * 0x04); i+=0x04)
+	{
+		u32 Orig = *(vu32*)(0x319C + i);
+		if ((Orig & 0xF4000002) == 0x40000000)
+		{
+			u32 NewAddr = (Orig & 0x3FFFFC) + 0x319C - POffset;
+			Orig = (Orig & 0xFC000003) | NewAddr;
+#ifdef DEBUG_PATCH
+			dbgprintf("[%08X] Patch31A0 %08X: 0x%08X\r\n", 0x319C + i, POffset + i, Orig);
+#endif
+		}
+		*(vu32*)(POffset + i) = Orig;
+	}
 
 	PatchB( POffset, 0x319C );
 	PatchB( 0x31AC, POffset+0x10 );
