@@ -1688,7 +1688,15 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 								(TITLE_ID) == 0x47324D ||	// Metroid Prime 2
 								(TITLE_ID) == 0x474B59 ||	// Kirby Air Ride
 								(TITLE_ID) == 0x475852 ||	// Mega Man X Command Mission
-								(TITLE_ID) == 0x474654)		// Mario Golf Toadstool Tour
+								(TITLE_ID) == 0x474654 ||	// Mario Golf Toadstool Tour
+								(TITLE_ID) == 0x474B37 ||	// Killer7
+								(TITLE_ID) == 0x474356 ||	// Cubivore Survival of the Fittest
+								(TITLE_ID) == 0x474651 ||	// Frogger's Adventures The Rescue
+								(TITLE_ID) == 0x474C4F ||	// Lord of the Rings The Two Towers
+								(TITLE_ID) == 0x474754 ||	// Chibi-Robo!
+								(TITLE_ID) == 0x473442 ||	// Resident Evil 4
+								(TITLE_ID) == 0x474A53 ||	// Hudson Selection Vol 2 Star Soldier
+								(TITLE_ID) == 0x474B51 )	// Kururin Squash!
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");

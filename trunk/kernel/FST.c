@@ -45,9 +45,10 @@ u32 FCState[FILECACHE_MAX];
 extern FIL GameFile;
 
 u32 CacheIsInit		= 0;
-u32 DataCacheCount 	= 0;
-u32 DataCacheOffset	= 0;
-char *DCCache		= (char*)0x11280000;
+u32 DataCacheCount	= 0;
+u32 TempCacheCount	= 0;
+u32 DataCacheOffset = 0;
+u8 *DCCache		= (u8*)0x11280000;
 DataCache DC[DATACACHE_MAX];
 
 extern u32 Region;
@@ -104,7 +105,7 @@ u32 FSTInit( char *GamePath )
 
 	return 1;
 }
-void FSTRead( char *GamePath, char *Buffer, u32 Length, u32 Offset )
+void FSTRead( char *GamePath, u8 *Buffer, u32 Length, u32 Offset )
 {
 	char Path[256];
 	FIL fd;
@@ -322,6 +323,9 @@ void CacheInit( char *Table )
 	if(CacheIsInit)
 		return;
 
+	memset32(DC, 0, sizeof(DataCache) * DATACACHE_MAX);
+	sync_after_write(DC, sizeof(DataCache) * DATACACHE_MAX);
+
 	FIL file;
 	u32 read;
 	u32 offset = 0;
@@ -471,24 +475,78 @@ void CacheFile( char *FileName, char *Table )
 		}
 	}
 }
-void CacheRead( char *Buffer, u32 Length, u32 Offset )
+u32 LastLength = 0;
+u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 {
 	u32 read, i;
-	//try cache first!
-	for( i=0; i < DataCacheCount; ++i )
+	//nintendont loader asking
+	if(CacheIsInit == 0)
 	{
-		if( Offset >= DC[i].Offset )
+		f_lseek( &GameFile, Offset );
+		f_read( &GameFile, Buffer, Length, &read );
+		return Buffer;
+	}
+	//try cache first!
+	if(DataCacheCount > 0)
+	{
+		for( i=0; i < DataCacheCount; ++i )
 		{
-			u64 nOffset = Offset - DC[i].Offset;
-			if( nOffset < DC[i].Size )
+			if( Offset >= DC[i].Offset )
 			{
-				memcpy( Buffer, DC[i].Data + nOffset, Length );
-				//dbgprintf("DI: Cached Read Offset:%08X Size:%08X Buffer:%p\r\n", DC[i].Offset, DC[i].Size, DC[i].Data );
-				return;
+				u64 nOffset = Offset - DC[i].Offset;
+				if( nOffset < DC[i].Size )
+				{
+					//dbgprintf("DI: Cached Read Offset:%08X Size:%08X Buffer:%p\r\n", DC[i].Offset, DC[i].Size, DC[i].Data );
+					return DC[i].Data + nOffset;
+				}
 			}
+		}
+		f_lseek( &GameFile, Offset );
+		f_read( &GameFile, Buffer, Length, &read );
+		return Buffer;
+	}
+
+
+	//else
+	for( i = 0; i < DATACACHE_MAX; ++i )
+	{
+		if( Offset == DC[i].Offset && Length == DC[i].Size )
+		{
+			//dbgprintf("DI: Cached Read Offset:%08X Size:%08X Buffer:%p\r\n", DC[i].Offset, DC[i].Size, DC[i].Data );
+			return DC[i].Data;
 		}
 	}
 
+	// dont waste cache
+	if( Length == LastLength )
+	{
+		f_lseek( &GameFile, Offset );
+		f_read( &GameFile, Buffer, Length, &read );
+		return Buffer;
+	}
+	//new length, just cache it
+	LastLength = Length;
+
+	if( DataCacheOffset >= 0x1D80000 )
+	{
+		memset32(DC, 0, sizeof(DataCache) * DATACACHE_MAX);
+		sync_after_write(DC, sizeof(DataCache) * DATACACHE_MAX);
+		TempCacheCount = 0;
+		DataCacheOffset = 0;
+	}
+	if( TempCacheCount == DATACACHE_MAX )
+		TempCacheCount = 0;
+
+	u32 pos = TempCacheCount;
+	TempCacheCount++;
+
+	DC[pos].Data = DCCache + DataCacheOffset;
+	DC[pos].Offset = Offset;
+	DC[pos].Size = Length;
+
 	f_lseek( &GameFile, Offset );
-	f_read( &GameFile, Buffer, Length, &read );	
+	f_read( &GameFile, DC[pos].Data, Length, &read );
+
+	DataCacheOffset += Length;
+	return DC[pos].Data;
 }
