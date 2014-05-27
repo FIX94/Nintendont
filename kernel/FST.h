@@ -40,19 +40,19 @@ typedef struct
 
 typedef struct
 {
-	u32   Offset;
-	u32   Size;
-	char *Data;
+	u32 Offset;
+	u32 Size;
+	u8 *Data;
 } DataCache;
 
 #define FILECACHE_MAX	2
 #define DATACACHE_MAX	220
 
 u32		FSTInit	( char *GamePath );
-void	FSTRead	( char *GamePath, char *Buffer, u32 Length, u32 Offset );
+void	FSTRead	( char *GamePath, u8 *Buffer, u32 Length, u32 Offset );
 
-void  CacheInit( char *Table );
-void  CacheFile( char *FileName, char *Table );
-void  CacheRead( char *Buffer, u32 Length, u32 Offset );
+void	CacheInit( char *Table );
+void	CacheFile( char *FileName, char *Table );
+u8*		CacheRead( u8 *Buffer, u32 Length, u32 Offset );
 
 #endif

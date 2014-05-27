@@ -471,23 +471,24 @@ void DIReadAsync(u32 Buffer, u32 Length, u32 Offset)
 	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
 	mqueue_send_now( DI_MessageQueue, NULL, 0 );
 }
-char *DI_Read_Buffer = (char*)(0x11200000);
+u8 *DI_Read_Buffer = (u8*)(0x11200000);
 u32 DIReadThread(void *arg)
 {
 	struct ipcmessage *message=NULL;
-	dbgprintf("DI Thread Running\r\n");
+	//dbgprintf("DI Thread Running\r\n");
 	while(1)
 	{
 		mqueue_recv( DI_MessageQueue, (void *)&message, 0);
 		mqueue_ack( (void *)message, 0 ); //directly accept message so main thread continues
 		sync_before_read(DI_Args, sizeof(DI_ThreadArgs));
 
+		u8 *Buffer = DI_Read_Buffer;
 		if( FSTMode )
 			FSTRead( GamePath, DI_Read_Buffer, DI_Args->Length, DI_Args->Offset );
 		else
-			CacheRead( DI_Read_Buffer, DI_Args->Length, DI_Args->Offset );
+			Buffer = CacheRead( DI_Read_Buffer, DI_Args->Length, DI_Args->Offset );
 
-		memcpy((void*)DI_Args->Buffer, DI_Read_Buffer, DI_Args->Length);
+		memcpy((void*)DI_Args->Buffer, Buffer, DI_Args->Length);
 		DoPatches( (char*)DI_Args->Buffer, DI_Args->Length, DI_Args->Offset );
 		sync_after_write( (void*)DI_Args->Buffer, DI_Args->Length );
 		memset32(DI_Args, 0xdeadbeef, sizeof(DI_ThreadArgs));
