@@ -32,7 +32,7 @@ FuncPattern FPatterns[] =
 
 //	{ 0x208,        38,     18,     3,      13,     10,	SITransfer,					sizeof(SITransfer),				"__SITransfer",					0,		0 },
 	{ 0x158,        26,     22,     5,      13,     2,	ARQPostRequest,				sizeof(ARQPostRequest),			"ARQPostRequest",				0,		0 },
-	{ 0xEC,			9,      6,      2,      0,      8,	ARStartDMA,					sizeof(ARStartDMA),				"ARStartDMA",					0,		0 },
+	{ 0xEC,			9,      6,      2,      0,      8,	(u8*)NULL,					0xdead0024,						"ARStartDMA",					0,		0 },
 	{ 0x44,			4,      4,      0,      0,      2,	(u8*)NULL,					0xdead0005,						"GXInitTlutObj A",				0,		0 },	// Don't group them, false hit prevents finding real offset
 	{ 0x34,			5,      4,      0,      0,      0,	(u8*)NULL,					0xdead0005,						"GXInitTlutObj B",				0,		0 },
 	{ 0x1C0,        35,     9,      8,      7,      19,	SIGetType,					sizeof(SIGetType),				"SIGetType",					0,		0 },

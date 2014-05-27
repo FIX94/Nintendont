@@ -69,10 +69,13 @@ end:
 
 #ARAM Transfer Fake
 	
-	#Command a DMA with size.
+	#Command a DMA with 0 size.
+	#To use actual size use %r6. (MegaManXCM patches this on the fly)--
 	#Assumes no actual data transfer; only affects timing of interrupt.
+	#To use 0 
+	li		%r7,	0x0
 	lis		%r3,	AR_DMA_CNT@h
-	stw		%r6,	AR_DMA_CNT@l(%r3)
+	stw		%r7,	AR_DMA_CNT@l(%r3)
 
 	lwz     %r0, 8(%sp)
 	mtlr    %r0
