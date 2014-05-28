@@ -632,6 +632,10 @@ int main(int argc, char **argv)
 	memcpy((void*)0x93011810, stub_bin, stub_bin_size);
 	DCFlushRange((void*)0x93010010, 0x10000);
 
+	DCInvalidateRange((void*)0x93020000, 0x10000);
+	memset((void*)0x93020000, 0, 0x10000);
+	DCFlushRange((void*)0x93020000, 0x10000);
+
 	DCInvalidateRange((void*)0x93003000, 0x20);
 	*(vu32*)0x93003000 = currev; //set kernel rev
 	*(vu32*)0x93003008 = 0x80000004; //just some address for SIGetType

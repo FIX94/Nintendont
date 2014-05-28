@@ -33,12 +33,12 @@ memcpy_pre:
 	mr		%r7,	%r6		#save length
 	lwz		%r0,	0(%r4)
 	stw		%r0,	0(%r5)
-	addic.	%r7,	%r7,	-4
+	addic.	%r6,	%r6,	-4
 
 memcpy:
 	lwzu	%r0,	4(%r4)
 	stwu	%r0,	4(%r5)
-	addic.	%r7,	%r7,	-4
+	addic.	%r6,	%r6,	-4
 	bne		memcpy
 	
 	cmpwi	%r3,	1
@@ -46,7 +46,7 @@ memcpy:
 
 	addi	%r5,	%r5,	4
 	sub		%r5,	%r5,	%r7
-	srwi	%r7,	%r6,	5
+	srwi	%r7,	%r7,	5
 	mtctr	%r7
 
 	li		%r0,	0
@@ -69,13 +69,8 @@ end:
 
 #ARAM Transfer Fake
 	
-	#Command a DMA with 0 size.
-	#To use actual size use %r6. (MegaManXCM patches this on the fly)--
-	#Assumes no actual data transfer; only affects timing of interrupt.
-	#To use 0 
-	li		%r7,	0x0
 	lis		%r3,	AR_DMA_CNT@h
-	stw		%r7,	AR_DMA_CNT@l(%r3)
+	stw		%r6,	AR_DMA_CNT@l(%r3)
 
 	lwz     %r0, 8(%sp)
 	mtlr    %r0

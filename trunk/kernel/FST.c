@@ -527,15 +527,20 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 	//new length, just cache it
 	LastLength = Length;
 
-	if( DataCacheOffset >= 0x1D80000 )
+	if( (DataCacheOffset + Length) >= 0x1D80000 )
 	{
-		memset32(DC, 0, sizeof(DataCache) * DATACACHE_MAX);
-		sync_after_write(DC, sizeof(DataCache) * DATACACHE_MAX);
+		memset(&DC, 0, sizeof(DataCache) * DATACACHE_MAX);
+		sync_after_write(&DC, sizeof(DataCache) * DATACACHE_MAX);
 		TempCacheCount = 0;
+		sync_after_write(&TempCacheCount, 4);
 		DataCacheOffset = 0;
+		sync_after_write(&DataCacheOffset, 4);
 	}
-	if( TempCacheCount == DATACACHE_MAX )
+	if( TempCacheCount >= DATACACHE_MAX )
+	{
 		TempCacheCount = 0;
+		sync_after_write(&TempCacheCount, 4);
+	}
 
 	u32 pos = TempCacheCount;
 	TempCacheCount++;
@@ -543,6 +548,7 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 	DC[pos].Data = DCCache + DataCacheOffset;
 	DC[pos].Offset = Offset;
 	DC[pos].Size = Length;
+	sync_after_write(&DC[pos], sizeof(DataCache));
 
 	f_lseek( &GameFile, Offset );
 	f_read( &GameFile, DC[pos].Data, Length, &read );

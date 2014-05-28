@@ -40,6 +40,7 @@ extern int dbgprintf( const char *fmt, ...);
 
 void DIReadAsync(u32 Buffer, u32 Length, u32 Offset);
 u32 DI_MessageQueue = 0xFFFFFFFF;
+bool DI_Thread_Working = false;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
 
@@ -107,8 +108,6 @@ void DIinit( void )
 	u8 DI_MessageHeap[0x10];
 	DI_MessageQueue = mqueue_create( DI_MessageHeap, 1 );
 
-	memset32(DI_Args, 0xdeadbeef, sizeof(DI_ThreadArgs));
-	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
 	memset32((void*)0x13007420, 0, 0x1BE0);
 	sync_after_write((void*)0x13007420, 0x1BE0);
 	DI_Thread = thread_create(DIReadThread, NULL, (u32*)0x13007420, 0x1BE0, 0x50, 1);
@@ -430,12 +429,12 @@ void DIUpdateRegisters( void )
 					if( DIcommand == 0xA7 )
 					{
 						DIOK = 2;
-					} else {
-						while(DI_Args->Buffer != 0xdeadbeef)
-						{
-							sync_before_read(DI_Args, sizeof(DI_ThreadArgs));
+					}
+					else
+					{
+						while(DIThreadWorking())
 							udelay(40);
-						}
+
 						DIOK = 1;
 					}
 				} break;
@@ -465,33 +464,38 @@ void DIUpdateRegisters( void )
 	}
 	return;
 }
+
+static struct ipcmessage message_out;
 void DIReadAsync(u32 Buffer, u32 Length, u32 Offset)
 {
-	DI_Args->Length = Length; DI_Args->Offset = Offset; DI_Args->Buffer = Buffer;
-	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
-	mqueue_send_now( DI_MessageQueue, NULL, 0 );
+	message_out.ioctl.command = Offset;
+	message_out.ioctl.buffer_in = (u32*)Buffer;
+	message_out.ioctl.length_in = Length;
+
+	DI_Thread_Working = true;
+	mqueue_send_now( DI_MessageQueue, &message_out, 0 );
 }
 u8 *DI_Read_Buffer = (u8*)(0x11200000);
 u32 DIReadThread(void *arg)
 {
-	struct ipcmessage *message=NULL;
+	struct ipcmessage *in = NULL;
 	//dbgprintf("DI Thread Running\r\n");
 	while(1)
 	{
-		mqueue_recv( DI_MessageQueue, (void *)&message, 0);
-		mqueue_ack( (void *)message, 0 ); //directly accept message so main thread continues
-		sync_before_read(DI_Args, sizeof(DI_ThreadArgs));
-
+		mqueue_recv( DI_MessageQueue, (void*)&in, 0);
 		u8 *Buffer = DI_Read_Buffer;
 		if( FSTMode )
-			FSTRead( GamePath, DI_Read_Buffer, DI_Args->Length, DI_Args->Offset );
+			FSTRead( GamePath, DI_Read_Buffer, in->ioctl.length_in, in->ioctl.command );
 		else
-			Buffer = CacheRead( DI_Read_Buffer, DI_Args->Length, DI_Args->Offset );
+			Buffer = CacheRead( DI_Read_Buffer, in->ioctl.length_in, in->ioctl.command );
+		memcpy( in->ioctl.buffer_in, Buffer, in->ioctl.length_in );
+		DoPatches( (char*)in->ioctl.buffer_in, in->ioctl.length_in, in->ioctl.command );
+		sync_after_write( in->ioctl.buffer_in, in->ioctl.length_in );
 
-		memcpy((void*)DI_Args->Buffer, Buffer, DI_Args->Length);
-		DoPatches( (char*)DI_Args->Buffer, DI_Args->Length, DI_Args->Offset );
-		sync_after_write( (void*)DI_Args->Buffer, DI_Args->Length );
-		memset32(DI_Args, 0xdeadbeef, sizeof(DI_ThreadArgs));
-		sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
+		DI_Thread_Working = false;
 	}
+}
+bool DIThreadWorking( void )
+{
+	return DI_Thread_Working;
 }
