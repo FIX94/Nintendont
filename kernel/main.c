@@ -228,7 +228,7 @@ int _main( int argc, char *argv[] )
 		}
 		if(DI_IRQ == true)
 		{
-			if(DI_Args->Buffer == 0xdeadbeef)
+			if(DIThreadWorking() == false)
 				DIInterrupt();
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
@@ -288,7 +288,7 @@ int _main( int argc, char *argv[] )
 		}
 		if(read32(DI_SCONFIG) == 0x1DEA)
 		{
-			while(DI_Args->Buffer != 0xdeadbeef)
+			while(DIThreadWorking())
 				udelay(100);
 			break;
 		}
