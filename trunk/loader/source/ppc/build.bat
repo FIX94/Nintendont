@@ -1,3 +1,4 @@
+@echo off
 :: Gets the directory that devkitPPC is installed to
 setlocal
 set devpath=%DEVKITPPC:/=\%\

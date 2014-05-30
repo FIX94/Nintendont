@@ -13,10 +13,7 @@
 _start:
 	@ setup stack
 	mov r2,		#0x4000
-	ldr sp,		=0x2010E620
-	ldr	r4,		=0xDAA60E0A
-	ldr	r4,		=0x2342AAFF
-	ldr	r5,		=0x20100000
+	ldr sp,		=0x2011C000
 	add sp,		sp,				r2
 
 	mov	r5,	r0

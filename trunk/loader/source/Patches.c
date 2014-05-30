@@ -112,6 +112,9 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 	char *buf = Kernel;
 	
 	Elf32_Ehdr *outhdr = (Elf32_Ehdr *)(buf+loadersize);
+
+	// Update ES stack address
+	*(volatile unsigned int*)(buf+loadersize+0x26C) = 0x2011C000;
 	
 #ifdef DEBUG_MODULE_PATCH
 	gprintf("PHeaders:%d\r\n", inhdr->e_phnum );
@@ -145,7 +148,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 					if( (ophdr->p_vaddr) == 0x20100000 && (phdr->p_vaddr) == 0x20100000 )
 					{
 #ifdef DEBUG_MODULE_PATCH
-						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
+						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
 						
 						ophdr->p_filesz = phdr->p_filesz;
@@ -162,11 +165,13 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
 						break;
-					} else if( (ophdr->p_vaddr) == 0x2010D000 && (phdr->p_vaddr) == 0x2010D000 )
+					} else if( (ophdr->p_vaddr) == 0x2010D000 && (phdr->p_vaddr) == 0x20110000 )
 					{
 #ifdef DEBUG_MODULE_PATCH
-						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
+						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
+						ophdr->p_vaddr = phdr->p_vaddr;
+						ophdr->p_paddr = phdr->p_paddr;
 						
 						ophdr->p_filesz = phdr->p_filesz;
 						ophdr->p_memsz  = phdr->p_filesz;
@@ -183,12 +188,16 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 #endif
 						break;
 					}
-					else if( (ophdr->p_vaddr) == 0x2010E000 && (phdr->p_vaddr) == 0x2010E000 )
+					else if( (ophdr->p_vaddr) == 0x2010E000 && (phdr->p_vaddr) == 0x20118000 )
 					{
 #ifdef DEBUG_MODULE_PATCH
-						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
+						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
+						ophdr->p_vaddr = phdr->p_vaddr;
+						ophdr->p_paddr = phdr->p_paddr;
 						
+						ophdr->p_memsz = 0x8000;
+
 						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
 						
 #ifdef DEBUG_MODULE_PATCH
