@@ -475,18 +475,20 @@ void CacheFile( char *FileName, char *Table )
 		}
 	}
 }
-u32 LastLength = 0;
+u32 LastLength = 0, StartOffset = 0x1D80000, StartPos = 0;
 u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 {
 	u32 read, i;
-	//nintendont loader asking
+
+	// nintendont loader asking, just return
 	if(CacheIsInit == 0)
 	{
 		f_lseek( &GameFile, Offset );
 		f_read( &GameFile, Buffer, Length, &read );
 		return Buffer;
 	}
-	//try cache first!
+
+	// try cache.txt first
 	if(DataCacheCount > 0)
 	{
 		for( i=0; i < DataCacheCount; ++i )
@@ -507,7 +509,7 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 	}
 
 
-	//else
+	// else
 	for( i = 0; i < DATACACHE_MAX; ++i )
 	{
 		if( Offset == DC[i].Offset && Length == DC[i].Size )
@@ -524,22 +526,48 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 		f_read( &GameFile, Buffer, Length, &read );
 		return Buffer;
 	}
-	//new length, just cache it
+	// new length, just cache it
 	LastLength = Length;
 
-	if( (DataCacheOffset + Length) >= 0x1D80000 )
-	{
-		memset(&DC, 0, sizeof(DataCache) * DATACACHE_MAX);
-		sync_after_write(&DC, sizeof(DataCache) * DATACACHE_MAX);
-		TempCacheCount = 0;
-		sync_after_write(&TempCacheCount, 4);
-		DataCacheOffset = 0;
-		sync_after_write(&DataCacheOffset, 4);
-	}
+	// case we ran out of positions
 	if( TempCacheCount >= DATACACHE_MAX )
 	{
 		TempCacheCount = 0;
 		sync_after_write(&TempCacheCount, 4);
+	}
+
+	// case we just filled up the cache
+	if( (DataCacheOffset + Length) >= 0x1D80000 )
+	{
+		for( i = TempCacheCount; i < TempCacheCount + DATACACHE_MAX; ++i )
+		{
+			u32 c = i % DATACACHE_MAX;
+			if(DC[c].Size == 0)
+				continue;
+			// found the point to restart cycle
+			DataCacheOffset = 0;
+			// set next point in reference
+			StartPos = (c + 1) % DATACACHE_MAX;
+			StartOffset = DC[StartPos].Data - DCCache;
+			break;
+		}
+	}
+
+	// case we overwrite the start
+	if( (DataCacheOffset + Length) >= StartOffset )
+	{
+		for( i = StartPos; i < StartPos + DATACACHE_MAX; ++i )
+		{
+			u32 c = i % DATACACHE_MAX;
+			DC[c].Offset = 0; // basically makes sure we wont overwrite it
+			if( (DataCacheOffset + Length) < (DC[c].Data - DCCache) ) // new pos wouldnt overwrite it
+			{
+				StartPos = c;
+				StartOffset = DC[StartPos].Data - DCCache;
+				break;
+			}
+			DC[c].Data = 0;
+		}
 	}
 
 	u32 pos = TempCacheCount;
