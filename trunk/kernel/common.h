@@ -9,6 +9,9 @@ extern void *memset8( void *dst, int x, size_t len );
 extern void *memset16( void *dst, int x, size_t len );
 extern void *memset32( void *dst, int x, size_t len );
 
+u16 bs16( u16 s );
+u32 bs32( u32 i );
+
 void BootStatus(s32 Value, u32 secs, u32 scnt);
 void BootStatusError(s32 Value, s32 error);
 void udelay(int us);

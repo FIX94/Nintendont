@@ -38,11 +38,21 @@ u32 POffset = 0x2F00;
 vu32 Region = 0;
 
 extern FIL GameFile;
-extern u32 TRIGame;
-extern u32 GameRegion;
+extern vu32 TRIGame;
+extern u32 SystemRegion;
 extern bool SkipHandlerWait;
 
 extern int dbgprintf( const char *fmt, ...);
+
+unsigned char OSReportDM[] =
+{
+	0x7C, 0x08, 0x02, 0xA6, 0x90, 0x01, 0x00, 0x04, 0x90, 0xE1, 0x00, 0x08, 0x3C, 0xE0, 0xC0, 0x00, 
+	0x90, 0x67, 0x18, 0x60, 0x90, 0x87, 0x18, 0x64, 0x90, 0xA7, 0x18, 0x68, 0x90, 0xC7, 0x18, 0x6C, 
+	0x90, 0xE7, 0x18, 0x70, 0x91, 0x07, 0x18, 0x74, 0x80, 0x07, 0x18, 0x60, 0x7C, 0x00, 0x18, 0x00, 
+	0x41, 0x82, 0xFF, 0xF8, 0x80, 0xE1, 0x00, 0x08, 0x80, 0x01, 0x00, 0x04, 0x7C, 0x08, 0x03, 0xA6, 
+	0x4E, 0x80, 0x00, 0x20, 
+} ;
+
 
 const unsigned char DSPHashes[][0x14] =
 {
@@ -412,6 +422,15 @@ void PatchFunc( char *ptr )
 			#endif
 		}
 
+		// Triforce
+		if( (op & 0xFC00FFFF) == 0x380000A8 )	// li rX, 0xA8
+		{			
+			write32( (u32)ptr + i, (op & 0x3E00000) | 0x380000A7 );		// Patch to: li rX, 0xA7
+			#ifdef DEBUG
+		  dbgprintf("[%08X] %08X: li rX, 0xA7\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
+			#endif
+		}
+
 		if( (op & 0xFC00FFFF) == 0x38006000 )	// addi rX, rY, 0x6000
 		{
 			u32 src = (op >> 16) & 0x1F;
@@ -646,6 +665,7 @@ u32 DOLReadSize= 0;
 u32 DOLMinOff  = 0;
 u32 DOLMaxOff  = 0;
 u32 DOLOffset  = 0;
+vu32 TRIGame   = 0;
 
 void DoPatches( char *Buffer, u32 Length, u32 Offset )
 {
@@ -849,6 +869,169 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		// skips __start init of debugger mem
 		write32(0x00003194, 0x48000028);
 	}
+  if( read32(0x02856EC) == 0x386000A8 )
+	{
+		dbgprintf("TRI:Mario kart GP 2\r\n");
+		TRIGame = 1;
+		SystemRegion = REGION_JAPAN;
+
+		//Skip device test
+		write32( 0x002E340, 0x60000000 );
+		write32( 0x002E34C, 0x60000000 );
+
+		//Disable wheel
+		write32( 0x007909C, 0x98650022 );
+
+		//Disable CARD
+		write32( 0x0073BF4, 0x98650023 );
+		write32( 0x0073C10, 0x98650023 );
+
+		//Disable cam
+		write32( 0x0073BD8, 0x98650025 );
+
+		//VS wait patch 
+		write32( 0x0084FC4, 0x4800000C );
+		write32( 0x0085000, 0x60000000 );
+
+		//Game vol
+		write32( 0x00790E8, 0x39000009 );
+		//Attract vol
+		write32( 0x00790F4, 0x38C0000C );
+
+		//Disable Commentary (sets volume to 0 )
+		write32( 0x001B6510, 0x38800000 );
+		
+		//Patches the analog input count
+    write32( 0x000392F4, 0x38000003 );
+
+		//if( ConfigGetConfig(NIN_CFG_HID) )
+		//{
+		//	POffset -= sizeof(PADReadTriHID);
+		//	memcpy( (void*)POffset, PADReadTriHID, sizeof(PADReadTriHID) );
+		//	PatchB( POffset, 0x0038EF0 );
+
+		//	POffset -= sizeof(PADReadSteerTriHID);
+		//	memcpy( (void*)POffset, PADReadSteerTriHID, sizeof(PADReadSteerTriHID) );
+		//	PatchBL( POffset, 0x00392DC );
+		//
+		//} else {
+
+			POffset -= sizeof(PADReadB);
+			memcpy( (void*)POffset, PADReadB, sizeof(PADReadB) );
+			PatchB( POffset, 0x0038EF0 );
+
+			POffset -= sizeof(PADReadSteer);
+			memcpy( (void*)POffset, PADReadSteer, sizeof(PADReadSteer) );
+			PatchBL( POffset, 0x00392DC );
+
+		//}
+
+		//memcpy( (void*)0x002CE3C, OSReportDM, sizeof(OSReportDM) );
+		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
+		//write32( 0x002CEF8, 0x60000000 );
+	}
+	
+	if( read32( 0x0210C08 ) == 0x386000A8 )	// Virtua Striker 4 Ver 2006 (EXPORT)
+	{ 
+		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (EXPORT)\n");
+		TRIGame = 2;
+		SystemRegion = REGION_USA;
+
+		memcpy( (void*)0x0208314, PADReadSteerVSSimple, sizeof(PADReadSteerVSSimple) );	
+		memcpy( (void*)0x0208968, PADReadVSSimple, sizeof(PADReadVSSimple) );
+
+		//memcpy( (void*)0x001C2B80, OSReportDM, sizeof(OSReportDM) );
+	}
+
+	if( read32(0x01851C4) == 0x386000A8 )	// FZero AX
+	{
+		dbgprintf("TRI:FZero AX\n");
+		TRIGame = 3;
+		SystemRegion = REGION_JAPAN;
+		
+		//Reset loop
+		write32( 0x01B5410, 0x60000000 );
+		//DBGRead fix
+		write32( 0x01BEF38, 0x60000000 );
+
+		//Disable CARD
+		write32( 0x017B2BC, 0x38C00000 );
+
+		//Motor init patch
+		write32( 0x0175710, 0x60000000 );
+		write32( 0x0175714, 0x60000000 );
+		write32( 0x01756AC, 0x60000000 );
+
+		//Goto Test menu
+		//write32( 0x00DF3D0, 0x60000000 );
+
+		//English 
+		write32( 0x000DF698, 0x38000000 );
+
+		//GXProg patch
+		memcpy( (void*)0x0302AC0, (void*)0x0302A84, 0x3C );
+		memcpy( (void*)0x021D3EC, (void*)0x0302A84, 0x3C );
+
+		//Unkreport
+		PatchB( 0x01882C0, 0x0191B54 );
+		PatchB( 0x01882C0, 0x01C53CC );
+		PatchB( 0x01882C0, 0x01CC684 );
+
+		//memcpy( (void*)0x01CAACC, patch_fwrite_GC, sizeof(patch_fwrite_GC) );
+		//memcpy( (void*)0x01882C0, OSReportDM, sizeof(OSReportDM) );
+	}
+	if( read32(0x023D240) == 0x386000A8 )	// Mario kart GP (TRI)
+	{
+		dbgprintf("TRI:Mario kart GP\n");
+		TRIGame = 4;
+		SystemRegion = REGION_JAPAN;
+		
+		//Reset skip
+		write32( 0x024F95C, 0x60000000 );
+
+		//Unlimited CARD uses		
+		write32( 0x01F5C44, 0x60000000 );	
+		
+		//Disable cam
+		write32( 0x00790A0, 0x98650025 );
+		
+		//Disable CARD
+		write32( 0x00790B4, 0x98650023 );
+		write32( 0x00790CC, 0x98650023 );
+
+		//Disable wheel/handle
+		write32( 0x007909C, 0x98650022 );
+			
+		//VS wait
+		write32( 0x00BE10C, 0x4800002C );
+
+		//cam loop
+		write32( 0x009F1E0, 0x60000000 );
+		
+		//Skip device test
+		write32( 0x0031BF0, 0x60000000 );
+		write32( 0x0031BFC, 0x60000000 );
+
+		//GXProg patch
+		memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
+
+		POffset -= sizeof(PADReadB);
+		memcpy( (void*)POffset, PADReadB, sizeof(PADReadB) );
+		PatchB( POffset, 0x003C6EC );
+
+		POffset -= sizeof(PADReadSteer);
+		memcpy( (void*)POffset, PADReadSteer, sizeof(PADReadSteer) );
+		PatchBL( POffset, 0x003CAD4 );
+
+		//some report check skip
+		//write32( 0x00307CC, 0x60000000 );
+
+		//memcpy( (void*)0x00330BC, OSReportDM, sizeof(OSReportDM) );
+		//memcpy( (void*)0x0030710, OSReportDM, sizeof(OSReportDM) );
+		//memcpy( (void*)0x0030760, OSReportDM, sizeof(OSReportDM) );
+		//memcpy( (void*)0x020CBCC, OSReportDM, sizeof(OSReportDM) );	// UNkReport
+		//memcpy( (void*)0x02281B8, OSReportDM, sizeof(OSReportDM) );	// UNkReport4
+	}
 
 	PatchFuncInterface( Buffer, Length );
 
@@ -888,6 +1071,11 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				// EXI Device 0 Control Register
 				write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
 				write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
+
+				// EXI Device 2 Control Register (Trifroce)
+				write32A( (u32)Buffer+i+0x188, 0x3C60C000, 0x3C60CC00, 1 );
+				write32A( (u32)Buffer+i+0x18C, 0x38630018, 0x38636800, 1 );
+				write32A( (u32)Buffer+i+0x190, 0x80830000, 0x80830028, 1 );
 
 				PatchCount |= 2048;
 			}
@@ -975,6 +1163,18 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				value|= 0x38000000;
 				*(vu32*)(Offset+8) = value;
 				
+				if( TRIGame )
+				{
+					write32A( Offset+0x218,	0x3C60C000, 0x3C60CC00, 0 );
+					write32A( Offset+0x21C,	0x80032F50, 0x80036020, 0 );
+				
+					write32A( Offset+0x228,	0x3C60C000, 0x3C60CC00, 0 );
+					write32A( Offset+0x22C,	0x38632F30, 0x38636000, 0 );
+
+					write32A( Offset+0x284,	0x3C60C000, 0x3C60CC00, 0 );
+					write32A( Offset+0x288,	0x80032F50, 0x80036020, 0 );
+				}
+
 				u32 SearchIndex = 0;
 				for (SearchIndex = 0; SearchIndex < 2; SearchIndex++)
 				{
@@ -1656,6 +1856,37 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[ARStartDMA] 0x%08X\r\n", FOffset );
 						#endif
+					} break;
+					case 0xdead0025:
+					{
+						if( TRIGame == 1 )
+						{
+							POffset-= sizeof( GCAMSendCommand2 );
+							memcpy( (void*)POffset, GCAMSendCommand2, sizeof(GCAMSendCommand2) );
+							PatchB( POffset, FOffset );
+							break;
+						}
+						if( TRIGame == 2 )
+						{
+							POffset-= sizeof( GCAMSendCommandVSExp );
+							memcpy( (void*)POffset, GCAMSendCommandVSExp, sizeof(GCAMSendCommandVSExp) );
+							PatchB( POffset, FOffset );
+							break;
+						}
+						if( TRIGame == 3 )
+						{
+							POffset-= sizeof( GCAMSendCommandF );
+							memcpy( (void*)POffset, GCAMSendCommandF, sizeof(GCAMSendCommandF) );
+							PatchB( POffset, FOffset );
+							break;
+						}
+						if( TRIGame == 4 )
+						{
+							POffset-= sizeof( GCAMSendCommand );
+							memcpy( (void*)POffset, GCAMSendCommand, sizeof(GCAMSendCommand) );
+							PatchB( POffset, FOffset );
+							break;
+						}
 					} break;
 					default:
 					{

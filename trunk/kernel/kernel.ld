@@ -7,15 +7,15 @@ __stack_size = 32;
 
 MEMORY {
 
-	code		: ORIGIN = 0x20100000,	LENGTH = 0x10000
-	data		: ORIGIN = 0x20110000,	LENGTH = 0x08000
+	code		: ORIGIN = 0x20100000,	LENGTH = 0x14000
+	data		: ORIGIN = 0x20114000,	LENGTH = 0x04000
 	bss			: ORIGIN = 0x20118000,	LENGTH = 0x08000
 }
 
 PHDRS
 {
 	code PT_LOAD AT ( 0x139F0000 );
-	data PT_LOAD AT ( 0x13A00000 );
+	data PT_LOAD AT ( 0x13A04000 );
 	bss  PT_LOAD AT ( 0x13A08000 );
 }
 
@@ -48,7 +48,7 @@ SECTIONS
 		. = ALIGN(4);
 	} >code :code
 
-	.data (0x20110000) : AT( 0x13A00000 )
+	.data (0x20114000) : AT( 0x13A04000 )
 	{
 		*(.data)
 		*(.data.*)
