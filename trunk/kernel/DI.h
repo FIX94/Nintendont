@@ -58,6 +58,13 @@ enum GameRegion
 	ALL,
 };
 
+typedef struct {
+	u32 Buffer;
+	u32 Length;
+	u32 Offset;
+} DI_ThreadArgs;
+static DI_ThreadArgs *DI_Args = (DI_ThreadArgs*)0x13028520;
+
 extern u32 Streaming;
 extern u32 StreamOffset;
 extern s32 StreamSize;

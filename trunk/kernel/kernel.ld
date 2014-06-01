@@ -3,7 +3,7 @@ OUTPUT_ARCH(arm)
 EXTERN(_start)
 ENTRY(_start)
 
-__stack_size = 32;
+__stack_size = 0x1000;
 
 MEMORY {
 
@@ -67,7 +67,7 @@ SECTIONS
 		__bss_end = . ;
 	} >bss :bss
 
-	.stack (0x20116000 + SIZEOF(.bss)) : AT( 0x13A06000 + SIZEOF(.bss) )
+	.stack (0x2011B000) : AT( 0x13A0B000 + SIZEOF(.bss) )
 	{
 		__stack_end = .;
 		. = . +__stack_size;

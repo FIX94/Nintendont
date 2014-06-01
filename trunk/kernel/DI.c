@@ -633,73 +633,70 @@ void DIUpdateRegisters( void )
 					u32 Offset	= read32(DI_SCMD_1) << 2;
 
 					//dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\r\n", read32(DI_SCMD_0) >> 24, Offset, Length, Buffer|0x80000000 );
-					
-          if( (Offset & 0x8FFF0000) == 0x80000000 )
-	        {
-				    switch(Offset)
-				    {
-				      // Media board status (1)
-				      case 0x80000000:
-                write16( Buffer, 0x0100 );
-              break;     
-				      // Media board status (2)
-				      case 0x80000020:
-					      memset( (void*)Buffer, 0, Length );
-					    break;       
-				      // Media board status (3)
-				      case 0x80000040:
-                memset( (void*)Buffer, 0xFFFFFFFF, Length );
-					      // DIMM size (512MB)
-                write32( Buffer, 0x00000020 );
-					      // GCAM signature
-                write32( Buffer+4, 0x4743414D );        
-              break;
-				      // Firmware status (1)
-				      case 0x80000120:
-                write32( Buffer, 0x00000001 );
-					    break;
-				      // Firmware status (2)
-				      case 0x80000140:
-                write32( Buffer, 0x01000000 );
-					    break;
-				      default:
-					      dbgprintf("Unhandled Media Board Read:%08X\n", Offset );
-					    break;
-				    }
 
-            DIOK = 2;
-            
-					// DIMM memory (3MB)
-          } else if( (Offset >= 0x1F000000) && (Offset <= 0x1F300000) )
-			    {
-				    u32 roffset = Offset - 0x1F000000;
-				    memcpy( (void*)Buffer, DIMMMemory + roffset, Length );
-
-            DIOK = 2;
-
-					// DIMM command
-			    } else if( (Offset >= 0x1F900000) && (Offset <= 0x1F900040) )
-			    {
-				    u32 roffset = Offset - 0x1F900000;
-#ifdef DEBUG_GCAM
-				    dbgprintf("GC-AM: Read MEDIA BOARD COMM AREA (%08x)\n", roffset );
-#endif
-				    memcpy( (void*)Buffer, MediaBuffer + roffset, Length );
-				
-            DIOK = 2;
-
-					// Network command
-			    } else if( (Offset >= 0x1F800200) && (Offset <= 0x1F8003FF) )
+					if( (Offset & 0x8FFF0000) == 0x80000000 )
 					{
-				    u32 roffset = Offset - 0x1F800200;
-#ifdef DEBUG_GCAM
+						switch(Offset)
+						{
+							// Media board status (1)
+							case 0x80000000:
+								write16( Buffer, 0x0100 );
+								break;
+							// Media board status (2)
+							case 0x80000020:
+								memset( (void*)Buffer, 0, Length );
+								break;
+							// Media board status (3)
+							case 0x80000040:
+								memset( (void*)Buffer, 0xFFFFFFFF, Length );
+								// DIMM size (512MB)
+								write32( Buffer, 0x00000020 );
+								// GCAM signature
+								write32( Buffer+4, 0x4743414D );        
+								break;
+							// Firmware status (1)
+							case 0x80000120:
+								write32( Buffer, 0x00000001 );
+								break;
+							// Firmware status (2)
+							case 0x80000140:
+								write32( Buffer, 0x01000000 );
+								break;
+							default:
+								dbgprintf("Unhandled Media Board Read:%08X\n", Offset );
+								break;
+						}
+						DIOK = 2;
+					}  // DIMM memory (3MB)
+					else if( (Offset >= 0x1F000000) && (Offset <= 0x1F300000) )
+					{
+						u32 roffset = Offset - 0x1F000000;
+						memcpy( (void*)Buffer, DIMMMemory + roffset, Length );
+
+						DIOK = 2;
+					}  // DIMM command
+					else if( (Offset >= 0x1F900000) && (Offset <= 0x1F900040) )
+					{
+						u32 roffset = Offset - 0x1F900000;
+					#ifdef DEBUG_GCAM
+						dbgprintf("GC-AM: Read MEDIA BOARD COMM AREA (%08x)\n", roffset );
+					#endif
+						memcpy( (void*)Buffer, MediaBuffer + roffset, Length );
+
+						DIOK = 2;
+					}  // Network command
+					else if( (Offset >= 0x1F800200) && (Offset <= 0x1F8003FF) )
+					{
+						u32 roffset = Offset - 0x1F800200;
+					#ifdef DEBUG_GCAM
 						dbgprintf("GC-AM: Read MEDIA BOARD NETWORK COMMAND (%08x)\n", roffset );
-#endif
+					#endif
 						memcpy( (void*)Buffer, NetworkCMDBuffer + roffset, Length );
-				
-            DIOK = 2;
-					} else {
-						
+
+						DIOK = 2;
+					}
+					else
+					{
 						// Max GC disc offset
 						if( Offset >= 0x57058000 )
 						{
@@ -707,15 +704,15 @@ void DIUpdateRegisters( void )
 							dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, Buffer|0x80000000 );
 							Shutdown();
 						}
-
-						DIReadAsync(Buffer, Length, Offset);
+						if( Buffer < 0x01800000 )
+						{
+							DIReadAsync(Buffer, Length, Offset);
+							DIOK = 2;
+						}
 					}
 
-					if( DIcommand == 0xA7 )
-					{
-						DIOK = 2;
-					}
-					else
+					// not async so wait
+					if( DIcommand == 0xA8 )
 					{
 						while(DIThreadWorking())
 							udelay(40);
@@ -750,32 +747,32 @@ void DIUpdateRegisters( void )
 	return;
 }
 
-static struct ipcmessage message_out;
 void DIReadAsync(u32 Buffer, u32 Length, u32 Offset)
 {
-	message_out.ioctl.command = Offset;
-	message_out.ioctl.buffer_in = (u32*)Buffer;
-	message_out.ioctl.length_in = Length;
+	DI_Args->Offset = Offset; DI_Args->Buffer = Buffer; DI_Args->Length = Length;
+	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
 
 	DI_Thread_Working = true;
-	mqueue_send_now( DI_MessageQueue, &message_out, 0 );
+	mqueue_send_now( DI_MessageQueue, NULL, 0 );
 }
-u8 *DI_Read_Buffer = (u8*)(0x11200000);
+static u8 *DI_Read_Buffer = (u8*)(0x11200000);
 u32 DIReadThread(void *arg)
 {
-	struct ipcmessage *in = NULL;
 	//dbgprintf("DI Thread Running\r\n");
 	while(1)
 	{
-		mqueue_recv( DI_MessageQueue, (void*)&in, 0);
-		u8 *Buffer = DI_Read_Buffer;
+		mqueue_recv( DI_MessageQueue, NULL, 0 );
+		u8 *src = DI_Read_Buffer;
+		char *dest = (char*)DI_Args->Buffer;
+		u32 length = DI_Args->Length;
+		u32 offset = DI_Args->Offset;
 		if( FSTMode )
-			FSTRead( GamePath, DI_Read_Buffer, in->ioctl.length_in, in->ioctl.command );
+			FSTRead( GamePath, src, length, offset );
 		else
-			Buffer = CacheRead( DI_Read_Buffer, in->ioctl.length_in, in->ioctl.command );
-		memcpy( in->ioctl.buffer_in, Buffer, in->ioctl.length_in );
-		DoPatches( (char*)in->ioctl.buffer_in, in->ioctl.length_in, in->ioctl.command );
-		sync_after_write( in->ioctl.buffer_in, in->ioctl.length_in );
+			src = CacheRead( src, length, offset );
+		memcpy( dest, src, length );
+		DoPatches( dest, length, offset );
+		sync_after_write( dest, length );
 
 		DI_Thread_Working = false;
 	}
