@@ -13,9 +13,9 @@
 
 //#define DEBUG_ES	1
 //#define DEBUG_HID	1
-#define DEBUG_DI	1
+//#define DEBUG_DI	1
 //#define DEBUG_JVSIO 1
-#define DEBUG_GCAM 1
+//#define DEBUG_GCAM 1
 //#define DEBUG_CARD 1
 //#define DEBUG_SD	1
 //#define DEBUG_EXI	1
@@ -45,8 +45,6 @@ enum AHBDEV {
 	AHB_EHCI = 6,
 	AHB_SDHC = 9,
 };
-
-#define P2C(x)			((x)&0x7FFFFFFF)
 
 #define	SHARED_PTR	((void *)0x13600000)
 #define	SHARED_SIZE	(0x18000)

@@ -1927,7 +1927,11 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 								(TITLE_ID) == 0x474754 ||	// Chibi-Robo!
 								(TITLE_ID) == 0x473442 ||	// Resident Evil 4
 								(TITLE_ID) == 0x474A53 ||	// Hudson Selection Vol 2 Star Soldier
-								(TITLE_ID) == 0x474B51 )	// Kururin Squash!
+								(TITLE_ID) == 0x474B51 ||	// Kururin Squash!
+								(TITLE_ID) == 0x474435 ||	// Dragon Drive D-Masters Shot
+								(TITLE_ID) == 0x504435 ||	// Dragon Drive D-Masters Shot (Anime Disc)
+								(TITLE_ID) == 0x474F4F ||	// Odama
+								(TITLE_ID) == 0x473243 )	// True Crime New York City
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");

@@ -179,6 +179,7 @@ void EXIInterrupt(void)
 	write32( 0x14, 0x10 );		// EXI IRQ
 	sync_after_write( (void*)0, 0x20 );
 
+do_interrupt:
 	if(SkipHandlerWait == true)
 		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 	else while(read32(0x13010000) == 1)
@@ -187,10 +188,16 @@ void EXIInterrupt(void)
 		wait_for_ppc(1);
 		sync_before_read((void*)0x13010000, 4);
 	}
+	if(IRQ_Cause2 > 0)
+	{
+		IRQ_Cause2 = 0;
+		wait_for_ppc(1);
+		goto do_interrupt;
+	}
+
 	EXI_IRQ = false;
 	IRQ_Timer = 0;
 	IRQ_Cause = 0;
-	IRQ_Cause2= 0;
 }
 bool EXICheckCard(void)
 {
@@ -688,14 +695,10 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 	write32( 0x0D80600C, 0 );
 
 	if( EXIOK == 2 )
-	{		
-		write32( 0x10, 8 );
-		write32( 0x18, 2 );
-		write32( 0x14, 0x10 );		// EXI IRQ
-		sync_after_write( (void*)0, 0x20 );
-
-		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) );
+	{
+		IRQ_Cause = 8;
+		IRQ_Cause2 = 2 ;
+		EXI_IRQ = true;
 	}
 
 	return 0;
