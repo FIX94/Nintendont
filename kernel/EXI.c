@@ -29,9 +29,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "debug.h"
 
-//#define DEBUG_EXI 1
-//#define DEBUG_SRAM 1
-
 extern u8 SRAM[64];
 extern u32 Region;
 
@@ -51,7 +48,13 @@ bool SkipHandlerWait = false;
 bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
+static u32 IRQ_Cause2= 0;
 static TCHAR MemCardName[9];
+
+static u32 TRIBackupOffset= 0;
+static u32 EXI2IRQ				= 0;
+static u32 EXI2IRQStatus	= 0;
+
 void EXIInit( void )
 {
 	dbgprintf("EXIInit Start\r\n");
@@ -170,10 +173,11 @@ void EXIInterrupt(void)
 {
 	write32(0x13010000,1); //setup IRQ Handler check
 	sync_after_write((void*)0x13010000,4);
-
-	write32( 0x10, IRQ_Cause);
-	write32( 0x14, 0x10 );		// EXI(TC) IRQ
-	sync_after_write( (void*)0x10, 8 );
+	
+	write32( 0x10, IRQ_Cause );
+	write32( 0x18, IRQ_Cause2 );
+	write32( 0x14, 0x10 );		// EXI IRQ
+	sync_after_write( (void*)0, 0x20 );
 
 	if(SkipHandlerWait == true)
 		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
@@ -186,6 +190,7 @@ void EXIInterrupt(void)
 	EXI_IRQ = false;
 	IRQ_Timer = 0;
 	IRQ_Cause = 0;
+	IRQ_Cause2= 0;
 }
 bool EXICheckCard(void)
 {
@@ -217,7 +222,7 @@ void EXISaveCard(void)
 			dbgprintf("Done!\r\n");
 		}
 		else
-			dbgprintf("Unable to open memory card file:%u\r\n", ret );
+			dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret );
 //#endif
 		BlockOffLow = 0xFFFFFFFF;
 		BlockOffHigh = 0x00000000;
@@ -241,7 +246,7 @@ void EXIShutdown( void )
 		f_close( &MemCard );
 	}
 	else
-		dbgprintf("Unable to open memory card file:%u\r\n", ret );
+		dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret );
 //#ifdef DEBUG_EXI
 	dbgprintf("Done!\r\n");
 //#endif
@@ -490,7 +495,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 				{
 					EXICommand = IPL_READ_FONT;
 #ifdef DEBUG_SRAM
-					dbgprintf("EXI: IPLReadFont()\r\n");
+					//dbgprintf("EXI: IPLReadFont()\r\n");
 #endif
 					IPLReadOffset = (u32)Data >> 6;
 					break;
@@ -506,7 +511,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 			case IPL_READ_FONT:
 			{
 #ifdef DEBUG_SRAM	
-				dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
+				//dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
 #endif
 				EXIReadFontFile(Data, Length);
 			} break;
@@ -534,10 +539,81 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 }
 u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 {
+	u32 EXIOK = 0;
+
 	if( Mode == 1 )		// Write
 	{
 		switch( Length )
 		{
+			/*
+				0: command
+			1-2: arg
+			  3: checksum
+			*/
+			case 4:
+			{
+				switch( (u32)Data >> 24 )
+				{
+					case 0x01:
+					{
+						TRIBackupOffset = ((u32)Data >> 8) & 0xFFFF;
+						EXICommand = AMBB_BACKUP_OFFSET;
+					} break;
+					case 0x02:
+					{
+						MCard[TRIBackupOffset] = ((u32)Data >> 16) & 0xFF;
+						EXICommand = AMBB_BACKUP_WRITE;
+					} break;
+					case 0x03:
+					{
+						EXICommand = AMBB_BACKUP_READ;
+					} break;
+					case 0x82:
+					{
+#ifdef DEBUG_GCAM
+						dbgprintf("EXI:ISRRead()\n");
+#endif
+						EXICommand = AMBB_ISR_READ;
+					} break;
+					case 0x83:
+					{
+#ifdef DEBUG_GCAM
+						dbgprintf("EXI:0x83()\n");
+#endif
+						EXICommand = AMBB_UNKNOWN;
+					} break;
+					case 0x86:
+					{
+#ifdef DEBUG_GCAM
+						dbgprintf("EXI:IMRRead()\n");
+#endif
+						EXICommand = AMBB_IMR_READ;
+					} break;
+					case 0x87:
+					{
+#ifdef DEBUG_GCAM
+						dbgprintf("EXI:IMRWrite(%04X)\n", ((u32)Data >> 8) & 0xFFFF );
+#endif
+						EXICommand = AMBB_IMR_WRITE;
+					} break;
+					case 0xFF:
+					{
+#ifdef DEBUG_GCAM
+						dbgprintf("EXI:LANCNTWrite(%04X)\n", ((u32)Data >> 8) & 0xFFFF );
+#endif
+						if( (((u32)Data >> 8) & 0xFFFF) == 0x0201 )
+						{
+							EXI2IRQStatus = 0;
+
+						} else if ((((u32)Data >> 8) & 0xFFFF) == 0 )
+						{
+							EXI2IRQ = 1;
+							EXI2IRQStatus = 2;
+						}
+						EXICommand = AMBB_LANCNT_WRITE;
+					} break;
+				}
+			} break;
 			case 2:
 			{
 				switch( (u32)Data >>16 )
@@ -553,20 +629,80 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 	} else {
 		switch(EXICommand)
 		{
+			/* 0x02 */
+			case AMBB_BACKUP_WRITE:
+			/* 0x01 */
+			case AMBB_BACKUP_OFFSET:
+			{
+				write32( 0x0D806010, 0x01 );
+			} break;
+			/* 0x03 */
+			case AMBB_BACKUP_READ:
+			{
+				write32( 0x0D806010, 0x0100 | MCard[TRIBackupOffset] );
+			} break;
+			/* 0x87 */
+			case AMBB_IMR_WRITE:
+			/* 0x83 */
+			case AMBB_UNKNOWN:
+			{
+				write32( 0x0D806010, 0x04 );
+			} break;
+			/* 0x82 */
+			case AMBB_ISR_READ:
+			{
+				if( Length == 1 )
+				{
+					write32( 0x0D806010, 0x04 );
+				} else {
+					write32( 0x0D806010, EXI2IRQStatus );
+					EXI2IRQ = 0;
+				}
+			} break;
+			/* 0x86 */
+			case AMBB_IMR_READ:
+			{
+				if( Length == 1 )
+				{
+					write32( 0x0D806010, 0x04 );
+				} else {
+					write32( 0x0D806010, 0x0000 );
+				}
+			} break;
+			/* 0xFF */
+			case AMBB_LANCNT_WRITE:
+			{
+				if( EXI2IRQ )
+				{
+					EXIOK = 2;
+				}
+				write32( 0x0D806010, 0x04 );
+			} break;
 			case MEM_READ_ID:
 			{
-				write32( 0x0D806010, 0 );
+				write32( 0x0D806010, EXI_DEVTYPE_BASEBOARD );
 			} break;
 		}
 	}
 
 	write32( 0x0D80600C, 0 );
 
+	if( EXIOK == 2 )
+	{		
+		write32( 0x10, 8 );
+		write32( 0x18, 2 );
+		write32( 0x14, 0x10 );		// EXI IRQ
+		sync_after_write( (void*)0, 0x20 );
+
+		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) );
+	}
+
 	return 0;
 }
 void EXIUpdateRegistersNEW( void )
 {
-	//u32 chn, dev, frq, ret, data, len, mode;
+	//uu32 chn, dev, frq, ret, data, len, mode;
 	u32 chn, dev, ret, data, len, mode;
 	u8 *ptr;
 	
@@ -582,7 +718,7 @@ void EXIUpdateRegistersNEW( void )
 				dev = (command>>8) & 0xFF;
 				//frq = (command>>16) & 0xFF;
 				
-			//	dbgprintf("EXISelect( %u, %u, %u )\r\n", chn, dev, frq );
+				//dbgprintf("EXISelect( %u, %u, %u )\r\n", chn, dev, frq );
 				ret = 1;
 
 				switch( chn )
@@ -635,7 +771,7 @@ void EXIUpdateRegistersNEW( void )
 					data = P2C(data);
 				}
 				
-			//	dbgprintf("EXIImm( %u, %p, %u, %u, Dev:%u EC:%u )\r\n", chn, data, len, mode, Device, EXICommand );
+				//dbgprintf("EXIImm( %u, %p, %u, %u, Dev:%u EC:%u )\r\n", chn, data, len, mode, Device, EXICommand );
 				switch( Device )
 				{
 					case EXI_DEV_MEMCARD_A:
@@ -666,7 +802,7 @@ void EXIUpdateRegistersNEW( void )
 				len	=	command& 0xFFFF;
 				mode=	(command >> 16) & 0xF;
 				
-		//		dbgprintf("EXIDMA( %u, %p, %u, %u )\r\n", chn, ptr, len, mode );
+				//dbgprintf("EXIDMA( %u, %p, %u, %u )\r\n", chn, ptr, len, mode );
 				switch( Device )
 				{
 					case EXI_DEV_MEMCARD_A:

@@ -32,11 +32,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /*
  Add to CFLAGS in Makefile
 */
-//#define DEBUG
+//#define DEBUG 1
 //#define DEBUG_PATCHES
-//#define DEBUG_MODULE_PATCH
+//#define DEBUG_MODULE_PATCH 1
 //#define EXIPATCH
-//#define MEM1_THEFT 0x2000
 
 #define MENU_POS_X			10
 #define MENU_POS_Y			34

@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "HID.h"
 #include "EXI.h"
 #include "debug.h"
+#include "GCAM.h"
 #ifdef NINTENDONT_USB
 #include "usb.h"
 #else
@@ -176,6 +177,8 @@ int _main( int argc, char *argv[] )
 
 	DIinit();
 	BootStatus(10, s_size, s_cnt);
+	
+	GCAMInit();
 
 	EXIInit();
 	BootStatus(11, s_size, s_cnt);
@@ -185,6 +188,8 @@ int _main( int argc, char *argv[] )
 //fixes issues in some japanese games
 	if((ConfigGetGameID() & 0xFF) == 'J')
 		write32(HW_PPCSPEED, 0x2A9E0);
+	
+	//write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
@@ -280,6 +285,7 @@ int _main( int argc, char *argv[] )
 		_ahbMemFlush(1);
 		DIUpdateRegisters();
 		EXIUpdateRegistersNEW();
+    GCAMUpdateRegisters();
 		SIUpdateRegisters();
 		if(EXICheckCard())
 		{
@@ -292,6 +298,24 @@ int _main( int argc, char *argv[] )
 				udelay(100);
 			break;
 		}
+    
+  //  sync_before_read( (void*)0x1860, 0x20 );
+		//if( read32(0x1860) != 0xdeadbeef )
+		//{
+		//	if( read32(0x1860) != 0 )
+		//	{
+		//		dbgprintf(	(char*)(P2C(read32(0x1860))),
+		//					(char*)(P2C(read32(0x1864))),
+		//					(char*)(P2C(read32(0x1868))),
+		//					(char*)(P2C(read32(0x186C))),
+		//					(char*)(P2C(read32(0x1870))),
+		//					(char*)(P2C(read32(0x1874)))
+		//				);				
+		//	}
+
+		//	write32(0x1860, 0xdeadbeef);
+  //    sync_after_write( (void*)0x1860, 0x20 );
+		//}
 		cc_ahbMemFlush(1);
 	}
 	if( UseHID )

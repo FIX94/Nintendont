@@ -37,7 +37,7 @@ FuncPattern FPatterns[] =
 	{ 0x34,			5,      4,      0,      0,      0,	(u8*)NULL,					0xdead0005,						"GXInitTlutObj B",				0,		0 },
 	{ 0x1C0,        35,     9,      8,      7,      19,	SIGetType,					sizeof(SIGetType),				"SIGetType",					0,		0 },
 
-//	{ 0x168,        22,     10,     7,      6,      10,	SITransfer,					sizeof(SITransfer),				"SITransfer",					0,		0 },
+	{ 0x168,        22,     10,     7,      6,      10,	SITransfer,					sizeof(SITransfer),				"SITransfer",					0,		0 },
 
 	{ 0x910,        87,     33,     18,     5,      63,	(u8*)NULL,					0xdead0008,						"__ARChecksize A",				3,		0 },
 	{ 0x17F0,       204,    51,     27,     5,      178,(u8*)NULL,					0xdead0008,						"__ARChecksize B",				3,		0 },
@@ -51,6 +51,12 @@ FuncPattern FPatterns[] =
 	{ 0x2E4,        39,     8,      3,      13,     9,	(u8*)NULL,					0xdead0010,						"J3DUClipper::clip()",			0,		0 },
 //	{ 0x94,			0,      0,      0,      0,      0,	(u8*)NULL,					0xdead0010,						"C_MTXOrtho",					0,		0 },
 
+	{ 0xB4,			18,     11,     1,      0,      7, (u8*)NULL,					0xdead0002,						"GCAMSendCMD",					0,		0 },
+	{ 0xCC,			20,     16,     5,      0,      3, (u8*)NULL,					0xdead0002,						"GCAMRead",						0,		0 },
+	{ 0x9C,			18,     9,      4,      0,      2, (u8*)NULL,					0xdead0002,						"GCAMExecute",						0,		0 },
+	{ 0xB0,			19,     12,     4,      0,      2, (u8*)NULL,					0xdead0002,						"GCAMWrite",					0,		0 },
+  { 0x98,     19,     9,      4,      0,      2, (u8*)NULL,					0xdead0002,						"GCAMIdentify",					0,		0 },
+	{ 0x54,			10,     2,      2,      0,      2, (u8*)NULL,					0xdead0025,						"GCAMSendCommand",					0,		0 },
 
 	{ 0x10C,        30,     18,     5,      2,      3,	(u8*)NULL,					0xdead0002,						"DVDLowRead A",					5,		0 },
 	{ 0xDC,			23,     18,     3,      2,      4,	(u8*)NULL,					0xdead0002,						"DVDLowRead B",					5,		0 },

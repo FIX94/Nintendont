@@ -32,6 +32,14 @@ void BootStatusError(s32 Value, s32 error)
 	sync_after_write((void*)0x10004100, 0x20);
 }
 
+u16 bs16( u16 s )
+{
+	return (s << 8) | (s >> 8);
+}
+u32 bs32( u32 i )
+{
+	return (i<<24)|(i>>24)|((i&0xFF00)<<8)|((i>>8)&0xFF00);
+}
 /*
 	Since Starlet can only access MEM1 via 32byte write and 8/16 writes
 	cause unpredictable results we this code is needed.

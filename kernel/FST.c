@@ -44,14 +44,15 @@ u32 FCState[FILECACHE_MAX];
 
 extern FIL GameFile;
 
-u32 CacheIsInit		= 0;
+u32 CacheIsInit			= 0;
 u32 DataCacheCount	= 0;
 u32 TempCacheCount	= 0;
 u32 DataCacheOffset = 0;
-u8 *DCCache		= (u8*)0x11280000;
+u8 *DCCache					= (u8*)0x11280000;
 DataCache DC[DATACACHE_MAX];
 
 extern u32 Region;
+extern u32 TRIGame;
 
 u32 FSTInit( char *GamePath )
 {
@@ -322,6 +323,12 @@ void CacheInit( char *Table )
 {
 	if(CacheIsInit)
 		return;
+
+	// DIMM Memory (3MB)
+	if(TRIGame)
+	{
+		DCCache = (u8*)0x11580000;
+	}
 
 	memset32(DC, 0, sizeof(DataCache) * DATACACHE_MAX);
 	sync_after_write(DC, sizeof(DataCache) * DATACACHE_MAX);
