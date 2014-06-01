@@ -551,7 +551,7 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 			// found the point to restart cycle
 			DataCacheOffset = 0;
 			// set next point in reference
-			StartPos = (c + 1) % DATACACHE_MAX;
+			StartPos = c % DATACACHE_MAX;
 			StartOffset = DC[StartPos].Data - DCCache;
 			break;
 		}
@@ -571,6 +571,7 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 			}
 			// basically makes sure we wont overwrite it
 			memset32(&DC[c], 0, sizeof(DataCache));
+			sync_after_write(&DC[c], sizeof(DataCache));
 		}
 	}
 
@@ -580,6 +581,7 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 	DC[pos].Data = DCCache + DataCacheOffset;
 	DC[pos].Offset = Offset;
 	DC[pos].Size = Length;
+	sync_after_write(&DC[pos], sizeof(DataCache));
 
 	f_lseek( &GameFile, Offset );
 	f_read( &GameFile, DC[pos].Data, Length, &read );

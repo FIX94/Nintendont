@@ -216,7 +216,7 @@ void EXISaveCard(void)
 	if (BlockOffLow < BlockOffHigh)
 	{
 //#ifdef DEBUG_EXI
-		dbgprintf("EXI: Saving memory card...");
+		//dbgprintf("EXI: Saving memory card...");
 //#endif
 		s32 ret = f_open( &MemCard, MemCardName, FA_WRITE );
 		if( ret == FR_OK )
@@ -226,10 +226,10 @@ void EXISaveCard(void)
 			f_write(&MemCard, MCard + BlockOffLow, BlockOffHigh - BlockOffLow, &wrote);
 			f_close(&MemCard);
 //#ifdef DEBUG_EXI
-			dbgprintf("Done!\r\n");
+			//dbgprintf("Done!\r\n");
 		}
-		else
-			dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret );
+		//else
+			//dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret );
 //#endif
 		BlockOffLow = 0xFFFFFFFF;
 		BlockOffHigh = 0x00000000;

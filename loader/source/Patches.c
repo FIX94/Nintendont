@@ -114,7 +114,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 	Elf32_Ehdr *outhdr = (Elf32_Ehdr *)(buf+loadersize);
 
 	// Update ES stack address
-	*(volatile unsigned int*)(buf+loadersize+0x26C) = 0x2011C000;
+	*(volatile unsigned int*)(buf+loadersize+0x26C) = 0x2011B000;
 	
 #ifdef DEBUG_MODULE_PATCH
 	gprintf("PHeaders:%d\r\n", inhdr->e_phnum );
