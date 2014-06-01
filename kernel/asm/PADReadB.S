@@ -1,15 +1,33 @@
 #include <asm.h>
 
+.set		PadStub,	0x93000000
+.set		PadStubHID,	0x93001000
+.set		PadBuff,	0x93002800
 
 PADReadB:
+	mflr	%r9
+	#to stub instead of arm
+	lis		%r6,			PadStub@h
+	ori		%r6,	%r6,	PadStub@l
+	mtctr	%r6
+	bctrl
+	#to hid stub
+	lis		%r6,			PadStubHID@h
+	ori		%r6,	%r6,	PadStubHID@l
+	mtctr	%r6
+	bctrl
+
+	#Assumes r9 is unmodified by PadStub
+	mtlr	%r9
+	lis		%r5,			PadBuff@h
+	ori		%r5,	%r5,	PadBuff@l
+
+	#original code
 	and     %r4,	%r0,	%r4
 	stw     %r4,	8(%r3)
 	stw     %r0,	0xC(%r3)
 
-	lis		%r4,	0xCD00
-	lwz		%r0,	0x6404(%r4)
-	lwz		%r4,	0x6408(%r4)
-
+	lwz		%r0,	0(%r5)
 	srwi	%r0,	%r0,	16
 
 	li		%r4,	0x0

@@ -538,10 +538,7 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 
 	// case we ran out of positions
 	if( TempCacheCount >= DATACACHE_MAX )
-	{
 		TempCacheCount = 0;
-		sync_after_write(&TempCacheCount, 4);
-	}
 
 	// case we just filled up the cache
 	if( (DataCacheOffset + Length) >= 0x1D80000 )
@@ -566,14 +563,14 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 		for( i = StartPos; i < StartPos + DATACACHE_MAX; ++i )
 		{
 			u32 c = i % DATACACHE_MAX;
-			DC[c].Offset = 0; // basically makes sure we wont overwrite it
 			if( (DataCacheOffset + Length) < (DC[c].Data - DCCache) ) // new pos wouldnt overwrite it
 			{
 				StartPos = c;
 				StartOffset = DC[StartPos].Data - DCCache;
 				break;
 			}
-			DC[c].Data = 0;
+			// basically makes sure we wont overwrite it
+			memset32(&DC[c], 0, sizeof(DataCache));
 		}
 	}
 
@@ -583,10 +580,10 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 	DC[pos].Data = DCCache + DataCacheOffset;
 	DC[pos].Offset = Offset;
 	DC[pos].Size = Length;
-	sync_after_write(&DC[pos], sizeof(DataCache));
 
 	f_lseek( &GameFile, Offset );
 	f_read( &GameFile, DC[pos].Data, Length, &read );
+	sync_after_write( DC[pos].Data, Length );
 
 	DataCacheOffset += Length;
 	return DC[pos].Data;

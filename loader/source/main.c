@@ -56,7 +56,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "PADReadGC_bin.h"
 #include "PADReadHID_bin.h"
 #include "stub_bin.h"
+
 extern void __exception_setreload(int t);
+u32 __SYS_GetRTC(u32 *gctime);
 
 #define STATUS_LOADING	(*(vu32*)(0x90004100))
 #define STATUS_SECTOR	(*(vu32*)(0x90004100 + 8))
@@ -611,7 +613,14 @@ int main(int argc, char **argv)
 	else while(VIDEO_GetNextField())
 		VIDEO_WaitVSync();
 	GX_AbortFrame();
-	settime(secs_to_ticks(time(NULL) - 927466348));
+
+	// set current time
+	u32 bias = 0, cur_time = 0;
+	__SYS_GetRTC(&cur_time);
+	if(CONF_GetCounterBias(&bias) >= 0)
+		cur_time += bias;
+	settime(secs_to_ticks(cur_time));
+
 	ICFlashInvalidate();
 
 	DCInvalidateRange((void*)0x93000000, 0x3000);

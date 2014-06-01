@@ -188,7 +188,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 #endif
 						break;
 					}
-					else if( (ophdr->p_vaddr) == 0x2010E000 && (phdr->p_vaddr) == 0x20118000 )
+					else if( (ophdr->p_vaddr) == 0x2010E000 && (phdr->p_vaddr) == 0x20116000 )
 					{
 #ifdef DEBUG_MODULE_PATCH
 						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
@@ -196,7 +196,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 						ophdr->p_vaddr = phdr->p_vaddr;
 						ophdr->p_paddr = phdr->p_paddr;
 						
-						ophdr->p_memsz = 0x8000;
+						ophdr->p_memsz = 0xA000;
 
 						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
 						
