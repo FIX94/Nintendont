@@ -290,9 +290,9 @@ int main(int argc, char **argv)
 
 	DCFlushRange( (void*)0x90100000, NKernelSize );
 
-	FILE *out = fopen("/kernel.bin", "wb");
+	/*FILE *out = fopen("/kernel.bin", "wb");
 	fwrite( (char*)0x90100000, 1, NKernelSize, out );
-	fclose(out);
+	fclose(out);*/
 
 //Load config
 

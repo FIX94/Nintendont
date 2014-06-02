@@ -131,11 +131,6 @@ void DIinit( bool FirstTime )
 
 		u8 DI_MessageHeap[0x10];
 		DI_MessageQueue = mqueue_create( DI_MessageHeap, 1 );
-
-		memset32((void*)0x13007420, 0, 0x1BE0);
-		sync_after_write((void*)0x13007420, 0x1BE0);
-		DI_Thread = thread_create(DIReadThread, NULL, (u32*)0x13007420, 0x1BE0, 0x50, 1);
-		thread_continue(DI_Thread);
 	}
 	else
 	{
@@ -640,7 +635,7 @@ void DIUpdateRegisters( void )
 					u32 Length	= read32(DI_SCMD_2);
 					u32 Offset	= read32(DI_SCMD_1) << 2;
 
-					//dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\r\n", read32(DI_SCMD_0) >> 24, Offset, Length, Buffer|0x80000000 );
+					//dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\r\n", DIcommand, Offset, Length, Buffer|0x80000000 );
 
 					if( (Offset & 0x8FFF0000) == 0x80000000 )
 					{
@@ -660,7 +655,7 @@ void DIUpdateRegisters( void )
 								// DIMM size (512MB)
 								write32( Buffer, 0x00000020 );
 								// GCAM signature
-								write32( Buffer+4, 0x4743414D );        
+								write32( Buffer+4, 0x4743414D );
 								break;
 							// Firmware status (1)
 							case 0x80000120:
@@ -754,30 +749,34 @@ void DIUpdateRegisters( void )
 	}
 	return;
 }
-
+static DI_ThreadArgs DI_Args;
 void DIReadAsync(u32 Buffer, u32 Length, u32 Offset)
 {
-	DI_Args->Offset = Offset; DI_Args->Buffer = Buffer; DI_Args->Length = Length;
-	sync_after_write(DI_Args, sizeof(DI_ThreadArgs));
+	DI_Args.Offset = Offset; DI_Args.Buffer = Buffer; DI_Args.Length = Length;
+	sync_after_write(&DI_Args, sizeof(DI_ThreadArgs));
 
 	DI_Thread_Working = true;
 	mqueue_send_now( DI_MessageQueue, NULL, 0 );
 }
 static u8 *DI_Read_Buffer = (u8*)(0x11200000);
+static u8 *src = NULL; static char *dest = NULL; static u32 length = 0, offset = 0;
 u32 DIReadThread(void *arg)
 {
 	//dbgprintf("DI Thread Running\r\n");
 	while(1)
 	{
 		mqueue_recv( DI_MessageQueue, NULL, 0 );
-		u8 *src = DI_Read_Buffer;
-		char *dest = (char*)DI_Args->Buffer;
-		u32 length = DI_Args->Length;
-		u32 offset = DI_Args->Offset;
+
+		src = DI_Read_Buffer;
+		dest = (char*)DI_Args.Buffer;
+		length = DI_Args.Length;
+		offset = DI_Args.Offset;
+
 		if( FSTMode )
 			FSTRead( GamePath, src, length, offset );
 		else
 			src = CacheRead( src, length, offset );
+
 		memcpy( dest, src, length );
 		DoPatches( dest, length, offset );
 		sync_after_write( dest, length );

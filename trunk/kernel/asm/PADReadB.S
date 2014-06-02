@@ -21,6 +21,7 @@ PADReadB:
 	mtlr	%r9
 	lis		%r5,			PadBuff@h
 	ori		%r5,	%r5,	PadBuff@l
+	dcbst	0,		%r5 ; sync ; isync
 
 	#original code
 	and     %r4,	%r0,	%r4
@@ -57,8 +58,12 @@ BSkip:
 SSkip:
 
 	lwz		%r0,	0x8(%r3)
-	or		%r4,	%r4,	%r0
-	stw		%r4,	0x8(%r3)
+	or		%r0,	%r4,	%r0
+	stw		%r0,	0x8(%r3)
+
+	lwz		%r0,	0xC(%r3)
+	or		%r0,	%r4,	%r0
+	stw		%r0,	0xC(%r3)
 
 	addi	%r1,	%r1,	0x20
 

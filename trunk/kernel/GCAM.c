@@ -2,7 +2,7 @@
 #include "JVSIO.h"
 #include "Config.h"
 
-#ifdef DEBUG_GCAM
+#ifndef DEBUG_GCAM
 #define dbgprintf(...)
 #else
 extern int dbgprintf( const char *fmt, ...);

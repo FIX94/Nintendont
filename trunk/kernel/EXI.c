@@ -190,8 +190,8 @@ do_interrupt:
 	}
 	if(IRQ_Cause2 > 0)
 	{
+		udelay(220);
 		IRQ_Cause2 = 0;
-		wait_for_ppc(1);
 		goto do_interrupt;
 	}
 

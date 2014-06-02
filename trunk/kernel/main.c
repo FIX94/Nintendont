@@ -54,8 +54,8 @@ extern u32 s_cnt;
 
 FATFS *fatfs;
 
-static u8 HID_ThreadStack[0x2000] __attribute__((aligned(32)));
-static u8 DI_ThreadStack[0x2000] __attribute__((aligned(32)));
+static u8 HID_ThreadStack[0x1000] __attribute__((aligned(32)));
+static u8 DI_ThreadStack[0x1000] __attribute__((aligned(32)));
 
 extern bool SI_IRQ, DI_IRQ, EXI_IRQ;
 //u32 Loopmode=0;
@@ -170,14 +170,14 @@ int _main( int argc, char *argv[] )
 		write32(0x13003004, 0);
 		sync_after_write((void*)0x13003004, 0x20);
 
-		HID_Thread = thread_create(HID_Run, NULL, (u32*)HID_ThreadStack, 0x2000, 0x78, 1);
+		HID_Thread = thread_create(HID_Run, NULL, (u32*)HID_ThreadStack, 0x1000, 0x78, 0);
 		thread_continue(HID_Thread);
 	}
 	BootStatus(9, s_size, s_cnt);
 
 	DIinit(true);
 
-	DI_Thread = thread_create(DIReadThread, NULL, (u32*)DI_ThreadStack, 0x2000, 0x50, 1);
+	DI_Thread = thread_create(DIReadThread, NULL, (u32*)DI_ThreadStack, 0x1000, 0x50, 1);
 	thread_continue(DI_Thread);
 
 	BootStatus(10, s_size, s_cnt);

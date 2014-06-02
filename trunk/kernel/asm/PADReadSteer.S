@@ -5,6 +5,7 @@
 PADReadSteer:
 	lis		%r3,			PadBuff@h
 	ori		%r3,	%r3,	PadBuff@l
+	dcbi	0,		%r3 ; sync ; isync
 
 	cmpwi	%r0,	0
 	bne		SteerSkip
