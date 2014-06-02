@@ -114,7 +114,8 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 	Elf32_Ehdr *outhdr = (Elf32_Ehdr *)(buf+loadersize);
 
 	// Update ES stack address
-	*(volatile unsigned int*)(buf+loadersize+0x26C) = 0x2011B000;
+	*(volatile unsigned int*)(buf+loadersize+0x264) = 0x2000; //size
+	*(volatile unsigned int*)(buf+loadersize+0x26C) = 0x2011C000;
 	
 #ifdef DEBUG_MODULE_PATCH
 	gprintf("PHeaders:%d\r\n", inhdr->e_phnum );
@@ -188,7 +189,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 #endif
 						break;
 					}
-					else if( (ophdr->p_vaddr) == 0x2010E000 && (phdr->p_vaddr) == 0x20116000 )
+					else if( (ophdr->p_vaddr) == 0x2010E000 && (phdr->p_vaddr) == 0x2011A000 )
 					{
 #ifdef DEBUG_MODULE_PATCH
 						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
@@ -196,7 +197,7 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 						ophdr->p_vaddr = phdr->p_vaddr;
 						ophdr->p_paddr = phdr->p_paddr;
 						
-						ophdr->p_memsz = 0xA000;
+						ophdr->p_memsz = 0x6000;
 
 						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
 						
