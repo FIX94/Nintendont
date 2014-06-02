@@ -319,8 +319,16 @@ void FSTRead( char *GamePath, u8 *Buffer, u32 Length, u32 Offset )
 		}
 	}
 }
-void CacheInit( char *Table )
+void CacheInit( char *Table, bool ForceReinit )
 {
+	if (ForceReinit)
+	{
+		DataCacheCount = 0;
+		TempCacheCount = 0;
+		DataCacheOffset = 0;
+		CacheIsInit = false;
+	}
+
 	if(CacheIsInit)
 		return;
 

@@ -72,7 +72,7 @@ extern u32 StreamTimer;
 extern vu32 SDisInit;
 extern u32 DiscChangeIRQ;
 
-void DIinit( void );
+void DIinit( bool FirstTime );
 void DIInterrupt();
 u32 DIReadThread(void *arg);
 bool DIThreadWorking( void );

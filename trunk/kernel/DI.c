@@ -73,7 +73,7 @@ u8 *MediaBuffer;
 u8 *NetworkCMDBuffer;
 u8 *DIMMMemory = (u8*)0x11280000;
 
-void DIinit( void )
+void DIinit( bool FirstTime )
 {
 	u32 read;
 
@@ -108,76 +108,86 @@ void DIinit( void )
 	f_lseek( &GameFile, 0 );
 	f_read( &GameFile, (void*)0, 0x20, &read );
 
-	GCAMKeyA = read32(0);
-	GCAMKeyB = read32(4);
-	GCAMKeyC = read32(8);
-	
-	MediaBuffer = (u8*)malloc( 0x40 );	
-	memset( MediaBuffer, 0, 0x40 );
-	
-	NetworkCMDBuffer = (u8*)malloc( 512 );	
-	memset( NetworkCMDBuffer, 0, 512 );
+	if (FirstTime)
+	{
+		GCAMKeyA = read32(0);
+		GCAMKeyB = read32(4);
+		GCAMKeyC = read32(8);
 
-	memset32( (void*)DI_BASE, 0xdeadbeef, 0x30 );
-	memset32( (void*)DI_SHADOW, 0, 0x30 );
+		MediaBuffer = (u8*)malloc( 0x40 );
+		memset( MediaBuffer, 0, 0x40 );
 
-	sync_after_write( (void*)DI_BASE, 0x60 );
+		NetworkCMDBuffer = (u8*)malloc( 512 );
+		memset( NetworkCMDBuffer, 0, 512 );
 
-	write32( DIP_IMM, 0 ); //reset errors
-	write32( DIP_STATUS, 0x2E );
-	write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
+		memset32( (void*)DI_BASE, 0xdeadbeef, 0x30 );
+		memset32( (void*)DI_SHADOW, 0, 0x30 );
 
-	u8 DI_MessageHeap[0x10];
-	DI_MessageQueue = mqueue_create( DI_MessageHeap, 1 );
+		sync_after_write( (void*)DI_BASE, 0x60 );
 
-	memset32((void*)0x13007420, 0, 0x1BE0);
-	sync_after_write((void*)0x13007420, 0x1BE0);
-	DI_Thread = thread_create(DIReadThread, NULL, (u32*)0x13007420, 0x1BE0, 0x50, 1);
-	thread_continue(DI_Thread);
+		write32( DIP_IMM, 0 ); //reset errors
+		write32( DIP_STATUS, 0x2E );
+		write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
+
+		u8 DI_MessageHeap[0x10];
+		DI_MessageQueue = mqueue_create( DI_MessageHeap, 1 );
+
+		memset32((void*)0x13007420, 0, 0x1BE0);
+		sync_after_write((void*)0x13007420, 0x1BE0);
+		DI_Thread = thread_create(DIReadThread, NULL, (u32*)0x13007420, 0x1BE0, 0x50, 1);
+		thread_continue(DI_Thread);
+	}
+	else
+	{
+		CacheInit(FSTBuf, true);
+	}
 }
 void DIChangeDisc( u32 DiscNumber )
 {
 	f_close( &GameFile );
 
 	u32 read, i;
-	char str[256] __attribute__((aligned(0x20)));
+	char* DiscName = ConfigGetGamePath();
 
-	memset32( str, 0, 256 );
-
-	_sprintf( str, "%s", ConfigGetGamePath() );
-			
 	//search the string backwards for '/'
-	for( i=strlen(str); i > 0; --i )
-		if( str[i] == '/' )
+	for( i=strlen(DiscName); i > 0; --i )
+		if( DiscName[i] == '/' )
 			break;
 	i++;
 
 	if( DiscNumber == 0 )
-		_sprintf( str+i, "game.iso" );
+		_sprintf( DiscName+i, "game.iso" );
 	else
-		_sprintf( str+i, "disc2.iso" );
+		_sprintf( DiscName+i, "disc2.iso" );
 
-	dbgprintf("New Gamepath:\"%s\"\r\n", str );
-	
-	s32 ret = f_open( &GameFile, str, FA_READ|FA_OPEN_EXISTING );
-	if( ret  != FR_OK )
-	{
-		//dbgprintf("Failed to open:%s Error:%u\r\n", str, ret );
-		Shutdown();
-	}
+	dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
+	DIinit(false);
 
-	f_lseek( &GameFile, 0 );
-	f_read( &GameFile, (void*)0, 0x20, &read );
+	// Done in DIinit
+	//s32 ret = f_open( &GameFile, DiscName, FA_READ | FA_OPEN_EXISTING );
+	//if ( ret != FR_OK )
+	//{
+	//	dbgprintf("Failed to open:%s Error:%u\r\n", DiscName, ret );
+	//	Shutdown();
+	//}
 
-	f_lseek( &GameFile, 0 );
-	f_read( &GameFile, str, 0x400, &read );
+	//f_lseek( &GameFile, 0 );
+	//f_read( &GameFile, (void*)0, 0x20, &read );
+
+	char str[0x400] __attribute__((aligned(0x20)));
+
+	memset32(str, 0, 0x400);
+	f_lseek( &GameFile, 0x0 );
+	f_read( &GameFile, (void*)str, 0x100, &read ); // Loading the full 0x400 causes problems.
+	str[0x100] = '\0';
 
 	dbgprintf("DIP:Loading game %.6s: %s\r\n", str, (char *)(str+0x20) );
 
-	f_lseek( &GameFile, 0x420 );
-	f_read( &GameFile, str, 0x40, &read );
+	//f_lseek( &GameFile, 0x420 );
+	//f_read( &GameFile, str, 0x40, &read );
 
-	free(str);
+	// str was not alloced.  Do not free.
+	//free(str);
 
 }
 void DIInterrupt()
@@ -615,8 +625,6 @@ void DIUpdateRegisters( void )
 					
 					DIOK = 2;
 
-					write32( HW_TIMER, 0 );
-
 				} break;
 				case 0xE4:	// DVD Audio disable
 				{
@@ -722,7 +730,7 @@ void DIUpdateRegisters( void )
 				} break;
 				case 0xF9:
 				{
-					CacheInit(FSTBuf);
+					CacheInit(FSTBuf, false);
 					DIOK = 1;
 				}
 			}

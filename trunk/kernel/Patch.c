@@ -1846,13 +1846,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					case 0xdead0024:	//	ARStartDMA
 					{
 						memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
-						if ((TITLE_ID) == 0x475852)  // Megaman X Command Mission
-						{
-							u32 PatchOffset = 0;
-							for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
-								if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
-									write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
-						}
+						//Fixed generic method.  Shouldn't need specific patch.
+						//if ((TITLE_ID) == 0x475852)  // Megaman X Command Mission
+						//{
+						//	u32 PatchOffset = 0;
+						//	for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
+						//		if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
+						//			write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
+						//}
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[ARStartDMA] 0x%08X\r\n", FOffset );
 						#endif

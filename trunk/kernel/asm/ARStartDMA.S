@@ -33,20 +33,20 @@ memcpy_pre:
 	mr		%r7,	%r6		#save length
 	lwz		%r0,	0(%r4)
 	stw		%r0,	0(%r5)
-	addic.	%r6,	%r6,	-4
+	addic.	%r7,	%r7,	-4
 
 memcpy:
 	lwzu	%r0,	4(%r4)
 	stwu	%r0,	4(%r5)
-	addic.	%r6,	%r6,	-4
+	addic.	%r7,	%r7,	-4
 	bne		memcpy
 	
 	cmpwi	%r3,	1
 	bne		end
 
 	addi	%r5,	%r5,	4
-	sub		%r5,	%r5,	%r7
-	srwi	%r7,	%r7,	5
+	sub		%r5,	%r5,	%r6
+	srwi	%r7,	%r6,	5
 	mtctr	%r7
 
 	li		%r0,	0
