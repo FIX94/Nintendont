@@ -175,7 +175,7 @@ int _main( int argc, char *argv[] )
 	}
 	BootStatus(9, s_size, s_cnt);
 
-	DIinit();
+	DIinit(true);
 
 	DI_Thread = thread_create(DIReadThread, NULL, (u32*)DI_ThreadStack, 0x2000, 0x50, 1);
 	thread_continue(DI_Thread);
@@ -209,6 +209,7 @@ int _main( int argc, char *argv[] )
 */
 	u32 Now = read32(HW_TIMER);
 	u32 PADTimer = Now;
+	u32 DiscChangeTimer = Now;
 
 	bool SaveCard = false;
 	if( ConfigGetConfig(NIN_CFG_LED) )
@@ -276,9 +277,14 @@ int _main( int argc, char *argv[] )
 			}
 		}
 
-		if( DiscChangeIRQ )
+		if ( DiscChangeIRQ == 1 )
 		{
-			if( read32(HW_TIMER) * 128 / 243000000 > 2 )
+			DiscChangeTimer = read32(HW_TIMER);
+			DiscChangeIRQ = 2;
+		}
+		else if ( DiscChangeIRQ == 2 )
+		{
+			if ( (read32(HW_TIMER) - DiscChangeTimer ) >  2 * 243000000 / 128)
 			{
 				//dbgprintf("DIP:IRQ mon!\r\n");
 				set32( DI_SSTATUS, 0x3A );
@@ -290,7 +296,7 @@ int _main( int argc, char *argv[] )
 		_ahbMemFlush(1);
 		DIUpdateRegisters();
 		EXIUpdateRegistersNEW();
-    GCAMUpdateRegisters();
+		GCAMUpdateRegisters();
 		SIUpdateRegisters();
 		if(EXICheckCard())
 		{
