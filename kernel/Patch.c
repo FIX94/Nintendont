@@ -1846,9 +1846,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					case 0xdead0024:	//	ARStartDMA
 					{
 						memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
-						//Some games need length 0 to work properly here
-						if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
-							(TITLE_ID) == 0x474B59 )	// Kirby Air Ride
+						// Most games need length 0 to work properly here
+						if( (TITLE_ID) != 0x475852 )	// Mega Man X Command Mission
 						{
 							u32 PatchOffset = 0;
 							for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
@@ -1924,34 +1923,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
 						{
-							if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
-								(TITLE_ID) == 0x474D38 ||	// Metroid Prime
-								(TITLE_ID) == 0x47324D ||	// Metroid Prime 2
-								(TITLE_ID) == 0x474B59 ||	// Kirby Air Ride
-								(TITLE_ID) == 0x475852 ||	// Mega Man X Command Mission
-								(TITLE_ID) == 0x474654 ||	// Mario Golf Toadstool Tour
-								(TITLE_ID) == 0x474B37 ||	// Killer7
-								(TITLE_ID) == 0x474356 ||	// Cubivore Survival of the Fittest
-								(TITLE_ID) == 0x474651 ||	// Frogger's Adventures The Rescue
-								(TITLE_ID) == 0x474C4F ||	// Lord of the Rings The Two Towers
-								(TITLE_ID) == 0x474754 ||	// Chibi-Robo!
-								(TITLE_ID) == 0x473442 ||	// Resident Evil 4
-								(TITLE_ID) == 0x474A53 ||	// Hudson Selection Vol 2 Star Soldier
-								(TITLE_ID) == 0x474B51 ||	// Kururin Squash!
-								(TITLE_ID) == 0x474435 ||	// Dragon Drive D-Masters Shot
-								(TITLE_ID) == 0x504435 ||	// Dragon Drive D-Masters Shot (Anime Disc)
-								(TITLE_ID) == 0x474F4F ||	// Odama
-								(TITLE_ID) == 0x473243 )	// True Crime New York City
+							if( (TITLE_ID) != 0x474D53 )	// Super Mario Sunshine
 							{
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
-								#endif
 								break;
 							}
 						}
 						if( FPatterns[j].Patch == (u8*)SITransfer )
 						{
-							if( (TITLE_ID) == 0x473451 )	// Super Mario Strikers
+							if( TRIGame == 0 )
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [SITransfer]\r\n");

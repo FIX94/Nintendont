@@ -422,10 +422,9 @@ void DIUpdateRegisters( void )
 						// Set IP
 						case 0x415:
 						{
+#ifdef DEBUG_GCAM
 							char *IP			= (char*)(NetworkCMDBuffer + ( bs32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
 							u32 IPLength	= bs32(*(u32*)(MediaBuffer+0x2C));
-							
-#ifdef DEBUG_GCAM
 							dbgprintf( "GC-AM: Set IP:%s\n", IP );
 #endif
 						} break;

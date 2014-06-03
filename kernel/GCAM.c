@@ -502,20 +502,16 @@ void GCAMCommand( char *DataIn, char *DataOut )
 		
 				d10_0 = 0xFF;
 
-				u32 buttons = *(vu32*)0x0d806404;
-				u32 sticks  = *(vu32*)0x0d806408;
+				//u32 buttons = *(vu32*)0x0d806404;
+				//u32 sticks  = *(vu32*)0x0d806408;
 
 				// Test button
-				if( (buttons >> 16) & PAD_BUTTON_X )
-				{
-					d10_0 &= ~0x80;
-				}
+				//if( (buttons >> 16) & PAD_BUTTON_X )
+				//	d10_0 &= ~0x80;
 
 				// Service button
-				if( (buttons >> 16) & PAD_BUTTON_Y )
-				{
-					d10_0 &= ~0x40;
-				}
+				//if( (buttons >> 16) & PAD_BUTTON_Y )
+				//	d10_0 &= ~0x40;
 
 				//Switch Status
 				res[resp++] = d10_0;
@@ -746,14 +742,15 @@ void GCAMUpdateRegisters( void )
 			case 0x50:
 			{
 				char	*datain		= (char*)P2C( read32(GCAM_SCMD_1) );
+#ifdef DEBUG_GCAM
 				u32		lenin			= read32(GCAM_SCMD_2);
+#endif
 
 				char	*dataout	= (char*)P2C( read32(GCAM_SCMD_3) );
 				u32		lenout		= read32(GCAM_SCMD_4);
 
-			  dbgprintf("SI:Transfer( %p, %u, %p, %u )\n", datain, lenin, dataout, lenout );
-				
 #ifdef DEBUG_GCAM
+				dbgprintf("SI:Transfer( %p, %u, %p, %u )\n", datain, lenin, dataout, lenout );
 				hexdump( datain, lenin );
 #endif
 

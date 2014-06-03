@@ -189,32 +189,29 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 
 				u32 PlayerCount			= *jvs_io++;
 				u32 PlayerByteCount	= *jvs_io++;
-        
-				addDataByte(1);
-				
-				u32 buttons = *(vu32*)0x0d806404;
-				u32 sticks  = *(vu32*)0x0d806408;
 
-        // Test button
-				if( (buttons >> 16) & PAD_BUTTON_X )
-				{
-				  addDataByte(0x80);
-				}
-        else
-				  addDataByte(0x00);
-				
+				addDataByte(1);
+
+				//u32 buttons = *(vu32*)0x0d806404;
+				//u32 sticks  = *(vu32*)0x0d806408;
+
+				// Test button
+				//if( (buttons >> 16) & PAD_BUTTON_X )
+				//	addDataByte(0x80);
+				//else
+				addDataByte(0x00);
+
 				for( i=0; i < PlayerCount; ++i )
 				{
 					unsigned char PlayerData[3] = {0,0,0};
 
-				  // Service button
-				  if( (buttons >> 16) & PAD_BUTTON_Y )
-					{
-					  PlayerData[0] |= 0x40;
-					}
+					// Service button
+					//if( (buttons >> 16) & PAD_BUTTON_Y )
+					//	PlayerData[0] |= 0x40;
+
 					for( j=0; j < PlayerByteCount; ++j )
 						addDataByte( PlayerData[j] );
-				}				
+				}
 			} break;
 			// read coin inputs
 			case 0x21:
@@ -267,10 +264,14 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			case 0x30:	// sub coins
 			{
 				u8 a = *jvs_io++;
+#ifndef DEBUG_JVSIO
+				jvs_io++;
+				jvs_io++;
+#else
 				u8 b = *jvs_io++;
 				u8 c = *jvs_io++;
-
-				//dbgprintf("%u,%u,%u\n", a, b, c );
+				dbgprintf("%u,%u,%u\n", a, b, c );
+#endif
 
 				if( a == 1 )
 					mcoin = 0;
@@ -280,10 +281,12 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			} break;
 			case 0x32:	// general out
 			{
+#ifndef DEBUG_JVSIO
+				jvs_io++;
+				jvs_io++;
+#else
 				u8 a = *jvs_io++;
 				u8 b = *jvs_io++;
-				
-#ifdef DEBUG_JVSIO
 				dbgprintf("JVS-IO:Gernal Output (%02X,%02X)\n", a, b );
 #endif
 
