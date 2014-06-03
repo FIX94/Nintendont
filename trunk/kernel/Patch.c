@@ -1846,14 +1846,23 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					case 0xdead0024:	//	ARStartDMA
 					{
 						memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
-						//Fixed generic method.  Shouldn't need specific patch.
-						//if ((TITLE_ID) == 0x475852)  // Megaman X Command Mission
-						//{
-						//	u32 PatchOffset = 0;
-						//	for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
-						//		if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
-						//			write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
-						//}
+						//Some games need length 0 to work properly here
+						if( (TITLE_ID) == 0x47414C ||	// Super Smash Bros Melee
+							(TITLE_ID) == 0x474B59 )	// Kirby Air Ride
+						{
+							u32 PatchOffset = 0;
+							for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
+							{
+								if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
+								{
+								#ifdef DEBUG_PATCH
+									dbgprintf("Patch:[ARStartDMA] Length 0\r\n", FOffset );
+								#endif
+									write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
+									break;
+								}
+							}
+						}
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[ARStartDMA] 0x%08X\r\n", FOffset );
 						#endif
@@ -1936,6 +1945,16 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
+								#endif
+								break;
+							}
+						}
+						if( FPatterns[j].Patch == (u8*)SITransfer )
+						{
+							if( (TITLE_ID) == 0x473451 )	// Super Mario Strikers
+							{
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:Skipped [SITransfer]\r\n");
 								#endif
 								break;
 							}
