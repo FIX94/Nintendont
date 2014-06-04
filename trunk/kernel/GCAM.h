@@ -7,9 +7,9 @@
 #include "ff.h"
 #include "vsprintf.h"
 
-#define		GCAM_BASE		  0x00002F60
+#define		GCAM_BASE		0x00002F60
 
-#define		GCAM_CMD		  (GCAM_BASE+0x00)
+#define		GCAM_CMD		(GCAM_BASE+0x00)
 #define		GCAM_CMD_1		(GCAM_BASE+0x04)
 #define		GCAM_CMD_2		(GCAM_BASE+0x08)
 #define		GCAM_CMD_3		(GCAM_BASE+0x0C)
@@ -20,7 +20,7 @@
 
 #define		GCAM_SHADOW		(GCAM_BASE + 0x20)
 
-#define		GCAM_SCMD		  (GCAM_SHADOW+0x00)
+#define		GCAM_SCMD		(GCAM_SHADOW+0x00)
 #define		GCAM_SCMD_1		(GCAM_SHADOW+0x04)
 #define		GCAM_SCMD_2		(GCAM_SHADOW+0x08)
 #define		GCAM_SCMD_3		(GCAM_SHADOW+0x0C)

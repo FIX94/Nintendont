@@ -48,7 +48,9 @@ u32 CacheIsInit			= 0;
 u32 DataCacheCount	= 0;
 u32 TempCacheCount	= 0;
 u32 DataCacheOffset = 0;
-u8 *DCCache					= (u8*)0x11280000;
+u8 *DCCache = (u8*)0x11280000;
+u32 DCacheLimit = 0x1D80000;
+u32 LastLength = 0, StartOffset = 0x1D80000, StartPos = 0;
 DataCache DC[DATACACHE_MAX];
 
 extern u32 Region;
@@ -335,7 +337,9 @@ void CacheInit( char *Table, bool ForceReinit )
 	// DIMM Memory (3MB)
 	if(TRIGame)
 	{
-		DCCache = (u8*)0x11580000;
+		DCCache += 0x300000;
+		DCacheLimit -= 0x300000;
+		StartOffset -= 0x300000;
 	}
 
 	memset32(DC, 0, sizeof(DataCache) * DATACACHE_MAX);
@@ -490,7 +494,7 @@ void CacheFile( char *FileName, char *Table )
 		}
 	}
 }
-u32 LastLength = 0, StartOffset = 0x1D80000, StartPos = 0;
+
 u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 {
 	u32 read, i;
@@ -535,7 +539,7 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 	}
 
 	// dont waste cache
-	if( Length == LastLength )
+	if( (Length == LastLength) && (TRIGame == 0) )
 	{
 		f_lseek( &GameFile, Offset );
 		f_read( &GameFile, Buffer, Length, &read );
@@ -549,7 +553,7 @@ u8 *CacheRead( u8 *Buffer, u32 Length, u32 Offset )
 		TempCacheCount = 0;
 
 	// case we just filled up the cache
-	if( (DataCacheOffset + Length) >= 0x1D80000 )
+	if( (DataCacheOffset + Length) >= DCacheLimit )
 	{
 		for( i = TempCacheCount; i < TempCacheCount + DATACACHE_MAX; ++i )
 		{

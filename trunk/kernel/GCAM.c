@@ -699,7 +699,7 @@ void GCAMUpdateRegisters( void )
 {
 	u32 i;
 	static u32 FirstCMD = 0;
-  
+
 	u32 *GInterface	 = (u32*)(GCAM_BASE);
 	u32 *GInterfaceS = (u32*)(GCAM_SHADOW);
 	
@@ -710,14 +710,13 @@ void GCAMUpdateRegisters( void )
 		if( read32( GCAM_CONTROL ) & (~3) )
 		{
 			write32( GCAM_CONTROL, 0xdeadbeef );
-		  sync_after_write( (void*)GCAM_BASE, 0x40 );
+			sync_after_write( (void*)GCAM_BASE, 0x40 );
 			return;
 		}
 
 		write32( GCAM_SCONTROL, read32(GCAM_CONTROL) & 3 );
-		
 		clear32( GCAM_SSTATUS, 0x14 );
-    
+
 		write32( GCAM_CONTROL, 0xdeadbeef );
 		write32( GCAM_RETURN, 0xdeadbeef );
 		write32( GCAM_STATUS, 0xdeadbeef );
@@ -790,9 +789,9 @@ void GCAMUpdateRegisters( void )
 				char	*datain		= (char*)P2C( read32(GCAM_SCMD_1) );
 				char	*dataout	= (char*)P2C( read32(GCAM_SCMD_2) );
 
-			  //dbgprintf("GC-AM:Command( %p, %u, %p, %u )\n", datain, 0x80, dataout, 0x80 );
+				//dbgprintf("GC-AM:Command( %p, %u, %p, %u )\n", datain, 0x80, dataout, 0x80 );
 				
-	      sync_before_read( (void*)datain, 0x80 );
+				sync_before_read( (void*)datain, 0x80 );
 
 				memcpy( Bufi, datain, 0x80 );
 
@@ -807,7 +806,7 @@ void GCAMUpdateRegisters( void )
 					memcpy( Bufo, Buf, 0x80 );
 				}
 
-	      sync_after_write( (void*)dataout, 0x80 );
+				sync_after_write( (void*)dataout, 0x80 );
 
 				//hexdump( dataout, 0x10 );
 
@@ -823,7 +822,7 @@ void GCAMUpdateRegisters( void )
 				Shutdown();
 			} break;
 		}
-    
+
 		sync_after_write( (void*)GCAM_BASE, 0x40 );
 	}
 }

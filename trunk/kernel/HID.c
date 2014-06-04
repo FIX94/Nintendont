@@ -342,7 +342,6 @@ void HIDPS3Read()
 {
 	s32 ret;
 	memset32( req, 0, sizeof( req_args ) );
-	memset32( Packet, 0, SS_DATA_LEN );
 
 	req->device_no				= DeviceID;
 	req->control.bmRequestType	= USB_REQTYPE_INTERFACE_GET;
