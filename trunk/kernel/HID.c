@@ -40,13 +40,14 @@ u32 MemPacketSize = 0;
 u8 *Packet = (u8*)NULL;
 
 req_args *req = (req_args *)NULL;
-
+char *ps3buf = (char*)NULL;
 s32 HIDInit( void )
 {
 	s32 ret;
 	dbgprintf("HIDInit()\r\n");
 
 	req = (req_args*)malloca( sizeof(req_args), 32 );
+	ps3buf = (char*)malloca( 64, 32 );
 
 	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
 
@@ -294,41 +295,37 @@ unsigned char rawData[] =
 void HIDPS3SetLED( u8 led )
 {
 	memset32( req, 0, sizeof( req_args ) );
-	
-	char *buf = (char*)malloca( 64, 32 );
-	memset32( buf, 0, 64 );
 
-	memcpy( buf, rawData, sizeof(rawData) );
+	memset32( ps3buf, 0, 64);
+	memcpy( ps3buf, rawData, sizeof(rawData) );
 
-	buf[10] = ss_led_pattern[led];
+	ps3buf[10] = ss_led_pattern[led];
+	sync_after_write(ps3buf, 64);
 
 	req->device_no				= DeviceID;
-	req->interrupt.dLength		= 49;
+	req->interrupt.dLength		= sizeof(rawData);
 	req->interrupt.endpoint		= 0x02;
-	req->data					= buf;
+	req->data					= ps3buf;
 
 	s32 ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/4, req, 32, 0, 0 );
 	if( ret < 0 ) 
 		dbgprintf("ES:IOS_Ioctl():%d\r\n", ret );
-	
-	free(buf);
 }
 void HIDPS3SetRumble( u8 duration_right, u8 power_right, u8 duration_left, u8 power_left)
 {
 	memset32( req, 0, sizeof( req_args ) );
 
-	char *buf = (char*)malloca( 64, 32 );
-	memset32( buf, 0, 64 );
+	memset32( ps3buf, 0, 64 );
+	memcpy( ps3buf, rawData, sizeof(rawData) );
 
-	memcpy( buf, rawData, 49 );
-
-	buf[3] = power_left;
-	buf[5] = power_right;
+	ps3buf[3] = power_left;
+	ps3buf[5] = power_right;
+	sync_after_write(ps3buf, 64);
 
 	req->device_no				= DeviceID;
-	req->interrupt.dLength		= 49;
+	req->interrupt.dLength		= sizeof(rawData);
 	req->interrupt.endpoint		= 0x02;
-	req->data					= buf;
+	req->data					= ps3buf;
 
 	s32 ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/4, req, 32, 0, 0 );
 	if( ret < 0 )
@@ -363,8 +360,8 @@ void HIDPS3Read()
 		HIDPS3SetLED(1);
 		PS3LedSet = 1;
 	}
-	sync_before_read((void*)MotorCommand,4);
-	sync_before_read((void*)HIDChan,4);
+	sync_before_read((void*)MotorCommand,0x20);
+	sync_before_read((void*)HIDChan,0x20);
 	HIDRumbleCurrent = MotorCommand[*HIDChan] & 0x3;
 	if( HIDRumbleLast != HIDRumbleCurrent )
 	{
