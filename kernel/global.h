@@ -153,28 +153,6 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define GPIO_SLOT_LED	(1<<5)
 #define P2C(x)			((x)&0x7FFFFFFF)
 
-#define		CARD_BASE		0x00002F60
-
-#define		CARD_CMD		(CARD_BASE+0x00)
-#define		CARD_CMD_1		(CARD_BASE+0x04)
-#define		CARD_CMD_2		(CARD_BASE+0x08)
-#define		CARD_CMD_3		(CARD_BASE+0x0C)
-#define		CARD_CMD_4		(CARD_BASE+0x10)
-#define		CARD_RETURN		(CARD_BASE+0x14)
-#define		CARD_CONTROL	(CARD_BASE+0x18)
-#define		CARD_STATUS		(CARD_BASE+0x1C)
-
-#define		CARD_SHADOW		(CARD_BASE + 0x20)
-
-#define		CARD_SCMD		(CARD_SHADOW+0x00)
-#define		CARD_SCMD_1		(CARD_SHADOW+0x04)
-#define		CARD_SCMD_2		(CARD_SHADOW+0x08)
-#define		CARD_SCMD_3		(CARD_SHADOW+0x0C)
-#define		CARD_SCMD_4		(CARD_SHADOW+0x10)
-#define		CARD_SRETURN	(CARD_SHADOW+0x14)
-#define		CARD_SCONTROL	(CARD_SHADOW+0x18)
-#define		CARD_SSTATUS	(CARD_SHADOW+0x1C)
-
 enum Gameregion
 {
 	REGION_JAPAN = 0,

@@ -179,7 +179,6 @@ void EXIInterrupt(void)
 	write32( 0x14, 0x10 );		// EXI IRQ
 	sync_after_write( (void*)0, 0x20 );
 
-do_interrupt:
 	if(SkipHandlerWait == true)
 		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 	else while(read32(0x13010000) == 1)
@@ -187,12 +186,6 @@ do_interrupt:
 		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 		wait_for_ppc(1);
 		sync_before_read((void*)0x13010000, 4);
-	}
-	if(IRQ_Cause2 > 0)
-	{
-		udelay(220);
-		IRQ_Cause2 = 0;
-		goto do_interrupt;
 	}
 
 	EXI_IRQ = false;
