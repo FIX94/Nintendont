@@ -23,7 +23,8 @@ ARStartDMA:
 	ori		%r7,	%r7,	0xFFFF
 	
 	and		%r5,	%r5,	%r7
-	addis	%r5,	%r5,	0xD000	# mem2
+	oris	%r5,	%r5,	0xD000	# mem2
+	oris	%r4,	%r4,	0xC000	# mem1
 
 	cmpwi	%r3,	1
 	beq		ARAM_TO_MRAM
