@@ -341,3 +341,23 @@ int dbgprintf( const char *fmt, ...)
 
 	return 0;
 }
+
+void CheckOSReport(void)
+{
+	sync_before_read((void*)0x13160000, 0x8);
+
+	u32 Length = read32(0x13160004);
+	if (Length != 0x0)
+	{
+		char* Address = (char*)(P2C(read32(0x13160000)));
+		sync_before_read((void*)((u32)(Address) & 0x1FFFFFFC), Length + 4);
+		char* Msg = malloca(Length + 1, 0x20);
+		strncpy(Msg, Address, Length);
+		Msg[Length] = '\0';
+		dbgprintf(Msg);
+		free(Msg);
+		write32(0x13160004, 0);
+		sync_after_write((void*)0x13160004, 0x4);
+	}
+	return;
+}

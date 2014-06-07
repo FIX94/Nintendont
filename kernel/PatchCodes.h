@@ -30,6 +30,8 @@
 #include "asm/PADReadSteer.h"
 #include "asm/PADReadVSSimple.h"
 #include "asm/PADReadSteerVSSimple.h"
+#include "asm/patch_fwrite_Log.h"
+#include "asm/patch_fwrite_LogB.h"
 
 unsigned char SRAM[64] =
 {

@@ -155,6 +155,8 @@ int _main( int argc, char *argv[] )
 
 	memset32((void*)0x13002800, 0, 0x30);
 	sync_after_write((void*)0x13002800, 0x30);
+	memset32((void*)0x13160000, 0, 0x20);
+	sync_after_write((void*)0x13160000, 0x20);
 	u32 HID_Thread = 0, DI_Thread = 0;
 	bool UseHID = ConfigGetConfig(NIN_CFG_HID);
 	if( UseHID )
@@ -298,6 +300,7 @@ int _main( int argc, char *argv[] )
 		EXIUpdateRegistersNEW();
 		GCAMUpdateRegisters();
 		SIUpdateRegisters();
+		CheckOSReport();
 		if(EXICheckCard())
 		{
 			Now = read32(HW_TIMER);
@@ -305,8 +308,11 @@ int _main( int argc, char *argv[] )
 		}
 		if(read32(DI_SCONFIG) == 0x1DEA)
 		{
-			while(DIThreadWorking())
+			while (DIThreadWorking())
+			{
 				udelay(100);
+				CheckOSReport();
+			}
 			break;
 		}
     
