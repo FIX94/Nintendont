@@ -182,6 +182,10 @@ int main(int argc, char **argv)
 	
 	u32 ConfigReset = 0;
 
+	DCInvalidateRange((void*)ncfg, sizeof(NIN_CFG));
+	memset((void*)ncfg, 0, sizeof(NIN_CFG));
+	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
+
 	cfg = fopen("/nincfg.bin", "rb+");
 	if (cfg == NULL)
 	{
@@ -190,19 +194,19 @@ int main(int argc, char **argv)
 	}
 	else {
 
-		if (fread(&ncfg, sizeof(NIN_CFG), 1, cfg) != 1)
+		if (fread(ncfg, sizeof(NIN_CFG), 1, cfg) != 1)
 			ConfigReset = 1;
 
-		if (ncfg.Magicbytes != 0x01070CF6)
+		if (ncfg->Magicbytes != 0x01070CF6)
 			ConfigReset = 1;
 
-		if (ncfg.Version != NIN_CFG_VERSION)
+		if (ncfg->Version != NIN_CFG_VERSION)
 			ConfigReset = 1;
 
-		if (ncfg.MaxPads > NIN_CFG_MAXPAD)
+		if (ncfg->MaxPads > NIN_CFG_MAXPAD)
 			ConfigReset = 1;
 
-		if (ncfg.MaxPads < 1)
+		if (ncfg->MaxPads < 1)
 			ConfigReset = 1;
 
 		fclose(cfg);
@@ -210,40 +214,40 @@ int main(int argc, char **argv)
 
 	// Prevent autobooting if B is pressed
 	int i = 0;
-	while((ncfg.Config & NIN_CFG_AUTO_BOOT) && i < 100000) // wait for wiimote re-synch
+	while((ncfg->Config & NIN_CFG_AUTO_BOOT) && i < 100000) // wait for wiimote re-synch
 	{
 		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*3, "B   : Stop Boot");
 		FPAD_Update();
 
 		if (FPAD_Cancel(0))
 		{
-			ncfg.Config &= ~NIN_CFG_AUTO_BOOT;
+			ncfg->Config &= ~NIN_CFG_AUTO_BOOT;
 		}
 		i++;
 	}
 	
 	if (ConfigReset)
 	{
-		memset(&ncfg, 0, sizeof(NIN_CFG));
+		memset(ncfg, 0, sizeof(NIN_CFG));
 
-		ncfg.Magicbytes = 0x01070CF6;
-		ncfg.Version = NIN_CFG_VERSION;
-		ncfg.Language = NIN_LAN_AUTO;
-		ncfg.MaxPads = NIN_CFG_MAXPAD;
+		ncfg->Magicbytes = 0x01070CF6;
+		ncfg->Version = NIN_CFG_VERSION;
+		ncfg->Language = NIN_LAN_AUTO;
+		ncfg->MaxPads = NIN_CFG_MAXPAD;
 	}
 	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
 	if(progressive) //important to prevent blackscreens
-		ncfg.VideoMode |= NIN_VID_PROG;
+		ncfg->VideoMode |= NIN_VID_PROG;
 	else
-		ncfg.VideoMode &= ~NIN_VID_PROG;
+		ncfg->VideoMode &= ~NIN_VID_PROG;
 
 	PrintFormat(MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
 	PrintFormat(MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
-	bool QueryUser = (ncfg.Config & NIN_CFG_AUTO_BOOT) == 0;
-	UseSD = (ncfg.Config & NIN_CFG_USB) == 0;
+	bool QueryUser = (ncfg->Config & NIN_CFG_AUTO_BOOT) == 0;
+	UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 	while (QueryUser)
 	{
-		UseSD = (ncfg.Config & NIN_CFG_USB) == 0;
+		UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 		PrintFormat(MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? "<" : " ");
 		PrintFormat(MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? " " : "<");
 
@@ -263,11 +267,11 @@ int main(int argc, char **argv)
 		}
 		if (FPAD_Down(0))
 		{
-			ncfg.Config = ncfg.Config | NIN_CFG_USB;
+			ncfg->Config = ncfg->Config | NIN_CFG_USB;
 		}
 		if (FPAD_Up(0))
 		{
-			ncfg.Config = ncfg.Config & ~NIN_CFG_USB;
+			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
 		}
 	}
 
@@ -298,22 +302,22 @@ int main(int argc, char **argv)
 
 //Reset drive
 
-	if( ncfg.Config & NIN_CFG_AUTO_BOOT )
+	if( ncfg->Config & NIN_CFG_AUTO_BOOT )
 	{
-		gprintf("Autobooting:\"%s\"\r\n", ncfg.GamePath );
+		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
 	} else {
 		SelectGame();
 	}
 
 //setup memory card
-	if(ncfg.Config & NIN_CFG_MEMCARDEMU)
+	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
 	{
 		char BasePath[20];
 		sprintf(BasePath, "%s:/saves", GetRootDevice());
 		mkdir(BasePath, S_IREAD | S_IWRITE);
 		char MemCardName[5];
 		memset(MemCardName, 0, 5);
-		memcpy(MemCardName, &ncfg.GameID, 4);
+		memcpy(MemCardName, &(ncfg->GameID), 4);
 		char MemCard[30];
 		sprintf(MemCard, "%s/%s.raw", BasePath, MemCardName);
 		gprintf("Using %s as Memory Card.\r\n", MemCard);
@@ -449,7 +453,7 @@ int main(int argc, char **argv)
 		}
 		if(STATUS_LOADING > 8 && STATUS_LOADING < 20)
 		{
-			if (ncfg.Config & NIN_CFG_HID)
+			if (ncfg->Config & NIN_CFG_HID)
 				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Done!");
 			else
 				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube Ports... Done!");
@@ -502,11 +506,11 @@ int main(int argc, char **argv)
 
 	gprintf("GameRegion:");
 
-	if( ncfg.VideoMode & NIN_VID_FORCE )
+	if( ncfg->VideoMode & NIN_VID_FORCE )
 	{
-		gprintf("Force:%u (%02X)\r\n", ncfg.VideoMode & NIN_VID_FORCE, ncfg.VideoMode & NIN_VID_FORCE_MASK );
+		gprintf("Force:%u (%02X)\r\n", ncfg->VideoMode & NIN_VID_FORCE, ncfg->VideoMode & NIN_VID_FORCE_MASK );
 
-		switch( ncfg.VideoMode & NIN_VID_FORCE_MASK )
+		switch( ncfg->VideoMode & NIN_VID_FORCE_MASK )
 		{
 			case NIN_VID_FORCE_NTSC:
 			{
@@ -632,7 +636,7 @@ int main(int argc, char **argv)
 	else
 	{
 		memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
-		if( ncfg.Config & NIN_CFG_HID )
+		if( ncfg->Config & NIN_CFG_HID )
 			memcpy((void*)0x93001000, PADReadHID_bin, PADReadHID_bin_size);
 		else
 			*(vu32*)0x93001000 = 0x4E800020; //blr, no HID requested

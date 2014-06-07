@@ -47,7 +47,7 @@ extern u32 HollywoodRevision;
 extern bool UseSD;
 extern u32 Region;
 extern u32 POffset;
-extern NIN_CFG ncfg;
+extern NIN_CFG *ncfg;
 extern FILE *cfg;
 
 enum ContentType
