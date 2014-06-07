@@ -36,7 +36,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/system.h>
 #include <fat.h>
 
-extern NIN_CFG ncfg;
+extern NIN_CFG* ncfg;
 extern FILE *cfg;
 
 u32 Shutdown = 0;
@@ -166,6 +166,7 @@ void SelectGame( void )
 	u32 ListMax = gamecount;
 	if( ListMax > 14 )
 		ListMax = 14;
+	bool SaveSettings = false;
 
 	while(1)
 	{
@@ -200,11 +201,12 @@ void SelectGame( void )
 
 				ListMax = 13;
 
-				if( (ncfg.VideoMode & NIN_VID_MASK) == NIN_VID_FORCE )
+				if( (ncfg->VideoMode & NIN_VID_MASK) == NIN_VID_FORCE )
 					ListMax = 14;
 			}
 			
 			redraw = 1;
+			SaveSettings = true;
 
 			ClearScreen();
 		}
@@ -296,69 +298,69 @@ void SelectGame( void )
 				{
 					case 0:
 					{
-						ncfg.Config ^= NIN_CFG_CHEATS;
+						ncfg->Config ^= NIN_CFG_CHEATS;
 					} break;
 					case 1:
 					{
-						ncfg.Config ^= NIN_CFG_FORCE_PROG;
+						ncfg->Config ^= NIN_CFG_FORCE_PROG;
 					} break;
 					case 2:
 					{
-						ncfg.Config ^= NIN_CFG_FORCE_WIDE;
+						ncfg->Config ^= NIN_CFG_FORCE_WIDE;
 					} break;
 					case 3:
 					{
-						ncfg.Config ^= NIN_CFG_MEMCARDEMU;
+						ncfg->Config ^= NIN_CFG_MEMCARDEMU;
 					} break;
 					case 4:
 					{
-						ncfg.Config ^= NIN_CFG_DEBUGGER;
+						ncfg->Config ^= NIN_CFG_DEBUGGER;
 					} break;
 					case 5:
 					{
-						ncfg.Config ^= NIN_CFG_DEBUGWAIT;
+						ncfg->Config ^= NIN_CFG_DEBUGWAIT;
 					} break;
 					case 6:
 					{
-						ncfg.Config ^= NIN_CFG_HID;
+						ncfg->Config ^= NIN_CFG_HID;
 					} break;
 					case 7:
 					{
-						ncfg.Config ^= NIN_CFG_OSREPORT;
+						ncfg->Config ^= NIN_CFG_OSREPORT;
 					} break;
 					case 8:
 					{
-						ncfg.Config ^= NIN_CFG_AUTO_BOOT;
+						ncfg->Config ^= NIN_CFG_AUTO_BOOT;
 					} break;
 					case 9:
 					{
-						ncfg.MaxPads++;
-						if ((ncfg.MaxPads > NIN_CFG_MAXPAD) || (ncfg.MaxPads < 1))
-							ncfg.MaxPads = 1;
+						ncfg->MaxPads++;
+						if ((ncfg->MaxPads > NIN_CFG_MAXPAD) || (ncfg->MaxPads < 1))
+							ncfg->MaxPads = 1;
 					} break;
 					case 10:
 					{
-						ncfg.Language++;
-						if (ncfg.Language > NIN_LAN_DUTCH)
-							ncfg.Language = NIN_LAN_AUTO;
+						ncfg->Language++;
+						if (ncfg->Language > NIN_LAN_DUTCH)
+							ncfg->Language = NIN_LAN_AUTO;
 					} break;
 					case 11:
 					{
-						ncfg.Config ^= NIN_CFG_LED;
+						ncfg->Config ^= NIN_CFG_LED;
 					} break;
 					case 12:
 					{
-						switch( ncfg.VideoMode & NIN_VID_MASK )
+						switch( ncfg->VideoMode & NIN_VID_MASK )
 						{
 							case NIN_VID_AUTO:
-								ncfg.VideoMode &= ~NIN_VID_MASK;
-								ncfg.VideoMode |= NIN_VID_FORCE;
+								ncfg->VideoMode &= ~NIN_VID_MASK;
+								ncfg->VideoMode |= NIN_VID_FORCE;
 
 								ListMax = 14;
 							break;
 							case NIN_VID_FORCE:
-								ncfg.VideoMode &= ~NIN_VID_MASK;
-								ncfg.VideoMode |= NIN_VID_NONE;
+								ncfg->VideoMode &= ~NIN_VID_MASK;
+								ncfg->VideoMode |= NIN_VID_NONE;
 
 								ListMax = 13;
 
@@ -366,8 +368,8 @@ void SelectGame( void )
 
 							break;
 							case NIN_VID_NONE:
-								ncfg.VideoMode &= ~NIN_VID_MASK;
-								ncfg.VideoMode |= NIN_VID_AUTO;
+								ncfg->VideoMode &= ~NIN_VID_MASK;
+								ncfg->VideoMode |= NIN_VID_AUTO;
 
 								ListMax = 13;
 
@@ -379,23 +381,23 @@ void SelectGame( void )
 					} break;
 					case 13:
 					{
-						switch( ncfg.VideoMode & NIN_VID_FORCE_MASK )
+						switch( ncfg->VideoMode & NIN_VID_FORCE_MASK )
 						{
 							case NIN_VID_FORCE_PAL50:
-								ncfg.VideoMode &= ~NIN_VID_FORCE_MASK;
-								ncfg.VideoMode |= NIN_VID_FORCE_PAL60;
+								ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
+								ncfg->VideoMode |= NIN_VID_FORCE_PAL60;
 							break;
 							case NIN_VID_FORCE_PAL60:
-								ncfg.VideoMode &= ~NIN_VID_FORCE_MASK;
-								ncfg.VideoMode |= NIN_VID_FORCE_NTSC;
+								ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
+								ncfg->VideoMode |= NIN_VID_FORCE_NTSC;
 							break;
 							case NIN_VID_FORCE_NTSC:
-								ncfg.VideoMode &= ~NIN_VID_FORCE_MASK;
-								ncfg.VideoMode |= NIN_VID_FORCE_MPAL;
+								ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
+								ncfg->VideoMode |= NIN_VID_FORCE_MPAL;
 							break;
 							case NIN_VID_FORCE_MPAL:
-								ncfg.VideoMode &= ~NIN_VID_FORCE_MASK;
-								ncfg.VideoMode |= NIN_VID_FORCE_PAL50;
+								ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
+								ncfg->VideoMode |= NIN_VID_FORCE_PAL50;
 							break;
 						}
 
@@ -405,18 +407,18 @@ void SelectGame( void )
 
 			if( redraw )
 			{
-				PrintFormat( MENU_POS_X+50, 164+16*0, "Cheats            :%s", (ncfg.Config&NIN_CFG_CHEATS)		? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*1, "Force Progressive :%s", (ncfg.Config&NIN_CFG_FORCE_PROG)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*2, "Force Widescreen  :%s", (ncfg.Config&NIN_CFG_FORCE_WIDE)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*3, "Memcard Emulation :%s", (ncfg.Config&NIN_CFG_MEMCARDEMU)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*4, "Debugger          :%s", (ncfg.Config&NIN_CFG_DEBUGGER)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*5, "Debugger Wait     :%s", (ncfg.Config&NIN_CFG_DEBUGWAIT)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*6, "Use HID device    :%s", (ncfg.Config&NIN_CFG_HID)		? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*7, "OSReport          :%s", (ncfg.Config&NIN_CFG_OSREPORT)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*8, "Auto Boot         :%s", (ncfg.Config&NIN_CFG_AUTO_BOOT)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*9, "MaxPads           :%d", (ncfg.MaxPads));
+				PrintFormat( MENU_POS_X+50, 164+16*0, "Cheats            :%s", (ncfg->Config&NIN_CFG_CHEATS)		? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*1, "Force Progressive :%s", (ncfg->Config&NIN_CFG_FORCE_PROG)	? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*2, "Force Widescreen  :%s", (ncfg->Config&NIN_CFG_FORCE_WIDE)	? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*3, "Memcard Emulation :%s", (ncfg->Config&NIN_CFG_MEMCARDEMU)	? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*4, "Debugger          :%s", (ncfg->Config&NIN_CFG_DEBUGGER)	? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*5, "Debugger Wait     :%s", (ncfg->Config&NIN_CFG_DEBUGWAIT)	? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*6, "Use HID device    :%s", (ncfg->Config&NIN_CFG_HID)		? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*7, "OSReport          :%s", (ncfg->Config&NIN_CFG_OSREPORT)	? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*8, "Auto Boot         :%s", (ncfg->Config&NIN_CFG_AUTO_BOOT)	? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*9, "MaxPads           :%d", (ncfg->MaxPads));
 
-				switch( ncfg.Language )
+				switch( ncfg->Language )
 				{
 					case NIN_LAN_ENGLISH:
 						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Eng " );
@@ -437,16 +439,16 @@ void SelectGame( void )
 						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Dut " );
 					break;
 					default:
-						ncfg.Language = NIN_LAN_AUTO;
+						ncfg->Language = NIN_LAN_AUTO;
 						// no break - fall through to Auto
 					case NIN_LAN_AUTO:
 						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Auto" );
 					break;			
 				}
 
-				PrintFormat( MENU_POS_X+50, 164+16*11, "Drive Read LED    :%s", (ncfg.Config&NIN_CFG_LED)		? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*11, "Drive Read LED    :%s", (ncfg->Config&NIN_CFG_LED)		? "On " : "Off" );
 
-				switch( ncfg.VideoMode & NIN_VID_MASK )
+				switch( ncfg->VideoMode & NIN_VID_MASK )
 				{
 					case NIN_VID_AUTO:
 						PrintFormat( MENU_POS_X+50, 164+16*12,"Video             :%s", "Auto " );
@@ -458,13 +460,13 @@ void SelectGame( void )
 						PrintFormat( MENU_POS_X+50, 164+16*12,"Video             :%s", "None " );
 					break;		
 					default:
-						ncfg.VideoMode &= ~NIN_VID_MASK;
-						ncfg.VideoMode |= NIN_VID_AUTO;
+						ncfg->VideoMode &= ~NIN_VID_MASK;
+						ncfg->VideoMode |= NIN_VID_AUTO;
 					break;			
 				}
 
-				if( (ncfg.VideoMode & NIN_VID_FORCE) == NIN_VID_FORCE )
-				switch( ncfg.VideoMode & NIN_VID_FORCE_MASK )
+				if( (ncfg->VideoMode & NIN_VID_FORCE) == NIN_VID_FORCE )
+				switch( ncfg->VideoMode & NIN_VID_FORCE_MASK )
 				{
 					case NIN_VID_FORCE_PAL50:
 						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "PAL50" );
@@ -479,8 +481,8 @@ void SelectGame( void )
 						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "MPAL " );
 					break;
 					default:
-						ncfg.VideoMode &= ~NIN_VID_FORCE_MASK;
-						ncfg.VideoMode |= NIN_VID_FORCE_NTSC;
+						ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
+						ncfg->VideoMode |= NIN_VID_FORCE_NTSC;
 					break;
 				}
 
@@ -494,24 +496,28 @@ void SelectGame( void )
 	char* StartChar = gi[SelectedGame].Path + 3;
 	if (StartChar[0] == ':')
 		StartChar++;
-	memcpy(ncfg.GamePath, StartChar, strlen(gi[SelectedGame].Path));
-	memcpy(&ncfg.GameID, gi[SelectedGame].ID, 4);
+	memcpy(ncfg->GamePath, StartChar, strlen(gi[SelectedGame].Path));
+	memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
+	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 
-	char ConfigPath[20];
-	// Todo: detects the boot device to prevent writing twice on the same one
-	sprintf(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch
-	cfg = fopen(ConfigPath, "wb");
-	if( cfg != NULL )
+	if (SaveSettings)
 	{
-		fwrite( &ncfg, sizeof(NIN_CFG), 1, cfg );
-		fclose( cfg );
-	}
-	sprintf(ConfigPath, "%s:/nincfg.bin", GetRootDevice()); // writes config to game device, used by kernel
-	cfg = fopen(ConfigPath, "wb");
-	if( cfg != NULL )
-	{
-		fwrite( &ncfg, sizeof(NIN_CFG), 1, cfg );
-		fclose( cfg );
+		char ConfigPath[20];
+		// Todo: detects the boot device to prevent writing twice on the same one
+		sprintf(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch
+		cfg = fopen(ConfigPath, "wb");
+		if( cfg != NULL )
+		{
+			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
+			fclose( cfg );
+		}
+		sprintf(ConfigPath, "%s:/nincfg.bin", GetRootDevice()); // writes config to game device, used by kernel
+		cfg = fopen(ConfigPath, "wb");
+		if( cfg != NULL )
+		{
+			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
+			fclose( cfg );
+		}
 	}
 
 	for( i=0; i < gamecount; ++i )

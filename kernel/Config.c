@@ -10,21 +10,25 @@ void ConfigInit( void )
 	u32 read;
 
 	dbgprintf("CFGInit()\r\n");
-
-	if( f_open( &cfg, "/nincfg.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
+	sync_before_read(ncfg, sizeof(NIN_CFG));
+	if (ncfg->Magicbytes != 0x01070CF6)
 	{
-		dbgprintf("CFG:Failed to open config\r\n");
-		Shutdown();
-	}
+		dbgprintf("Cfg not in memory, trying file\r\n");
+		if (f_open(&cfg, "/nincfg.bin", FA_OPEN_EXISTING | FA_READ) != FR_OK)
+		{
+			dbgprintf("CFG:Failed to open config\r\n");
+			Shutdown();
+		}
 
-	f_read( &cfg, ncfg, sizeof(NIN_CFG), &read );
-	sync_after_write(ncfg, sizeof(NIN_CFG));
-	f_close( &cfg );
+		f_read( &cfg, ncfg, sizeof(NIN_CFG), &read );
+		sync_after_write(ncfg, sizeof(NIN_CFG));
+		f_close( &cfg );
 
-	if( read != sizeof(NIN_CFG) )
-	{
-		dbgprintf("CFG:Failed to read config\r\n");
-		Shutdown();
+		if( read != sizeof(NIN_CFG) )
+		{
+			dbgprintf("CFG:Failed to read config\r\n");
+			Shutdown();
+		}
 	}
 
 	if( IsWiiU )
@@ -34,6 +38,7 @@ void ConfigInit( void )
 	{
 		ncfg->Config &= ~(NIN_CFG_CHEATS|NIN_CFG_DEBUGGER|NIN_CFG_DEBUGWAIT);
 	}
+	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
 }
 inline char *ConfigGetGamePath( void )
 {

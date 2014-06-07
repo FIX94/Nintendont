@@ -1899,23 +1899,20 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							break;
 						}
 					} break;
-					default:
+					case 0xdead0026:	// patch_fwrite_Log
+					case 0xdead0027:	// patch_fwrite_LogB
 					{
 						if( ConfigGetConfig( NIN_CFG_DEBUGGER ) || !ConfigGetConfig(NIN_CFG_OSREPORT) )
 						{
-							//if (FPatterns[j].Patch == patch_fwrite_GC)
-							if (FPatterns[j].Patch == patch_fwrite_Log)
-							{
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:Skipped [patch_fwrite_GC]\r\n");
-								#endif
-								break;
-							}
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Skipped [patch_fwrite_Log]\r\n");
+							#endif
+							break;
 						}
 
 						if( IsWiiU )
 						{
-							if( FPatterns[j].Patch == patch_fwrite_GC )
+							if( FPatterns[j].Patch == patch_fwrite_GC ) // patch_fwrite_Log works fine
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [patch_fwrite_GC]\r\n");
@@ -1923,11 +1920,23 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 								break;
 							}
 						}
-
+						memcpy((void*)FOffset, patch_fwrite_Log, sizeof(patch_fwrite_Log));
+						if (FPatterns[j].PatchLength == 0xdead0027)
+						{
+							write32(FOffset, 0x7C852379); // mr.     %r5,%r4
+							write32(FOffset + sizeof(patch_fwrite_Log) - 0x8, 0x38600000); // li      %r3,0
+						}
+						break;
+					}
+					default:
+					{
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
 						{
 							if( (TITLE_ID) != 0x474D53 )	// Super Mario Sunshine
 							{
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
+								#endif
 								break;
 							}
 						}

@@ -41,7 +41,7 @@ u32 HollywoodRevision;
 u32 Region;
 u32 POffset;
 
-NIN_CFG ncfg;
+NIN_CFG* ncfg = (NIN_CFG*)0x93002900;
 FILE *cfg;
 bool UseSD;
 

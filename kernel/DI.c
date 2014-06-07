@@ -72,6 +72,7 @@ u32 GCAMKeyC;
 u8 *MediaBuffer;
 u8 *NetworkCMDBuffer;
 u8 *DIMMMemory = (u8*)0x11280000;
+u8 DI_MessageHeap[0x10];
 
 void DIinit( bool FirstTime )
 {
@@ -129,7 +130,6 @@ void DIinit( bool FirstTime )
 		write32( DIP_STATUS, 0x2E );
 		write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
 
-		u8 DI_MessageHeap[0x10];
 		DI_MessageQueue = mqueue_create( DI_MessageHeap, 1 );
 	}
 	else
@@ -718,7 +718,10 @@ void DIUpdateRegisters( void )
 					if( DIcommand == 0xA8 )
 					{
 						while(DIThreadWorking())
+						{
 							udelay(40);
+							CheckOSReport();
+						}
 
 						DIOK = 1;
 					}
