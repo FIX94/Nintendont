@@ -1584,7 +1584,9 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		#endif
 		Shutdown();
 	}
-	
+	for (j = 0; j < sizeof(FPatterns) / sizeof(FuncPattern); ++j)
+		FPatterns[j].Found = 0;
+
 	for( i=0; i < Length; i+=4 )
 	{
 		if( *(u32*)(Buffer + i) != 0x4E800020 )
@@ -1901,7 +1903,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					{
 						if( ConfigGetConfig( NIN_CFG_DEBUGGER ) || !ConfigGetConfig(NIN_CFG_OSREPORT) )
 						{
-							if( FPatterns[j].Patch == patch_fwrite_GC )
+							//if (FPatterns[j].Patch == patch_fwrite_GC)
+							if (FPatterns[j].Patch == patch_fwrite_Log)
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [patch_fwrite_GC]\r\n");

@@ -81,6 +81,13 @@ void SIUpdateRegisters()
 			sync_after_write((void*)SI_CONTROL, 4);
 			SI_IRQ = true; //we will give the game regular updates
 		}
+		else if (SI_IRQ)
+		{
+			SI_IRQ = false; //stop giving the game regular updates
+			cur_control &= ~(1 << 28); //no read interrupt requested anymore, completed transfer
+			write32(SI_CONTROL, cur_control);
+			sync_after_write((void*)SI_CONTROL, 4);
+		}
 		prev_control = cur_control;
 		if((cur_control & 0x7F0000) != 0)
 			complete = true; //requested some bytes
