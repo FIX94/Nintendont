@@ -17,33 +17,41 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "SI.h"
+#include "Config.h"
 #include "debug.h"
 #include "string.h"
 
-bool SI_IRQ = false;
+u32 SI_IRQ = 0;
 bool complete = true;
-u32 cur_control = 0, cur_status = 0, prev_control = 0, prev_status = 0;
+u32 cur_control = 0, cur_status = 0, cur_poll = 0, prev_control = 0, prev_status = 0;
 u8 cur_chan = 0, prev_chan = 0;
+//u32 prev_poll = 0;
 void SIInit()
 {
 	memset((void*)SI_BASE, 0, 0x100);
 	sync_after_write((void*)SI_BASE, 0x100);
 }
 
+u32 inters = 0;
 void SIInterrupt()
 {
-	if(complete)
+	if (SI_IRQ & 0x1)
 	{
-		cur_control &= ~(1<<27); //mask read status interupt
-		cur_control &= ~(1<<28); //no read interrupt requested anymore, completed transfer
-		/* Exectued commands */
-		cur_control &= ~1;
+		if (complete)
+		{
+			cur_control &= ~(1<<28); //no read interrupt requested anymore, completed transfer
+		}
+		else
+		{
+			cur_control |= (1<<28); //read status interupt request, might need more if we wanna use that
+		}
 	}
-	else
+	if (SI_IRQ & 0x2)
 	{
-		cur_control |= (1<<27); //enable read status interupt
-		cur_control |= (1<<28); //read status interupt request, might need more if we wanna use that
+		SI_IRQ &= ~0x2; //one-shot interrupt complete
+		//dbgprintf("SI Done Transfer %d, 0x%08X\r\n", SI_IRQ, cur_control);
 	}
+	//dbgprintf("Read SI Control: 0x%08X 0x%08X\r\n", cur_control, cur_status);
 	write32(SI_CONTROL, cur_control);
 	sync_after_write((void*)SI_CONTROL, 4);
 
@@ -58,15 +66,60 @@ void SIInterrupt()
 
 void SIUpdateRegisters()
 {
-	sync_before_read((void*)SI_BASE, 0x40);
+	sync_before_read((void*)SI_BASE, 0x100);
 	cur_control = read32(SI_CONTROL);
-	//cur_status = read32(SI_STATUS);
-	if(cur_control != prev_control)
+	cur_status = read32(SI_STATUS);
+	cur_poll = read32(SI_POLL);
+	if (cur_control != prev_control)
 	{
-		//dbgprintf("Read SI Control: %08x\r\n", cur_control);
-		if(cur_control & (1<<30) && cur_control & (1<<0)) //enable interrupts and transfer
+		//dbgprintf("Read SI Control: 0x%08X\r\n", cur_control);
+		if (cur_control & (1 << 0)) // transfer
 		{
+			//dbgprintf("SI Buffer Cmd: %08x\r\n", read32(SI_IO_BUF));
 			cur_control |= (1<<29); //we normally always have some communication error?
+			//cur_control &= ~(1 << 29); //we normally always have some communication error?
+			u32 chan = (cur_control >> 1) & 0x3;
+			u32 ChanBuff = PAD_BUFF + (chan * 0xC);
+			bool PadGood = read32(ChanBuff + 8) == 0;
+			if (chan >= ConfigGetMaxPads())
+				PadGood = false;
+			switch ((read32(SI_IO_BUF) >> 24) & 0xFF)
+			{
+				case 0x00: // Get Type
+					{
+						dbgprintf("SI GetType\r\n");
+						write32(SI_IO_BUF, PadGood ? 0x09000000 : 0x08);//0x80
+						sync_after_write((void*)SI_IO_BUF, 4);
+					} break;
+				case 0x40: // Direct Cmd
+					{
+						dbgprintf("SI Direct\r\n");
+						//Might need to fix this (multiple modes)
+						write32(SI_IO_BUF + 0, read32(ChanBuff + 0));
+						write32(SI_IO_BUF + 4, read32(ChanBuff + 4));
+						sync_after_write((void*)SI_IO_BUF, 8);
+					} break;
+				case 0x41: // Origin
+				case 0x42: // Calibrate
+					{
+						dbgprintf("SI Origin/Cal\r\n");
+						//Might need to fix this (multiple modes)
+						write32(SI_IO_BUF + 0, 0x41008080);
+						write32(SI_IO_BUF + 4, 0x80801F1F);
+						write32(SI_IO_BUF + 8, 0x00000000);
+						sync_after_write((void*)SI_IO_BUF, 12);
+					} break;
+			}
+			if (!PadGood)
+			{
+				//cur_control |= (1 << 29); //we normally always have some communication error?
+				//cur_status |= (0x08000000 >> (0x8 * chan));
+				//write32(SI_STATUS, cur_status);
+				//sync_after_write((void*)SI_STATUS, 4);
+			}
+			cur_control &= ~1;
+			cur_control |= (1 << 28); //read status interupt request, might need more if we wanna use that
+			cur_control |= (1 << 31); //tc status interupt request, might need more if we wanna use that
 			/* set controller responses, not needed with patched PADRead
 			if((cur_control & 7) == 3) //chan 1
 				cur_status |= (1<<19);
@@ -79,28 +132,68 @@ void SIUpdateRegisters()
 			sync_after_write((void*)SI_STATUS, 4);*/
 			write32(SI_CONTROL, cur_control);
 			sync_after_write((void*)SI_CONTROL, 4);
-			SI_IRQ = true; //we will give the game regular updates
-		}
-		else if (SI_IRQ)
-		{
-			SI_IRQ = false; //stop giving the game regular updates
-			cur_control &= ~(1 << 28); //no read interrupt requested anymore, completed transfer
-			write32(SI_CONTROL, cur_control);
-			sync_after_write((void*)SI_CONTROL, 4);
+			SI_IRQ |= 0x2; //we will give the game one interrupt
+			//dbgprintf("Read SI mod Control: 0x%08X\r\n", cur_control);
 		}
 		prev_control = cur_control;
-		if((cur_control & 0x7F0000) != 0)
-			complete = true; //requested some bytes
-		cur_chan = (cur_control & 6) >> 1;
-		if(cur_chan != prev_chan) //force repeat
-		{
-			complete = true;
-			prev_chan = cur_chan;
-		}
+		complete = false;
+		//if((cur_control & 0x7F00) != 0)
+		//	complete = false; //requested some bytes
+		//cur_chan = (cur_control & 6) >> 1;
+		//if(cur_chan != prev_chan) //force repeat
+		//{
+		//	complete = false;
+		//	prev_chan = cur_chan;
+		//}
 	}
-	/*if(cur_status != prev_status)
+	if (cur_status != prev_status)
 	{
-		//dbgprintf("Read SI Status: %08x\r\n", cur_status);
+		if (cur_status & 0x80000000)
+		{
+			//dbgprintf("Read SI Status: %08x\r\n", cur_status);
+			u32 ChanIdx;
+			for (ChanIdx = 0; ChanIdx < 4; ChanIdx++)
+			{
+				bool PadGood = true;
+				//bool PadGood = read32(PAD_BUFF + 8 + (ChanIdx * 0xC)) == 0;
+				//if (ChanIdx >= ConfigGetMaxPads())
+				//	PadGood = false;
+				//cur_status = (cur_status << 0x8) | (PadGood ? 0x0 : 0x20);
+				u32 ChanAdd = SI_CHAN_0 + (0xC * ChanIdx);
+				write32(ChanAdd + 4, PadGood ? 0x00808080 : 0);//read32(0x1300280C+0));
+				write32(ChanAdd + 8, PadGood ? 0x80800000 : 0);//read32(0x1300280C+4));
+			}
+			cur_status = 0x0;
+			sync_after_write((void*)SI_CHAN_0, 0x30);
+			//dbgprintf("Read SI Cmd 0-3: 0x%08X, 0x%08X, 0x%08X, 0x%08X,\r\n", read32(SI_CHAN_0), read32(SI_CHAN_1), read32(SI_CHAN_2), read32(SI_CHAN_3));
+			write32(SI_STATUS, cur_status);
+			sync_after_write((void*)SI_STATUS, 4);
+		}
 		prev_status = cur_status;
-	}*/
+		write32(SI_STATUS, cur_status);
+		sync_after_write((void*)SI_STATUS, 4);
+		//dbgprintf("Wrote SI Status: %08x\r\n", cur_status);
+	}
+
+	//if (cur_poll != prev_poll)
+	//{
+	//	dbgprintf("Read SI Poll: 0x%08X 0x%08X\r\n", cur_poll, cur_control);
+	//	prev_poll = cur_poll;
+	//}
+
+	// This should use cur_poll.  Something's still not right.
+	//if (((cur_poll & 0xF0) != 0) && (cur_control & (1 << 27)) != 0)
+	if ((cur_control & (1 << 27)) != 0)
+	{
+		cur_control |= (1<<29); //we normally always have some communication error?
+		//if ((SI_IRQ & 0x1) == 0x0)
+		//	dbgprintf("Enabled polling SI IRQ %d\r\n", SI_IRQ);
+		SI_IRQ |= 0x1; //give the game regular updates
+	}
+	else
+	{
+		//if ((SI_IRQ & 0x1) == 0x1)
+		//	dbgprintf("Disabled polling SI IRQ %d\r\n", SI_IRQ);
+		SI_IRQ &= ~(0x1); //give the game regular updates
+	}
 }
