@@ -31,6 +31,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define		SI_EXI_LOCK	(SI_BASE+0x3C)
 #define		SI_IO_BUF	(SI_BASE+0x80)
 
+#define		PAD_BUFF	0x13002800
+
 void SIInit();
 void SIInterrupt();
 void SIUpdateRegisters();

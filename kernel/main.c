@@ -57,7 +57,8 @@ FATFS *fatfs;
 static u8 HID_ThreadStack[0x1000] __attribute__((aligned(32)));
 static u8 DI_ThreadStack[0x1000] __attribute__((aligned(32)));
 
-extern bool SI_IRQ, DI_IRQ, EXI_IRQ;
+extern u32 SI_IRQ;
+extern bool DI_IRQ, EXI_IRQ;
 //u32 Loopmode=0;
 int _main( int argc, char *argv[] )
 {
@@ -231,9 +232,9 @@ int _main( int argc, char *argv[] )
 			if(EXICheckTimer())
 				EXIInterrupt();
 		}
-		if(SI_IRQ == true)
+		if(SI_IRQ != 0)
 		{
-			if((read32(HW_TIMER) - PADTimer) >= 65000)	// about 29 times a second
+			if (((read32(HW_TIMER) - PADTimer) >= 65000) || (SI_IRQ & 0x2))	// about 29 times a second
 			{
 				SIInterrupt();
 				PADTimer = read32(HW_TIMER);
