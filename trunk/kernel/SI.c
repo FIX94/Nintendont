@@ -32,6 +32,9 @@ void SIInit()
 
 void SIInterrupt()
 {
+	sync_before_read((void*)0x14, 0x4);
+	if (read32(0x14) != 0)
+		return;
 	if (SI_IRQ & 0x1)
 	{
 		if (complete)
@@ -48,6 +51,12 @@ void SIInterrupt()
 	}
 	if (SI_IRQ & 0x2)
 	{
+		sync_before_read((void*)SI_CONTROL, 0x4);
+		cur_control = read32(SI_CONTROL);
+		if ((cur_control & (1 << 31)) == 0)
+			SI_IRQ &= ~0x2; //one-shot interrupt skipped
+		if ((cur_control & (1 << 30)) == 0)
+			return;  // interrupts not enabled
 		SI_IRQ &= ~0x2; //one-shot interrupt complete
 		//dbgprintf("SI Done Transfer %d, 0x%08X\r\n", SI_IRQ, cur_control);
 	}
@@ -113,7 +122,7 @@ void SIUpdateRegisters()
 			//sync_after_write((void*)SI_STATUS, 4);
 		}
 		cur_control &= ~1;
-		cur_control |= (1 << 28); //read status interupt request, might need more if we wanna use that
+		//cur_control |= (1 << 28); //read status interupt request, might need more if we wanna use that
 		cur_control |= (1 << 31); //tc status interupt request, might need more if we wanna use that
 		/* set controller responses, not needed with patched PADRead
 		if((cur_control & 7) == 3) //chan 1
@@ -155,7 +164,8 @@ void SIUpdateRegisters()
 			write32(ChanAdd + 4, PadGood ? 0x00808080 : 0);//read32(0x1300280C+0));
 			write32(ChanAdd + 8, PadGood ? 0x80800000 : 0);//read32(0x1300280C+4));
 		}
-		cur_status = 0x0;
+		cur_status = 0x20202020;
+		//cur_status = 0x0;
 		sync_after_write((void*)SI_CHAN_0, 0x30);
 		//dbgprintf("Read SI Cmd 0-3: 0x%08X, 0x%08X, 0x%08X, 0x%08X,\r\n", read32(SI_CHAN_0), read32(SI_CHAN_1), read32(SI_CHAN_2), read32(SI_CHAN_3));
 		write32(SI_STATUS, cur_status);

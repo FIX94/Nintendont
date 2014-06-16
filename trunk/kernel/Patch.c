@@ -845,25 +845,6 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		// skips __start init of debugger mem
 		write32(0x00003194, 0x48000028);
 	}
-	if ( GAME_ID == 0x47345145 )
-	{
-		// These probably aren't necessary right now, but these patches should be generalized and applied to all games.
-		//SIInit
-		if (write32A(0x0025c5d4 + 0x60, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
-			dbgprintf("Patch SIInit\r\n");
-		//_SITransfer
-		if (write32A(0x0025c688 + 0x60, 0x7CE70078, 0x7CE70038, 0)) // clear errors - andc r7,r7,r0
-			dbgprintf("Patch SITransfer1\r\n");
-		//_SITransfer
-		if (write32A(0x0025c688 + 0x148, 0x5400007E, 0x50803E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-			dbgprintf("Patch SITransfer2\r\n");
-		//CompleteTransfer
-		if (write32A(0x0025bd3c + 0x38, 0x5400007C, 0x5400003C, 0)) // clear  tc - rlwinm r0,r0,0,1,30
-			dbgprintf("Patch CompleteTransfer\r\n");
-		//SIInterruptHandler
-		if (write32A(0x0025c038 + 0x134, 0x7cA50078, 0x7cA50038, 0)) // clear  tc - andc r5,r5,r0
-			dbgprintf("Patch SIInterruptHandler\r\n");
-	}
 
 	if (read32(0x02856EC) == 0x386000A8)
 	{
@@ -1924,11 +1905,84 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						}
 						break;
 					}
+					case 0xdead0028:	//	_SITransfer
+					{
+						//e.g. Mario Strikers
+						if (write32A(FOffset + 0x60, 0x7CE70078, 0x7CE70038, 0)) // clear errors - andc r7,r7,r0
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[_SITransfer] 0x%08X\r\n", FOffset );
+							#endif
+						}
+
+						//e.g. Mario Strikers
+						if (write32A(FOffset + 0x148, 0x5400007E, 0x50803E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[_SITransfer] 0x%08X\r\n", FOffset );
+							#endif
+						}
+						//e.g. Luigi's Mansion
+						if (write32A(FOffset + 0x140, 0x5400007E, 0x50A03E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[_SITransfer] 0x%08X\r\n", FOffset );
+							#endif
+						}
+					} break;
+					case 0xdead0029:	//	CompleteTransfer
+					{
+						//e.g. Mario Strikers
+						if (write32A(FOffset + 0x38, 0x5400007C, 0x5400003C, 0)) // clear  tc - rlwinm r0,r0,0,1,30
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[CompleteTransfer] 0x%08X\r\n", FOffset );
+							#endif
+						}
+
+						//e.g. Luigi's Mansion
+						if (write32A(FOffset + 0x10, 0x3C000000, 0x3C008000, 0)) // clear  tc - lis r0,0x0000
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[CompleteTransfer] 0x%08X\r\n", FOffset );
+							#endif
+						}
+					} break;
+					case 0xdead002A:	//	SIInterruptHandler
+					{
+						//e.g. Mario Strikers
+						if (write32A(FOffset + 0x134, 0x7cA50078, 0x7cA50038, 0)) // clear  tc - andc r5,r5,r0
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIInterruptHandler] 0x%08X\r\n", FOffset );
+							#endif
+						}
+					} break;
+					case 0xdead002B:	//	SIInit
+					{
+						//e.g. Mario Strikers
+						if (write32A(FOffset + 0x60, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIInit] 0x%08X\r\n", FOffset );
+							#endif
+						}
+						//e.g. Luigi's Mansion
+						if (write32A(FOffset + 0x44, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIInit] 0x%08X\r\n", FOffset );
+							#endif
+						}
+					} break;
 					default:
 					{
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
 						{
-							if( (TITLE_ID) != 0x474D53 )	// Super Mario Sunshine
+							if (   (TITLE_ID) != 0x474D53  // Super Mario Sunshine
+								&& (TITLE_ID) != 0x474C4D  // Luigis Mansion 
+								&& (TITLE_ID) != 0x474346  // Pokemon Colosseum
+								&& (TITLE_ID) != 0x475049) // Pikmin    
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");

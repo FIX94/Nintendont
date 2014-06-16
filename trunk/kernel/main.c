@@ -150,9 +150,11 @@ int _main( int argc, char *argv[] )
 	BootStatus(7, s_size, s_cnt);
 	ConfigInit();
 	
-	BootStatus(8, s_size, s_cnt);
+#ifdef LOG_BUILD
+	SDisInit = 1;  // This can cause issues of its own
+#endif
 
-	SDisInit = 1;
+	BootStatus(8, s_size, s_cnt);
 
 	memset32((void*)0x13002800, 0, 0x30);
 	sync_after_write((void*)0x13002800, 0x30);
