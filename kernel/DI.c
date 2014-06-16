@@ -188,10 +188,6 @@ void DIChangeDisc( u32 DiscNumber )
 void DIInterrupt()
 {
 	DI_IRQ = false;
-	write32( 0x10, 0 );
-	write32( 0x18, 0 );
-	write32( 0x14, 2 ); //DI IRQ
-	sync_after_write( (void*)0, 0x20 );
 
 	clear32(DI_SSTATUS, (1<<2) | (1<<4)); //transfer complete, no errors
 	sync_after_write((void*)DI_SSTATUS, 4);

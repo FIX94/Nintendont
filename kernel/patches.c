@@ -38,6 +38,13 @@ FuncPattern FPatterns[] =
 	{ 0x1C0,        35,     9,      8,      7,      19,	SIGetType,					sizeof(SIGetType),				"SIGetType",					0,		0 },
 
 	{ 0x168,        22,     10,     7,      6,      10,	SITransfer,					sizeof(SITransfer),				"SITransfer",					0,		0 },
+	{ 0x208,        38,     18,     3,     13,      10,	(u8*)NULL,					0xdead0028,						"_SITransfer",					30,		0 },
+	{ 0x204,        37,     18,     3,     13,      11,	(u8*)NULL,					0xdead0028,						"_SITransfer",					30,		0 },
+	{ 0x2F8,        60,     22,     2,     16,      25,	(u8*)NULL,					0xdead0029,						"CompleteTransfer",				31,		0 },
+	{ 0x240,        40,     14,     0,     13,      11,	(u8*)NULL,					0xdead0029,						"CompleteTransfer",				31,		0 },
+	{ 0x340,        61,     10,     7,     26,      32,	(u8*)NULL,					0xdead002A,						"SIInterruptHandler",			0,		0 },
+	{ 0xB0,         21,     9,      8,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit",						32,		0 },
+	{ 0x70,         13,     8,      2,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit",						32,		0 },
 
 	{ 0x910,        87,     33,     18,     5,      63,	(u8*)NULL,					0xdead0008,						"__ARChecksize A",				3,		0 },
 	{ 0x17F0,       204,    51,     27,     5,      178,(u8*)NULL,					0xdead0008,						"__ARChecksize B",				3,		0 },
@@ -53,10 +60,10 @@ FuncPattern FPatterns[] =
 
 	{ 0xB4,			18,     11,     1,      0,      7, (u8*)NULL,					0xdead0002,						"GCAMSendCMD",					0,		0 },
 	{ 0xCC,			20,     16,     5,      0,      3, (u8*)NULL,					0xdead0002,						"GCAMRead",						0,		0 },
-	{ 0x9C,			18,     9,      4,      0,      2, (u8*)NULL,					0xdead0002,						"GCAMExecute",						0,		0 },
+	{ 0x9C,			18,     9,      4,      0,      2, (u8*)NULL,					0xdead0002,						"GCAMExecute",					0,		0 },
 	{ 0xB0,			19,     12,     4,      0,      2, (u8*)NULL,					0xdead0002,						"GCAMWrite",					0,		0 },
-  { 0x98,     19,     9,      4,      0,      2, (u8*)NULL,					0xdead0002,						"GCAMIdentify",					0,		0 },
-	{ 0x54,			10,     2,      2,      0,      2, (u8*)NULL,					0xdead0025,						"GCAMSendCommand",					0,		0 },
+	{ 0x98,			19,     9,      4,      0,      2, (u8*)NULL,					0xdead0002,						"GCAMIdentify",					0,		0 },
+	{ 0x54,			10,     2,      2,      0,      2, (u8*)NULL,					0xdead0025,						"GCAMSendCommand",				0,		0 },
 
 	{ 0x10C,        30,     18,     5,      2,      3,	(u8*)NULL,					0xdead0002,						"DVDLowRead A",					5,		0 },
 	{ 0xDC,			23,     18,     3,      2,      4,	(u8*)NULL,					0xdead0002,						"DVDLowRead B",					5,		0 },
