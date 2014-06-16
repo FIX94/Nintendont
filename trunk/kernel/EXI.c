@@ -171,10 +171,7 @@ bool EXICheckTimer(void)
 }
 void EXIInterrupt(void)
 {
-	sync_before_read((void*)0x14, 0x4);
-	if (read32(0x14) != 0)
-		return;
-	write32(0x13010000, 1); //setup IRQ Handler check
+	write32(0x13010000,1); //setup IRQ Handler check
 	sync_after_write((void*)0x13010000,4);
 	
 	write32( 0x10, IRQ_Cause );

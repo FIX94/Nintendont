@@ -26,15 +26,15 @@ bool complete = true;
 u32 cur_control = 0;
 void SIInit()
 {
-	memset((void*)SI_BASE, 0, 0x100);
-	sync_after_write((void*)SI_BASE, 0x100);
+	memset((void*)SI_BASE, 0, 0x120);
+	sync_after_write((void*)SI_BASE, 0x120);
 }
 
 void SIInterrupt()
 {
-	sync_before_read((void*)0x14, 0x4);
-	if (read32(0x14) != 0)
-		return;
+	//sync_before_read((void*)0x14, 0x4);
+	//if (read32(0x14) != 0)
+	//	return;
 	if (SI_IRQ & 0x1)
 	{
 		if (complete)
@@ -61,10 +61,10 @@ void SIInterrupt()
 		//dbgprintf("SI Done Transfer %d, 0x%08X\r\n", SI_IRQ, cur_control);
 	}
 
-	write32( 0x10, 0 );
-	write32( 0x18, 0 );
-	write32( 0x14, 0x8 );		// SI IRQ
-	sync_after_write( (void*)0, 0x20 );
+	write32( 0x13026510, 0 );
+	write32( 0x13026518, 0 );
+	write32( 0x13026514, 0x8 );		// SI IRQ
+	sync_after_write( (void*)0x13026500, 0x20 );
 	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 
 	complete ^= 1;

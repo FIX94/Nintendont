@@ -1,5 +1,6 @@
 
 MEM1
+0x80000010-0x8000001C=EXI Fake Interrupt
 0x80002F00-0x00002F60=dvd interface
 0x00002F60=old memory card interface
 
@@ -36,6 +37,7 @@ MEM2
 0x93010010-0x93020010=loader and our reload stub
 0x93024000-0x93024060=memory interface
 0x93026400-0x93026500=serial interface
+0x93026510-0x9302651C=SI Fake Interrupt
 0x93100000-0x93150100=ipl fonts buffer (0x1aff00-0x1fffff)
 0x93160000-0x93160008=OSReport (patch_fwrite)
 0x93200000=Cache FST Buffer
