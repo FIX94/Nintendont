@@ -91,13 +91,13 @@ void SIUpdateRegisters()
 		{
 			case 0x00: // Get Type
 				{
-					dbgprintf("SI GetType\r\n");
+					//dbgprintf("SI GetType\r\n");
 					write32(SI_IO_BUF, PadGood ? 0x09000000 : 0x08);//0x80
 					sync_after_write((void*)SI_IO_BUF, 4);
 				} break;
 			case 0x40: // Direct Cmd
 				{
-					dbgprintf("SI Direct\r\n");
+					//dbgprintf("SI Direct\r\n");
 					//Might need to fix this (multiple modes)
 					write32(SI_IO_BUF + 0, read32(ChanBuff + 0));
 					write32(SI_IO_BUF + 4, read32(ChanBuff + 4));
@@ -106,7 +106,7 @@ void SIUpdateRegisters()
 			case 0x41: // Origin
 			case 0x42: // Calibrate
 				{
-					dbgprintf("SI Origin/Cal\r\n");
+					//dbgprintf("SI Origin/Cal\r\n");
 					//Might need to fix this (multiple modes)
 					write32(SI_IO_BUF + 0, 0x41008080);
 					write32(SI_IO_BUF + 4, 0x80801F1F);

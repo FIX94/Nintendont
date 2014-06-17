@@ -1971,12 +1971,15 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						dbgprintf("Patch:Applied **IntrruptHandler patch 0x%X (PatchOffset=0x%X) \r\n", FOffset, PatchOffset);
 						#endif
 
-						//e.g. Mario Strikers
-						if (write32A(FOffset + 0x134, 0x7cA50078, 0x7cA50038, 0)) // clear  tc - andc r5,r5,r0
+						if (FPatterns[j].Length >= 0x134)
 						{
-							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[SIInterruptHandler] 0x%08X\r\n", FOffset );
-							#endif
+							//e.g. Mario Strikers
+							if (write32A(FOffset + 0x134, 0x7cA50078, 0x7cA50038, 0)) // clear  tc - andc r5,r5,r0
+							{
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:[SIInterruptHandler] 0x%08X\r\n", FOffset );
+								#endif
+							}
 						}
 					} break;
 					case 0xdead002B:	//	SIInit
