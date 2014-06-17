@@ -104,6 +104,7 @@ FuncPattern FPatterns[] =
 	{ 0xC4,			19,     6,      4,      1,      8,	(u8*)NULL,					0xdead0020,						"EXIntrruptHandler C",		29,		0 },
 
 	{ 0x340,        61,     10,     7,     26,      32,	(u8*)NULL,					0xdead002A,						"SIInterruptHandler A",		30,		0 },
+	{ 0x114,        21,     4,      4,      5,      11,	(u8*)NULL,					0xdead002A,						"SIInterruptHandler B",		30,		0 },
 
 	{ 0xF0,			17,     7,      5,      5,      7,	EXILock,					sizeof(EXILock),				"EXILock",					20,		0 },
 	{ 0xF0,			18,     7,      5,      5,      6,	EXILock,					sizeof(EXILock),				"EXILock",					20,		0 },
