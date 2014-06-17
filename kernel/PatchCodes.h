@@ -20,6 +20,7 @@
 #include "asm/__OSReadROM.h"
 #include "asm/FakeInterrupt.h"
 #include "asm/TCIntrruptHandler.h"
+#include "asm/SIIntrruptHandler.h"
 #include "asm/PADRead.h"
 #include "asm/PADControlMotor.h"
 #include "asm/DCInvalidateRange.h"

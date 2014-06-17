@@ -38,13 +38,12 @@ FuncPattern FPatterns[] =
 	{ 0x1C0,        35,     9,      8,      7,      19,	SIGetType,					sizeof(SIGetType),				"SIGetType",					0,		0 },
 
 	{ 0x168,        22,     10,     7,      6,      10,	SITransfer,					sizeof(SITransfer),				"SITransfer",					0,		0 },
-	{ 0x208,        38,     18,     3,     13,      10,	(u8*)NULL,					0xdead0028,						"_SITransfer",					30,		0 },
-	{ 0x204,        37,     18,     3,     13,      11,	(u8*)NULL,					0xdead0028,						"_SITransfer",					30,		0 },
-	{ 0x2F8,        60,     22,     2,     16,      25,	(u8*)NULL,					0xdead0029,						"CompleteTransfer",				31,		0 },
-	{ 0x240,        40,     14,     0,     13,      11,	(u8*)NULL,					0xdead0029,						"CompleteTransfer",				31,		0 },
-	{ 0x340,        61,     10,     7,     26,      32,	(u8*)NULL,					0xdead002A,						"SIInterruptHandler",			0,		0 },
-	{ 0xB0,         21,     9,      8,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit",						32,		0 },
-	{ 0x70,         13,     8,      2,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit",						32,		0 },
+	{ 0x208,        38,     18,     3,     13,      10,	(u8*)NULL,					0xdead0028,						"_SITransfer",					31,		0 },
+	{ 0x204,        37,     18,     3,     13,      11,	(u8*)NULL,					0xdead0028,						"_SITransfer",					31,		0 },
+	{ 0x2F8,        60,     22,     2,     16,      25,	(u8*)NULL,					0xdead0029,						"CompleteTransfer",				32,		0 },
+	{ 0x240,        40,     14,     0,     13,      11,	(u8*)NULL,					0xdead0029,						"CompleteTransfer",				32,		0 },
+	{ 0xB0,         21,     9,      8,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit",						33,		0 },
+	{ 0x70,         13,     8,      2,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit",						33,		0 },
 
 	{ 0x910,        87,     33,     18,     5,      63,	(u8*)NULL,					0xdead0008,						"__ARChecksize A",				3,		0 },
 	{ 0x17F0,       204,    51,     27,     5,      178,(u8*)NULL,					0xdead0008,						"__ARChecksize B",				3,		0 },
@@ -103,6 +102,8 @@ FuncPattern FPatterns[] =
 	{ 0x7C,         10,     3,      0,      1,      7,	(u8*)NULL,					0xdead0020,						"EXIntrruptHandler A",		29,		0 },
 	{ 0xC4,			19,     6,      4,      1,      7,	(u8*)NULL,					0xdead0020,						"EXIntrruptHandler B",		29,		0 },
 	{ 0xC4,			19,     6,      4,      1,      8,	(u8*)NULL,					0xdead0020,						"EXIntrruptHandler C",		29,		0 },
+
+	{ 0x340,        61,     10,     7,     26,      32,	(u8*)NULL,					0xdead002A,						"SIInterruptHandler A",		30,		0 },
 
 	{ 0xF0,			17,     7,      5,      5,      7,	EXILock,					sizeof(EXILock),				"EXILock",					20,		0 },
 	{ 0xF0,			18,     7,      5,      5,      6,	EXILock,					sizeof(EXILock),				"EXILock",					20,		0 },

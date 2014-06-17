@@ -1,8 +1,8 @@
 #include <asm.h>
 
-.set FAKE_EXI_INT,	0xC0000014
+.set FAKE_SI_INT,	0xD3026514
 
-TCIntrruptHandler:
+SIIntrruptHandler:
 
 	stw		%r0, 4(%sp)
 	
@@ -10,9 +10,9 @@ TCIntrruptHandler:
 	li		%r0,	0x34
 	stw		%r0,	4(%r8)
 
-	lis		%r8,	FAKE_EXI_INT@h
+	lis		%r8,	FAKE_SI_INT@h
 	li		%r0,	0x0
-	stw		%r0,	FAKE_EXI_INT@l(%r8)
+	stw		%r0,	FAKE_SI_INT@l(%r8)
 
 	lis		%r8,	0xCD00
 	lis		%r0,	0x4000

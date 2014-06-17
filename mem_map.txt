@@ -33,7 +33,7 @@ MEM2
 0x930050E0=hid packet
 
 0x93007420-0x93009000=old di thread stack
-0x93010000=old memory card buffer,now EXI Interrupt Handler Status
+0x93010000=old memory card buffer,old EXI Interrupt Handler Status
 0x93010010-0x93020010=loader and our reload stub
 0x93024000-0x93024060=memory interface
 0x93026400-0x93026500=serial interface

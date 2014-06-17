@@ -1950,6 +1950,27 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					} break;
 					case 0xdead002A:	//	SIInterruptHandler
 					{
+						u32 PatchOffset = 0x4;
+						while ((read32(FOffset + PatchOffset) != 0x90010004) && (PatchOffset < 0x20)) // MaxSearch=0x20
+							PatchOffset += 4;
+						if (read32(FOffset + PatchOffset) != 0x90010004) 	// stw r0, 0x0004(sp)
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Skipped **IntrruptHandler patch 0x%X (PatchOffset=Not Found) \r\n", FOffset, PatchOffset);
+							#endif
+							break;
+						}
+
+						POffset -= sizeof(SIIntrruptHandler);
+						memcpy((void*)(POffset), SIIntrruptHandler, sizeof(SIIntrruptHandler));
+
+						write32(POffset, read32((FOffset + PatchOffset)));
+
+						PatchBL( POffset, (FOffset + PatchOffset) );						
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:Applied **IntrruptHandler patch 0x%X (PatchOffset=0x%X) \r\n", FOffset, PatchOffset);
+						#endif
+
 						//e.g. Mario Strikers
 						if (write32A(FOffset + 0x134, 0x7cA50078, 0x7cA50038, 0)) // clear  tc - andc r5,r5,r0
 						{
