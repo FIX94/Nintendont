@@ -229,7 +229,13 @@ int _main( int argc, char *argv[] )
 	{
 		_ahbMemFlush(0);
 
-		if(EXI_IRQ == true)
+		//Check this.  Purpose is to send another interrupt if wasn't processed
+		if (((read32(0x14) != 0) || (read32(0x13026514) != 0))
+			&& (read32(HW_ARMIRQFLAG) & (1 << 30)) == 0)
+		{
+			write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+		}
+		if (EXI_IRQ == true)
 		{
 			if(EXICheckTimer())
 				EXIInterrupt();
