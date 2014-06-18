@@ -195,10 +195,13 @@ int _main( int argc, char *argv[] )
 
 	SIInit();
 
-//fixes issues in some japanese games
+//This bit seems to be different on japanese consoles
+	u32 ori_ppcspeed = read32(HW_PPCSPEED);
 	if((ConfigGetGameID() & 0xFF) == 'J')
-		write32(HW_PPCSPEED, 0x2A9E0);
-	
+		set32(HW_PPCSPEED, (1<<17));
+	else
+		clear32(HW_PPCSPEED, (1<<17));
+
 	//write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
 
 //Tell PPC side we are ready!
@@ -369,6 +372,10 @@ int _main( int argc, char *argv[] )
 
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
+
+//make sure we set that back to the original
+	write32(HW_PPCSPEED, ori_ppcspeed);
+
 	IOSBoot((char*)0x13003020, 0, read32(0x13003000));
 	return 0;
 }
