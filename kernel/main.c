@@ -147,13 +147,13 @@ int _main( int argc, char *argv[] )
 	}
 #endif
 
-	BootStatus(7, s_size, s_cnt);
-	ConfigInit();
-	
 #ifdef LOG_BUILD
 	SDisInit = 1;  // This can cause issues of its own
 #endif
 
+	BootStatus(7, s_size, s_cnt);
+	ConfigInit();
+	
 	BootStatus(8, s_size, s_cnt);
 
 	memset32((void*)0x13002800, 0, 0x30);
