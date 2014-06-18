@@ -1573,6 +1573,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 		FuncPattern fp;
 		MPattern( (u8*)(Buffer+i), Length, &fp );
+		//if ((((u32)Buffer + i) & 0x7FFFFFFF) == 0x00000000) //(FuncPrint)
+		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d", fp.Length, fp.Loads, fp.Stores, fp.FCalls, fp.Branch, fp.Moves);
 
 		for( j=0; j < sizeof(FPatterns)/sizeof(FuncPattern); ++j )
 		{
@@ -1996,6 +1998,28 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:[SIInit] 0x%08X\r\n", FOffset );
+							#endif
+						}
+					} break;
+					case 0xdead002C:	//	SIHandleRead?
+					{
+						//e.g. SSBM
+						if (write32A(FOffset + 0x54, 0x54A50146, 0x64A50800, 0)) // clear rdstint - rlwinm r5,r5,0,5,3
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIHandleRead] 0x%08X\r\n", FOffset );
+							#endif
+						}
+						if (write32A(FOffset + 0x68, 0x60000000, 0x54A50146, 0)) // leave rdstint alone - nop
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIHandleRead] 0x%08X\r\n", FOffset );
+							#endif
+						}
+						if (write32A(FOffset + 0x6C, 0x60000000, 0x54A5007C, 0)) // leave tcinit tcstart alone - nop
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIHandleRead] 0x%08X\r\n", FOffset );
 							#endif
 						}
 					} break;
