@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/wiilaunch.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <fat.h>
 static GXRModeObj *rmode = NULL;
 static void *framebuffer = NULL;
 u32 HollywoodRevision;
@@ -259,7 +260,9 @@ static void (*stub)() = (void*)0x80001800;
 void ExitToLoader(int ret)
 {
 	sleep(3);
+	CloseDevices();
 	ClearScreen();
+
 	if(*(vu32*)0x80001804 == 0x53545542 && *(vu32*)0x80001808 == 0x48415858) //stubhaxx
 	{
 		VIDEO_SetBlack(TRUE);
@@ -275,6 +278,12 @@ void ClearScreen()
 	VIDEO_ClearFrameBuffer(rmode, framebuffer, COLOR_BLACK);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();
+}
+void CloseDevices()
+{
+	closeLog();
+	fatUnmount("sd");
+	fatUnmount("usb");
 }
 static char ascii(char s)
 {

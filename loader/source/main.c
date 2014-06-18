@@ -107,12 +107,6 @@ int main(int argc, char **argv)
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
 	DCFlushRange(loader_stub, 0x1800);
 
-	if( !IsWiiU() )
-	{
-		gprintf("Nintendont Loader\r\n");
-		gprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
-		gprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );	
-	}
 	u32 currev = *(vu32*)0x80003140;
 	HollywoodRevision = SYS_GetHollywoodRevision();	//RAMInit overwrites this
 	RAMInit();
@@ -158,18 +152,16 @@ int main(int argc, char **argv)
 		}
 	}
 
-	fatInitDefault();	
+	fatInitDefault();
 
-	if( IsWiiU() )
-	{
-		gprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
-		gprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );	
-		gprintf("Firmware: %d.%d.%d\r\n", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
-	}
-	
+	gprintf("Nintendont Loader\r\n");
+	gprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
+	gprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
+	gprintf("Firmware: %d.%d.%d\r\n", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
+
 	// Simple code to autoupdate the meta.xml in Nintendont's folder
-    FILE *meta = fopen("meta.xml", "w");
-    if(meta != NULL)
+	FILE *meta = fopen("meta.xml", "w");
+	if(meta != NULL)
 	{
 		fprintf(meta, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
 		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);		
@@ -179,7 +171,6 @@ int main(int argc, char **argv)
 		fprintf(meta, "\t<ahb_access/>\r\n</app>");
 		fclose(meta);
 	}
-	
 	u32 ConfigReset = 0;
 
 	DCInvalidateRange((void*)ncfg, sizeof(NIN_CFG));
@@ -188,12 +179,9 @@ int main(int argc, char **argv)
 
 	cfg = fopen("/nincfg.bin", "rb+");
 	if (cfg == NULL)
-	{
 		ConfigReset = 1;
-
-	}
-	else {
-
+	else
+	{
 		if (fread(ncfg, sizeof(NIN_CFG), 1, cfg) != 1)
 			ConfigReset = 1;
 
@@ -220,12 +208,11 @@ int main(int argc, char **argv)
 		FPAD_Update();
 
 		if (FPAD_Cancel(0))
-		{
 			ncfg->Config &= ~NIN_CFG_AUTO_BOOT;
-		}
+
 		i++;
 	}
-	
+
 	if (ConfigReset)
 	{
 		memset(ncfg, 0, sizeof(NIN_CFG));
@@ -235,6 +222,7 @@ int main(int argc, char **argv)
 		ncfg->Language = NIN_LAN_AUTO;
 		ncfg->MaxPads = NIN_CFG_MAXPAD;
 	}
+
 	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
 	if(progressive) //important to prevent blackscreens
 		ncfg->VideoMode |= NIN_VID_PROG;
@@ -266,13 +254,10 @@ int main(int argc, char **argv)
 			ExitToLoader(0);
 		}
 		if (FPAD_Down(0))
-		{
 			ncfg->Config = ncfg->Config | NIN_CFG_USB;
-		}
+
 		if (FPAD_Up(0))
-		{
 			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
-		}
 	}
 
 	u32 KernelSize = 0;
@@ -303,11 +288,9 @@ int main(int argc, char **argv)
 //Reset drive
 
 	if( ncfg->Config & NIN_CFG_AUTO_BOOT )
-	{
 		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
-	} else {
+	else
 		SelectGame();
-	}
 
 //setup memory card
 	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
@@ -340,7 +323,7 @@ int main(int argc, char **argv)
 			fclose(f);
 	}
 //sync changes
-	fatUnmount(GetRootDevice());
+	CloseDevices();
 	ClearScreen();
 	PrintInfo();
 
@@ -497,8 +480,7 @@ int main(int argc, char **argv)
 		VIDEO_WaitVSync();
 	}
 
-	if( !IsWiiU() )
-		gprintf("Nintendont at your service!\r\n");
+	gprintf("Nintendont at your service!\r\n");
 
 	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*17, "Nintendont kernel looping, loading game...");
 //	memcpy( (void*)0x80000000, (void*)0x90140000, 0x1200000 );

@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define	EXI_BASE	0xCD006800
 #define EXI			0xCD006814
 
+static bool wiiu_done = false;
 static FILE *nl_log = NULL;
 static u32 GeckoFound = 0;
 
@@ -60,6 +61,9 @@ int gprintf( const char *str, ... )
 {
 	if( IsWiiU() )
 	{
+		if(wiiu_done == true)
+			return 0;
+
 		// We're running on a vWii, log the results to a file
 		
 		// Open the file if it hasn't been already
@@ -100,4 +104,13 @@ int gprintf( const char *str, ... )
 	}
 
 	return 1; // Everything went okay
+}
+
+void closeLog(void)
+{
+	wiiu_done = true;
+
+	if(nl_log != NULL)
+		fclose(nl_log);
+	nl_log = NULL;
 }

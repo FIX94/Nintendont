@@ -304,7 +304,8 @@ int dbgprintf( const char *fmt, ...)
 	if ( (*(vu32*)(0xd800070) & 1) == 0)
 		return -1;
 	
-	char *buffer = (char*)heap_alloc_aligned( 0, 2048, 32 );	
+	//char *buffer = (char*)heap_alloc_aligned( 0, 2048, 32 );	
+	char buffer[0x100]; //get from stack
 
 	va_start(args, fmt);
 	vsprintf(buffer, fmt, args);
@@ -337,11 +338,18 @@ int dbgprintf( const char *fmt, ...)
 	if( !IsWiiU ) // usbgecko?
 		svc_write(buffer);
 
-	heap_free( 0, buffer );
+	//heap_free( 0, buffer );
 
 	return 0;
 }
-
+void closeLog(void)
+{
+	if(file_opened == FR_OK)
+	{
+		file_opened = -1;
+		f_close(&dbgfile);
+	}
+}
 void CheckOSReport(void)
 {
 	sync_before_read((void*)0x13160000, 0x8);
