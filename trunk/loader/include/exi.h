@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 
 void CheckForGecko(void);
+void closeLog(void);
 
 #ifdef DEBUG
 int gprintf(const char *str, ...);

@@ -100,6 +100,7 @@ void RAMInit(void);
 void *Initialise();
 void ExitToLoader(int ret);
 void ClearScreen();
+void CloseDevices();
 void hexdump(void *d, int len);
 void *memalign( u32 Align, u32 Size );
 

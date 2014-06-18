@@ -122,7 +122,7 @@ int _main( int argc, char *argv[] )
 			default:
 			case FR_DISK_ERR:
 			{
-				f_mount(0, 0);		//unmount drive todo: retry could never work
+				f_mount(0, NULL);		//unmount drive todo: retry could never work
 				MountFail++;
 				if(MountFail == 10)
 				{
@@ -372,6 +372,13 @@ int _main( int argc, char *argv[] )
 
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
+
+#ifdef LOG_BUILD
+	closeLog();
+#endif
+
+//unmount FAT device
+	f_mount(0, NULL);
 
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);
