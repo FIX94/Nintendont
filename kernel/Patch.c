@@ -2001,25 +2001,19 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead002C:	//	SIHandleRead?
+					case 0xdead002C:	//	SIEnablePollingInterrupt
 					{
 						//e.g. SSBM
-						if (write32A(FOffset + 0x54, 0x54A50146, 0x64A50800, 0)) // clear rdstint - rlwinm r5,r5,0,5,3
-						{
-							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[SIHandleRead] 0x%08X\r\n", FOffset );
-							#endif
-						}
 						if (write32A(FOffset + 0x68, 0x60000000, 0x54A50146, 0)) // leave rdstint alone - nop
 						{
 							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[SIHandleRead] 0x%08X\r\n", FOffset );
+							dbgprintf("Patch:[SIEnablePollingInterrupt] 0x%08X\r\n", FOffset );
 							#endif
 						}
 						if (write32A(FOffset + 0x6C, 0x60000000, 0x54A5007C, 0)) // leave tcinit tcstart alone - nop
 						{
 							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[SIHandleRead] 0x%08X\r\n", FOffset );
+							dbgprintf("Patch:[SIEnablePollingInterrupt] 0x%08X\r\n", FOffset );
 							#endif
 						}
 					} break;

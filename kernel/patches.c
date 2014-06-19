@@ -45,7 +45,7 @@ FuncPattern FPatterns[] =
 	{ 0xB0,         21,     9,      8,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit A",						33,		0 },
 	{ 0x70,         13,     8,      2,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit B",						33,		0 },
 	{ 0x90,         17,     8,      6,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit C",						33,		0 },
-	{ 0x94,         8,      10,     2,     4,       2,	(u8*)NULL,					0xdead002C,						"SIHandleRead" /* ?? */,		0,		0 },
+	{ 0x94,         8,      10,     2,     4,       2,	(u8*)NULL,					0xdead002C,						"SIEnablePollingInterrupt",		0,		0 },
 
 	{ 0x910,        87,     33,     18,     5,      63,	(u8*)NULL,					0xdead0008,						"__ARChecksize A",				3,		0 },
 	{ 0x17F0,       204,    51,     27,     5,      178,(u8*)NULL,					0xdead0008,						"__ARChecksize B",				3,		0 },
