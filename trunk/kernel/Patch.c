@@ -92,9 +92,9 @@ const unsigned char DSPHashes[][0x14] =
 	{
 		0x09, 0xF1, 0x6B, 0x48, 0x57, 0x15, 0xEB, 0x3F, 0x67, 0x3E, 0x19, 0xEF, 0x7A, 0xCF, 0xE3, 0x60, 0x7D, 0x2E, 0x4F, 0x02,			//	11 Dolphin=0x42f64ac4=Luigi
 	},
-//	{
-//		0x21, 0xD0, 0xC0, 0xEE, 0x25, 0x3D, 0x8C, 0x9E, 0x02, 0x58, 0x66, 0x7F, 0x3C, 0x1B, 0x11, 0xBC, 0x90, 0x1F, 0x33, 0xE2,			//	xx  --  Identical to 1
-//	},
+	{
+		0x80, 0x01, 0x60, 0xDF, 0x89, 0x01, 0x9E, 0xE3, 0xE8, 0xF7, 0x47, 0x2C, 0xE0, 0x1F, 0xF6, 0x80, 0xE9, 0x85, 0xB0, 0x24,			//	12 Dolphin=0x267fd05a=Pikmin PAL
+	},
 };
 
 const unsigned char DSPPattern[][0x10] =
@@ -132,7 +132,9 @@ const unsigned char DSPPattern[][0x10] =
 	{
 		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0E, 0x88, 0x02, 0x9F, 0x0E, 0x97, 0x02, 0x9F, 0x0E, 0xB3,		//	10 Hash 6
 	},
-
+	{
+		0x02, 0x9f, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00,		//	11 Hash 12
+	},
 };
 
 const u32 DSPLength[] =
@@ -148,6 +150,7 @@ const u32 DSPLength[] =
 	0x00001A00,		//	8
 	0x000017E0,		//	9
 	0x00001F00,		//	10
+	0x00001A60,		//	11
 };
 void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 {
@@ -220,6 +223,114 @@ void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 
 	W32((u32)ptr + (Dup3 + 0x5D) * 2, 0x029F0000 | (Dup3 + CallLength + 0xB)); // jmp Dup3+0xF
 	return;
+}
+
+void PatchZelda_Dsp(u32 DspAddress, u32 PatchAddr, u32 OrigAddress, bool Split, bool KeepOrig)
+{
+	u32 Tmp = R32(DspAddress + (OrigAddress + 0) * 2); // original instructions at OrigAddress
+	if (Split)
+	{
+		W32(DspAddress + (PatchAddr + 0) * 2, Tmp);        // split original instructions at OrigAddress
+		W32(DspAddress + (PatchAddr + 2) * 2, Tmp);        // split original instructions at OrigAddress
+		W32(DspAddress + (PatchAddr + 1) * 2, 0x02601000); // ori $AC0.M, 0x1000
+	}
+	else
+	{
+		W32(DspAddress + (PatchAddr + 0) * 2, 0x02601000); // ori $AC0.M, 0x1000
+		W32(DspAddress + (PatchAddr + 2) * 2, Tmp);        // original instructions at OrigAddress
+	}
+	if (KeepOrig)
+	{
+		Tmp = R32(DspAddress + (PatchAddr + 4) * 2);       // original instructions at end of patch
+		Tmp = (Tmp & 0x0000FFFF) | 0x02DF0000;             // ret/
+	}
+	else
+		Tmp = 0x02DF02DF;
+	W32(DspAddress + (PatchAddr + 4) * 2, Tmp);
+	W32(DspAddress + (OrigAddress + 0) * 2, 0x02BF0000 | PatchAddr);  // call PatchAddr
+}
+void PatchZeldaInPlace_Dsp(u32 DspAddress, u32 OrigAddress)
+{
+	W32(DspAddress + (OrigAddress + 0) * 2, 0x009AFFFF); // lri $AX0.H, #0xffff
+	W32(DspAddress + (OrigAddress + 2) * 2, 0x2AD62AD7); // srs @ACEAH, $AX0.H/srs @ACEAL, $AX0.H
+	W32(DspAddress + (OrigAddress + 4) * 2, 0x02601000); // ori $AC0.M, 0x1000
+}
+
+void DoDSPPatch( char *ptr, u32 Version )
+{
+	switch (Version)
+	{
+		case 0:		// Zelda:WW
+		{
+			// 5F8 - before patch, part of halt routine
+			// Why isn't this split at 0x05B2???
+			PatchZelda_Dsp( (u32)ptr, 0x05F8, 0x05B3, false, false );
+			PatchZeldaInPlace_Dsp( (u32)ptr, 0x0566 );
+		} break;
+		case 1:		// Mario Sunshine
+		{
+			// E66 - unused
+			PatchZelda_Dsp( (u32)ptr, 0xE66, 0x531, false, false );
+			PatchZelda_Dsp( (u32)ptr, 0xE66, 0x57C, false, false );  // same orig instructions
+		} break;
+		case 2:		// SSBM
+		{
+			PatchAX_Dsp( (u32)ptr, 0x5A8, 0x65D, 0x707, 0x8F );
+		} break;
+		case 3:		// Mario Party 5
+		{
+			PatchAX_Dsp( (u32)ptr, 0x6A3, 0x758, 0x802, 0x8F );
+		} break;
+		case 4:		// Beyond Good and Evil
+		{
+			PatchAX_Dsp( (u32)ptr, 0x6E0, 0x795, 0x83F, 0x8F );
+		} break;
+		case 5:		// Mario Kart Double Dash
+		{		
+			// 5F8 - before patch, part of halt routine
+			PatchZelda_Dsp( (u32)ptr, 0x05F8, 0x05B1, true, false );
+			PatchZeldaInPlace_Dsp( (u32)ptr, 0x0566 );
+		} break;
+		case 6:		// Star Fox Assault
+		{
+			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, 0x814, 0xA4 );
+		} break;
+		case 7:		// ??? Need example
+		{
+		} break;
+		case 8:		//	Donkey Kong Jungle Beat
+		{
+			// 6E5 - before patch, part of halt routine
+			// Why isn't this split at 0x069F???
+			PatchZelda_Dsp( (u32)ptr, 0x06E5, 0x06A0, false, false );
+			PatchZeldaInPlace_Dsp( (u32)ptr, 0x0653 );
+		} break; 
+		case 9:		// Paper Mario The Thousand Year Door
+		{
+			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, 0x7FD, 0x8F );
+		} break;
+		case 10:	// Animal Crossing
+		{
+			// CF4 - unused
+			PatchZelda_Dsp( (u32)ptr, 0x0CF4, 0x00C0, false, true );
+			PatchZelda_Dsp( (u32)ptr, 0x0CF4, 0x010B, false, true );  // same orig instructions
+		} break;
+		case 11:	// Luigi
+		{
+			// BE8 - unused
+			PatchZelda_Dsp( (u32)ptr, 0x0BE8, 0x00BE, false, true );
+			PatchZelda_Dsp( (u32)ptr, 0x0BE8, 0x0109, false, true );  // same orig instructions
+		} break;
+		case 12:	// Pikmin PAL
+		{
+			// D2B - unused
+			PatchZelda_Dsp( (u32)ptr, 0x0D2B, 0x04A8, false, true );
+			PatchZelda_Dsp( (u32)ptr, 0x0D2B, 0x04F3, false, true );  // same orig instructions
+		} break;
+		default:
+		{
+		} break;
+	}
 }
 
 bool write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
@@ -503,132 +614,6 @@ void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2)
     }
 	//dbzprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
 } 
-void DoDSPPatch( char *ptr, u32 Version )
-{
-	u32 Tmp;
-	switch (Version)
-	{
-		case 0: // Zelda:WW
-		{
-			// 5F0 - before patch, part of halt routine
-			W32((u32)ptr + (0x05F0 + 0) * 2, 0x02001000 ); // addi $AC0.M, 0x1000
-			Tmp = R32((u32)ptr + (0x05B3 + 0) * 2); // original instructions at 0x5B3
-			W32((u32)ptr + (0x05F0 + 2) * 2, Tmp); // original instructions at 0x5B3
-			W32((u32)ptr + (0x05F0 + 4) * 2, 0x02DF02DF ); // ret/ret
-		
-			// 5F8 - before patch, part of halt routine
-			W32((u32)ptr + (0x05F8 + 0) * 2, 0x02001000 ); // addi $AC0.M, 0x1000
-			Tmp = R32((u32)ptr + (0x056C + 0) * 2); // original instructions at 0x56C
-			W32((u32)ptr + (0x05F8 + 2) * 2, Tmp); // original instructions at 0x56C
-			W32( (u32)ptr + (0x05F8 + 4) * 2, 0x02DF02DF ); // ret/ret
-
-			// 5B3
-			W32((u32)ptr + (0x05B3 + 0) * 2, 0x02BF05F0);  // call 0x05F0
-
-			// 56C
-			W32((u32)ptr + (0x056C + 0) * 2, 0x02BF05F8); // call 0x05F8
-		} break;
-		case 1:	// Mario Sunshine
-		{
-			// 0x5D0
-			W32( (u32)ptr + 0xBA0 + 0, 0x02001000 );
-			W32( (u32)ptr + 0xBA0 + 4, 0x1f7f1f5e );
-			W32( (u32)ptr + 0xBA0 + 8, 0x02DF02DF );
-						
-			// 0x58E
-			W32( (u32)ptr + 0xAF6 + 0, 0x02BF05D0 );
-
-		} break;
-		case 2:		// SSBM
-		{
-			PatchAX_Dsp( (u32)ptr, 0x5A8, 0x65D, 0x707, 0x8F);
-		} break;
-		case 3:		// Mario Party 5
-		{
-			PatchAX_Dsp( (u32)ptr, 0x6A3, 0x758, 0x802, 0x8F);
-		} break;
-		case 4:		// Beyond Good and Evil
-		{
-			PatchAX_Dsp( (u32)ptr, 0x6E0, 0x795, 0x83F, 0x8F);
-		} break;
-		case 5:
-		{		
-			// 5B2
-			W32( (u32)ptr + 0xB64 + 0, 0x029F05F0 );
-
-			// 5F0
-			W32( (u32)ptr + 0xBE0 + 0, 0x02601000 );
-			W32( (u32)ptr + 0xBE0 + 4, 0x02CA00FE );
-			W32( (u32)ptr + 0xBE0 + 8, 0xFFD800FC );
-			W32( (u32)ptr + 0xBE0 +12, 0xFFD902DF );
-
-		} break;
-		case 6:		// Star Fox Assault
-		{
-			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, 0x814, 0xA4);
-		} break;
-		case 7:		// ??? Need example
-		{
-		} break;
-		case 8:			//	Donkey Kong Jungle Beat
-		{
-			// 6DD - before patch, part of halt routine
-			W32((u32)ptr + (0x06A0 + 0x3D) * 2, 0x02001000 ); // addi $AC0.M, 0x1000
-			Tmp = R32((u32)ptr + (0x06A0 + 0) * 2); // original instructions at 0x6A0
-			W32((u32)ptr + (0x06A0 + 0x3F) * 2, Tmp); // original instructions at 0x6A0
-			W32((u32)ptr + (0x06A0 + 0x41) * 2, 0x02DF02DF ); // ret/ret
-		
-			// 6E5 - before patch, part of halt routine
-			W32((u32)ptr + (0x0659 + 0x8C) * 2, 0x02001000 ); // addi $AC0.M, 0x1000
-			Tmp = R32((u32)ptr + (0x0659 + 0) * 2); // original instructions at 0x659
-			W32((u32)ptr + (0x0659 + 0x8E) * 2, Tmp); // original instructions at 0x659
-			W32( (u32)ptr + (0x0659 + 0x90) * 2, 0x02DF02DF ); // ret/ret
-
-			// 6A0
-			W32((u32)ptr + (0x06A0 + 0) * 2, 0x02BF06DD); // call 0x06DD
-
-			// 659
-			W32((u32)ptr + (0x0659 + 0) * 2, 0x02BF06E5); // call 0x06E5
-		} break; 
-		case 9:		// Paper Mario The Thousand Year Door
-		{
-			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, 0x7FD, 0x8F);
-		} break;
-		case 10:		// Animal Crossing
-		{
-			// CF4 - unused
-			W32((u32)ptr + (0x0CF4 + 0) * 2, 0x02601000); // ori $AC0.M, 0x1000
-			Tmp = R32((u32)ptr + (0x00C0 + 0) * 2); // original instructions at 0x0C0/0x10B
-			W32((u32)ptr + (0x0CF4 + 2) * 2, Tmp); // original instructions at 0x0C0/0x10B
-			W32((u32)ptr + (0x0CF4 + 4) * 2, 0x02DF0000); // ret/nop
-
-			// 0C0
-			W32((u32)ptr + (0x00C0 + 0) * 2, 0x02BF0CF4); // call 0x0CF4
-
-			// 10B
-			W32((u32)ptr + (0x010B + 0) * 2, 0x02BF0CF4); // call 0x0CF4
-		} break;
-		case 11:		// Luigi
-		{
-			// BE8 - unused
-			W32((u32)ptr + (0x0BE8 + 0) * 2, 0x02601000); // ori $AC0.M, 0x1000
-			Tmp = R32((u32)ptr + (0x00BE + 0) * 2); // original instructions at 0x0BE/0x109
-			W32((u32)ptr + (0x0BE8 + 2) * 2, Tmp); // original instructions at 0x0BE/0x109
-			W32((u32)ptr + (0x0BE8 + 4) * 2, 0x02DF0000); // ret/nop
-
-			// 0BE
-			W32((u32)ptr + (0x00BE + 0) * 2, 0x02BF0BE8); // call 0x0BE8
-
-			// 109
-			W32((u32)ptr + (0x0109 + 0) * 2, 0x02BF0BE8); // call 0x0BE8
-
-		} break;
-		default:
-		{
-		} break;
-	}
-}
-
 #define PATCH_STATE_NONE  0
 #define PATCH_STATE_LOAD  1
 #define PATCH_STATE_PATCH 2
