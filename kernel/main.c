@@ -45,7 +45,6 @@ int queueid = 0;
 int heapid=0;
 int FFSHandle=0;
 u32 FSUSB=0;
-FIL GameFile;
 void *reset = (void*)0x1300300C;
 //#undef DEBUG
 
@@ -59,6 +58,9 @@ static u8 DI_ThreadStack[0x1000] __attribute__((aligned(32)));
 
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
+extern s32 DI_Handle;
+extern struct ipcmessage DI_CallbackMsg;
+
 //u32 Loopmode=0;
 int _main( int argc, char *argv[] )
 {
@@ -106,14 +108,15 @@ int _main( int argc, char *argv[] )
 	BootStatus(5, 0, 0);
 	
 	int MountFail = 0;
-	s32 fres = -1; 
+	s32 fres = -1;
+	FIL fp;
 	while(fres != FR_OK)
 	{
-		fres = f_open(&GameFile, "/bladie", FA_READ|FA_OPEN_EXISTING);
+		fres = f_open(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
 		switch(fres)
 		{
 			case FR_OK:
-				f_close(&GameFile);
+				f_close(&fp);
 			case FR_NO_PATH:
 			case FR_NO_FILE:
 			{
@@ -180,13 +183,14 @@ int _main( int argc, char *argv[] )
 	}
 	BootStatus(9, s_size, s_cnt);
 
-	DIinit(true);
-
+	DIRegister();
 	DI_Thread = thread_create(DIReadThread, NULL, (u32*)DI_ThreadStack, 0x1000, 0x50, 1);
 	thread_continue(DI_Thread);
 
+	DIinit(true);
+
 	BootStatus(10, s_size, s_cnt);
-	
+
 	GCAMInit();
 
 	EXIInit();
@@ -208,13 +212,7 @@ int _main( int argc, char *argv[] )
 	cc_ahbMemFlush(1);
 	mdelay(1000);
 	BootStatus(0xdeadbeef, s_size, s_cnt);
-/*
-	write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );
-	write32( HW_ARMIRQFLAG, read32(HW_ARMIRQFLAG) );
 
-	set32( HW_PPCIRQMASK, (1<<31) );
-	set32( HW_IPC_PPCCTRL, 0x30 );
-*/
 	u32 Now = read32(HW_TIMER);
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
@@ -253,7 +251,7 @@ int _main( int argc, char *argv[] )
 		}
 		if(DI_IRQ == true)
 		{
-			if(DIThreadWorking() == false)
+			if(DI_CallbackMsg.result == 0)
 				DIInterrupt();
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
@@ -320,10 +318,13 @@ int _main( int argc, char *argv[] )
 		}
 		if(read32(DI_SCONFIG) == 0x1DEA)
 		{
-			while (DIThreadWorking())
+			if(DI_IRQ == true)
 			{
-				udelay(100);
-				CheckOSReport();
+				while(DI_CallbackMsg.result)
+				{
+					udelay(100);
+					CheckOSReport();
+				}
 			}
 			break;
 		}
@@ -352,7 +353,10 @@ int _main( int argc, char *argv[] )
 		/* we're done reading inputs */
 		thread_cancel(HID_Thread, 0);
 	}
+
+	IOS_Close(DI_Handle); //close game
 	thread_cancel(DI_Thread, 0);
+	DIUnregister();
 
 	write32( DI_SCONFIG, 0 );
 	sync_after_write( (void*)DI_SCONFIG, 4 );

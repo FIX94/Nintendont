@@ -38,11 +38,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int dbgprintf( const char *fmt, ...);
 #endif
 
-void DIReadAsync(u32 Buffer, u32 Length, u32 Offset);
+struct ipcmessage DI_CallbackMsg;
 u32 DI_MessageQueue = 0xFFFFFFFF;
-bool DI_Thread_Working = false;
+u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
+s32 DI_Handle = -1;
 
 u32	StreamBufferSize= 0x1E00000;
 u32 StreamBuffer	= 0x11200000+0x60;
@@ -55,7 +56,7 @@ u32 StreamTimer		= 0;
 u32 StreamStopEnd	= 0;
 u32 DiscChangeIRQ	= 0;
 
-extern FIL GameFile;
+FIL GameFile;
 
 static char GamePath[256] ALIGNED(32);
 static char *FSTBuf = (char *)(0x13200000);
@@ -72,42 +73,30 @@ u32 GCAMKeyC;
 u8 *MediaBuffer;
 u8 *NetworkCMDBuffer;
 u8 *DIMMMemory = (u8*)0x11280000;
-u8 DI_MessageHeap[0x10];
+
+void DIRegister(void)
+{
+	DI_MessageHeap = malloca(0x20, 0x20);
+	DI_MessageQueue = mqueue_create( DI_MessageHeap, 8 );
+	device_register( "/dev/di", DI_MessageQueue );
+}
+
+void DIUnregister(void)
+{
+	mqueue_destroy(DI_MessageQueue);
+	DI_MessageQueue = 0xFFFFFFFF;
+	free(DI_MessageHeap);
+	DI_MessageHeap = NULL;
+}
 
 void DIinit( bool FirstTime )
 {
-	u32 read;
-
 	//This debug statement seems to cause crashing.
 	//dbgprintf("DIInit()\r\n");
 
-	s32 ret = f_open( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
-	if( ret != FR_OK )
-	{
-		_sprintf( GamePath, "%s", ConfigGetGamePath() );
-
-		//Try to switch to FST mode
-		if( !FSTInit(GamePath) )
-		{
-			dbgprintf("Failed to open:%s Error:%u\r\n", ConfigGetGamePath(), ret );	
-			Shutdown();
-		}
-	} else {
-		/* Prepare Cache Files */
-		u32 FSTOffset, FSTSize;
-		f_lseek( &GameFile, 0x424 );
-		f_read( &GameFile, &FSTOffset, sizeof(u32), &read );
-		f_lseek( &GameFile, 0x428 );
-		f_read( &GameFile, &FSTSize, sizeof(u32), &read );
-		f_lseek( &GameFile, FSTOffset );
-		f_read( &GameFile, FSTBuf, FSTSize, &read );
-		/* Get Region */
-		f_lseek( &GameFile, 0x458 );
-		f_read( &GameFile, &Region, sizeof(u32), &read );
-	}
-
-	f_lseek( &GameFile, 0 );
-	f_read( &GameFile, (void*)0, 0x20, &read );
+	if(DI_Handle >= 0) //closes old file
+		IOS_Close(DI_Handle);
+	DI_Handle = IOS_Open( "/dev/di", 0 );
 
 	if (FirstTime)
 	{
@@ -129,8 +118,6 @@ void DIinit( bool FirstTime )
 		write32( DIP_IMM, 0 ); //reset errors
 		write32( DIP_STATUS, 0x2E );
 		write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
-
-		DI_MessageQueue = mqueue_create( DI_MessageHeap, 1 );
 	}
 	else
 	{
@@ -139,8 +126,6 @@ void DIinit( bool FirstTime )
 }
 void DIChangeDisc( u32 DiscNumber )
 {
-	f_close( &GameFile );
-
 	u32 read, i;
 	char* DiscName = ConfigGetGamePath();
 
@@ -156,25 +141,14 @@ void DIChangeDisc( u32 DiscNumber )
 		_sprintf( DiscName+i, "disc2.iso" );
 
 	dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
-	DIinit(false);
+	DIinit(false); //closes previous file and opens the new one
 
-	// Done in DIinit
-	//s32 ret = f_open( &GameFile, DiscName, FA_READ | FA_OPEN_EXISTING );
-	//if ( ret != FR_OK )
-	//{
-	//	dbgprintf("Failed to open:%s Error:%u\r\n", DiscName, ret );
-	//	Shutdown();
-	//}
+	char str[0x100] __attribute__((aligned(0x20)));
 
-	//f_lseek( &GameFile, 0 );
-	//f_read( &GameFile, (void*)0, 0x20, &read );
-
-	char str[0x400] __attribute__((aligned(0x20)));
-
-	memset32(str, 0, 0x400);
+	memset32(str, 0, 0x100);
 	f_lseek( &GameFile, 0x0 );
 	f_read( &GameFile, (void*)str, 0x100, &read ); // Loading the full 0x400 causes problems.
-	str[0x100] = '\0';
+	str[0xFF] = '\0';
 
 	dbgprintf("DIP:Loading game %.6s: %s\r\n", str, (char *)(str+0x20) );
 
@@ -183,7 +157,26 @@ void DIChangeDisc( u32 DiscNumber )
 
 	// str was not alloced.  Do not free.
 	//free(str);
-
+}
+static void DIReadISO()
+{
+	u32 read;
+	/* Set Low Mem */
+	f_lseek( &GameFile, 0 );
+	f_read( &GameFile, (void*)0, 0x20, &read );
+	sync_after_write( (void*)0, 0x20 );
+	/* Prepare Cache Files */
+	u32 FSTOffset, FSTSize;
+	f_lseek( &GameFile, 0x424 );
+	f_read( &GameFile, &FSTOffset, sizeof(u32), &read );
+	f_lseek( &GameFile, 0x428 );
+	f_read( &GameFile, &FSTSize, sizeof(u32), &read );
+	f_lseek( &GameFile, FSTOffset );
+	f_read( &GameFile, FSTBuf, FSTSize, &read );
+	sync_after_write( FSTBuf, FSTSize );
+	/* Get Region */
+	f_lseek( &GameFile, 0x458 );
+	f_read( &GameFile, &Region, sizeof(u32), &read );
 }
 void DIInterrupt()
 {
@@ -209,7 +202,7 @@ void DIUpdateRegisters( void )
 
 	u32 *DInterface	 = (u32*)(DI_BASE);
 	u32 *DInterfaceS = (u32*)(DI_SHADOW);
-	
+
 	sync_before_read( (void*)DI_BASE, 0x60 );
 
 	if( read32(DI_CONTROL) != 0xdeadbeef )
@@ -294,49 +287,48 @@ void DIUpdateRegisters( void )
 				} break;
 				case 0x12:
 				{
-#ifdef DEBUG_GCAM
+					#ifdef DEBUG_GCAM
 					dbgprintf("GC-AM: 0x12\n");
-#endif
+					#endif
 					write32( DI_SIMM, 0x21000000 );
 
 					DIOK = 2;
 				} break;
-        case 0xAA:
-        {
+				case 0xAA:
+				{
 					u32 Buffer	= P2C(read32(DI_SDMA_ADR));
 					u32 Length	= read32(DI_SCMD_2);
 					u32 Offset	= read32(DI_SCMD_1) << 2;
 					//dbgprintf( "GCAM:Write( 0x%08x, 0x%08x, 0x%08x )\n", Offset, Length, Buffer|0x80000000 );
 
-          sync_before_read( (void*)Buffer, Length );
-					
-			    // DIMM memory (3MB)
-			    if( (Offset >= 0x1F000000) && (Offset <= 0x1F300000) )
-			    {
-				    u32 roffset = Offset - 0x1F000000;
-				    memcpy( DIMMMemory + roffset, (void*)Buffer, Length );
-			    }
+					sync_before_read( (void*)Buffer, Length );
 
-			    // DIMM command
-			    if( (Offset >= 0x1F900000) && (Offset <= 0x1F900040) )
-			    {
-				    u32 roffset = Offset - 0x1F900000;
-#ifdef DEBUG_GCAM
-				    dbgprintf("GC-AM: Write MEDIA BOARD COMM AREA (%08x)\n", roffset );
-#endif
-				    memcpy( MediaBuffer + roffset, (void*)Buffer, Length );
-			    }
+					// DIMM memory (3MB)
+					if( (Offset >= 0x1F000000) && (Offset <= 0x1F300000) )
+					{
+						u32 roffset = Offset - 0x1F000000;
+						memcpy( DIMMMemory + roffset, (void*)Buffer, Length );
+					}
+
+					// DIMM command
+					if( (Offset >= 0x1F900000) && (Offset <= 0x1F900040) )
+					{
+						u32 roffset = Offset - 0x1F900000;
+						#ifdef DEBUG_GCAM
+						dbgprintf("GC-AM: Write MEDIA BOARD COMM AREA (%08x)\n", roffset );
+						#endif
+						memcpy( MediaBuffer + roffset, (void*)Buffer, Length );
+					}
 
 					// Network command
 					if( (Offset >= 0x1F800200) && (Offset <= 0x1F8003FF) )
 					{
-				    u32 roffset = Offset - 0x1F800200;
-#ifdef DEBUG_GCAM
+						u32 roffset = Offset - 0x1F800200;
+						#ifdef DEBUG_GCAM
 						dbgprintf("GC-AM: Write MEDIA BOARD NETWORK COMMAND (%08x)\n", roffset );
-#endif
+						#endif
 						memcpy( NetworkCMDBuffer + roffset, (void*)Buffer, Length );
 					}
-						
 					// Max GC disc offset
 					if( Offset >= 0x57058000 )
 					{
@@ -344,25 +336,23 @@ void DIUpdateRegisters( void )
 						dbgprintf("GCAM:Write( 0x%08x, 0x%08x, 0x%08x )\n", Offset, Length, Buffer|0x80000000 );
 						Shutdown();
 					}
-
-          DIOK = 2;
-        } break;
-		    case 0xAB:
-        {
+					DIOK = 2;
+				} break;
+				case 0xAB:
+				{
 					memset( MediaBuffer, 0, 0x20 );
 
-				  MediaBuffer[0] = MediaBuffer[0x20];
+					MediaBuffer[0] = MediaBuffer[0x20];
 
-				  // Command
-				  *(u16*)(MediaBuffer+2) = *(u16*)(MediaBuffer+0x22) | 0x80;
+					// Command
+					*(u16*)(MediaBuffer+2) = *(u16*)(MediaBuffer+0x22) | 0x80;
 
 					u16 cmd = bs16(*(u16*)(MediaBuffer+0x22));
-				
-#ifdef DEBUG_GCAM
+
+					#ifdef DEBUG_GCAM
 					if(cmd)
 						dbgprintf("GCAM:Execute command:%03X\n", cmd );
-#endif
-
+					#endif
 					switch( cmd )
 					{
 						// ?
@@ -411,19 +401,19 @@ void DIUpdateRegisters( void )
 							u32 IPLength	= bs32(*(u32*)(MediaBuffer+0x2C));
 
 							memcpy( MediaBuffer + 4, IP, IPLength );
-							
-#ifdef DEBUG_GCAM
+
+							#ifdef DEBUG_GCAM
 							dbgprintf( "GC-AM: Get IP:%s\n", (char*)(MediaBuffer + 4) );
-#endif
+							#endif
 						} break;
 						// Set IP
 						case 0x415:
 						{
-#ifdef DEBUG_GCAM
+							#ifdef DEBUG_GCAM
 							char *IP			= (char*)(NetworkCMDBuffer + ( bs32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
 							u32 IPLength	= bs32(*(u32*)(MediaBuffer+0x2C));
-							dbgprintf( "GC-AM: Set IP:%s\n", IP );
-#endif
+							dbgprintf( "GC-AM: Set IP:%s, Length:%d\n", IP, IPLength );
+							#endif
 						} break;
 						default:
 						{
@@ -435,8 +425,8 @@ void DIUpdateRegisters( void )
 					memset( MediaBuffer + 0x20, 0, 0x20 );
 					write32( DI_SIMM, 0x66556677 );
 
-          DIOK = 2;
-        } break;
+					DIOK = 2;
+				} break;
 				case 0xE1:	// play Audio Stream
 				{
 					switch( (read32(DI_SCMD_0) >> 16 ) & 0xFF )
@@ -444,25 +434,26 @@ void DIUpdateRegisters( void )
 						case 0x00:
 						{
 							if( read32(DI_SCMD_1) == 0 && read32(DI_SCMD_2) == 0 )
-							{	
+							{
 								StreamStopEnd = 1;						
 								dbgprintf("DIP:DVDPrepareStreamAbsAsync( %08X, %08X )\r\n", read32(DI_SCMD_1), read32(DI_SCMD_2) );
-							} else {
-
+							}
+							else
+							{
 								StreamDiscOffset= read32(DI_SCMD_1)<<2;
 								StreamSize		= read32(DI_SCMD_2);
 								StreamOffset	= 0;
 								Streaming		= 1;
 								StreamStopEnd	= 0;
 								StreamTimer		= read32(HW_TIMER);
-								
+
 								dbgprintf("DIP:Streaming %ds of audio...\r\n", StreamSize / 32 * 28 / 48043 );
 								dbgprintf("DIP:Size:%u\r\n", StreamSize );
 								dbgprintf("DIP:Samples:%u\r\n", StreamSize / (SAMPLES_PER_BLOCK*sizeof(u16)) );
 #ifdef AUDIOSTREAM
 								u32 read;
 								f_lseek( &GameFile, StreamDiscOffset );
-								
+
 								#ifdef DEBUG_DI
 								u32 ret = f_read( &GameFile, (void*)(StreamBuffer+0x1000), StreamSize, &read );
 								#else
@@ -474,12 +465,12 @@ void DIUpdateRegisters( void )
 									dbgprintf("DIP:Failed to read:%u(%u) Error:%u\r\n", StreamSize, read, ret );
 									Shutdown();
 								}
-								
+
 								u32 SrcOff = 0x1000;
 								u32	DstOff = 0;
 
 								unsigned int samples = StreamSize / 32;
-								
+
 								while(samples)
 								{
 									transcode_frame( (char*)(StreamBuffer + SrcOff), 0, (char*)(StreamBuffer + DstOff) );
@@ -488,7 +479,7 @@ void DIUpdateRegisters( void )
 									transcode_frame( (char*)(StreamBuffer + SrcOff), 1, (char*)(StreamBuffer + DstOff) );
 									SrcOff += ONE_BLOCK_SIZE;
 									DstOff += 16;
-									
+
 									samples--;
 
 								//	decode_ngc_dtk( (u8*)(0x11000000 + SrcOff), (u16*)(StreamBuffer + DstOff), 1, 0, 28, 0 );
@@ -499,7 +490,7 @@ void DIUpdateRegisters( void )
 									if( DstOff >= StreamBufferSize )
 										break;
 								}
-								
+
 								uint8_t *header = (uint8_t*)0x11200000;
 								memset32(header, 0, sizeof(header));
 
@@ -540,14 +531,12 @@ void DIUpdateRegisters( void )
 										*(vu32*)(header+28+j*2) = val;
 									}
 								}
-								
 								*(vu32*)(header+60) = *(vu32*)(StreamBuffer)<<16;
-
 
 								//sync_after_write( (void*)StreamBuffer, StreamBufferSize );
 
 								//sync_before_read( (void*)0, 0x20 );
-								
+
 								*(vu32*)(0x14) = StreamBuffer|0xD0000000;
 								*(vu32*)(0x18) = (StreamBuffer+DstOff)|0xD0000000;
 
@@ -573,7 +562,7 @@ void DIUpdateRegisters( void )
 						} break;
 					} 
 					
-					DIOK = 2;			
+					DIOK = 2;
 
 				} break;
 				case 0xE2:	// request Audio Status
@@ -600,8 +589,8 @@ void DIUpdateRegisters( void )
 					}
 
 				//	dbgprintf("DIP:DVDLowAudioGetConfig( %d, %08X )\r\n", (read32(DI_SCMD_0)>>16)&0xFF, read32(DI_SIMM) );
-					
-					DIOK = 2;		
+
+					DIOK = 2;
 
 				} break;
 				case 0xE3:	// stop Motor
@@ -705,7 +694,9 @@ void DIUpdateRegisters( void )
 						}
 						if( Buffer < 0x01800000 )
 						{
-							DIReadAsync(Buffer, Length, Offset);
+							DI_CallbackMsg.result = -1;
+							sync_after_write(&DI_CallbackMsg, 0x20);
+							IOS_IoctlAsync( DI_Handle, 0, (void*)Offset, 0, (void*)Buffer, Length, DI_MessageQueue, &DI_CallbackMsg );
 							DIOK = 2;
 						}
 					}
@@ -713,12 +704,13 @@ void DIUpdateRegisters( void )
 					// not async so wait
 					if( DIcommand == 0xA8 )
 					{
-						while(DIThreadWorking())
+						while(DI_CallbackMsg.result)
 						{
-							udelay(40);
+							udelay(100);
 							CheckOSReport();
 						}
-
+						DI_CallbackMsg.result = -1;
+						sync_after_write(&DI_CallbackMsg, 0x20);
 						DIOK = 1;
 					}
 				} break;
@@ -748,42 +740,69 @@ void DIUpdateRegisters( void )
 	}
 	return;
 }
-static DI_ThreadArgs DI_Args;
-void DIReadAsync(u32 Buffer, u32 Length, u32 Offset)
-{
-	DI_Args.Offset = Offset; DI_Args.Buffer = Buffer; DI_Args.Length = Length;
-	sync_after_write(&DI_Args, sizeof(DI_ThreadArgs));
 
-	DI_Thread_Working = true;
-	mqueue_send_now( DI_MessageQueue, NULL, 0 );
-}
 static u8 *DI_Read_Buffer = (u8*)(0x11200000);
-static u8 *src = NULL; static char *dest = NULL; static u32 length = 0, offset = 0;
 u32 DIReadThread(void *arg)
 {
 	//dbgprintf("DI Thread Running\r\n");
+	u8 *src = NULL; char *dest = NULL; u32 length = 0, offset = 0;
+	struct ipcmessage *di_msg = NULL;
 	while(1)
 	{
-		mqueue_recv( DI_MessageQueue, NULL, 0 );
+		mqueue_recv( DI_MessageQueue, &di_msg, 0 );
+		switch( di_msg->command )
+		{
+			case IOS_OPEN:
+				if( strncmp("/dev/di", di_msg->open.device, 8 ) != 0 )
+				{	//this should never happen
+					mqueue_ack( di_msg, -6 );
+					break;
+				}
+				f_close( &GameFile );
+				s32 ret = f_open( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
+				if( ret != FR_OK )
+				{
+					_sprintf( GamePath, "%s", ConfigGetGamePath() );
+					//Try to switch to FST mode
+					if( !FSTInit(GamePath) )
+					{
+						dbgprintf("Failed to open:%s Error:%u\r\n", ConfigGetGamePath(), ret );	
+						Shutdown();
+					}
+				}
+				else
+					DIReadISO();
+				mqueue_ack( di_msg, 24 );
+				break;
 
-		src = DI_Read_Buffer;
-		dest = (char*)DI_Args.Buffer;
-		length = DI_Args.Length;
-		offset = DI_Args.Offset;
+			case IOS_CLOSE:
+				if( FSTMode )
+					FSTCleanup();
+				else
+					f_close( &GameFile );
+				mqueue_ack( di_msg, 0 );
+				break;
 
-		if( FSTMode )
-			FSTRead( GamePath, src, length, offset );
-		else
-			src = CacheRead( src, length, offset );
+			case IOS_IOCTL:
+				src = DI_Read_Buffer;
+				dest = (char*)di_msg->ioctl.buffer_io;
+				length = di_msg->ioctl.length_io;
+				offset = (u32)di_msg->ioctl.buffer_in;
 
-		memcpy( dest, src, length );
-		DoPatches( dest, length, offset );
-		sync_after_write( dest, length );
+				if( FSTMode )
+					FSTRead( GamePath, src, length, offset );
+				else
+					src = CacheRead( src, length, offset );
 
-		DI_Thread_Working = false;
+				memcpy( dest, src, length );
+				DoPatches( dest, length, offset );
+				sync_after_write( dest, length );
+				mqueue_ack( di_msg, 0 );
+				break;
+
+			case IOS_ASYNC:
+				mqueue_ack( di_msg, 0 );
+				break;
+		}
 	}
-}
-bool DIThreadWorking( void )
-{
-	return DI_Thread_Working;
 }

@@ -72,9 +72,13 @@ u32 FSTInit( char *GamePath )
 
 	} else {
 		u8 *rbuf = (u8*)malloc( 0x100 );
-		
+
 		f_lseek( &fd, 0 );
 		f_read( &fd, rbuf, 0x100, &read );
+
+		/* Set Low Mem */
+		memcpy( (void*)0, rbuf, 0x20);
+		sync_after_write( (void*)0, 0x20 );
 
 		dbgprintf("DIP:Loading game %.6s: %s\r\n", rbuf, (char *)(rbuf+0x20));
 
@@ -90,7 +94,7 @@ u32 FSTInit( char *GamePath )
 		
 		dbgprintf( "DIP:FSTableOffset:%08X\r\n", FSTableOffset );
 		dbgprintf( "DIP:FSTableSize:  %08X\r\n", FSTableSize );
-		dbgprintf( "DIP:DolOffset:    %08X\r\n", dolOffset );	
+		dbgprintf( "DIP:DolOffset:    %08X\r\n", dolOffset );
 
 		FSTMode = 1;
 
@@ -107,6 +111,13 @@ u32 FSTInit( char *GamePath )
 	}
 
 	return 1;
+}
+void FSTCleanup()
+{
+	free(FC);
+	FC = NULL;
+	FSTMode = 0;
+	FSTable = NULL;
 }
 void FSTRead( char *GamePath, u8 *Buffer, u32 Length, u32 Offset )
 {
