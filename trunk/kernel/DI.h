@@ -58,12 +58,6 @@ enum GameRegion
 	ALL,
 };
 
-typedef struct {
-	u32 Buffer;
-	u32 Length;
-	u32 Offset;
-} DI_ThreadArgs;
-
 extern u32 Streaming;
 extern u32 StreamOffset;
 extern s32 StreamSize;
@@ -73,8 +67,9 @@ extern u32 DiscChangeIRQ;
 
 void DIinit( bool FirstTime );
 void DIInterrupt();
+void DIRegister(void);
+void DIUnregister(void);
 u32 DIReadThread(void *arg);
-bool DIThreadWorking( void );
 void DIChangeDisc( u32 DiscNumber );
 void DIUpdateRegisters( void );
 

@@ -99,7 +99,7 @@ u32 R32(u32 Address)
 void udelay(int us)
 {
 	u8 heap[0x10];
-	u32 msg;
+	struct ipcmessage *msg = NULL;
 	s32 mqueue = -1;
 	s32 timer = -1;
 
@@ -110,11 +110,11 @@ void udelay(int us)
 	if(timer < 0)
 		goto out;
 	mqueue_recv(mqueue, &msg, 0);
-	
+
 out:
-	if(timer > 0)
+	if(timer >= 0)
 		TimerDestroy(timer);
-	if(mqueue > 0)
+	if(mqueue >= 0)
 		mqueue_destroy(mqueue);
 }
 

@@ -49,6 +49,7 @@ typedef struct
 #define DATACACHE_MAX	220
 
 u32		FSTInit	( char *GamePath );
+void	FSTCleanup ( void );
 void	FSTRead	( char *GamePath, u8 *Buffer, u32 Length, u32 Offset );
 
 void	CacheInit( char *Table, bool ForceReinit );
