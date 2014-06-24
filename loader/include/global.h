@@ -43,6 +43,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define		HW_REG_BASE		0xCD800000
 #define		HW_RESETS		(HW_REG_BASE + 0x194)
 
+#define ALIGNED(x) __attribute__((aligned(x)))
+
 extern u32 HollywoodRevision;
 extern bool UseSD;
 extern u32 Region;
@@ -98,6 +100,7 @@ bool IsWiiU( void );
 const char* const GetRootDevice();
 void RAMInit(void);
 void *Initialise();
+bool LoadNinCFG();
 void ExitToLoader(int ret);
 void ClearScreen();
 void CloseDevices();

@@ -33,7 +33,7 @@ int dummy( const char *str, ... )
 {
 	return 0;
 }
-static u8 AppInfo[32] __attribute__((aligned(32)));
+static u8 AppInfo[32] ALIGNED(32);
 u32 LoadGame( void )
 {
 	void	(*app_init)(int (*report)(const char *fmt, ...));
