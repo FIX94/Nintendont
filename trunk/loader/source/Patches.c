@@ -86,7 +86,7 @@ const unsigned char HWAccess_ES[] =
 	0x00, 0x00, 0x00, 0x02, 
 } ;
 
-static char Entry[0x1C] __attribute__((aligned(32)));
+static char Entry[0x1C] ALIGNED(32);
 
 void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, char *NKernel, u32 *NKernelSize )
 {

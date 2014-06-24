@@ -273,6 +273,33 @@ void ExitToLoader(int ret)
 	SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
 	exit(ret);
 }
+bool LoadNinCFG()
+{
+	bool ConfigReset = false;
+	FILE *cfg = fopen("/nincfg.bin", "rb+");
+	if (cfg == NULL)
+		ConfigReset = true;
+	else
+	{
+		if (fread(ncfg, sizeof(NIN_CFG), 1, cfg) != 1)
+			ConfigReset = true;
+
+		if (ncfg->Magicbytes != 0x01070CF6)
+			ConfigReset = true;
+
+		if (ncfg->Version != NIN_CFG_VERSION)
+			ConfigReset = true;
+
+		if (ncfg->MaxPads > NIN_CFG_MAXPAD)
+			ConfigReset = true;
+
+		if (ncfg->MaxPads < 1)
+			ConfigReset = true;
+
+		fclose(cfg);
+	}
+	return ConfigReset;
+}
 void ClearScreen()
 {
 	VIDEO_ClearFrameBuffer(rmode, framebuffer, COLOR_BLACK);

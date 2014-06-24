@@ -97,7 +97,8 @@ u32 entrypoint = 0;
 extern void __exception_closeall();
 extern void udelay(u32 us);
 static u8 loader_stub[0x1800]; //save internally to prevent overwriting
-static ioctlv IOCTL_Buf __attribute__((aligned(32)));
+static ioctlv IOCTL_Buf ALIGNED(32);
+static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -120,7 +121,7 @@ int main(int argc, char **argv)
 	PrintInfo();
 	PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*1, "Home: Exit");
 	PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*2, "A   : Select");
-	
+
 	if( *(vu32*)(0xCd800064) != -1 )
 	{
 		ClearScreen();
@@ -129,15 +130,15 @@ int main(int argc, char **argv)
 		ExitToLoader(1);
 	}
 
-	int fw = IsWiiU() ? 25 : 24;
-	if( *(vu16*)0x80003140 != 58 || *(vu8*)0x80003142 != fw || *(vu8*)0x80003143 != 32 )
+	u8 fw = *(vu8*)0x80003142;
+	if( *(vu16*)0x80003140 != 58 || (IsWiiU() ? (fw != 25) : (fw != 24 && fw != 25)) || *(vu8*)0x80003143 != 32 )
 	{
 		ClearScreen();
 		gprintf("This version of IOS58 is not supported!\r\n");
 		PrintFormat( 25, 232, "This version of IOS58 is not supported!" );
 		ExitToLoader(1);
 	}
-	
+
 	write16(0xD8B420A, 0); //disable MEMPROT for patches
 
 //Patch FS access
@@ -164,64 +165,55 @@ int main(int argc, char **argv)
 	if(meta != NULL)
 	{
 		fprintf(meta, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
-		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);		
-		fprintf(meta, "\t<release_date>20140430000000</release_date>\r\n");		
+		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);
+		fprintf(meta, "\t<release_date>20140430000000</release_date>\r\n");
 		fprintf(meta, "\t<short_description>%s</short_description>\r\n", META_SHORT);
 		fprintf(meta, "\t<long_description>%s\r\n\r\n%s</long_description>\r\n", META_LONG1, META_LONG2);
 		fprintf(meta, "\t<ahb_access/>\r\n</app>");
 		fclose(meta);
 	}
-	u32 ConfigReset = 0;
 
-	DCInvalidateRange((void*)ncfg, sizeof(NIN_CFG));
 	memset((void*)ncfg, 0, sizeof(NIN_CFG));
-	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 
-	cfg = fopen("/nincfg.bin", "rb+");
-	if (cfg == NULL)
-		ConfigReset = 1;
-	else
+	bool argsboot = false;
+	if(argc > 1) //every 0x00 gets counted as one arg so just make sure its more than the path and copy
 	{
-		if (fread(ncfg, sizeof(NIN_CFG), 1, cfg) != 1)
-			ConfigReset = 1;
-
-		if (ncfg->Magicbytes != 0x01070CF6)
-			ConfigReset = 1;
-
-		if (ncfg->Version != NIN_CFG_VERSION)
-			ConfigReset = 1;
-
-		if (ncfg->MaxPads > NIN_CFG_MAXPAD)
-			ConfigReset = 1;
-
-		if (ncfg->MaxPads < 1)
-			ConfigReset = 1;
-
-		fclose(cfg);
+		memcpy(ncfg, argv[1], sizeof(NIN_CFG));
+		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD && ncfg->MaxPads > 0)
+		{
+			if(ncfg->Config & NIN_CFG_AUTO_BOOT)
+			{	//do NOT remove, this can be used to see if nintendont knows args
+				gprintf(ARGSBOOT_STR);
+				argsboot = true;
+			}
+		}
 	}
-
-	// Prevent autobooting if B is pressed
-	int i = 0;
-	while((ncfg->Config & NIN_CFG_AUTO_BOOT) && i < 100000) // wait for wiimote re-synch
+	if(argsboot == false)
 	{
-		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*3, "B   : Stop Boot");
-		FPAD_Update();
+		if (LoadNinCFG() == false)
+		{
+			memset(ncfg, 0, sizeof(NIN_CFG));
 
-		if (FPAD_Cancel(0))
-			ncfg->Config &= ~NIN_CFG_AUTO_BOOT;
+			ncfg->Magicbytes = 0x01070CF6;
+			ncfg->Version = NIN_CFG_VERSION;
+			ncfg->Language = NIN_LAN_AUTO;
+			ncfg->MaxPads = NIN_CFG_MAXPAD;
+		}
 
-		i++;
+		// Prevent autobooting if B is pressed
+		int i = 0;
+		while((ncfg->Config & NIN_CFG_AUTO_BOOT) && i < 100000) // wait for wiimote re-synch
+		{
+			PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*3, "B   : Stop Boot");
+			FPAD_Update();
+
+			if (FPAD_Cancel(0))
+				ncfg->Config &= ~NIN_CFG_AUTO_BOOT;
+
+			i++;
+		}
 	}
-
-	if (ConfigReset)
-	{
-		memset(ncfg, 0, sizeof(NIN_CFG));
-
-		ncfg->Magicbytes = 0x01070CF6;
-		ncfg->Version = NIN_CFG_VERSION;
-		ncfg->Language = NIN_LAN_AUTO;
-		ncfg->MaxPads = NIN_CFG_MAXPAD;
-	}
+	UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 
 	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
 	if(progressive) //important to prevent blackscreens
@@ -229,35 +221,39 @@ int main(int argc, char **argv)
 	else
 		ncfg->VideoMode &= ~NIN_VID_PROG;
 
-	PrintFormat(MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
-	PrintFormat(MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
-	bool QueryUser = (ncfg->Config & NIN_CFG_AUTO_BOOT) == 0;
-	UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
-	while (QueryUser)
+
+	if((ncfg->Config & NIN_CFG_AUTO_BOOT) == 0)
 	{
-		UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
-		PrintFormat(MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? "<" : " ");
-		PrintFormat(MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? " " : "<");
-
-		FPAD_Update();
-
-		if (FPAD_OK(0))
+		PrintFormat(MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
+		PrintFormat(MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
+		while (1)
 		{
-			int pos = UseSD ? 6 : 7;
-			PrintFormat(MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * pos, " ");
-			break;
-		}
-		if (FPAD_Start(1))
-		{
-			ClearScreen();
-			PrintFormat(90, 232, "Returning to loader...");
-			ExitToLoader(0);
-		}
-		if (FPAD_Down(0))
-			ncfg->Config = ncfg->Config | NIN_CFG_USB;
+			UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
+			PrintFormat(MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? "<" : " ");
+			PrintFormat(MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? " " : "<");
 
-		if (FPAD_Up(0))
-			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
+			FPAD_Update();
+
+			if (FPAD_OK(0))
+			{
+				int pos = UseSD ? 6 : 7;
+				PrintFormat(MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * pos, " ");
+				break;
+			}
+			if (FPAD_Start(1))
+			{
+				ClearScreen();
+				PrintFormat(90, 232, "Returning to loader...");
+				ExitToLoader(0);
+			}
+			if (FPAD_Down(0))
+				ncfg->Config = ncfg->Config | NIN_CFG_USB;
+
+			if (FPAD_Up(0))
+				ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
+
+			VIDEO_WaitVSync();
+		}
 	}
 
 	u32 KernelSize = 0;
@@ -347,6 +343,9 @@ int main(int argc, char **argv)
 
 	memset( (void*)0x91000000, 0xFFFFFFFF, 0x20  );
 	DCFlushRange( (void*)0x91000000, 0x20 );
+
+	//make sure the cfg gets to the kernel
+	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 
 	/* dont directly reset the kernel */
 	DCInvalidateRange( (void*)0x9300300C, 0x20 );
