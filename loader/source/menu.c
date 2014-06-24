@@ -37,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <fat.h>
 
 extern NIN_CFG* ncfg;
-extern FILE *cfg;
 
 u32 Shutdown = 0;
 void HandleWiiMoteEvent(s32 chan)
@@ -502,6 +501,7 @@ void SelectGame( void )
 
 	if (SaveSettings)
 	{
+		FILE *cfg;
 		char ConfigPath[20];
 		// Todo: detects the boot device to prevent writing twice on the same one
 		sprintf(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch

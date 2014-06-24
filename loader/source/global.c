@@ -43,7 +43,6 @@ u32 Region;
 u32 POffset;
 
 NIN_CFG* ncfg = (NIN_CFG*)0x93002900;
-FILE *cfg;
 bool UseSD;
 
 inline bool IsWiiU( void )
@@ -275,30 +274,29 @@ void ExitToLoader(int ret)
 }
 bool LoadNinCFG()
 {
-	bool ConfigReset = false;
+	bool ConfigLoaded = true;
 	FILE *cfg = fopen("/nincfg.bin", "rb+");
 	if (cfg == NULL)
-		ConfigReset = true;
-	else
-	{
-		if (fread(ncfg, sizeof(NIN_CFG), 1, cfg) != 1)
-			ConfigReset = true;
+		return false;
 
-		if (ncfg->Magicbytes != 0x01070CF6)
-			ConfigReset = true;
+	if (fread(ncfg, sizeof(NIN_CFG), 1, cfg) != 1)
+		ConfigLoaded = false;
 
-		if (ncfg->Version != NIN_CFG_VERSION)
-			ConfigReset = true;
+	if (ncfg->Magicbytes != 0x01070CF6)
+		ConfigLoaded = false;
 
-		if (ncfg->MaxPads > NIN_CFG_MAXPAD)
-			ConfigReset = true;
+	if (ncfg->Version != NIN_CFG_VERSION)
+		ConfigLoaded = false;
 
-		if (ncfg->MaxPads < 1)
-			ConfigReset = true;
+	if (ncfg->MaxPads > NIN_CFG_MAXPAD)
+		ConfigLoaded = false;
 
-		fclose(cfg);
-	}
-	return ConfigReset;
+	if (ncfg->MaxPads < 1)
+		ConfigLoaded = false;
+
+	fclose(cfg);
+
+	return ConfigLoaded;
 }
 void ClearScreen()
 {
