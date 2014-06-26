@@ -78,7 +78,7 @@ FuncPattern FPatterns[] =
 	{ 0x308,        40,     18,     10,		23,		17,	(u8*)NULL,					0xdead0026,		"__fwrite A",					7,		0 },
 	{ 0x338,        48,     20,     10,		24,		16,	(u8*)NULL,					0xdead0026,		"__fwrite B",					7,		0 },
 	{ 0x2D8,        41,     17,     8,		21,		13,	(u8*)NULL,					0xdead0026,		"__fwrite C",					7,		0 },
-	{ 0x1FC,        47,     4,      14,		18,		7,	(u8*)NULL,					0xdead0027,		"__fwrite D",					7,		0 },
+	//{ 0x1FC,        47,     4,      14,		18,		7,	(u8*)NULL,					0xdead0027,		"__fwrite D",					7,		0 },
 	//{ 0x308,        40,     18,     10,		23,		17,	patch_fwrite_GC,			sizeof(patch_fwrite_GC),		"__fwrite A",					7,		0 },
 	//{ 0x338,        48,     20,     10,		24,		16,	patch_fwrite_GC,			sizeof(patch_fwrite_GC),		"__fwrite B",					7,		0 },
 	//{ 0x2D8,        41,     17,     8,		21,		13,	patch_fwrite_GC,			sizeof(patch_fwrite_GC),		"__fwrite C",					7,		0 },
@@ -107,6 +107,10 @@ FuncPattern FPatterns[] =
 
 	{ 0x340,        61,     10,     7,     26,      32,	(u8*)NULL,					0xdead002A,						"SIInterruptHandler A",		30,		0 },
 	{ 0x114,        21,     4,      4,      5,      11,	(u8*)NULL,					0xdead002A,						"SIInterruptHandler B",		30,		0 },
+
+	{ 0x10C,        27,     11,     8,      2,      4,	(u8*)NULL,					0xdead002D,						"PI_FIFO_WP A",				0,		0 },
+	{ 0xD8,         20,     11,     3,      3,      6,	(u8*)NULL,					0xdead002E,						"PI_FIFO_WP B",				0,		0 },
+	{ 0x94,         14,     7,      0,      2,      4,	(u8*)NULL,					0xdead002F,						"PI_FIFO_WP C",				0,		0 },
 
 	{ 0xF0,			17,     7,      5,      5,      7,	EXILock,					sizeof(EXILock),				"EXILock",					20,		0 },
 	{ 0xF0,			18,     7,      5,      5,      6,	EXILock,					sizeof(EXILock),				"EXILock",					20,		0 },

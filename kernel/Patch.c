@@ -230,9 +230,8 @@ void PatchZelda_Dsp(u32 DspAddress, u32 PatchAddr, u32 OrigAddress, bool Split, 
 	u32 Tmp = R32(DspAddress + (OrigAddress + 0) * 2); // original instructions at OrigAddress
 	if (Split)
 	{
-		W32(DspAddress + (PatchAddr + 0) * 2, Tmp);        // split original instructions at OrigAddress
-		W32(DspAddress + (PatchAddr + 2) * 2, Tmp);        // split original instructions at OrigAddress
-		W32(DspAddress + (PatchAddr + 1) * 2, 0x02601000); // ori $AC0.M, 0x1000
+		W32(DspAddress + (PatchAddr + 0) * 2, (Tmp & 0xFFFF0000) | 0x00000260); // split original instructions at OrigAddress
+		W32(DspAddress + (PatchAddr + 2) * 2, 0x10000000 | (Tmp & 0x0000FFFF)); // ori $AC0.M, 0x1000 in between
 	}
 	else
 	{
@@ -245,7 +244,7 @@ void PatchZelda_Dsp(u32 DspAddress, u32 PatchAddr, u32 OrigAddress, bool Split, 
 		Tmp = (Tmp & 0x0000FFFF) | 0x02DF0000;             // ret/
 	}
 	else
-		Tmp = 0x02DF02DF;
+		Tmp = 0x02DF02DF;                                  // ret/ret
 	W32(DspAddress + (PatchAddr + 4) * 2, Tmp);
 	W32(DspAddress + (OrigAddress + 0) * 2, 0x02BF0000 | PatchAddr);  // call PatchAddr
 }
@@ -262,9 +261,8 @@ void DoDSPPatch( char *ptr, u32 Version )
 	{
 		case 0:		// Zelda:WW
 		{
-			// 5F8 - before patch, part of halt routine
-			// Why isn't this split at 0x05B2???
-			PatchZelda_Dsp( (u32)ptr, 0x05F8, 0x05B3, false, false );
+			// 5F8 - part of halt routine
+			PatchZelda_Dsp( (u32)ptr, 0x05F8, 0x05B1, true, false );
 			PatchZeldaInPlace_Dsp( (u32)ptr, 0x0566 );
 		} break;
 		case 1:		// Mario Sunshine
@@ -287,7 +285,7 @@ void DoDSPPatch( char *ptr, u32 Version )
 		} break;
 		case 5:		// Mario Kart Double Dash
 		{		
-			// 5F8 - before patch, part of halt routine
+			// 5F8 - part of halt routine
 			PatchZelda_Dsp( (u32)ptr, 0x05F8, 0x05B1, true, false );
 			PatchZeldaInPlace_Dsp( (u32)ptr, 0x0566 );
 		} break;
@@ -298,11 +296,10 @@ void DoDSPPatch( char *ptr, u32 Version )
 		case 7:		// ??? Need example
 		{
 		} break;
-		case 8:		//	Donkey Kong Jungle Beat
+		case 8:		// Donkey Kong Jungle Beat
 		{
-			// 6E5 - before patch, part of halt routine
-			// Why isn't this split at 0x069F???
-			PatchZelda_Dsp( (u32)ptr, 0x06E5, 0x06A0, false, false );
+			// 6E5 - part of halt routine
+			PatchZelda_Dsp( (u32)ptr, 0x06E5, 0x069E, true, false );
 			PatchZeldaInPlace_Dsp( (u32)ptr, 0x0653 );
 		} break; 
 		case 9:		// Paper Mario The Thousand Year Door
@@ -312,14 +309,14 @@ void DoDSPPatch( char *ptr, u32 Version )
 		case 10:	// Animal Crossing
 		{
 			// CF4 - unused
-			PatchZelda_Dsp( (u32)ptr, 0x0CF4, 0x00C0, false, true );
-			PatchZelda_Dsp( (u32)ptr, 0x0CF4, 0x010B, false, true );  // same orig instructions
+			PatchZelda_Dsp( (u32)ptr, 0x0CF4, 0x00C0, false, false );
+			PatchZelda_Dsp( (u32)ptr, 0x0CF4, 0x010B, false, false );  // same orig instructions
 		} break;
 		case 11:	// Luigi
 		{
 			// BE8 - unused
-			PatchZelda_Dsp( (u32)ptr, 0x0BE8, 0x00BE, false, true );
-			PatchZelda_Dsp( (u32)ptr, 0x0BE8, 0x0109, false, true );  // same orig instructions
+			PatchZelda_Dsp( (u32)ptr, 0x0BE8, 0x00BE, false, false );
+			PatchZelda_Dsp( (u32)ptr, 0x0BE8, 0x0109, false, false );  // same orig instructions
 		} break;
 		case 12:	// Pikmin PAL
 		{
@@ -1125,17 +1122,18 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 				value|= 0x38000000;
 				*(vu32*)(Offset+8) = value;
 				
-				if( TRIGame )
-				{
-					write32A( Offset+0x218,	0x3C60C000, 0x3C60CC00, 0 );
-					write32A( Offset+0x21C,	0x80032F50, 0x80036020, 0 );
-				
-					write32A( Offset+0x228,	0x3C60C000, 0x3C60CC00, 0 );
-					write32A( Offset+0x22C,	0x38632F30, 0x38636000, 0 );
+				// done below (+0x4C)
+				//if( TRIGame )
+				//{
+				//	write32A( Offset+0x218,	0x3C60C000, 0x3C60CC00, 0 );
+				//	write32A( Offset+0x21C,	0x80032F50, 0x80036020, 0 );
+				//
+				//	write32A( Offset+0x228,	0x3C60C000, 0x3C60CC00, 0 );
+				//	write32A( Offset+0x22C,	0x38632F30, 0x38636000, 0 );
 
-					write32A( Offset+0x284,	0x3C60C000, 0x3C60CC00, 0 );
-					write32A( Offset+0x288,	0x80032F50, 0x80036020, 0 );
-				}
+				//	write32A( Offset+0x284,	0x3C60C000, 0x3C60CC00, 0 );
+				//	write32A( Offset+0x288,	0x80032F50, 0x80036020, 0 );
+				//}
 
 				u32 SearchIndex = 0;
 				for (SearchIndex = 0; SearchIndex < 2; SearchIndex++)
@@ -1559,7 +1557,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		FuncPattern fp;
 		MPattern( (u8*)(Buffer+i), Length, &fp );
 		//if ((((u32)Buffer + i) & 0x7FFFFFFF) == 0x00000000) //(FuncPrint)
-		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d", fp.Length, fp.Loads, fp.Stores, fp.FCalls, fp.Branch, fp.Moves);
+		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d\r\n", fp.Length, fp.Loads, fp.Stores, fp.FCalls, fp.Branch, fp.Moves);
 
 		for( j=0; j < sizeof(FPatterns)/sizeof(FuncPattern); ++j )
 		{
@@ -1999,6 +1997,42 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:[SIEnablePollingInterrupt] 0x%08X\r\n", FOffset );
+							#endif
+						}
+					} break;
+					case 0xdead002D:	//	PI_FIFO_WP A
+					{
+						//e.g. F-Zero
+						if (write32A(FOffset + 0x68, 0x54C600C2, 0x54C60188, 0))
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Patched [PI_FIFO_WP A] 0x%08X\r\n", FOffset + 0x68);
+							#endif
+						}
+						if (write32A(FOffset + 0xE4, 0x540000C2, 0x54000188, 0))
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Patched [PI_FIFO_WP A] 0x%08X\r\n", FOffset + 0xE4);
+							#endif
+						}
+					} break;
+					case 0xdead002E:	//	PI_FIFO_WP B
+					{
+						//e.g. F-Zero
+						if (write32A(FOffset + 0x4C, 0x540300C2, 0x54030188, 0))
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Patched [PI_FIFO_WP B] 0x%08X\r\n", FOffset + 0x4C);
+							#endif
+						}
+					} break;
+					case 0xdead002F:	//	PI_FIFO_WP C
+					{
+						//e.g. F-Zero
+						if (write32A(FOffset + 0x14, 0x540600C2, 0x54060188, 0))
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Patched [PI_FIFO_WP C] 0x%08X\r\n", FOffset + 0x14);
 							#endif
 						}
 					} break;
