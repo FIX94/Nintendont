@@ -148,20 +148,23 @@ void hexdump(void *d, int len)
   u8 *data;
   int i, off;
   data = (u8*)d;
+  char TempStr[80];
   for (off=0; off<len; off += 16)
   {
-    dbgprintf("%08x  ",off);
+    char* Cur = TempStr;
+    Cur += _sprintf(Cur, "%08x  ",off);
     for(i=0; i<16; i++)
       if((i+off)>=len)
-		  dbgprintf("   ");
+		  Cur += _sprintf(Cur, "   ");
       else
-		  dbgprintf("%02x ",data[off+i]);
+		  Cur += _sprintf(Cur, "%02x ", data[off + i]);
 
-    dbgprintf(" ");
+    Cur += _sprintf(Cur, " ");
     for(i=0; i<16; i++)
-      if((i+off)>=len) dbgprintf(" ");
-      else dbgprintf("%c",ascii(data[off+i]));
-    dbgprintf("\r\n");
+	if ((i + off) >= len) Cur += _sprintf(Cur, " ");
+      else Cur += _sprintf(Cur, "%c",ascii(data[off+i]));
+    Cur += _sprintf(Cur, "\r\n");
+	dbgprintf(TempStr);
   }
 }
 #endif
