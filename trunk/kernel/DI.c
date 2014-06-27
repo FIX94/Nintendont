@@ -771,7 +771,15 @@ u32 DIReadThread(void *arg)
 					}
 				}
 				else
+				{
+					DWORD tmp = 1; //size 1 to get the real size
+					GameFile.cltbl = &tmp;
+					f_lseek(&GameFile, CREATE_LINKMAP);
+					GameFile.cltbl = malloc(tmp * sizeof(DWORD));
+					GameFile.cltbl[0] = tmp; //fatfs automatically sets real size into tmp
+					f_lseek(&GameFile, CREATE_LINKMAP); //actually create it
 					DIReadISO();
+				}
 				mqueue_ack( di_msg, 24 );
 				break;
 
@@ -779,7 +787,11 @@ u32 DIReadThread(void *arg)
 				if( FSTMode )
 					FSTCleanup();
 				else
+				{
 					f_close( &GameFile );
+					free(GameFile.cltbl);
+					GameFile.cltbl = NULL;
+				}
 				mqueue_ack( di_msg, 0 );
 				break;
 
