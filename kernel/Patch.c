@@ -330,7 +330,7 @@ void DoDSPPatch( char *ptr, u32 Version )
 	}
 }
 
-bool write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
+static bool write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
 {
 	if( read32(Offset) != CurrentValue )
 	{

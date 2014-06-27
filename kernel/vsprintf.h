@@ -3,7 +3,6 @@
 
 #include <stdarg.h>
 #include "syscalls.h"
-#include "gecko.h"
 #include "string.h"
 
 int vsprintf(char *buf, const char *fmt, va_list args);

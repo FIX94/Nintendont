@@ -4,13 +4,16 @@ AS	=	$(PREFIX)as
 LD	=	$(PREFIX)gcc
 STRIP =	$(PREFIX)strip
 
-CFLAGS	=	-mbig-endian -fno-unwind-tables -fomit-frame-pointer -O1 -Wall -I. -mcpu=arm926ej-s -mthumb -fno-builtin-toupper -fno-builtin-memcpy -fno-builtin-memset  -fno-builtin-memcmp -fno-builtin-malloc -fno-builtin-free
+CFLAGS	=	-mbig-endian -fno-unwind-tables -fomit-frame-pointer -O1 -Wall -I. -mcpu=arm926ej-s -mthumb \
+	-fno-builtin-toupper -fno-builtin-memcpy -fno-builtin-memset  -fno-builtin-memcmp -fno-builtin-malloc -fno-builtin-free \
+	-fdata-sections -ffunction-sections
+
 ASFLAGS	=	-mbig-endian -mcpu=arm926ej-s
-LDFLAGS	=	-nostartfiles -nodefaultlibs -mbig-endian -Wl,-T,kernel.ld,-Map,kernel.map -n
+LDFLAGS	=	-nostartfiles -nodefaultlibs -mbig-endian -Wl,--gc-sections,-T,kernel.ld,-Map,kernel.map -n
 LIBS	=	-lgcc
 
 TARGET	=	kernel.elf
-OBJECTS	=	start.o common.o alloc.o gecko.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Patch.o StreamADPCM.o EXI.o SI.o ff.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o main.o syscalls.o vsprintf.o string.o
+OBJECTS	=	start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Patch.o StreamADPCM.o EXI.o SI.o ff.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o main.o syscalls.o vsprintf.o string.o
 ifeq ($(usb), 1)
 	OBJECTS	+= tiny_ehci_glue.o usb_os.o
 	CFLAGS	+= -DNINTENDONT_USB

@@ -91,6 +91,7 @@ struct _sdiorequest
 };
 
 s32 SDHCInit( void );
+void SDHCShutdown( void );
 bool sdio_ReadSectors(sec_t sector, sec_t numSectors,void* buffer);
 bool sdio_WriteSectors(sec_t sector, sec_t numSectors,const void* buffer);
 
