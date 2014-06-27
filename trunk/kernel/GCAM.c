@@ -277,8 +277,8 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 							CARDClean = 2;
 						} else if( CARDClean == 2 )
 						{
-							FILINFO fi;
-							if( f_stat( "csave.bin", &fi ) == FR_OK )
+							FIL fi;
+							if( f_open( &fi, "csave.bin", FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 							{
 								if( fi.fsize > 0 )
 								{
@@ -288,6 +288,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 									else
 										CARDBit = 1;
 								}
+								f_close(&fi);
 							}
 							CARDClean = 0;
 						}

@@ -88,7 +88,6 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset );
 void MPattern( u8 *Data, u32 Length, FuncPattern *FunctionPattern );
 int CPattern( FuncPattern *FPatA, FuncPattern *FPatB  );
 
-bool write32A(u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert);
 void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2);
 
 #endif

@@ -384,6 +384,10 @@ int _main( int argc, char *argv[] )
 //unmount FAT device
 	f_mount(0, NULL);
 
+#ifndef NINTENDONT_USB
+	SDHCShutdown();
+#endif
+
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);
 
