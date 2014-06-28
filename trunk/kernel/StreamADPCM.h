@@ -20,7 +20,7 @@
 #ifndef __STREAMADPCM_H__
 #define __STREAMADPCM_H__
 
-#include "Global.h"
+#include "global.h"
 
 enum
 {

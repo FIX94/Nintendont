@@ -4,7 +4,10 @@ setlocal
 set devpath=%DEVKITPPC:/=\%\
 set devpath=%devpath:~1,1%:%devpath:~2%
 
+echo PadReadGC.c
 %devpath%\bin\powerpc-eabi-gcc -O1 -s -nostartfiles -T openstub.ld PADReadGC.c -o ../../data/PADReadGC.bin
+
+echo PadReadHID.c
 cd HID
 %devpath%\bin\powerpc-eabi-gcc -O1 -s -nostartfiles -mhard-float -T openstub.ld PADReadHID.c -o ../../../data/PADReadHID.bin
 cd ../../../data

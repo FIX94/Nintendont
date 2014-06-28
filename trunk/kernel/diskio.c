@@ -1,7 +1,7 @@
 #include "diskio.h"
 #include "string.h"
 #include "debug.h"
-#include "config.h"
+#include "Config.h"
 
 #ifndef NINTENDONT_USB
 #include "SDI.h"
