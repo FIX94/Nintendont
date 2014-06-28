@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <time.h>
 #include <stdio.h>
+#include <string.h>
 #include <malloc.h>
 int main (int argc, char **argv)
 {
