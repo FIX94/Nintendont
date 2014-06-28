@@ -4,8 +4,8 @@ cd kernel\asm
 echo.
 echo Building asm files
 echo.
-make clean
-make
+make windows=1 clean
+make windows=1
 
 cd ..\..\resetstub
 echo.

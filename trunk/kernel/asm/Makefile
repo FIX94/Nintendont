@@ -11,7 +11,11 @@ OBJCOPY = $(PREFIX)objcopy
 RANLIB = $(PREFIX)ranlib
 STRIP = $(PREFIX)strip
 
-BIN2H =	../bin2h/bin2h
+ifeq ($(windows), 1)
+	BIN2H =	../bin2h/bin2h.exe
+else
+	BIN2H =	../bin2h/bin2h
+endif
 
 SFILES		:=	$(wildcard *.S)
 ELFFILES	:=	$(SFILES:.S=.elf)
