@@ -47,9 +47,9 @@ FuncPattern FPatterns[] =
 	{ 0x90,         17,     8,      6,     0,       2,	(u8*)NULL,					0xdead002B,						"SIInit C",						33,		0 },
 	{ 0x94,         8,      10,     2,     4,       2,	(u8*)NULL,					0xdead002C,						"SIEnablePollingInterrupt",		0,		0 },
 
-	{ 0x910,        87,     33,     18,     5,      63,	(u8*)NULL,					0xdead0008,						"__ARChecksize A",				3,		0 },
-	{ 0x17F0,       204,    51,     27,     5,      178,(u8*)NULL,					0xdead0008,						"__ARChecksize B",				3,		0 },
-	{ 0xEC8,        129,    29,     32,     9,      80, (u8*)NULL,					0xdead0008,						"__ARChecksize C",				3,		0 },
+	{ 0x910,        87,     33,     18,     5,      63,	(u8*)NULL,					0xdead0032,						"__ARChecksize A",				3,		0 },
+	{ 0x17F0,       204,    51,     27,     5,      178,(u8*)NULL,					0xdead0033,						"__ARChecksize B",				3,		0 },
+	{ 0xEC8,        129,    29,     32,     9,      80, (u8*)NULL,					0xdead0034,						"__ARChecksize C",				3,		0 },
 	
 	//{ 0x120,        28,     6,      10,     2,      7,	(u8*)NULL,					0xdead000E,						"__OSReadROM",					0,		0 },	
 
@@ -111,6 +111,8 @@ FuncPattern FPatterns[] =
 	{ 0x10C,        27,     11,     8,      2,      4,	(u8*)NULL,					0xdead002D,						"PI_FIFO_WP A",				0,		0 },
 	{ 0xD8,         20,     11,     3,      3,      6,	(u8*)NULL,					0xdead002E,						"PI_FIFO_WP B",				0,		0 },
 	{ 0x94,         14,     7,      0,      2,      4,	(u8*)NULL,					0xdead002F,						"PI_FIFO_WP C",				0,		0 },
+	{ 0xC4,         19,     10,     2,      3,      5,	(u8*)NULL,					0xdead0030,						"PI_FIFO_WP D",				0,		0 },
+	{ 0xC0,         21,     7,      6,      2,      3,	(u8*)NULL,					0xdead0031,						"PI_FIFO_WP E",				0,		0 },
 
 	{ 0xF0,			17,     7,      5,      5,      7,	EXILock,					sizeof(EXILock),				"EXILock",					20,		0 },
 	{ 0xF0,			18,     7,      5,      5,      6,	EXILock,					sizeof(EXILock),				"EXILock",					20,		0 },
