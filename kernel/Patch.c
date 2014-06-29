@@ -1615,8 +1615,22 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							FPatterns[j].Found = 0; // False hit
 						}
 					} break;
-					case 0xdead0008:	// __ARChecksize
+					case 0xdead0032:	// __ARChecksize A
+					case 0xdead0033:	// __ARChecksize B
+					case 0xdead0034:	// __ARChecksize C
 					{
+						if (FPatterns[j].PatchLength == 0xdead0033)
+						{
+							u32 PatchVal = read32(FOffset + 0x370);
+							if ((PatchVal & 0xFFE0FFFF) == 0x40801464) // bne +0x1464
+							{
+								write32(FOffset + 0x370, 0x48001464); // b +0x1464
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:[__ARChecksize B] 0x%08X\r\n", FOffset + 0x370 );
+								#endif
+								break;
+							}
+						}
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[__ARChecksize] 0x%08X\r\n", FOffset );
 						#endif
@@ -1811,21 +1825,21 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					{
 						memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
 						// Most games need length 0 to work properly here
-						if( (TITLE_ID) != 0x475852 )	// Mega Man X Command Mission
-						{
-							u32 PatchOffset = 0;
-							for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
-							{
-								if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
-								{
-								#ifdef DEBUG_PATCH
-									dbgprintf("Patch:[ARStartDMA] Length 0\r\n", FOffset );
-								#endif
-									write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
-									break;
-								}
-							}
-						}
+						//if( (TITLE_ID) != 0x475852 )	// Mega Man X Command Mission
+						//{
+						//	u32 PatchOffset = 0;
+						//	for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
+						//	{
+						//		if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
+						//		{
+						//		#ifdef DEBUG_PATCH
+						//			dbgprintf("Patch:[ARStartDMA] Length 0\r\n", FOffset );
+						//		#endif
+						//			write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
+						//			break;
+						//		}
+						//	}
+						//}
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[ARStartDMA] 0x%08X\r\n", FOffset );
 						#endif
@@ -2033,6 +2047,26 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:Patched [PI_FIFO_WP C] 0x%08X\r\n", FOffset + 0x14);
+							#endif
+						}
+					} break;
+					case 0xdead0030:	//	PI_FIFO_WP D
+					{
+						//e.g. Paper Mario
+						if (write32A(FOffset + 0x40, 0x540400C2, 0x54040188, 0))
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Patched [PI_FIFO_WP D] 0x%08X\r\n", FOffset + 0x40);
+							#endif
+						}
+					} break;
+					case 0xdead0031:	//	PI_FIFO_WP E
+					{
+						//e.g. Paper Mario
+						if (write32A(FOffset + 0x34, 0x541E1FFE, 0x541E37FE, 0))
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Patched [PI_FIFO_WP E] 0x%08X\r\n", FOffset + 0x34);
 							#endif
 						}
 					} break;

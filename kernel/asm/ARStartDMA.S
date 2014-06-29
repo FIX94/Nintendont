@@ -24,6 +24,7 @@ ARStartDMA:
 	
 	and		%r5,	%r5,	%r7
 	oris	%r5,	%r5,	0xD000	# mem2
+	and		%r4,	%r4,	%r7
 	oris	%r4,	%r4,	0xC000	# mem1
 
 	cmpwi	%r3,	1
@@ -42,9 +43,6 @@ memcpy:
 	addic.	%r7,	%r7,	-4
 	bne		memcpy
 	
-	cmpwi	%r3,	1
-	bne		end
-
 	addi	%r5,	%r5,	4
 	sub		%r5,	%r5,	%r6
 	srwi	%r7,	%r6,	5
@@ -69,8 +67,11 @@ end:
 #	stw		%r0,	0x0050(%r3)
 
 #ARAM Transfer Fake
-	li		%r7,	0 #for games which need length 0
+	cmpwi	%r6,	0x400 # might need to refine this value
+	bge		SetCount
+	li		%r6,	0 #for games which need length 0
 
+SetCount:
 	lis		%r3,	AR_DMA_CNT@h
 	stw		%r6,	AR_DMA_CNT@l(%r3)
 
@@ -84,8 +85,6 @@ ARAM_TO_MRAM:
 	mr		%r7,	%r5
 	mr		%r5,	%r4
 	mr		%r4,	%r7
-
-	b memcpy_pre
 
 MRAM_TO_ARAM:
 
