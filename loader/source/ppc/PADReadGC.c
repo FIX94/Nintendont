@@ -27,6 +27,12 @@ void _start()
 	if ((MaxPads > NIN_CFG_MAXPAD) || (MaxPads == 0))
 		MaxPads = NIN_CFG_MAXPAD;
 	u8 HIDPad = ((((NIN_CFG*)0xD3002900)->Config) & NIN_CFG_HID) == 0 ? HID_PAD_NONE : HID_PAD_NOT_SET;
+	// Allow 0 MaxPads above instead?
+	if ( (*(u32*)(0xCD8005A0) >> 16 ) == 0xCAFE ) // Wii U
+	{
+		MaxPads = 0;
+		HIDPad = 0;
+	}
 	for (chan = 0; chan < MaxPads; ++chan)
 	{
 		/* transfer the actual data */
