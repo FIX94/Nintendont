@@ -39,7 +39,16 @@ u32 wMaxPacketSize = 0;
 u32 MemPacketSize = 0;
 u8 *Packet = (u8*)NULL;
 
+unsigned char rawData[] =
+{
+    0x01, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x27, 0x10, 0x00, 0x32, 
+    0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00, 
+} ;
+
 req_args *req = (req_args *)NULL;
+req_args *ps3req = (req_args *)NULL;
 char *ps3buf = (char*)NULL;
 s32 HIDInit( void )
 {
@@ -47,7 +56,14 @@ s32 HIDInit( void )
 	dbgprintf("HIDInit()\r\n");
 
 	req = (req_args*)malloca( sizeof(req_args), 32 );
+	memset32(req, 0, sizeof(req_args));
+
+	ps3req = (req_args*)malloca( sizeof(req_args), 32 );
+	memset32(req, 0, sizeof(req_args));
+
 	ps3buf = (char*)malloca( 64, 32 );
+	memset32(ps3buf, 0, 64);
+	memcpy(ps3buf, rawData, sizeof(rawData));
 
 	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
 
@@ -284,50 +300,32 @@ void HIDPS3Init()
 	}
 	free(buf);
 }
-unsigned char rawData[] =
-{
-    0x01, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x27, 0x10, 0x00, 0x32, 
-    0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-	0x00, 
-} ;
-
 void HIDPS3SetLED( u8 led )
 {
-	memset32( req, 0, sizeof( req_args ) );
-
-	memset32( ps3buf, 0, 64);
-	memcpy( ps3buf, rawData, sizeof(rawData) );
-
 	ps3buf[10] = ss_led_pattern[led];
 	sync_after_write(ps3buf, 64);
 
-	req->device_no				= DeviceID;
-	req->interrupt.dLength		= sizeof(rawData);
-	req->interrupt.endpoint		= 0x02;
-	req->data					= ps3buf;
+	ps3req->device_no				= DeviceID;
+	ps3req->interrupt.dLength		= sizeof(rawData);
+	ps3req->interrupt.endpoint		= 0x02;
+	ps3req->data					= ps3buf;
 
-	s32 ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/4, req, 32, 0, 0 );
+	s32 ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/4, ps3req, 32, 0, 0 );
 	if( ret < 0 ) 
 		dbgprintf("ES:IOS_Ioctl():%d\r\n", ret );
 }
 void HIDPS3SetRumble( u8 duration_right, u8 power_right, u8 duration_left, u8 power_left)
 {
-	memset32( req, 0, sizeof( req_args ) );
-
-	memset32( ps3buf, 0, 64 );
-	memcpy( ps3buf, rawData, sizeof(rawData) );
-
 	ps3buf[3] = power_left;
 	ps3buf[5] = power_right;
 	sync_after_write(ps3buf, 64);
 
-	req->device_no				= DeviceID;
-	req->interrupt.dLength		= sizeof(rawData);
-	req->interrupt.endpoint		= 0x02;
-	req->data					= ps3buf;
+	ps3req->device_no				= DeviceID;
+	ps3req->interrupt.dLength		= sizeof(rawData);
+	ps3req->interrupt.endpoint		= 0x02;
+	ps3req->data					= ps3buf;
 
-	s32 ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/4, req, 32, 0, 0 );
+	s32 ret = IOS_Ioctl( HIDHandle, /*InterruptMessageIN*/4, ps3req, 32, 0, 0 );
 	if( ret < 0 )
 		dbgprintf("ES:IOS_Ioctl():%d\r\n", ret );
 }
@@ -338,7 +336,6 @@ vu32 *HIDChan = (u32*)0x13002700;
 void HIDPS3Read()
 {
 	s32 ret;
-	memset32( req, 0, sizeof( req_args ) );
 
 	req->device_no				= DeviceID;
 	req->control.bmRequestType	= USB_REQTYPE_INTERFACE_GET;
@@ -376,8 +373,6 @@ void HIDIRQRead()
 {
 	s32 ret;
 
-	memset32( req, 0, sizeof( req_args ) );
-
 	req->device_no				= DeviceID;
 	req->interrupt.dLength		= wMaxPacketSize;
 	req->interrupt.endpoint		= bEndpointAddress;
@@ -392,7 +387,7 @@ retry:
 	}
 	if(HID_CTRL->MultiIn && Packet[0] != HID_CTRL->MultiInValue)
 	{
-		udelay(500);
+		//udelay(500);
 		goto retry;
 	}
 	memcpy(HID_Packet, Packet, wMaxPacketSize);
@@ -547,15 +542,16 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 
 u32 HID_Run(void *arg)
 {
+	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
+	bool Polltype = HID_CTRL->Polltype;
+
 	dbgprintf("HID_Run, waiting for signal\r\n");
 	while(read32(0x13003004) == 0)
 	{
 		sync_before_read((void*)0x13003004, 0x20);
 		mdelay(500);
 	}
-	dbgprintf("Starting HID Thread!\r\n");
-	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
-	bool Polltype = HID_CTRL->Polltype;
+	//dbgprintf("Starting HID Thread!\r\n");
 	while(1)
 	{
 		if(Polltype)

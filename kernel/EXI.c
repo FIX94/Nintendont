@@ -49,7 +49,7 @@ bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
-static TCHAR MemCardName[9];
+static TCHAR MemCardName[0x20];
 
 static u32 TRIBackupOffset= 0;
 static u32 EXI2IRQ				= 0;
@@ -67,7 +67,7 @@ void EXIInit( void )
 	{
 		f_chdir("/saves");
 		u32 GameID = ConfigGetGameID();
-		memset32(MemCardName, 0, 9);
+		memset32(MemCardName, 0, 0x20);
 		memcpy(MemCardName, &GameID, 4);
 		memcpy(MemCardName+4, ".raw", 4);
 		sync_after_write(MemCardName, 0x20);

@@ -105,10 +105,10 @@ void DIinit( bool FirstTime )
 		GCAMKeyC = read32(8);
 
 		MediaBuffer = (u8*)malloc( 0x40 );
-		memset( MediaBuffer, 0, 0x40 );
+		memset32( MediaBuffer, 0, 0x40 );
 
 		NetworkCMDBuffer = (u8*)malloc( 512 );
-		memset( NetworkCMDBuffer, 0, 512 );
+		memset32( NetworkCMDBuffer, 0, 512 );
 
 		memset32( (void*)DI_BASE, 0xdeadbeef, 0x30 );
 		memset32( (void*)DI_SHADOW, 0, 0x30 );
@@ -124,6 +124,7 @@ void DIinit( bool FirstTime )
 		CacheInit(FSTBuf, true);
 	}
 }
+static char discstr[0x100] __attribute__((aligned(0x20)));
 void DIChangeDisc( u32 DiscNumber )
 {
 	u32 read, i;
@@ -143,14 +144,12 @@ void DIChangeDisc( u32 DiscNumber )
 	dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
 	DIinit(false); //closes previous file and opens the new one
 
-	char str[0x100] __attribute__((aligned(0x20)));
-
-	memset32(str, 0, 0x100);
+	memset32(discstr, 0, 0x100);
 	f_lseek( &GameFile, 0x0 );
-	f_read( &GameFile, (void*)str, 0x100, &read ); // Loading the full 0x400 causes problems.
-	str[0xFF] = '\0';
+	f_read( &GameFile, (void*)discstr, 0x100, &read ); // Loading the full 0x400 causes problems.
+	discstr[0xFF] = '\0';
 
-	dbgprintf("DIP:Loading game %.6s: %s\r\n", str, (char *)(str+0x20) );
+	dbgprintf("DIP:Loading game %.6s: %s\r\n", discstr, (char *)(discstr+0x20) );
 
 	//f_lseek( &GameFile, 0x420 );
 	//f_read( &GameFile, str, 0x40, &read );
@@ -340,7 +339,7 @@ void DIUpdateRegisters( void )
 				} break;
 				case 0xAB:
 				{
-					memset( MediaBuffer, 0, 0x20 );
+					memset32( MediaBuffer, 0, 0x20 );
 
 					MediaBuffer[0] = MediaBuffer[0x20];
 
@@ -422,7 +421,7 @@ void DIUpdateRegisters( void )
 						} break;
 					}
 
-					memset( MediaBuffer + 0x20, 0, 0x20 );
+					memset32( MediaBuffer + 0x20, 0, 0x20 );
 					write32( DI_SIMM, 0x66556677 );
 
 					DIOK = 2;
@@ -492,7 +491,7 @@ void DIUpdateRegisters( void )
 								}
 
 								uint8_t *header = (uint8_t*)0x11200000;
-								memset32(header, 0, sizeof(header));
+								memset32(header, 0, 64);
 
 								// 0-3: sample count
 								*(vu32*)(header+0) = samples;

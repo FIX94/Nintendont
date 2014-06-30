@@ -274,6 +274,9 @@ int main(int argc, char **argv)
 
 	DCFlushRange( (void*)0x90100000, NKernelSize );
 
+	memset( (void*)0x92f00000, 0, 0x100000 );
+	DCFlushRange( (void*)0x92f00000, 0x100000 );
+
 	/*FILE *out = fopen("/kernel.bin", "wb");
 	fwrite( (char*)0x90100000, 1, NKernelSize, out );
 	fclose(out);*/

@@ -82,9 +82,11 @@ end:
 #	stw		%r0,	0x0050(%r3)
 
 #ARAM Transfer Fake
-	cmpwi	%r6,	0x800 # might need to refine this value
+	li		%r7,	0 #for games which need length 0
+
+	cmpwi	%r6,	0x800
 	bgt		SetCount
-	li		%r6,	0 #for games which need length 0
+	li		%r6,	0
 
 SetCount:
 	lis		%r3,	AR_DMA_CNT@h
