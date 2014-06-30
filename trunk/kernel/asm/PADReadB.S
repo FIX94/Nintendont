@@ -1,24 +1,29 @@
 #include <asm.h>
 
 .set		PadStub,	0x93000000
-.set		PadStubHID,	0x93001000
 .set		PadBuff,	0x93002800
 
 PADReadB:
-	mflr	%r9
+	stwu	%sp,	-0x40(%sp)
+	stmw	%r28,	0x18(%sp)
+	mr		%r31,	%r3
+	mr		%r30,	%r0
+	mr		%r29,	%r4
+	mflr	%r28
+
 	#to stub instead of arm
 	lis		%r6,			PadStub@h
 	ori		%r6,	%r6,	PadStub@l
 	mtctr	%r6
 	bctrl
-	#to hid stub
-	lis		%r6,			PadStubHID@h
-	ori		%r6,	%r6,	PadStubHID@l
-	mtctr	%r6
-	bctrl
 
-	#Assumes r9 is unmodified by PadStub
-	mtlr	%r9
+	mr		%r3,	%r31
+	mr		%r0,	%r30
+	mr		%r4,	%r29
+	mtlr	%r28
+	lmw		%r28,	0x18(%sp)
+	addi	%sp,	%sp,	0x40
+
 	lis		%r5,			PadBuff@h
 	ori		%r5,	%r5,	PadBuff@l
 	dcbst	0,		%r5 ; sync ; isync
@@ -65,6 +70,6 @@ SSkip:
 	or		%r0,	%r4,	%r0
 	stw		%r0,	0xC(%r3)
 
-	addi	%r1,	%r1,	0x20
+	addi	%sp,	%sp,	0x20
 
 	blr

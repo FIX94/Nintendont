@@ -54,7 +54,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "kernel_bin.h"
 #include "kernel_usb_bin.h"
 #include "PADReadGC_bin.h"
-#include "PADReadHID_bin.h"
 #include "stub_bin.h"
 
 extern void __exception_setreload(int t);
@@ -609,19 +608,7 @@ int main(int argc, char **argv)
 	ICFlashInvalidate();
 
 	DCInvalidateRange((void*)0x93000000, 0x3000);
-	if(IsWiiU())
-	{
-		*(vu32*)0x93000000 = 0x4E800020; //blr, no gc controller on wiiu
-		memcpy((void*)0x93001000, PADReadHID_bin, PADReadHID_bin_size);
-	}
-	else
-	{
-		memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
-		if( ncfg->Config & NIN_CFG_HID )
-			memcpy((void*)0x93001000, PADReadHID_bin, PADReadHID_bin_size);
-		else
-			*(vu32*)0x93001000 = 0x4E800020; //blr, no HID requested
-	}
+	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
 	memset((void*)0x93002700, 0, 4); //set HID controller to 0
 	DCFlushRange((void*)0x93000000, 0x3000);
 

@@ -1575,15 +1575,15 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 				switch( FPatterns[j].PatchLength )
 				{
-					case 0xdead0002:	// DVDLowRead
+					case FCODE_PatchFunc:	// DVDLowRead
 					{
 						PatchFunc( (char*)FOffset );
 					} break;
-					case 0xdead0003:	// __AI_set_stream_sample_rate
+					case FCODE_Return:	// __AI_set_stream_sample_rate
 					{
 						write32( FOffset, 0x4E800020 );
 					} break;
-					case 0xdead0004:	// Audiostreaming hack
+					case FCODE_AIResetStreamSampleCount:	// Audiostreaming hack
 					{
 						switch( TITLE_ID )
 						{
@@ -1596,7 +1596,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							} break;
 						}
 					} break;
-					case 0xdead0005:	// GXInitTlutObj
+					case FCODE_GXInitTlutObj:	// GXInitTlutObj
 					{
 						if( read32( FOffset+0x34 ) == 0x5400023E )
 						{
@@ -1615,11 +1615,11 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							FPatterns[j].Found = 0; // False hit
 						}
 					} break;
-					case 0xdead0032:	// __ARChecksize A
-					case 0xdead0033:	// __ARChecksize B
-					case 0xdead0034:	// __ARChecksize C
+					case FCODE___ARChecksize_A:	// __ARChecksize A
+					case FCODE___ARChecksize_B:	// __ARChecksize B
+					case FCODE___ARChecksize_C:	// __ARChecksize C
 					{
-						if (FPatterns[j].PatchLength == 0xdead0033)
+						if (FPatterns[j].PatchLength == FCODE___ARChecksize_B)
 						{
 							u32 PatchVal = read32(FOffset + 0x370);
 							if ((PatchVal & 0xFFE0FFFF) == 0x40801464) // bne +0x1464
@@ -1645,7 +1645,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 					} break;
 // Widescreen hack by Extrems
-					case 0xdead000C:	//	C_MTXPerspective
+					case FCODE_C_MTXPerspective:	//	C_MTXPerspective
 					{
 						if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
 							break;
@@ -1663,7 +1663,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						*(unsigned int*)(FOffset+80) = 0xEC240072;							// fmuls	1, 4, 1
 
 					} break;
-					case 0xdead000D:	//	C_MTXLightPerspective
+					case FCODE_C_MTXLightPerspective:	//	C_MTXLightPerspective
 					{
 						if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
 							break;
@@ -1683,7 +1683,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						*(u32*)(FOffset+96) = 0xEC240072;							// fmuls	1, 4, 1
 
 					} break;
-					case 0xdead0010:	//	clip
+					case FCODE_J3DUClipper_clip:	//	clip
 					{
 						if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
 							break;
@@ -1694,14 +1694,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						dbgprintf("Patch:[Clip] 0x%08X\r\n", FOffset );
 						#endif
 					} break;
-					case 0xdead000E:	//	__OSReadROM
+					case FCODE___OSReadROM:	//	__OSReadROM
 					{
 						memcpy( (void*)FOffset, __OSReadROM, sizeof(__OSReadROM) );
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[__OSReadROM] 0x%08X\r\n", FOffset );
 						#endif
 					} break;
-					case 0xdead000F:	// Patch for __GXSetVAT, fixes the dungeon map freeze in Wind Waker
+					case FCODE___GXSetVAT:	// Patch for __GXSetVAT, fixes the dungeon map freeze in Wind Waker
 					{
 						switch( TITLE_ID )
 						{
@@ -1720,7 +1720,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							break;
 						}			
 					} break;
-					case 0xdead0020:
+					case FCODE_EXIIntrruptHandler:
 					{
 						u32 PatchOffset = 0x4;
 						while ((read32(FOffset + PatchOffset) != 0x90010004) && (PatchOffset < 0x20)) // MaxSearch=0x20
@@ -1743,7 +1743,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						dbgprintf("Patch:Applied **IntrruptHandler patch 0x%X (PatchOffset=0x%X) \r\n", FOffset, PatchOffset);
 						#endif
 					} break;
-					case 0xdead0021:	// EXIDMA
+					case FCODE_EXIDMA:	// EXIDMA
 					{
 						u32 off		= 0;
 						u32 reg		=-1;
@@ -1809,19 +1809,19 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						write32( FOffset+0x14, valueB );
 
 					} break;
-					case 0xdead0022:	// CARD timeout
+					case FCODE___CARDStat_A:	// CARD timeout
 					{
 						write32( FOffset+0x124, 0x60000000 );	
 						write32( FOffset+0x18C, 0x60000000 );	
 
 					} break;
-					case 0xdead0023:	// CARD timeout
+					case FCODE___CARDStat_B:	// CARD timeout
 					{
 						write32( FOffset+0x118, 0x60000000 );	
 						write32( FOffset+0x180, 0x60000000 );	
 
 					} break;
-					case 0xdead0024:	//	ARStartDMA
+					case FCODE_ARStartDMA:	//	ARStartDMA
 					{
 						memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
 						// Most games need length 0 to work properly here
@@ -1844,7 +1844,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						dbgprintf("Patch:[ARStartDMA] 0x%08X\r\n", FOffset );
 						#endif
 					} break;
-					case 0xdead0025:
+					case FCODE_GCAMSendCommand:
 					{
 						if( TRIGame == 1 )
 						{
@@ -1875,8 +1875,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							break;
 						}
 					} break;
-					case 0xdead0026:	// patch_fwrite_Log
-					case 0xdead0027:	// patch_fwrite_LogB
+					case FCODE___fwrite:	// patch_fwrite_Log
+					case FCODE___fwrite_D:	// patch_fwrite_LogB
 					{
 						if( ConfigGetConfig( NIN_CFG_DEBUGGER ) || !ConfigGetConfig(NIN_CFG_OSREPORT) )
 						{
@@ -1897,14 +1897,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							}
 						}
 						memcpy((void*)FOffset, patch_fwrite_Log, sizeof(patch_fwrite_Log));
-						if (FPatterns[j].PatchLength == 0xdead0027)
+						if (FPatterns[j].PatchLength == FCODE___fwrite_D)
 						{
 							write32(FOffset, 0x7C852379); // mr.     %r5,%r4
 							write32(FOffset + sizeof(patch_fwrite_Log) - 0x8, 0x38600000); // li      %r3,0
 						}
 						break;
 					}
-					case 0xdead0028:	//	_SITransfer
+					case FCODE__SITransfer:	//	_SITransfer
 					{
 						//e.g. Mario Strikers
 						if (write32A(FOffset + 0x60, 0x7CE70078, 0x7CE70038, 0)) // clear errors - andc r7,r7,r0
@@ -1929,7 +1929,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead0029:	//	CompleteTransfer
+					case FCODE_CompleteTransfer:	//	CompleteTransfer
 					{
 						//e.g. Mario Strikers
 						if (write32A(FOffset + 0x38, 0x5400007C, 0x5400003C, 0)) // clear  tc - rlwinm r0,r0,0,1,30
@@ -1947,7 +1947,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead002A:	//	SIInterruptHandler
+					case FCODE_SIInterruptHandler:	//	SIInterruptHandler
 					{
 						u32 PatchOffset = 0x4;
 						while ((read32(FOffset + PatchOffset) != 0x90010004) && (PatchOffset < 0x20)) // MaxSearch=0x20
@@ -1981,7 +1981,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							}
 						}
 					} break;
-					case 0xdead002B:	//	SIInit
+					case FCODE_SIInit:	//	SIInit
 					{
 						//e.g. Mario Strikers
 						if (write32A(FOffset + 0x60, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
@@ -1998,7 +1998,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead002C:	//	SIEnablePollingInterrupt
+					case FCODE_SIEnablePollingInterrupt:	//	SIEnablePollingInterrupt
 					{
 						//e.g. SSBM
 						if (write32A(FOffset + 0x68, 0x60000000, 0x54A50146, 0)) // leave rdstint alone - nop
@@ -2014,7 +2014,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead002D:	//	PI_FIFO_WP A
+					case FCODE_PI_FIFO_WP_A:	//	PI_FIFO_WP A
 					{
 						//e.g. F-Zero
 						if (write32A(FOffset + 0x68, 0x54C600C2, 0x54C60188, 0))
@@ -2030,7 +2030,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead002E:	//	PI_FIFO_WP B
+					case FCODE_PI_FIFO_WP_B:	//	PI_FIFO_WP B
 					{
 						//e.g. F-Zero
 						if (write32A(FOffset + 0x4C, 0x540300C2, 0x54030188, 0))
@@ -2040,7 +2040,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead002F:	//	PI_FIFO_WP C
+					case FCODE_PI_FIFO_WP_C:	//	PI_FIFO_WP C
 					{
 						//e.g. F-Zero
 						if (write32A(FOffset + 0x14, 0x540600C2, 0x54060188, 0))
@@ -2050,7 +2050,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead0030:	//	PI_FIFO_WP D
+					case FCODE_PI_FIFO_WP_D:	//	PI_FIFO_WP D
 					{
 						//e.g. Paper Mario
 						if (write32A(FOffset + 0x40, 0x540400C2, 0x54040188, 0))
@@ -2060,7 +2060,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
-					case 0xdead0031:	//	PI_FIFO_WP E
+					case FCODE_PI_FIFO_WP_E:	//	PI_FIFO_WP E
 					{
 						//e.g. Paper Mario
 						if (write32A(FOffset + 0x34, 0x541E1FFE, 0x541E37FE, 0))
@@ -2105,7 +2105,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 
-						if( (FPatterns[j].Length >> 16) == 0xdead )
+						if( (FPatterns[j].Length >> 16) == (FCODES  >> 16) )
 						{
 							#ifdef DEBUG_PATCH
 							dbgprintf("DIP:Unhandled dead case:%08X\r\n", FPatterns[j].Length );
