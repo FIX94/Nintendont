@@ -49,8 +49,8 @@ u32 DataCacheCount	= 0;
 u32 TempCacheCount	= 0;
 u32 DataCacheOffset = 0;
 u8 *DCCache = (u8*)0x11280000;
-u32 DCacheLimit = 0x1D80000;
-u32 LastLength = 0, StartOffset = 0x1D80000, StartPos = 0;
+u32 DCacheLimit = 0x1C80000;
+u32 LastLength = 0, StartOffset = 0x1C80000, StartPos = 0;
 DataCache DC[DATACACHE_MAX];
 
 extern u32 Region;
@@ -444,7 +444,7 @@ void CacheFile( char *FileName, char *Table )
 {
 	if( DataCacheCount >= DATACACHE_MAX )
 		return;
-	if( DataCacheOffset >= 0x1D80000 )
+	if( DataCacheOffset >= 0x1C80000 )
 		return;
 
 	u32 Entries		= *(u32*)(Table + 0x08);

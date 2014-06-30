@@ -12,9 +12,7 @@
 
 _start:
 	@ setup stack
-	mov r2,		#0x2000
-	ldr sp,		=0x2011C000
-	add sp,		sp,				r2
+	ldr sp,		=__stack_addr
 
 	mov	r5,	r0
 	mov	r6,	lr
