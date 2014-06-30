@@ -28,9 +28,24 @@ ARStartDMA:
 	oris	%r4,	%r4,	0xC000	# mem1
 
 	cmpwi	%r3,	1
-	beq		ARAM_TO_MRAM
 	bne		MRAM_TO_ARAM
 	
+ARAM_TO_MRAM:
+	mr		%r7,	%r5
+	mr		%r5,	%r4
+	mr		%r4,	%r7
+
+MRAM_TO_ARAM:
+	srwi	%r7,	%r6,	5
+	mtctr	%r7
+	mr		%r7,	%r4
+	
+	li		%r0,	0
+DCInvalidateRange:
+	dcbi	%r0,	%r7
+	addi	%r7,	%r7,	0x20
+	bdnz	DCInvalidateRange
+
 memcpy_pre:	
 	mr		%r7,	%r6		#save length
 	lwz		%r0,	0(%r4)
@@ -67,8 +82,8 @@ end:
 #	stw		%r0,	0x0050(%r3)
 
 #ARAM Transfer Fake
-	cmpwi	%r6,	0x400 # might need to refine this value
-	bge		SetCount
+	cmpwi	%r6,	0x800 # might need to refine this value
+	bgt		SetCount
 	li		%r6,	0 #for games which need length 0
 
 SetCount:
@@ -80,22 +95,3 @@ SetCount:
 	addi    %sp, %sp, 0x10
 
 	blr
-
-ARAM_TO_MRAM:
-	mr		%r7,	%r5
-	mr		%r5,	%r4
-	mr		%r4,	%r7
-
-MRAM_TO_ARAM:
-
-	srwi	%r7,	%r6,	5
-	mtctr	%r7
-	mr		%r7,	%r4
-	
-	li		%r0,	0
-DCInvalidateRange:
-	dcbi	%r0,	%r7
-	addi	%r7,	%r7,	0x20
-	bdnz	DCInvalidateRange
-
-	b memcpy_pre

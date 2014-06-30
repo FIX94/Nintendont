@@ -11,7 +11,7 @@ MEM2
 0x91280000-0x93000000=cache (In Triforce mode some of this is reserved for DIMM memory)
 
 0x93000000-0x93001000=padread gc bin
-0x93001000-0x93002700=padread hid bin
+0x93001000-0x93002700=old padread hid bin
 0x93002700=padread hid channel
 0x93002800-0x93002830=PadBuff
 0x93002900-0x93002B1C=nincfg
