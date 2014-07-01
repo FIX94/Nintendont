@@ -32,6 +32,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Patch.h"
 #include "FST.h"
 
+#include "asm/multidol_ldr.h"
+
 #ifndef DEBUG_DI
 #define dbgprintf(...)
 #else
@@ -717,7 +719,12 @@ void DIUpdateRegisters( void )
 				{
 					CacheInit(FSTBuf, false);
 					DIOK = 1;
-				}
+				} break;
+				case 0xFA:
+				{
+					DIReadTGC_DOL();
+					DIOK = 1;
+				} break;
 			}
 
 			if( DIOK )
@@ -741,6 +748,7 @@ void DIUpdateRegisters( void )
 }
 
 static u8 *DI_Read_Buffer = (u8*)(0x11200000);
+u32 tgc_dol_offset = 0, tgc_hdrsize = 0, tgc_offset = 0;
 u32 DIReadThread(void *arg)
 {
 	//dbgprintf("DI Thread Running\r\n");
@@ -796,18 +804,31 @@ u32 DIReadThread(void *arg)
 
 			case IOS_IOCTL:
 				src = DI_Read_Buffer;
-				dest = (char*)di_msg->ioctl.buffer_io;
-				length = di_msg->ioctl.length_io;
-				offset = (u32)di_msg->ioctl.buffer_in;
-
-				if( FSTMode )
-					FSTRead( GamePath, src, length, offset );
+				if((u32)di_msg->ioctl.buffer_io == 0x01300000)
+				{	//multidol, loader always comes after reading tgc header
+					tgc_dol_offset = offset + *(vu32*)((u8*)dest + 0x1C);
+					tgc_hdrsize = length;
+					tgc_offset = offset;
+					//copy in our own apploader
+					dest = (char*)di_msg->ioctl.buffer_io;
+					memcpy( dest, multidol_ldr, multidol_ldr_size );
+					sync_after_write( dest, multidol_ldr_size );
+				}
 				else
-					src = CacheRead( src, length, offset );
+				{
+					dest = (char*)di_msg->ioctl.buffer_io;
+					length = di_msg->ioctl.length_io;
+					offset = (u32)di_msg->ioctl.buffer_in;
 
-				memcpy( dest, src, length );
-				DoPatches( dest, length, offset );
-				sync_after_write( dest, length );
+					if( FSTMode )
+						FSTRead( GamePath, src, length, offset );
+					else
+						src = CacheRead( src, length, offset );
+
+					memcpy( dest, src, length );
+					DoPatches( dest, length, offset );
+					sync_after_write( dest, length );
+				}
 				mqueue_ack( di_msg, 0 );
 				break;
 
@@ -816,4 +837,18 @@ u32 DIReadThread(void *arg)
 				break;
 		}
 	}
+}
+extern u32 PatchState;
+void DIReadTGC_DOL()
+{
+	u8 *dest = (u8*)0x10000000;
+	/* dol header to restart patching */
+	PatchState = 0;
+	u8 *dol_hdr = CacheRead( dest, 0x100, tgc_dol_offset );
+	if(dol_hdr != dest)
+		memcpy(dest, dol_hdr, 0x100);
+
+	DoPatches( (char*)dest, 0x100, tgc_dol_offset );
+	write32((u32)dest + 0x100, tgc_dol_offset);
+	sync_after_write( dest, 0x120 );
 }
