@@ -1,0 +1,131 @@
+TinyLoad v0.2
+A Wii disc game loader in 4096 bytes
+====================================
+
+What?
+=====
+
+TinyLoad is a simple original Wii game launcher. You run it, it launches
+whatever's inserted into the drive. Simple. It ignores game regions, so it's
+region-free. It won't install updates. It won't load burned copies. There are no
+controls or settings.
+
+The user interface shows two things: progress, and error status. A white bar
+across the bottom of the screen shows the current (rough) progress. If an error
+is detected, a portion of the top of the screen will turn red. It will then
+attempt to launch The Homebrew Channel (only applies to recent versions with the
+JODI Title ID). If this fails then it will simply hang.
+
+If the launcher freezes with the progress bar visible and no red error box, then
+you've probably hit a bug. Try the debug version if you have a USB Gecko.
+
+If it freezes with a black screen after the progress bar has reached its
+endpoint and disappeared, then the game itself is freezing.
+
+I obviously have only tested this with a few games. Chances are it doesn't work
+with every Wii game out there.
+
+The debug version requires a USB Gecko and shows debug messages over it.
+
+Notes:
+- TinyLoad sets the PPC timebase correctly according to your Wii's RTC. This
+  fixes date/time issues in games.
+- The video code makes lots of assumptions. It will only work if VI was left
+  configured in a "standard" mode, with a 640x480-640x574 framebuffer. VI should
+  be blanked; if it isn't, then TinyLoad will not blank it before launching
+  the game so your screen will blink green for a split second as the game
+  initializes VI. It has been tested to work correctly when launched by the
+  Homebrew Channel in at least NTSC 480p and PAL interlaced modes. If these
+  assumptions don't hold then the progress bar display will not work properly,
+  but the rest of the loader should work fine.
+- TinyLoad does not perform _any_ patching of games. The lowmem video mode
+  setting follows whatever video mode was left set by the application used to
+  launch TinyLoad, except that PAL games are forced to PAL if NTSC is detected.
+  This does not patch the game, it's merely the informative value in low memory;
+  games are free to read SYSCONF/setting.txt and ignore it. I don't really care
+  because I use 480p mode anyway. If you need more advanced options, just use
+  Gecko OS.
+- Normally, game audio will not work correctly if launched via a loader that
+  was initially launched via BootMii-boot2. This is a bug in libogc (it doesn't
+  know how to initialize the DSP for the first time and leaves it in a broken
+  state), and it affects anything running after the Wii was booted first into
+  a libogc application, including the System Menu's loader. In other words,
+  BootMii-boot2 -> HBC -> System Menu (or Gecko OS) -> Game may cause distorted
+  audio. TinyLoad _does_ work, by resetting the audio hardware to let the game
+  reinitialize it properly. So, BootMii-boot2 -> HBC -> TinyLoad -> Game will
+  work fine. This ought to be worked around in a future release of HBC, at
+  least. I'd suggest fixing libogc, but I know shagkur is just going to rip the
+  proper code from the SDK again. Anyway, launching using TinyLoad will work
+  fine as it contains the workaround.
+- TinyLoad will load the correct IOS as specified in the partition TMD. It does
+  not support loading any other IOS.
+- TinyLoad will not install updates. Not having the right IOS for the game will
+  probably result in a red error and reset about halfway through.
+
+Broken stuff:
+- I don't think online games work. Not sure why (I do copy the TitleID to the
+  proper spot, I think). If it works for you, let me know. Likewise, if you know
+  what the problem is or you can fix it, please let me know.
+
+Who?
+====
+
+Program:
+Copyright 2008-2009  Hector Martin (marcan) <marcan@marcansoft.com>
+
+Supporting code:
+Copyright 2008-2009  Segher Boessenkool <segher@kernel.crashing.org>
+Copyright 2008-2009  Andre Heider (dhewg) <dhewg@wiibrew.org>
+Copyright 2008       Nuke  <wiinuke@gmail.com>
+
+Awesome icon:
+Copyright 2009       Freddy Leitner (drmr)
+
+This code is licensed to you under the terms of the GNU GPL, version 2;
+see file COPYING or http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+
+The icon is licensed under CC-BY-NC-SA 3.0:
+http://creativecommons.org/licenses/by-nc-sa/3.0/
+
+Why?
+====
+
+Because:
+- System Menu 4.2 forever broke region free via modchips
+- I have a USA Wii which I regularly use with EUR games
+- Gecko OS is somewhat annoying and recent versions are unstable (for me anyway)
+- I refuse to perform retarded firmware mods.
+- I autoboot HBC via BootMii-boot2 and using the System Menu takes longer
+  anyway.
+
+I also think that low-level apps that tightly hug the hardware are very
+educational, so why not. And hey, the code is pretty short, so you ought to be
+able to read it completely and learn how all this crazy Wii stuff *actually*
+works :-)
+
+How?
+====
+
+TinyLoad is not compressed. The 4 kilobytes are raw code and data, plus the ELF
+header. The original loader was fit in 4 kilobytes by avoiding bloated libraries
+like libogc and instead using a small codebase pieced together from bits of the
+Twilight Hack and of HBC's reload stub. Extra features (SYSCONF reading, RTC
+reading, proper lowmem settings, VI stuff, progress bar, etc) were added by
+making space via a combination of increasingly complex compiler options, manual
+tweaks, and micro-optimization.
+
+Nonetheless, there is almost no assembly code and the C code, though compact and
+odd at times, should be moderately readable. Just keep in mind that I
+deliberately leave old values floating around and/or use odd initializations in
+order to simplify the code. Also, I haven't commented most of it. If you're
+really interested, give me a shout and I'll see what I can do to make it more
+acceptable.
+
+If you want some *real* fun, load the ELF in IDA. The function inlining and tail
+call goodness ought to provide tons of entertainment.
+
+Where?
+======
+
+http://wiibrew.org/TinyLoad
+http://marcansoft.com/blog/

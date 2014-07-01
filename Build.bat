@@ -1,6 +1,13 @@
 @echo off
 
-cd kernel\asm
+cd multidol
+echo.
+echo Building Multi-DOL Loader
+echo.
+make windows=1 clean
+make windows=1
+
+cd ..\kernel\asm
 echo.
 echo Building asm files
 echo.

@@ -34,13 +34,23 @@ int main (int argc, char **argv)
 	unsigned char *bin = (unsigned char*)malloc(fsize);
 	fread(bin,fsize,1,f);
 	fclose(f);
-	/* generate names */
-	size_t namelen = strrchr(argv[1], '.') - argv[1];
-	char *newname = calloc(namelen+3, sizeof(char));
-	char *basename = calloc(namelen+1, sizeof(char));
-	strncpy(basename, argv[1], namelen);
-	strncpy(newname, basename, namelen);
-	strcpy(newname+namelen, ".h");
+	/* new .h file */
+	size_t newnamelen = strrchr(argv[1], '.') - argv[1];
+	char *newname = calloc(newnamelen+3, sizeof(char));
+	strncpy(newname, argv[1], newnamelen);
+	strcpy(newname + newnamelen, ".h");
+
+	/* name for the .h content */
+	size_t basenamelen = newnamelen;
+	if(strchr(argv[1], '/') != NULL)
+		basenamelen -= (strrchr(argv[1], '/')+1 - argv[1]);
+
+	char *basename = calloc(basenamelen+1, sizeof(char));
+	if(strchr(argv[1], '/') != NULL)
+		strncpy(basename, strrchr(argv[1], '/')+1, basenamelen);
+	else
+		strncpy(basename, argv[1], basenamelen);
+
 	/* get creation time */
 	time_t curtime = time (NULL);
 	struct tm *loctime = localtime (&curtime);
@@ -48,11 +58,13 @@ int main (int argc, char **argv)
 	f = fopen(newname, "w");
 	free(newname);
 	fputs("/*\n",f);
-	fprintf(f,"\tFilename    : %s\n",argv[1]);
-	fprintf(f,"\tDate created: %s", asctime (loctime));
+	fprintf(f,"\tFilename    : %s\n", strchr(argv[1], '/') != NULL ? strrchr(argv[1], '/')+1 : argv[1]);
+	fprintf(f,"\tDate created: %s", asctime(loctime));
 	fputs("*/\n\n",f);
 	fprintf(f,"#define %s_size 0x%x\n\n",basename,fsize);
 	fprintf(f,"const unsigned char %s[] = {",basename);
+	free(basename);
+
 	size_t i = 0;
 	while(i < fsize)
 	{

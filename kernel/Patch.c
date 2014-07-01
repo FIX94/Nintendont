@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "global.h"
 #include "patches.c"
+#include "SI.h"
 
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
@@ -36,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 u32 CardLowestOff = 0;
 u32 POffset = 0x2F00;
 vu32 Region = 0;
-
 extern FIL GameFile;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
@@ -632,8 +632,10 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	u32 value = 0;
 	
 	if( (u32)Buffer >= 0x01800000 )
-		return;
-
+	{
+		if((u32)Buffer != 0x10000000)
+			return;
+	}
 	for( i=0; i < Length; i+=4 )
 	{
 		*(vu32*)(Buffer+i) = *(vu32*)(Buffer+i);
@@ -1537,7 +1539,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	}
 	#endif
 
-	if( (PatchCount & (1|2|4|8|2048)) != (1|2|4|8|2048) )
+	if( ((PatchCount & (1|2|4|8|2048)) != (1|2|4|8|2048)) )
 	{
 		#ifdef DEBUG_PATCH
 		dbgprintf("Patch:Could not apply all required patches!\r\n");
