@@ -59,7 +59,7 @@ s32 HIDInit( void )
 	memset32(req, 0, sizeof(req_args));
 
 	ps3req = (req_args*)malloca( sizeof(req_args), 32 );
-	memset32(req, 0, sizeof(req_args));
+	memset32(ps3req, 0, sizeof(req_args));
 
 	ps3buf = (char*)malloca( 64, 32 );
 	memset32(ps3buf, 0, 64);

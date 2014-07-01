@@ -32,13 +32,15 @@ void ConfigInit( void )
 	}
 
 	if( IsWiiU )
+	{
 		ncfg->Config |= NIN_CFG_HID;
+		ncfg->MaxPads = 0;
+	}
 
 	if( (read32(0) >> 8) == 0x47504F )	// PSO 1&2 disable cheats/debugging
 	{
 		ncfg->Config &= ~(NIN_CFG_CHEATS|NIN_CFG_DEBUGGER|NIN_CFG_DEBUGWAIT);
 	}
-	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
 }
 inline char *ConfigGetGamePath( void )
 {

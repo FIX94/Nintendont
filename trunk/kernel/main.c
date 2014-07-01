@@ -150,13 +150,13 @@ int _main( int argc, char *argv[] )
 	}
 #endif
 
-#ifdef LOG_BUILD
-	SDisInit = 1;  // This can cause issues of its own
-#endif
-
 	BootStatus(7, s_size, s_cnt);
 	ConfigInit();
 	
+	if (ConfigGetConfig(NIN_CFG_LOG))
+		SDisInit = 1;  // Looks okay after threading fix
+	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
+
 	BootStatus(8, s_size, s_cnt);
 
 	memset32((void*)0x13002800, 0, 0x30);
@@ -377,9 +377,8 @@ int _main( int argc, char *argv[] )
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
 
-#ifdef LOG_BUILD
-	closeLog();
-#endif
+	if (ConfigGetConfig(NIN_CFG_LOG))
+		closeLog();
 
 //unmount FAT device
 	f_mount(0, NULL);
