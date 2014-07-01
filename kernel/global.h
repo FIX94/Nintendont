@@ -1,8 +1,6 @@
 #ifndef __GLOBAL_H__
 #define __GLOBAL_H__
 
-//#define LOG_BUILD	1
-
 #define DEBUG		1
 #define false		0
 #define true		1

@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/consol.h>
 #include <ogc/system.h>
 #include <fat.h>
+#include "../../common/include/CommonConfigStrings.h"
 
 extern NIN_CFG* ncfg;
 
@@ -198,10 +199,10 @@ void SelectGame( void )
 
 			}  else {
 
-				ListMax = 13;
+				ListMax = NIN_SETTINGS_LAST - 1;
 
 				if( (ncfg->VideoMode & NIN_VID_MASK) == NIN_VID_FORCE )
-					ListMax = 14;
+					ListMax = NIN_SETTINGS_LAST;
 			}
 			
 			redraw = 1;
@@ -274,7 +275,7 @@ void SelectGame( void )
 				if( PosX >= ListMax )
 				{
 					ScrollX = 0;
-					PosX	= 0;					
+					PosX	= 0;
 				}
 			
 				redraw=1;
@@ -286,203 +287,95 @@ void SelectGame( void )
 				PosX--;
 
 				if( PosX < 0 )
-					PosX = ListMax - 1;			
+					PosX = ListMax - 1;
 
 				redraw=1;
 			}
 
 			if( FPAD_OK(0) )
 			{
-				switch( PosX )
+				if ( PosX < NIN_CFG_BIT_LAST )
+					ncfg->Config ^= (1 << PosX);
+				else switch( PosX )
 				{
-					case 0:
-					{
-						ncfg->Config ^= NIN_CFG_CHEATS;
-					} break;
-					case 1:
-					{
-						ncfg->Config ^= NIN_CFG_FORCE_PROG;
-					} break;
-					case 2:
-					{
-						ncfg->Config ^= NIN_CFG_FORCE_WIDE;
-					} break;
-					case 3:
-					{
-						ncfg->Config ^= NIN_CFG_MEMCARDEMU;
-					} break;
-					case 4:
-					{
-						ncfg->Config ^= NIN_CFG_DEBUGGER;
-					} break;
-					case 5:
-					{
-						ncfg->Config ^= NIN_CFG_DEBUGWAIT;
-					} break;
-					case 6:
-					{
-						ncfg->Config ^= NIN_CFG_HID;
-					} break;
-					case 7:
-					{
-						ncfg->Config ^= NIN_CFG_OSREPORT;
-					} break;
-					case 8:
-					{
-						ncfg->Config ^= NIN_CFG_AUTO_BOOT;
-					} break;
-					case 9:
+					case NIN_SETTINGS_MAX_PADS:
 					{
 						ncfg->MaxPads++;
-						if ((ncfg->MaxPads > NIN_CFG_MAXPAD) || (ncfg->MaxPads < 1))
-							ncfg->MaxPads = 1;
 					} break;
-					case 10:
+					case NIN_SETTINGS_LANGUAGE:
 					{
 						ncfg->Language++;
 						if (ncfg->Language > NIN_LAN_DUTCH)
 							ncfg->Language = NIN_LAN_AUTO;
 					} break;
-					case 11:
+					case NIN_SETTINGS_VIDEO:
 					{
-						ncfg->Config ^= NIN_CFG_LED;
-					} break;
-					case 12:
-					{
-						switch( ncfg->VideoMode & NIN_VID_MASK )
+						u32 Video = (ncfg->VideoMode & NIN_VID_MASK) >> 16;
+						Video = (Video + 1) % 3;
+						Video <<= 16;
+						ncfg->VideoMode &= ~NIN_VID_MASK;
+						ncfg->VideoMode |= Video;
+						if (Video == NIN_VID_FORCE)
+							ListMax = NIN_SETTINGS_LAST;
+						else
 						{
-							case NIN_VID_AUTO:
-								ncfg->VideoMode &= ~NIN_VID_MASK;
-								ncfg->VideoMode |= NIN_VID_FORCE;
-
-								ListMax = 14;
-							break;
-							case NIN_VID_FORCE:
-								ncfg->VideoMode &= ~NIN_VID_MASK;
-								ncfg->VideoMode |= NIN_VID_NONE;
-
-								ListMax = 13;
-
-								PrintFormat( MENU_POS_X+50, 164+16*13, "                             " );
-
-							break;
-							case NIN_VID_NONE:
-								ncfg->VideoMode &= ~NIN_VID_MASK;
-								ncfg->VideoMode |= NIN_VID_AUTO;
-
-								ListMax = 13;
-
-								PrintFormat( MENU_POS_X+50, 164+16*13, "                             " );
-
-							break;
+							ListMax = NIN_SETTINGS_LAST - 1;
+							PrintFormat( MENU_POS_X+50, 164+16*(ListMax), "%29s", "" );
 						}
-
 					} break;
-					case 13:
+					case NIN_SETTINGS_VIDEOMODE:
 					{
-						switch( ncfg->VideoMode & NIN_VID_FORCE_MASK )
-						{
-							case NIN_VID_FORCE_PAL50:
-								ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
-								ncfg->VideoMode |= NIN_VID_FORCE_PAL60;
-							break;
-							case NIN_VID_FORCE_PAL60:
-								ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
-								ncfg->VideoMode |= NIN_VID_FORCE_NTSC;
-							break;
-							case NIN_VID_FORCE_NTSC:
-								ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
-								ncfg->VideoMode |= NIN_VID_FORCE_MPAL;
-							break;
-							case NIN_VID_FORCE_MPAL:
-								ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
-								ncfg->VideoMode |= NIN_VID_FORCE_PAL50;
-							break;
-						}
-
+						u32 Video = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
+						Video = Video << 1;
+						if (Video > NIN_VID_FORCE_MPAL)
+							Video = NIN_VID_FORCE_PAL50;
+						ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
+						ncfg->VideoMode |= Video;
 					} break;
 				}
+				if ((ncfg->MaxPads > NIN_CFG_MAXPAD) || (ncfg->MaxPads < 1))
+					ncfg->MaxPads = (ncfg->Config & NIN_CFG_HID) ? 0 : 1;
 			}
 
 			if( redraw )
 			{
-				PrintFormat( MENU_POS_X+50, 164+16*0, "Cheats            :%s", (ncfg->Config&NIN_CFG_CHEATS)		? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*1, "Force Progressive :%s", (ncfg->Config&NIN_CFG_FORCE_PROG)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*2, "Force Widescreen  :%s", (ncfg->Config&NIN_CFG_FORCE_WIDE)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*3, "Memcard Emulation :%s", (ncfg->Config&NIN_CFG_MEMCARDEMU)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*4, "Debugger          :%s", (ncfg->Config&NIN_CFG_DEBUGGER)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*5, "Debugger Wait     :%s", (ncfg->Config&NIN_CFG_DEBUGWAIT)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*6, "Use HID device    :%s", (ncfg->Config&NIN_CFG_HID)		? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*7, "OSReport          :%s", (ncfg->Config&NIN_CFG_OSREPORT)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*8, "Auto Boot         :%s", (ncfg->Config&NIN_CFG_AUTO_BOOT)	? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*9, "MaxPads           :%d", (ncfg->MaxPads));
+				u32 ListLoopIndex = 0;
+				for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
+					PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex, "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex, "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
+				ListLoopIndex++;
 
-				switch( ncfg->Language )
+				u32 LanIndex = ncfg->Language;
+				if (( LanIndex >= NIN_LAN_LAST ) ||  ( LanIndex < NIN_LAN_FIRST ))
+					LanIndex = NIN_LAN_LAST; //Auto
+				PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex,"%-18s:%-4s", OptionStrings[ListLoopIndex], LanguageStrings[LanIndex] );
+				ListLoopIndex++;
+
+				u32 VideoIndex = (ncfg->VideoMode & NIN_VID_MASK) >> 16;
+				if (( VideoIndex > NIN_VID_INDEX_NONE ) ||  ( VideoIndex < NIN_VID_INDEX_AUTO ))
 				{
-					case NIN_LAN_ENGLISH:
-						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Eng " );
-					break;
-					case NIN_LAN_GERMAN:
-						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Ger " );
-					break;
-					case NIN_LAN_FRENCH:
-						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Fre " );
-					break;
-					case NIN_LAN_SPANISH:
-						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Spa " );
-					break;
-					case NIN_LAN_ITALIAN:
-						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Ita " );
-					break;
-					case NIN_LAN_DUTCH:
-						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Dut " );
-					break;
-					default:
-						ncfg->Language = NIN_LAN_AUTO;
-						// no break - fall through to Auto
-					case NIN_LAN_AUTO:
-						PrintFormat( MENU_POS_X+50, 164+16*10,"Language          :%s", "Auto" );
-					break;			
+					ncfg->VideoMode &= ~NIN_VID_MASK;
+					ncfg->VideoMode |= NIN_VID_AUTO;
+					VideoIndex = NIN_VID_INDEX_AUTO; //Auto
 				}
-
-				PrintFormat( MENU_POS_X+50, 164+16*11, "Drive Read LED    :%s", (ncfg->Config&NIN_CFG_LED)		? "On " : "Off" );
-
-				switch( ncfg->VideoMode & NIN_VID_MASK )
-				{
-					case NIN_VID_AUTO:
-						PrintFormat( MENU_POS_X+50, 164+16*12,"Video             :%s", "Auto " );
-					break;
-					case NIN_VID_FORCE:
-						PrintFormat( MENU_POS_X+50, 164+16*12,"Video             :%s", "Force" );
-					break;
-					case NIN_VID_NONE:
-						PrintFormat( MENU_POS_X+50, 164+16*12,"Video             :%s", "None " );
-					break;		
-					default:
-						ncfg->VideoMode &= ~NIN_VID_MASK;
-						ncfg->VideoMode |= NIN_VID_AUTO;
-					break;			
-				}
+				PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex,"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoStrings[VideoIndex] );
+				ListLoopIndex++;
 
 				if( (ncfg->VideoMode & NIN_VID_FORCE) == NIN_VID_FORCE )
-				switch( ncfg->VideoMode & NIN_VID_FORCE_MASK )
 				{
-					case NIN_VID_FORCE_PAL50:
-						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "PAL50" );
-					break;
-					case NIN_VID_FORCE_PAL60:
-						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "PAL60" );
-					break;
-					case NIN_VID_FORCE_NTSC:
-						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "NTSC " );
-					break;
-					case NIN_VID_FORCE_MPAL:
-						PrintFormat( MENU_POS_X+50, 164+16*13, "Videomode         :%s", "MPAL " );
-					break;
-					default:
+					u32 VideoModeVal = ncfg->VideoMode & NIN_VID_FORCE_MASK;
+					u32 VideoModeIndex;
+					u32 VideoTestVal = 1;
+					for (VideoModeIndex = 0; (VideoTestVal <= NIN_VID_FORCE_MPAL) && (VideoModeVal != VideoTestVal); VideoModeIndex++)
+						VideoTestVal <<= 1;
+					if ( VideoModeVal < VideoTestVal )
+					{
 						ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
 						ncfg->VideoMode |= NIN_VID_FORCE_NTSC;
-					break;
+						VideoModeIndex = NIN_VID_INDEX_FORCE_NTSC;
+					}
+					PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex,"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoModeStrings[VideoModeIndex] );
+					ListLoopIndex++;
 				}
 
 				PrintFormat( MENU_POS_X+30, 164+16*PosX, ">" );
