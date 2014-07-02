@@ -95,6 +95,9 @@ const unsigned char DSPHashes[][0x14] =
 	{
 		0x80, 0x01, 0x60, 0xDF, 0x89, 0x01, 0x9E, 0xE3, 0xE8, 0xF7, 0x47, 0x2C, 0xE0, 0x1F, 0xF6, 0x80, 0xE9, 0x85, 0xB0, 0x24,			//	12 Dolphin=0x267fd05a=Pikmin PAL
 	},
+	{
+		0xB4, 0xCB, 0xC0, 0x0F, 0x51, 0x2C, 0xFE, 0xE5, 0xA4, 0xBA, 0x2A, 0x59, 0x60, 0x8A, 0xEB, 0x8C, 0x86, 0xC4, 0x61, 0x45,			//	13 Dolphin=0x267fd05a=IPL NTSC 1.2
+	},
 };
 
 const unsigned char DSPPattern[][0x10] =
@@ -135,6 +138,9 @@ const unsigned char DSPPattern[][0x10] =
 	{
 		0x02, 0x9f, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00,		//	11 Hash 12
 	},
+	{
+		0x02, 0x9F, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	12 Hash 13
+	},
 };
 
 const u32 DSPLength[] =
@@ -151,6 +157,7 @@ const u32 DSPLength[] =
 	0x000017E0,		//	9
 	0x00001F00,		//	10
 	0x00001A60,		//	11
+	0x00001760,		//	12
 };
 void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 {
@@ -323,6 +330,12 @@ void DoDSPPatch( char *ptr, u32 Version )
 			// D2B - unused
 			PatchZelda_Dsp( (u32)ptr, 0x0D2B, 0x04A8, false, true );
 			PatchZelda_Dsp( (u32)ptr, 0x0D2B, 0x04F3, false, true );  // same orig instructions
+		} break;
+		case 13:	// IPL NTSC v1.2
+		{
+			// BA8 - unused
+			PatchZelda_Dsp( (u32)ptr, 0x0BA8, 0x00BE, false, false );
+			PatchZelda_Dsp( (u32)ptr, 0x0BA8, 0x0109, false, false );  // same orig instructions
 		} break;
 		default:
 		{
@@ -1829,7 +1842,9 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						// Most games need length 0 to work properly here
 						if( (TITLE_ID) != 0x475852 &&	// Mega Man X Command Mission
 							(TITLE_ID) != 0x47384D &&	// Paper Mario
-							(TITLE_ID) != 0x474146 )	// Animal Crossing
+							(TITLE_ID) != 0x474146 &&	// Animal Crossing
+							(TITLE_ID) != 0x475951 &&	// Mario Superstar Baseball
+							(TITLE_ID) != 0x47564A )	// Viewtiful Joe
 						{
 							u32 PatchOffset = 0;
 							for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)

@@ -22,14 +22,13 @@ void _start()
 	// Registers r1,r13-r31 automatically restored if used.
 	// Registers r0, r3-r12 should be handled by calling function
 	// Register r2 not changed
+	u8 Shutdown = 0;
 	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
 	MaxPads = ((NIN_CFG*)0xD3002900)->MaxPads;
 	if (MaxPads > NIN_CFG_MAXPAD)
 		MaxPads = NIN_CFG_MAXPAD;
 	u8 HIDPad = ((((NIN_CFG*)0xD3002900)->Config) & NIN_CFG_HID) == 0 ? HID_PAD_NONE : HID_PAD_NOT_SET;
-	if ( MaxPads == 0 )
-		HIDPad = 0;
-	for (chan = 0; chan < MaxPads; ++chan)
+	for (chan = 0; (chan < MaxPads) && !Shutdown; ++chan)
 	{
 		/* transfer the actual data */
 		u32 x;
@@ -77,27 +76,8 @@ void _start()
 		/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
 		if((Pad[chan].button&0x234) == 0x234)
 		{
-			/* stop audio dma */
-			_dspReg[27] = (_dspReg[27]&~0x8000);
-			/* reset status 1 */
-			*reset = 0x1DEA;
-			while(*reset == 0x1DEA) ;
-			/* load in stub */
-			u32 a = (u32)stubdest;
-			u32 end = (u32)(stubdest + stubsize);
-			for ( ; a < end; a += 32)
-			{
-				u8 b;
-				for(b = 0; b < 4; ++b)
-					*stubdest++ = *stubsrc++;
-				__asm("dcbi 0,%0 ; sync ; icbi 0,%0" : : "b"(a));
-			}
-			__asm(
-				"sync ; isync\n"
-				"lis %r3, 0x8133\n"
-				"mtlr %r3\n"
-				"blr\n"
-			);
+			Shutdown = 1;
+			break;
 		}
 		/* clear unneeded button attributes */
 		Pad[chan].button &= 0x9F7F;
@@ -108,33 +88,15 @@ void _start()
 		while(_siReg[14] & (1<<31));
 	}
 
-	if (HIDPad < HID_PAD_NONE)
+	if (HIDPad == HID_PAD_NOT_SET)
+		HIDPad = MaxPads;
+	for (chan = HIDPad; (chan < HID_PAD_NONE) && !Shutdown; chan = HID_PAD_NONE) // Run once for now
 	{
-		chan = HIDPad;
 		if(HID_CTRL->Power.Mask &&	//shutdown if power configured and all power buttons pressed
 		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
 		{
-			/* stop audio dma */
-			_dspReg[27] = (_dspReg[27]&~0x8000);
-			/* reset status 1 */
-			*reset = 0x1DEA;
-			while(*reset == 0x1DEA) ;
-			/* load in stub */
-			u32 a = (u32)stubdest;
-			u32 end = (u32)(stubdest + stubsize);
-			for ( ; a < end; a += 32)
-			{
-				u8 b;
-				for(b = 0; b < 4; ++b)
-					*stubdest++ = *stubsrc++;
-				__asm("dcbi 0,%0 ; sync ; icbi 0,%0" : : "b"(a));
-			}
-			__asm(
-				"sync ; isync\n"
-				"lis %r3, 0x8133\n"
-				"mtlr %r3\n"
-				"blr\n"
-			);
+			Shutdown = 1;
+			break;
 		}
 		Pad[chan].err = 0;
 	
@@ -292,5 +254,29 @@ void _start()
 		}
 	}
 
+	if (Shutdown)
+	{
+		/* stop audio dma */
+		_dspReg[27] = (_dspReg[27]&~0x8000);
+		/* reset status 1 */
+		*reset = 0x1DEA;
+		while(*reset == 0x1DEA) ;
+		/* load in stub */
+		u32 a = (u32)stubdest;
+		u32 end = (u32)(stubdest + stubsize);
+		for ( ; a < end; a += 32)
+		{
+			u8 b;
+			for(b = 0; b < 4; ++b)
+				*stubdest++ = *stubsrc++;
+			__asm("dcbi 0,%0 ; sync ; icbi 0,%0" : : "b"(a));
+		}
+		__asm(
+			"sync ; isync\n"
+			"lis %r3, 0x8133\n"
+			"mtlr %r3\n"
+			"blr\n"
+		);
+	}
 	return;
 }
