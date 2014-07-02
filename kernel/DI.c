@@ -693,7 +693,14 @@ void DIUpdateRegisters( void )
 							dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, Buffer|0x80000000 );
 							Shutdown();
 						}
-						if( Buffer < 0x01800000 )
+						if( Buffer == 0x01300000 && DICheckTGC())
+						{
+							//copy in our own apploader
+							memcpy( (void*)Buffer, multidol_ldr, multidol_ldr_size );
+							sync_after_write( (void*)Buffer, multidol_ldr_size );
+							DIOK = 2;
+						}
+						else if( Buffer < 0x01800000 )
 						{
 							DI_CallbackMsg.result = -1;
 							sync_after_write(&DI_CallbackMsg, 0x20);
@@ -748,11 +755,11 @@ void DIUpdateRegisters( void )
 }
 
 static u8 *DI_Read_Buffer = (u8*)(0x11200000);
-u32 tgc_dol_offset = 0, tgc_hdrsize = 0, tgc_offset = 0;
+u32 tgc_dol_offset = 0, tgc_dol_hdrsize = 0x100;
+u8 *di_src = NULL; char *di_dest = NULL; u32 di_length = 0, di_offset = 0;
 u32 DIReadThread(void *arg)
 {
 	//dbgprintf("DI Thread Running\r\n");
-	u8 *src = NULL; char *dest = NULL; u32 length = 0, offset = 0;
 	struct ipcmessage *di_msg = NULL;
 	while(1)
 	{
@@ -803,32 +810,20 @@ u32 DIReadThread(void *arg)
 				break;
 
 			case IOS_IOCTL:
-				src = DI_Read_Buffer;
-				if((u32)di_msg->ioctl.buffer_io == 0x01300000)
-				{	//multidol, loader always comes after reading tgc header
-					tgc_dol_offset = offset + *(vu32*)((u8*)dest + 0x1C);
-					tgc_hdrsize = length;
-					tgc_offset = offset;
-					//copy in our own apploader
-					dest = (char*)di_msg->ioctl.buffer_io;
-					memcpy( dest, multidol_ldr, multidol_ldr_size );
-					sync_after_write( dest, multidol_ldr_size );
-				}
+				di_src = DI_Read_Buffer;
+				di_dest = (char*)di_msg->ioctl.buffer_io;
+				di_length = di_msg->ioctl.length_io;
+				di_offset = (u32)di_msg->ioctl.buffer_in;
+
+				if( FSTMode )
+					FSTRead( GamePath, di_src, di_length, di_offset );
 				else
-				{
-					dest = (char*)di_msg->ioctl.buffer_io;
-					length = di_msg->ioctl.length_io;
-					offset = (u32)di_msg->ioctl.buffer_in;
+					di_src = CacheRead( di_src, di_length, di_offset );
 
-					if( FSTMode )
-						FSTRead( GamePath, src, length, offset );
-					else
-						src = CacheRead( src, length, offset );
+				memcpy( di_dest, di_src, di_length );
+				DoPatches( di_dest, di_length, di_offset );
+				sync_after_write( di_dest, di_length );
 
-					memcpy( dest, src, length );
-					DoPatches( dest, length, offset );
-					sync_after_write( dest, length );
-				}
 				mqueue_ack( di_msg, 0 );
 				break;
 
@@ -841,14 +836,33 @@ u32 DIReadThread(void *arg)
 extern u32 PatchState;
 void DIReadTGC_DOL()
 {
-	u8 *dest = (u8*)0x10000000;
+	u8 *loader_hdr = (u8*)0x10000000;
 	/* dol header to restart patching */
-	PatchState = 0;
-	u8 *dol_hdr = CacheRead( dest, 0x100, tgc_dol_offset );
-	if(dol_hdr != dest)
-		memcpy(dest, dol_hdr, 0x100);
+	DI_CallbackMsg.result = -1;
+	sync_after_write(&DI_CallbackMsg, 0x20);
+	IOS_IoctlAsync( DI_Handle, 0, (void*)tgc_dol_offset, 0, (void*)loader_hdr, tgc_dol_hdrsize, DI_MessageQueue, &DI_CallbackMsg );
+	while(DI_CallbackMsg.result)
+	{
+		udelay(100);
+		CheckOSReport();
+	}
+	DI_CallbackMsg.result = -1;
+	sync_after_write(&DI_CallbackMsg, 0x20);
 
-	DoPatches( (char*)dest, 0x100, tgc_dol_offset );
-	write32((u32)dest + 0x100, tgc_dol_offset);
-	sync_after_write( dest, 0x120 );
+	PatchState = 0;
+	DoPatches( (char*)loader_hdr, tgc_dol_hdrsize, tgc_dol_offset ); //start patch system
+	write32((u32)(loader_hdr + tgc_dol_hdrsize), tgc_dol_offset);
+	sync_after_write( loader_hdr, 0x120 );
+}
+
+bool DICheckTGC()
+{
+	if(*(vu32*)di_dest == 0xAE0F38A2) //TGC Magic
+	{	//multidol, loader always comes after reading tgc header
+		dbgprintf("Found TGC Header\n");
+		tgc_dol_offset = di_offset + *(vu32*)(di_dest + 0x1C);
+		return true;
+	}
+	dbgprintf("Game is loading another DOL\n");
+	return false;
 }

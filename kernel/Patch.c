@@ -1828,7 +1828,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
 						// Most games need length 0 to work properly here
 						if( (TITLE_ID) != 0x475852 &&	// Mega Man X Command Mission
-							(TITLE_ID) != 0x47384D)		// Paper Mario
+							(TITLE_ID) != 0x47384D &&	// Paper Mario
+							(TITLE_ID) != 0x474146 )	// Animal Crossing
 						{
 							u32 PatchOffset = 0;
 							for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
