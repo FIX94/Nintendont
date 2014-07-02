@@ -73,4 +73,5 @@ u32 DIReadThread(void *arg);
 void DIChangeDisc( u32 DiscNumber );
 void DIUpdateRegisters( void );
 void DIReadTGC_DOL(void);
+bool DICheckTGC(void);
 #endif
