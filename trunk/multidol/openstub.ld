@@ -28,7 +28,7 @@ SECTIONS {
 
 	__stack_end = .;
 	.stack : {
-		. = . + 0x10000;
+		. = . + 0x200;
 		__stack_top = .;
 	}
 }

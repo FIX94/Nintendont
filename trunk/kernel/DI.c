@@ -836,7 +836,7 @@ u32 DIReadThread(void *arg)
 extern u32 PatchState;
 void DIReadTGC_DOL()
 {
-	u8 *loader_hdr = (u8*)0x10000000;
+	u8 *loader_hdr = (u8*)0x13002EE0;
 	/* dol header to restart patching */
 	DI_CallbackMsg.result = -1;
 	sync_after_write(&DI_CallbackMsg, 0x20);
