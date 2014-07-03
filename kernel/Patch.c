@@ -666,7 +666,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	
 	if( (u32)Buffer >= 0x01800000 )
 	{
-		if((u32)Buffer != 0x10000000)
+		if((u32)Buffer != 0x13002EE0)
 			return;
 	}
 	for( i=0; i < Length; i+=4 )

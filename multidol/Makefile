@@ -1,7 +1,5 @@
 
-#PREFIX = powerpc-gekko-
 PREFIX = $(DEVKITPPC)/bin/powerpc-eabi-
-#PREFIX = /home/megazig/Wii/bootmii-utils/bin/powerpc-elf-
 
 AR = $(PREFIX)ar
 AS = $(PREFIX)as
@@ -18,18 +16,16 @@ else
 	BIN2H =	../kernel/bin2h/bin2h
 endif
 
-MACHDEP = -mcpu=750 -mno-eabi -mhard-float
-#CFLAGS = $(MACHDEP) -Os -Wall -pipe -ffunction-sections -finline-functions-called-once -mno-sdata --combine -fwhole-program -ffreestanding
-CFLAGS = $(MACHDEP) -O1 -s -Werror -Wall -pipe -ffunction-sections -finline-functions-called-once -mno-sdata
-LDFLAGS = $(MACHDEP) -n -nostartfiles -nostdlib -Wl,-T,openstub.ld -L.
-ASFLAGS = -D_LANGUAGE_ASSEMBLY -DHW_RVL -DTINY
+MACHDEP = -mcpu=750 -meabi -mhard-float
+CFLAGS = $(MACHDEP) -Os -s -Werror -Wall -fdata-sections -ffunction-sections
+LDFLAGS = $(MACHDEP) -n -nostartfiles -nostdlib -Wl,--gc-sections,-T,openstub.ld -L.
+ASFLAGS = -D_LANGUAGE_ASSEMBLY -DHW_RVL
 
 TARGET_LINKED = multidol_ldr.elf
 TARGET = ../kernel/asm/multidol_ldr.bin
 
-CFILES = utils.c cache.c main.c
-#OBJS = crt0.o _all.o
-OBJS = crt0.o utils.o cache.o main.o
+CFILES = cache.c main.c
+OBJS = crt0.o comp.o cache.o main.o
 
 DEPDIR = .deps
 
@@ -49,18 +45,13 @@ all: $(TARGET)
 	@echo " COMPILE     $<"
 	@$(CC) $(CFLAGS) $(DEFINES) -c $< -o $@
 
-#_all.o: $(CFILES)
-#	@echo " COMPILE ALL "
-#	@mkdir -p $(DEPDIR)
-#	@$(CC) $(CFLAGS) $(DEFINES) -Wp,-MMD,$(DEPDIR)/$(*F).d,-MQ,"$@",-MP -c $(CFILES) -o $@
-
 $(TARGET_LINKED): $(OBJS)
 	@echo " LINK        $@"
 	@$(CC) -g -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
 
 $(TARGET): $(TARGET_LINKED)
 	@echo " OBJCOPY     $@"
-	@$(OBJCOPY) -O binary $< $@
+	@$(OBJCOPY) -O binary -S $< $@
 	@echo " BIN2H       $@"
 	@$(BIN2H) $(TARGET)
 

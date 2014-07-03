@@ -9,9 +9,14 @@
 // Copyright 2008-2009  Andre Heider  <dhewg@wiibrew.org>
 // Copyright 2008-2009  Hector Martin  <marcan@marcansoft.com>
 
-#include "utils.h"
 #include "cache.h"
 #include "dip.h"
+
+void _memset(void *ptr, int c, u32 size)
+{
+	char* ptr2 = ptr;
+	while(size--) *ptr2++ = c;
+}
 
 typedef struct _dolheader {
 	u32 text_pos[7];
@@ -66,31 +71,27 @@ void _main(void)
 
 	while( DI_CONTROL == 3 ) ;
 	while( DI_SCONTROL & 1 ) ;
-	usleep(1000);
 
 	/* read dol */
 	u32 i;
-	void *doloffset = (void*)(*(vu32*)0x90000100);
-	dolheader *dolfile = (dolheader *)0x90000000;
-	sync_before_read(dolfile, 0x100);
+	dolheader *dolfile = (dolheader *)0x93002EE0;
+	sync_before_read(dolfile, 0x120);
+	void *doloffset = (void*)(*(vu32*)0x93002FE0);
 
-	dolheader header;
-	_memcpy(&header, dolfile, 0x100);
-
-	entrypoint = header.entry_point;
+	entrypoint = dolfile->entry_point;
 
 	for (i = 0; i < 7; i++)
 	{
-		if ((!header.text_size[i]) || (header.text_start[i] < 0x100))
+		if ((!dolfile->text_size[i]) || (dolfile->text_start[i] < 0x100))
 			continue;
-		di_read((void *) header.text_start[i], doloffset + header.text_pos[i], header.text_size[i]);
+		di_read((void *) dolfile->text_start[i], doloffset + dolfile->text_pos[i], dolfile->text_size[i]);
 	}
 
 	for (i = 0; i < 11; i++)
 	{
-		if ((!header.data_size[i]) || (header.data_start[i] < 0x100))
+		if ((!dolfile->data_size[i]) || (dolfile->data_start[i] < 0x100))
 			continue;
-		di_read((void *) header.data_start[i], doloffset + header.data_pos[i], header.data_size[i]);
+		di_read((void *) dolfile->data_start[i], doloffset + dolfile->data_pos[i], dolfile->data_size[i]);
 	}
 
 	asm volatile (

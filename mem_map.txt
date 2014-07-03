@@ -16,6 +16,8 @@ MEM2
 0x93002800-0x93002830=PadBuff
 0x93002900-0x93002B1C=nincfg
 
+0x93002EE0-0x93003000=tgc dol header
+
 0x93003000=ios58 rev
 0x93003004=hid thread status
 0x93003008=old SIGetType Address
