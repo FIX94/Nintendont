@@ -78,7 +78,7 @@ const unsigned char DSPHashes[][0x14] =
 		0x37, 0x44, 0xC3, 0x82, 0xC8, 0x98, 0x42, 0xD4, 0x9D, 0x68, 0x83, 0x1C, 0x2B, 0x06, 0x7E, 0xC7, 0xE8, 0x64, 0x32, 0x44,			//	6 Dolphin=0x3daf59b9=Star Fox Assault
 	},
 	{
-		0xDA, 0x39, 0xA3, 0xEE, 0x5E, 0x6B, 0x4B, 0x0D, 0x32, 0x55, 0xBF, 0xEF, 0x95, 0x60, 0x18, 0x90, 0xAF, 0xD8, 0x07, 0x09,			//	7
+		0xDA, 0x39, 0xA3, 0xEE, 0x5E, 0x6B, 0x4B, 0x0D, 0x32, 0x55, 0xBF, 0xEF, 0x95, 0x60, 0x18, 0x90, 0xAF, 0xD8, 0x07, 0x09,			//	7 0-Length DSP - Error
 	},	 
 	{
 		0x8E, 0x5C, 0xCA, 0xEA, 0xA9, 0x84, 0x87, 0x02, 0xFB, 0x5C, 0x19, 0xD4, 0x18, 0x6E, 0xA7, 0x7B, 0xE5, 0xB8, 0x71, 0x78,			//	8 Dolphin=0x6CA33A6D=Donkey Kong Jungle Beat
@@ -96,82 +96,87 @@ const unsigned char DSPHashes[][0x14] =
 		0x80, 0x01, 0x60, 0xDF, 0x89, 0x01, 0x9E, 0xE3, 0xE8, 0xF7, 0x47, 0x2C, 0xE0, 0x1F, 0xF6, 0x80, 0xE9, 0x85, 0xB0, 0x24,			//	12 Dolphin=0x267fd05a=Pikmin PAL
 	},
 	{
-		0xB4, 0xCB, 0xC0, 0x0F, 0x51, 0x2C, 0xFE, 0xE5, 0xA4, 0xBA, 0x2A, 0x59, 0x60, 0x8A, 0xEB, 0x8C, 0x86, 0xC4, 0x61, 0x45,			//	13 Dolphin=0x267fd05a=IPL NTSC 1.2
+		0xB4, 0xCB, 0xC0, 0x0F, 0x51, 0x2C, 0xFE, 0xE5, 0xA4, 0xBA, 0x2A, 0x59, 0x60, 0x8A, 0xEB, 0x8C, 0x86, 0xC4, 0x61, 0x45,			//	13 Dolphin=0x6ba3b3ea=IPL NTSC 1.2
+	},
+	{
+		0xA5, 0x13, 0x45, 0x90, 0x18, 0x30, 0x00, 0xB1, 0x34, 0x44, 0xAE, 0xDB, 0x61, 0xC5, 0x12, 0x0A, 0x72, 0x66, 0x07, 0xAA,			//	14 Dolphin=0x24b22038=IPL NTSC 1.0
+	},
+	{
+		0x9F, 0x3C, 0x9F, 0x9E, 0x05, 0xC7, 0xD5, 0x0B, 0x38, 0x49, 0x2F, 0x2C, 0x68, 0x75, 0x30, 0xFD, 0xE8, 0x6F, 0x9B, 0xCA,			//	15 Dolphin=0x3389a79e=Metroid Prime Trilogy Wii (Needed?)
 	},
 };
 
 const unsigned char DSPPattern[][0x10] =
 {
 	{
-		0x02, 0x9f, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00,		//	0 Hash 0, 5
+		0x02, 0x9F, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	0 Hash 12, 1, 0, 5, 8
 	},
 	{
-		0x02, 0x9F, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	1
+		0x02, 0x9F, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	1 Hash 14, 13, 11, 10
 	},
 	{
-		0x00, 0x00, 0x00, 0x00, 0x02, 0x9f, 0x0c, 0x10, 0x02, 0x9f, 0x0c, 0x1f, 0x02, 0x9f, 0x0c, 0x3b,		//	2 Hash 2
+		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0C, 0x10, 0x02, 0x9F, 0x0C, 0x1F, 0x02, 0x9F, 0x0C, 0x3B,		//	2 Hash 2
 	},
 	{
-		0x00, 0x00, 0x00, 0x00, 0x02, 0x9f, 0x0e, 0x76, 0x02, 0x9f, 0x0e, 0x85, 0x02, 0x9f, 0x0e, 0xa1,		//	3 Hash 3
+		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0E, 0x76, 0x02, 0x9F, 0x0E, 0x85, 0x02, 0x9F, 0x0E, 0xA1,		//	3 Hash 3
 	},
 	{
-		0x00, 0x00, 0x00, 0x00, 0x02, 0x9f, 0x0e, 0xb3, 0x02, 0x9f, 0x0e, 0xc2, 0x02, 0x9f, 0x0e, 0xde,		//	4 Hash 4
+		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0E, 0xB3, 0x02, 0x9F, 0x0E, 0xC2, 0x02, 0x9F, 0x0E, 0xDE,		//	4 Hash 4
 	},
 	{
-		0x02, 0x9f, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00,		//	5 Hash 1
+		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0E, 0x71, 0x02, 0x9F, 0x0E, 0x80, 0x02, 0x9F, 0x0E, 0x9C,		//	5 Hash 9
 	},
 	{
-		0x02, 0x9f, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00,		//	6 Hash 8
+		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0E, 0x88, 0x02, 0x9F, 0x0E, 0x97, 0x02, 0x9F, 0x0E, 0xB3,		//	6 Hash 6
 	},
 	{
-		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0E, 0x71, 0x02, 0x9F, 0x0E, 0x80, 0x02, 0x9f, 0x0E, 0x9C,		//	7 Hash 9
-	},
-	{
-		0x02, 0x9f, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00,		//	8 Hash 10
-	},
-	{
-		0x02, 0x9F, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	9 Hash 11
-	},
-	{
-		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0E, 0x88, 0x02, 0x9F, 0x0E, 0x97, 0x02, 0x9F, 0x0E, 0xB3,		//	10 Hash 6
-	},
-	{
-		0x02, 0x9f, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00, 0x02, 0xff, 0x00, 0x00,		//	11 Hash 12
-	},
-	{
-		0x02, 0x9F, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	12 Hash 13
+		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0D, 0xB0, 0x02, 0x9F, 0x0D, 0xBF, 0x02, 0x9F, 0x0D, 0xDB,		//	7 Hash 15
 	},
 };
 
-const u32 DSPLength[] =
+typedef struct DspMatch
 {
-	0x00001D20,		//	0
-	0x00001EC0,		//	1
-	0x000019E0,		//	2
-	0x00001EC0,		//	3
-	0x00001F20,		//	4
-	0x00001CE0,		//	5
-	0x00001F00,		//	6
-	0x00001EC0,		//	7
-	0x00001A00,		//	8
-	0x000017E0,		//	9
-	0x00001F00,		//	10
-	0x00001A60,		//	11
-	0x00001760,		//	12
+	u32 Length;
+	u32 Pattern;
+	u32 SHA1;
+} DspMatch;
+
+const DspMatch DspMatches[] =
+{
+	// Order Patterns together by increasing Length
+	// Length, Pattern,   SHA1
+	{ 0x00001A60,    0,     12 },
+	{ 0x00001CE0,    0,      1 },
+	{ 0x00001D20,    0,      0 },
+	{ 0x00001D20,    0,      5 },
+	{ 0x00001F00,    0,      8 },
+	{ 0x00001280,    1,     14 },
+	{ 0x00001760,    1,     13 },
+	{ 0x000017E0,    1,     11 },
+	{ 0x00001A00,    1,     10 },
+	{ 0x000019E0,    2,      2 },
+	{ 0x00001EC0,    3,      3 },
+	{ 0x00001F20,    4,      4 },
+	{ 0x00001EC0,    5,      9 },
+	{ 0x00001F00,    6,      6 },
+	{ 0x00001D40,    7,     15 },
 };
+
+#define AX_DSP_NO_DUP3 (0xFFFF)
 void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 {
-	static const u32 MoveLength = 0x20;
+	static const u32 MoveLength = 0x22;
 	static const u32 CopyLength = 0x12;
 	static const u32 CallLength = 0x2 + 0x2; // call (2) ; jmp (2)
 	static const u32 New1Length = 0x1 * 3 + 0x2 + 0x7; // 3 * orc (1) ; jmp (2) ; patch (7)
 	static const u32 New2Length = 0x1; // ret
 	u32 SourceAddr = Dup1 + MoveLength;
 	u32 DestAddr = Dup2 + CallLength + CopyLength + New2Length;
+	u32 Dup2PAddr = DestAddr; // Dup2+0x17 (0xB Patch fits before +0x22)
 	u32 Tmp;
 
 	DestAddr--;
-	W16((u32)ptr + (DestAddr)* 2, 0x02DF);  // nop (will be overwritten) ret
+	W16((u32)ptr + (DestAddr)* 2, 0x02DF);  // ret
 	while (SourceAddr >= Dup1 + 1)  // ensure include Dup1 below
 	{
 		SourceAddr -= 2;
@@ -200,35 +205,39 @@ void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 		}
 	}
 	W32((u32)ptr + (Dup1 + 0x00) * 2, 0x02BF0000 | (Dup1 + CallLength)); // call Dup1+4
-	W32((u32)ptr + (Dup1 + 0x02) * 2, 0x029F0000 | (Dup1 + MoveLength)); // jmp Dup1+0x16
+	W32((u32)ptr + (Dup1 + 0x02) * 2, 0x029F0000 | (Dup1 + MoveLength)); // jmp Dup1+0x22
 	W32((u32)ptr + (Dup2 + 0x00) * 2, 0x02BF0000 | (Dup1 + CallLength)); // call Dup1+4
-	W32((u32)ptr + (Dup2 + 0x02) * 2, 0x029F0000 | (Dup2 + MoveLength)); // jmp Dup2+0x16
-	W32((u32)ptr + (Dup3 + 0x00) * 2, 0x02BF0000 | (Dup1 + CallLength)); // call Dup1+4
-	W32((u32)ptr + (Dup3 + 0x02) * 2, 0x029F0000 | (Dup3 + MoveLength)); // jmp Dup3+0x16
+	W32((u32)ptr + (Dup2 + 0x02) * 2, 0x029F0000 | (Dup2 + MoveLength)); // jmp Dup2+0x22
 	Tmp = R32((u32)ptr + (Dup1 + 0x98) * 2); // original instructions
-	W32((u32)ptr + (Dup1 + 0x98) * 2, 0x02BF0000 | (Dup3 + CallLength)); // call Dup3+4
-	W32((u32)ptr + (Dup2 + Dup2Offset) * 2, 0x02BF0000 | (Dup3 + CallLength)); // call Dup3+4
+	W32((u32)ptr + (Dup1 + 0x98) * 2, 0x02BF0000 | (Dup2PAddr)); // call Dup2PAddr
+	W32((u32)ptr + (Dup2 + Dup2Offset) * 2, 0x02BF0000 | (Dup2PAddr)); // call Dup2PAddr
 
-	W16((u32)ptr + (Dup3 + 0x04) * 2, Tmp >> 16); //  original instructions (Start of Dup3+4 [0xB long])
-	W32((u32)ptr + (Dup3 + 0x05) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
-	W32((u32)ptr + (Dup3 + 0x07) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
-	W32((u32)ptr + (Dup3 + 0x09) * 2, 0x009E1FFF); // lri         $AC0.M, #0x1FFF
-	W16((u32)ptr + (Dup3 + 0x0B) * 2, 0x02CA);     // lsrn
-	W16((u32)ptr + (Dup3 + 0x0C) * 2, Tmp & 0xFFFF); //  original instructions
-	W32((u32)ptr + (Dup3 + 0x0D) * 2, 0x3D0002DF); // andc        $AC1.M, $AC0.M ret
+	W16((u32)ptr + (Dup2PAddr + 0x00) * 2, Tmp >> 16); //  original instructions (Start of Dup2PAddr [0xB long])
+	W32((u32)ptr + (Dup2PAddr + 0x01) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
+	W32((u32)ptr + (Dup2PAddr + 0x03) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
+	W32((u32)ptr + (Dup2PAddr + 0x05) * 2, 0x009E1FFF); // lri         $AC0.M, #0x1FFF
+	W16((u32)ptr + (Dup2PAddr + 0x07) * 2, 0x02CA);     // lsrn
+	W16((u32)ptr + (Dup2PAddr + 0x08) * 2, Tmp & 0xFFFF); //  original instructions
+	W32((u32)ptr + (Dup2PAddr + 0x09) * 2, 0x3D0002DF); // andc        $AC1.M, $AC0.M ret
 
-	W32((u32)ptr + (Dup3 + 0x0F) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
-	W32((u32)ptr + (Dup3 + 0x11) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
-	W32((u32)ptr + (Dup3 + 0x13) * 2, 0x009E1FFF); // lri         $AC0.M, #0x1FFF
-	W16((u32)ptr + (Dup3 + 0x15) * 2, 0x02CA);     // lsrn
-	Tmp = R32((u32)ptr + (Dup3 + 0x5D) * 2); // original instructions
-	W16((u32)ptr + (Dup3 + 0x16) * 2, Tmp >> 16); //  original instructions
-	W16((u32)ptr + (Dup3 + 0x17) * 2, 0x3D00); // andc        $AC1.M, $AC0.M
-	W16((u32)ptr + (Dup3 + 0x18) * 2, Tmp & 0xFFFF); //  original instructions
-	Tmp = R32((u32)ptr + (Dup3 + 0x5F) * 2); // original instructions
-	W32((u32)ptr + (Dup3 + 0x19) * 2, Tmp); //  original instructions includes ret
+	if (Dup3 != AX_DSP_NO_DUP3)
+	{
+		W32((u32)ptr + (Dup3 + 0x00) * 2, 0x02BF0000 | (Dup1 + CallLength)); // call Dup1+4
+		W32((u32)ptr + (Dup3 + 0x02) * 2, 0x029F0000 | (Dup3 + MoveLength)); // jmp Dup3+0x22
 
-	W32((u32)ptr + (Dup3 + 0x5D) * 2, 0x029F0000 | (Dup3 + CallLength + 0xB)); // jmp Dup3+0xF
+		W32((u32)ptr + (Dup3 + 0x04) * 2, 0x27D10340); // lrs         $AC1.M, @SampleFormat -
+		W32((u32)ptr + (Dup3 + 0x06) * 2, 0x00038100); // andi        $AC1.M, #0x0003 clr         $ACC0
+		W32((u32)ptr + (Dup3 + 0x08) * 2, 0x009E1FFF); // lri         $AC0.M, #0x1FFF
+		W16((u32)ptr + (Dup3 + 0x0A) * 2, 0x02CA);     // lsrn
+		Tmp = R32((u32)ptr + (Dup3 + 0x5D) * 2); // original instructions
+		W16((u32)ptr + (Dup3 + 0x0B) * 2, Tmp >> 16); //  original instructions
+		W16((u32)ptr + (Dup3 + 0x0C) * 2, 0x3D00); // andc        $AC1.M, $AC0.M
+		W16((u32)ptr + (Dup3 + 0x0D) * 2, Tmp & 0xFFFF); //  original instructions
+		Tmp = R32((u32)ptr + (Dup3 + 0x5F) * 2); // original instructions
+		W32((u32)ptr + (Dup3 + 0x0E) * 2, Tmp); //  original instructions includes ret
+
+		W32((u32)ptr + (Dup3 + 0x5D) * 2, 0x029F0000 | (Dup3 + CallLength + 0x4)); // jmp Dup3+0xF
+	}
 	return;
 }
 
@@ -300,8 +309,9 @@ void DoDSPPatch( char *ptr, u32 Version )
 		{
 			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, 0x814, 0xA4 );
 		} break;
-		case 7:		// ??? Need example
+		case 7:		// 0 Length DSP
 		{
+			dbgprintf( "Error! 0 Length DSP\r\n" );
 		} break;
 		case 8:		// Donkey Kong Jungle Beat
 		{
@@ -336,6 +346,16 @@ void DoDSPPatch( char *ptr, u32 Version )
 			// BA8 - unused
 			PatchZelda_Dsp( (u32)ptr, 0x0BA8, 0x00BE, false, false );
 			PatchZelda_Dsp( (u32)ptr, 0x0BA8, 0x0109, false, false );  // same orig instructions
+		} break;
+		case 14:	// IPL NTSC v1.0
+		{
+			// 938 - unused
+			PatchZelda_Dsp( (u32)ptr, 0x0938, 0x00BE, false, false );
+			PatchZelda_Dsp( (u32)ptr, 0x0938, 0x0109, false, false );  // same orig instructions
+		} break;
+		case 15:	// Metroid Prime Trilogy Wii (needed?)
+		{
+			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, AX_DSP_NO_DUP3, 0xA4 );
 		} break;
 		default:
 		{
@@ -1027,6 +1047,9 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) )
 		PatchCount &= ~128;
 
+	u8 *SHA1i = (u8*)malloca( 0x60, 0x40 );
+	u8 *hash  = (u8*)malloca( 0x14, 0x40 );
+
 	for( i=0; i < Length; i+=4 )
 	{
 		if( (PatchCount & 2048) == 0  )	// __OSDispatchInterrupt
@@ -1488,61 +1511,62 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 		if( (PatchCount & 1024) == 0  )	// DSP patch
 		{
-			u32 l,m,Known=-1;
+			u32 l,Known=-1;
 
+			u32 UseLast = 0;
+			bool PatternMatch = false;
 			// for each pattern/length combo
-			for( l=0; l < sizeof(DSPPattern) / 0x10; ++l )
+			for( l=0; l < sizeof(DspMatches) / sizeof(DspMatch); ++l )
 			{
-				if( memcmp( (void*)(Buffer+i), DSPPattern[l], 0x10 ) == 0 )
+				if (UseLast == 0)
+					PatternMatch = ( memcmp( (void*)(Buffer+i), DSPPattern[DspMatches[l].Pattern], 0x10 ) == 0 );
+				if (PatternMatch)
 				{
 					#ifdef DEBUG_PATCH
 					dbgprintf("Patch:[DSPPattern] 0x%08X v%u\r\n", (u32)Buffer + i, l );
 					#endif
-					u8 *SHA1i = (u8*)malloca( 0x60, 0x40 );
-					u8 *hash  = (u8*)malloca( 0x14, 0x40 );
 
-					memcpy( (void*)0x11200000, (unsigned char*)Buffer+i, DSPLength[l] );
+					if (DspMatches[l].Length-UseLast > 0)
+						memcpy( (void*)0x11200000+UseLast, (unsigned char*)Buffer+i+UseLast, DspMatches[l].Length-UseLast );
 					
-					sha1( SHA1i, NULL, 0, 0, NULL );
-					sha1( SHA1i, (void*)0x11200000, DSPLength[l], 2, hash );
-
-					// for each hash - doesn't have to match Pattern index (l)
-					for( m=0; m < sizeof(DSPHashes) / 0x14; ++m )
+					if (DspMatches[l].Length != UseLast)
 					{
-						if( memcmp( DSPHashes[m], hash, 0x14 ) == 0 )
-						{
-							Known = m;
-#ifdef DEBUG_DSP
-							dbgprintf("DSP before Patch\r\n");
-							hexdump((void*)(Buffer + i), DSPLength[l]);
-#endif
-							DoDSPPatch(Buffer + i, m);
-#ifdef DEBUG_DSP
-							dbgprintf("DSP after Patch\r\n");
-							hexdump((void*)(Buffer + i), DSPLength[l]);
-#endif
-							break;
-						}
+						sha1( SHA1i, NULL, 0, 0, NULL );
+						sha1( SHA1i, (void*)0x11200000, DspMatches[l].Length, 2, hash );
 					}
 
-					if( Known != -1 )
+					if( memcmp( DSPHashes[DspMatches[l].SHA1], hash, 0x14 ) == 0 )
 					{
+						Known = DspMatches[l].SHA1;
+#ifdef DEBUG_DSP
+						dbgprintf("DSP before Patch\r\n");
+						hexdump((void*)(Buffer + i), DspMatches[l].Length);
+#endif
+						DoDSPPatch(Buffer + i, Known);
+#ifdef DEBUG_DSP
+						dbgprintf("DSP after Patch\r\n");
+						hexdump((void*)(Buffer + i), DspMatches[l].Length);
+#endif
+
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[DSPROM] DSPv%u\r\n", Known );
 						#endif
 						PatchCount |= 1024;
 						break;
 					}
-
-					free(hash);
-					free(SHA1i);
 				}
+				if ( (l < sizeof(DspMatches) / sizeof(DspMatch)) && (DspMatches[l].Pattern == DspMatches[l+1].Pattern) )
+					UseLast = DspMatches[l].Length;
+				else
+					UseLast = 0;
 			}
 		}
 
 		if( PatchCount == (1|2|4|8|16|32|64|128|256|512|1024|2048) )
 			break;
 	}
+	free(hash);
+	free(SHA1i);
 	#ifdef DEBUG_PATCH
 	dbgprintf("PatchCount:%08X\r\n", PatchCount );
 
