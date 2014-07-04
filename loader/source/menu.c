@@ -58,6 +58,13 @@ void HandleSTMEvent(u32 event)
 			break;
 	}
 }
+int compare_names(const void *a, const void *b)
+{
+	const gameinfo *da = (const gameinfo *) a;
+	const gameinfo *db = (const gameinfo *) b;
+
+	return strcmp(da->Name, db->Name);
+}
 void SelectGame( void )
 {
 //Create a list of games
@@ -156,11 +163,12 @@ void SelectGame( void )
 		PrintFormat( 25, 232, "No games found in %s:/games !", GetRootDevice() );
 		ExitToLoader(1);
 	}
+	qsort(gi, gamecount, sizeof(gameinfo), compare_names);
 
 	u32 redraw = 1;
 	u32 i;
-	s32 PosX = 0;
-	s32 ScrollX = 0;
+	s32 PosX = 0, prevPosX = 0;
+	s32 ScrollX = 0, prevScrollX = 0;
 	u32 MenuMode = 0;
 
 	u32 ListMax = gamecount;
@@ -188,23 +196,27 @@ void SelectGame( void )
 		{
 			MenuMode ^= 1;
 
-			PosX	= 0;
-			ScrollX = 0;
-
 			if( MenuMode == 0 )
 			{
 				ListMax = gamecount;
 				if( ListMax > 14 )
 					ListMax = 14;
-
-			}  else {
-
+				PosX = prevPosX;
+				ScrollX = prevScrollX;
+			}
+			else
+			{
 				ListMax = NIN_SETTINGS_LAST - 1;
 
 				if( (ncfg->VideoMode & NIN_VID_MASK) == NIN_VID_FORCE )
 					ListMax = NIN_SETTINGS_LAST;
+
+				prevPosX = PosX;
+				PosX	= 0;
+				prevScrollX = ScrollX;
+				ScrollX = 0;
 			}
-			
+
 			redraw = 1;
 			SaveSettings = true;
 
@@ -215,7 +227,7 @@ void SelectGame( void )
 
 		if( MenuMode == 0 )		//game select menu
 		{
-			if( FPAD_Down(0) )
+			if( FPAD_Down(0) || FPAD_Right(0) )
 			{
 				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
@@ -232,7 +244,7 @@ void SelectGame( void )
 				}
 			
 				redraw=1;
-			} else if( FPAD_Up(0) )
+			} else if( FPAD_Up(0) || FPAD_Left(0) )
 			{
 				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
