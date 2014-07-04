@@ -40,7 +40,7 @@ MEM2
 0x93024000-0x93024060=memory interface
 0x93026400-0x93026500=serial interface
 0x93026510-0x9302651C=SI Fake Interrupt
-0x93100000-0x93150100=ipl fonts buffer (0x1aff00-0x1fffff)
+0x93100000-0x93150000=ipl fonts buffer (0x1aff00-0x1fff00)
 0x93160000-0x93160008=OSReport (patch_fwrite)
 0x93200000=Cache FST Buffer
 

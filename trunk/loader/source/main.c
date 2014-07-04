@@ -57,7 +57,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "stub_bin.h"
 
 extern void __exception_setreload(int t);
-u32 __SYS_GetRTC(u32 *gctime);
+extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
+extern u32 __SYS_GetRTC(u32 *gctime);
 
 #define STATUS_LOADING	(*(vu32*)(0x90004100))
 #define STATUS_SECTOR	(*(vu32*)(0x90004100 + 8))
@@ -136,6 +137,14 @@ int main(int argc, char **argv)
 		PrintFormat( 25, 232, "This version of IOS58 is not supported!" );
 		ExitToLoader(1);
 	}
+
+	/* Read IPL Font before doing any patches */
+	void *fontbuffer = memalign(32, 0x50000);
+	__SYS_ReadROM((void*)fontbuffer,0x50000,0x1AFF00);
+	memcpy((void*)0xD3100000, fontbuffer, 0x50000);
+	DCInvalidateRange( (void*)0x93100000, 0x50000 );
+	free(fontbuffer);
+	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
 
 	write16(0xD8B420A, 0); //disable MEMPROT for patches
 
