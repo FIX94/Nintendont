@@ -55,49 +55,16 @@ FATFS *fatfs;
 
 static u32 HID_ThreadStack[0x400] __attribute__((aligned(32)));
 static u32 DI_ThreadStack[0x400] __attribute__((aligned(32)));
-static u32 STM_ThreadStack[0x100] __attribute__((aligned(32)));
 
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
 extern s32 DI_Handle;
 extern struct ipcmessage DI_CallbackMsg;
 
-u32 STMThread(void *arg)
-{
-	s32 fd = IOS_Open("/dev/stm/eventhook", 0 );
-	if( fd < 0 )
-		return 0;
-	
-	u8 *inbuf = (u8*)malloc(32);
-	u8 *iobuf = (u8*)malloc(32);
-
-	while(1)
-	{
-		memset( inbuf, 0, 32 );
-		memset( iobuf, 0, 32 );
-
-		s32 ret = IOS_Ioctl( fd, 0x1000, inbuf, 32, iobuf, 32 );	// This will block until an event
-		if( ret == 0 )
-		{
-			switch( *(vu32*)iobuf )
-			{
-				// Reset button
-				case 0x200:
-				{
-				} break;
-				// Power button
-				case 0x800:
-				{
-					Shutdown();
-				}
-			}
-		}
-	}
-}
 int _main( int argc, char *argv[] )
 {
 	s32 ret = 0;
-	u32 HID_Thread = 0, DI_Thread = 0, STM_Thread = 0;
+	u32 HID_Thread = 0, DI_Thread = 0;
 	
 	u8 MessageHeap[0x10];
 	//u32 MessageQueue=0xFFFFFFFF;
@@ -112,9 +79,6 @@ int _main( int argc, char *argv[] )
 	ES_Init( MessageHeap );
 
 	BootStatus(1, 0, 0);
-
-	STM_Thread = thread_create( STMThread, NULL, STM_ThreadStack, 0x400, 0x50, 1 );
-	thread_continue(STM_Thread);
 
 #ifndef NINTENDONT_USB
 	BootStatus(2, 0, 0);
@@ -354,17 +318,14 @@ int _main( int argc, char *argv[] )
 		}
 		if(read32(DI_SCONFIG) == 0x1DEA)
 		{
-			if(DI_IRQ == true)
-			{
-				while(DI_CallbackMsg.result)
-				{
-					udelay(100);
-					CheckOSReport();
-				}
-			}
+			DIFinishAsync();
 			break;
 		}
-    
+		if(read32(HW_GPIO_IN) & GPIO_POWER)
+		{
+			DIFinishAsync();
+			Shutdown();
+		}
   //  sync_before_read( (void*)0x1860, 0x20 );
 		//if( read32(0x1860) != 0xdeadbeef )
 		//{

@@ -37,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <fat.h>
 static GXRModeObj *rmode = NULL;
 static void *framebuffer = NULL;
-u32 HollywoodRevision;
 
 u32 Region;
 u32 POffset;

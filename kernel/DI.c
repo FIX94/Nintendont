@@ -866,3 +866,14 @@ bool DICheckTGC()
 	dbgprintf("Game is loading another DOL\n");
 	return false;
 }
+void DIFinishAsync()
+{
+	if(DI_IRQ == true)
+	{
+		while(DI_CallbackMsg.result)
+		{
+			udelay(100);
+			CheckOSReport();
+		}
+	}
+}
