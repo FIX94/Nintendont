@@ -94,8 +94,6 @@ void EXIInit( void )
 #endif
 		sync_after_write( MCard, NIN_RAW_MEMCARD_SIZE );
 	}
-	
-	EXICacheFonts();
 
 	GC_SRAM *sram = (GC_SRAM*)SRAM;
 	
@@ -831,36 +829,9 @@ void EXIUpdateRegistersNEW( void )
 	}
 }
 
-// Cache starts at IPL_ROM_FONT_SJIS
-u8 FontsCached = 0;
-void EXICacheFonts(void)
+// FontBuf starts at IPL_ROM_FONT_SJIS
+void EXIReadFontFile(u8* Data, u32 Length)
 {
-	u8 i;
-	u32 read;
-	FIL ipl;
-	// ipl.bin:0x0-0x1fffff (start at 0x1aff00); sjis=0x1aff00-0x1fceff; ansi=0x1fcf00-1fffff
-	char* FileNames[] = { "/ipl.bin", "/font_sjis.bin", "/font_ansi.bin" };
-	u32 FileOffset[] = { IPL_ROM_FONT_SJIS, 0, 0 };
-	u32 BufferOffset[] = { 0, 0, IPL_ROM_FONT_ANSI - IPL_ROM_FONT_SJIS };
-	// Stop caching if ipl.bin; font_ansi and font_sjis done in pair
-	for (i = 0; i < 3 && ((FontsCached & 0x1) == 0); i++)
-	{
-		if (f_open(&ipl, FileNames[i], FA_OPEN_EXISTING | FA_READ) == FR_OK)
-		{
-			f_lseek(&ipl, FileOffset[i]);
-			f_read(&ipl, FontBuf + BufferOffset[i], ipl.fsize - FileOffset[i], &read);
-			f_close(&ipl);
-			FontsCached |= (3 - i);
-		}
-	}
-}
-bool EXIReadFontFile(u8* Data, u32 Length)
-{
-	if (FontsCached)
-	{
-		memcpy(Data, FontBuf + IPLReadOffset - IPL_ROM_FONT_SJIS, Length);
-		sync_after_write(Data, Length);
-		return true;
-	}
-	return false;
+	memcpy(Data, FontBuf + IPLReadOffset - IPL_ROM_FONT_SJIS, Length);
+	sync_after_write(Data, Length);
 }
