@@ -45,7 +45,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define ALIGNED(x) __attribute__((aligned(x)))
 
-extern u32 HollywoodRevision;
 extern bool UseSD;
 extern u32 Region;
 extern u32 POffset;

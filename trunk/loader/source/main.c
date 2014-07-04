@@ -108,7 +108,6 @@ int main(int argc, char **argv)
 	DCFlushRange(loader_stub, 0x1800);
 
 	u32 currev = *(vu32*)0x80003140;
-	HollywoodRevision = SYS_GetHollywoodRevision();	//RAMInit overwrites this
 	RAMInit();
 
 	STM_RegisterEventHandler(HandleSTMEvent);

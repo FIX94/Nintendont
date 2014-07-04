@@ -55,21 +55,12 @@ const unsigned char UnusedSWI[] =
 	0x1C, 0x01,
 	0x20, 0x05,
 };
-const unsigned char HWAccess_ESPatchHollywood21[] =
+
+const unsigned char HWAccess_ESPatch[] =
 {
     0x0D, 0x04, 0x00, 0x00,
     0x0D, 0x04, 0x00, 0x00,
     0x01, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x0F,
-    0x00, 0x00, 0x00, 0x03,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x02,
-};
-const unsigned char HWAccess_ESPatch[] =
-{
-    0x0C, 0x00, 0x00, 0x00,
-    0x0C, 0x00, 0x00, 0x00,
-    0x01, 0xE0, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x0F,
     0x00, 0x00, 0x00, 0x03,
     0x00, 0x00, 0x00, 0x00,
@@ -251,13 +242,8 @@ done:
 #ifdef DEBUG_MODULE_PATCH
 			gprintf("Found HWAccess_ES at %08X\r\n", i );
 #endif
-			// Hollywood21 patch works with all Wiis, but breaks Shutdown call.
-			// If possible combine with this fixed.
-			if ((HollywoodRevision == 0x21) && !IsWiiU())
-				memcpy( NKernel+i, HWAccess_ESPatchHollywood21, sizeof( HWAccess_ESPatchHollywood21 ) );
-			else
-				memcpy( NKernel+i, HWAccess_ESPatch, sizeof( HWAccess_ESPatch ) );
-			
+			memcpy( NKernel+i, HWAccess_ESPatch, sizeof( HWAccess_ESPatch ) );
+
 			PatchCount |= 4;
 		}
 

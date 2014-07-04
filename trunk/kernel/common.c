@@ -125,6 +125,7 @@ void mdelay(int ms)
 
 void Shutdown( void )
 {
+	dbgprintf("Got Shutdown button call\n");
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
 
@@ -153,8 +154,8 @@ void Shutdown( void )
 		write32( 0x0D8005E0, 0xFFFFFFFE );
 
 	} else {		
-		set32( HW_GPIO_ENABLE, GPIO_POWER );
-		set32( HW_GPIO_OUT, GPIO_POWER );
+		set32( HW_GPIO_ENABLE, GPIO_SHUTDOWN );
+		set32( HW_GPIO_OUT, GPIO_SHUTDOWN );
 	}
 
 	while(1);

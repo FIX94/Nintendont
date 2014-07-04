@@ -108,8 +108,9 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 
 #define		HW_REG_BASE			0xd800000
 #define		HW_PPCIRQFLAG		(HW_REG_BASE + 0x030)
-#define		HW_ARMIRQFLAG		(HW_REG_BASE + 0x038)
 #define		HW_PPCIRQMASK		(HW_REG_BASE + 0x034)
+#define		HW_ARMIRQFLAG		(HW_REG_BASE + 0x038)
+#define		HW_ARMIRQMASK		(HW_REG_BASE + 0x03C)
 #define		HW_IPC_PPCCTRL		(HW_REG_BASE + 0x004)
 #define		HW_IPC_ARMCTRL		(HW_REG_BASE + 0x00C)
 #define		HW_TIMER			(HW_REG_BASE + 0x010) //increments around every 526.7 nanoseconds
@@ -147,9 +148,11 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define HW_GPIO_ENABLE	(HW_BASE+0xDC)
 #define HW_GPIO_OUT		(HW_BASE+0xE0)
 #define HW_GPIO_DIR		(HW_BASE+0xE4)
+#define HW_GPIO_IN		(HW_BASE+0xE8)
 #define HW_GPIO_OWNER	(HW_BASE+0xFC)
 
-#define GPIO_POWER		(1<<1)
+#define GPIO_POWER		(1<<0)
+#define GPIO_SHUTDOWN	(1<<1)
 #define GPIO_SLOT_LED	(1<<5)
 #define P2C(x)			((x)&0x7FFFFFFF)
 
