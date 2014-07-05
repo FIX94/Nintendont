@@ -193,6 +193,63 @@ void DIInterrupt()
 	//clear32(DI_SCONTROL, (1<<0)); //game shadow controls, just in case its not interrupt based
 	//sync_after_write((void*)DI_SCONTROL, 4);
 }
+static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
+{
+	if( (Offset & 0x8FFF0000) == 0x80000000 )
+	{
+		switch(Offset)
+		{
+			// Media board status (1)
+			case 0x80000000:
+				write16( Buffer, 0x0100 );
+				break;
+			// Media board status (2)
+			case 0x80000020:
+				memset( (void*)Buffer, 0, Length );
+				break;
+			// Media board status (3)
+			case 0x80000040:
+				memset( (void*)Buffer, 0xFFFFFFFF, Length );
+				// DIMM size (512MB)
+				write32( Buffer, 0x00000020 );
+				// GCAM signature
+				write32( Buffer+4, 0x4743414D );
+				break;
+			// Firmware status (1)
+			case 0x80000120:
+				write32( Buffer, 0x00000001 );
+				break;
+			// Firmware status (2)
+			case 0x80000140:
+				write32( Buffer, 0x01000000 );
+				break;
+			default:
+				dbgprintf("Unhandled Media Board Read:%08X\n", Offset );
+				break;
+		}
+	}  // DIMM memory (3MB)
+	else if( (Offset >= 0x1F000000) && (Offset <= 0x1F300000) )
+	{
+		u32 roffset = Offset - 0x1F000000;
+		memcpy( (void*)Buffer, DIMMMemory + roffset, Length );
+	}  // DIMM command
+	else if( (Offset >= 0x1F900000) && (Offset <= 0x1F900040) )
+	{
+		u32 roffset = Offset - 0x1F900000;
+	#ifdef DEBUG_GCAM
+		dbgprintf("GC-AM: Read MEDIA BOARD COMM AREA (%08x)\n", roffset );
+	#endif
+		memcpy( (void*)Buffer, MediaBuffer + roffset, Length );
+	}  // Network command
+	else if( (Offset >= 0x1F800200) && (Offset <= 0x1F8003FF) )
+	{
+		u32 roffset = Offset - 0x1F800200;
+	#ifdef DEBUG_GCAM
+		dbgprintf("GC-AM: Read MEDIA BOARD NETWORK COMMAND (%08x)\n", roffset );
+	#endif
+		memcpy( (void*)Buffer, NetworkCMDBuffer + roffset, Length );
+	}
+}
 void DIUpdateRegisters( void )
 {
 	if(DI_IRQ == true)
@@ -623,74 +680,16 @@ void DIUpdateRegisters( void )
 
 					//dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\r\n", DIcommand, Offset, Length, Buffer|0x80000000 );
 
-					if( (Offset & 0x8FFF0000) == 0x80000000 )
+					if( TRIGame && Offset >= 0x1F000000 )
 					{
-						switch(Offset)
-						{
-							// Media board status (1)
-							case 0x80000000:
-								write16( Buffer, 0x0100 );
-								break;
-							// Media board status (2)
-							case 0x80000020:
-								memset( (void*)Buffer, 0, Length );
-								break;
-							// Media board status (3)
-							case 0x80000040:
-								memset( (void*)Buffer, 0xFFFFFFFF, Length );
-								// DIMM size (512MB)
-								write32( Buffer, 0x00000020 );
-								// GCAM signature
-								write32( Buffer+4, 0x4743414D );
-								break;
-							// Firmware status (1)
-							case 0x80000120:
-								write32( Buffer, 0x00000001 );
-								break;
-							// Firmware status (2)
-							case 0x80000140:
-								write32( Buffer, 0x01000000 );
-								break;
-							default:
-								dbgprintf("Unhandled Media Board Read:%08X\n", Offset );
-								break;
-						}
+						TRIReadMediaBoard( Buffer, Offset, Length );
 						DIOK = 2;
-					}  // DIMM memory (3MB)
-					else if( (Offset >= 0x1F000000) && (Offset <= 0x1F300000) )
-					{
-						u32 roffset = Offset - 0x1F000000;
-						memcpy( (void*)Buffer, DIMMMemory + roffset, Length );
-
-						DIOK = 2;
-					}  // DIMM command
-					else if( (Offset >= 0x1F900000) && (Offset <= 0x1F900040) )
-					{
-						u32 roffset = Offset - 0x1F900000;
-					#ifdef DEBUG_GCAM
-						dbgprintf("GC-AM: Read MEDIA BOARD COMM AREA (%08x)\n", roffset );
-					#endif
-						memcpy( (void*)Buffer, MediaBuffer + roffset, Length );
-
-						DIOK = 2;
-					}  // Network command
-					else if( (Offset >= 0x1F800200) && (Offset <= 0x1F8003FF) )
-					{
-						u32 roffset = Offset - 0x1F800200;
-					#ifdef DEBUG_GCAM
-						dbgprintf("GC-AM: Read MEDIA BOARD NETWORK COMMAND (%08x)\n", roffset );
-					#endif
-						memcpy( (void*)Buffer, NetworkCMDBuffer + roffset, Length );
-
-						DIOK = 2;
-					}
-					else
-					{
+					} else {
 						// Max GC disc offset
 						if( Offset >= 0x57058000 )
 						{
 							dbgprintf("Unhandled Read\n");
-							dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, Buffer|0x80000000 );
+							dbgprintf("DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, Buffer|0x80000000 );
 							Shutdown();
 						}
 						if( Buffer == 0x01300000 && DICheckTGC())
