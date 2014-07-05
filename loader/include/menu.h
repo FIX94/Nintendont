@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 typedef struct GameInfo 
 {
-	char ID[4];
+	char ID[6];
 	char *Name;
 	char *Path;
 } gameinfo;
