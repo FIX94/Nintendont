@@ -63,7 +63,7 @@ int compare_names(const void *a, const void *b)
 	const gameinfo *da = (const gameinfo *) a;
 	const gameinfo *db = (const gameinfo *) b;
 
-	return strcmp(da->Name, db->Name);
+	return strcasecmp(da->Name, db->Name);
 }
 void SelectGame( void )
 {
@@ -118,7 +118,7 @@ void SelectGame( void )
 
 					if( *(vu32*)(buf+0x1C) == 0xC2339F3D )	// Must be GC game
 					{
-						memcpy(gi[gamecount].ID, buf, 4); //ID for EXI
+						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						strcpy( gamename, buf + 0x20 );
 						if (DiscNumber)
 							strcat( gamename, " (2)" );
@@ -145,7 +145,7 @@ void SelectGame( void )
 					{
 						sprintf(filename, "%s:/games/%s/", GetRootDevice(), pent->d_name);
 
-						memcpy(gi[gamecount].ID, buf, 4); //ID for EXI
+						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						gi[gamecount].Name = strdup( buf + 0x20 );
 						gi[gamecount].Path = strdup( filename );
 
@@ -271,7 +271,7 @@ void SelectGame( void )
 			if( redraw )
 			{
 				for( i=0; i < ListMax; ++i )
-					PrintFormat( MENU_POS_X-8, MENU_POS_Y + 20*6 + i * 20, "% 51.51s", gi[i+ScrollX].Name );
+					PrintFormat( MENU_POS_X-8, MENU_POS_Y + 20*6 + i * 20, "%42.42s [%.6s]", gi[i+ScrollX].Name, gi[i+ScrollX].ID );
 					
 				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, "<" );
 			}
