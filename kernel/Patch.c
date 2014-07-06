@@ -236,7 +236,7 @@ void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 		Tmp = R32((u32)ptr + (Dup3 + 0x5F) * 2); // original instructions
 		W32((u32)ptr + (Dup3 + 0x0E) * 2, Tmp); //  original instructions includes ret
 
-		W32((u32)ptr + (Dup3 + 0x5D) * 2, 0x029F0000 | (Dup3 + CallLength + 0xB)); // jmp Dup3+0xF
+		W32((u32)ptr + (Dup3 + 0x5D) * 2, 0x029F0000 | (Dup3 + CallLength)); // jmp Dup3+0x4
 	}
 	return;
 }
