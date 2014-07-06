@@ -2040,6 +2040,13 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							dbgprintf("Patch:[SIInit] 0x%08X\r\n", FOffset );
 							#endif
 						}
+						//e.g. Animal Crossing
+						if (write32A(FOffset + 0x54, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIInit] 0x%08X\r\n", FOffset );
+							#endif
+						}
 					} break;
 					case FCODE_SIEnablePollingInterrupt:	//	SIEnablePollingInterrupt
 					{
@@ -2120,7 +2127,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							if (   (TITLE_ID) != 0x474D53  // Super Mario Sunshine
 								&& (TITLE_ID) != 0x474C4D  // Luigis Mansion 
 								&& (TITLE_ID) != 0x474346  // Pokemon Colosseum
-								&& (TITLE_ID) != 0x475049) // Pikmin    
+								&& (TITLE_ID) != 0x475049  // Pikmin
+								&& (TITLE_ID) != 0x474146) // Animal Crossing
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");
