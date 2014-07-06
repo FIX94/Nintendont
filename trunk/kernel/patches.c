@@ -142,6 +142,7 @@ FuncPattern FPatterns[] =
 	{   0xB0,   21,     9,     8,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit A",						FGROUP_SIInit,				0 },
 	{   0x70,   13,     8,     2,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit B",						FGROUP_SIInit,				0 },
 	{   0x90,   17,     8,     6,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit C",						FGROUP_SIInit,				0 },
+	{   0xA0,   20,     8,     7,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit D",						FGROUP_SIInit,				0 },
 	{   0x94,    8,    10,     2,     4,     2,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt",		FGROUP_NONE,				0 },
 
 	{  0x910,   87,    33,    18,     5,    63,	(u8*)NULL,				FCODE___ARChecksize_A,			"__ARChecksize A",				FGROUP___ARChecksize,		0 },
