@@ -123,10 +123,13 @@ FuncPattern FPatterns[] =
 {
 	{   0xCC,   17,    10,     5,     3,     2,	DVDInquiryAsync,		sizeof(DVDInquiryAsync),		"DVDInquiryAsync A",			FGROUP_DVDInquiryAsync,		0 },
 	{   0xC0,   18,     8,     4,     1,     3,	DVDInquiryAsync,		sizeof(DVDInquiryAsync),		"DVDInquiryAsync B",			FGROUP_DVDInquiryAsync,		0 },
+	//{   0xB8,   15,     7,     5,     3,     2,	DVDInquiryAsync,		sizeof(DVDInquiryAsync),		"DVDInquiryAsync C",			FGROUP_DVDInquiryAsync,		0 },
+
 	{   0xC8,   16,     9,     5,     3,     3,	DVDSeekAbsAsyncPrio,	sizeof(DVDSeekAbsAsyncPrio),	"DVDSeekAbsAsyncPrio",			FGROUP_NONE,				0 },
 	{   0xA8,   10,     4,     4,     6,     3,	(u8*)DVDGetDriveStatus,	sizeof(DVDGetDriveStatus),		"DVDGetDriveStatus",			FGROUP_NONE,				0 },
-//	{   0xD4,   13,     8,    11,     2,     7,	(u8*)NULL,				FCODE_AIResetStreamSampleCount,	"AIResetStreamSampleCount",		FGROUP_NONE,				0 },
-
+#ifndef AUDIOSTREAM
+	{   0xD4,   13,     8,    11,     2,     7,	(u8*)NULL,				FCODE_AIResetStreamSampleCount,	"AIResetStreamSampleCount",		FGROUP_NONE,				0 },
+#endif
 //	{  0x208,   38,    18,     3,    13,    10,	SITransfer,				sizeof(SITransfer),				"__SITransfer",					FGROUP_NONE,				0 },
 	{  0x158,   26,    22,     5,    13,     2,	ARQPostRequest,			sizeof(ARQPostRequest),			"ARQPostRequest",				FGROUP_NONE,				0 },
 	{   0xEC,    9,     6,     2,     0,     8,	(u8*)NULL,				FCODE_ARStartDMA,				"ARStartDMA",					FGROUP_NONE,				0 },
@@ -167,12 +170,17 @@ FuncPattern FPatterns[] =
 	{  0x10C,   30,    18,     5,     2,     3,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRead A",					FGROUP_DVDLowRead,			0 },
 	{   0xDC,   23,    18,     3,     2,     4,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRead B",					FGROUP_DVDLowRead,			0 },
 	{  0x104,   29,    17,     5,     2,     3,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRead C",					FGROUP_DVDLowRead,			0 },
-
+#ifdef AUDIOSTREAM
 	{   0x94,   18,    10,     2,     0,     2,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowAudioStream A",			FGROUP_DVDLowAudioStream,	0 },
 	{   0x8C,   16,    12,     1,     0,     2,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowAudioStream B",			FGROUP_DVDLowAudioStream,	0 },
 	{   0x88,   18,     8,     2,     0,     2,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRequestAudioStatus",		FGROUP_NONE,				0 },
 	{   0x98,   19,     8,     2,     1,     3,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowAudioBufferConfig",		FGROUP_NONE,				0 },
-
+#else
+	{   0x94,   18,    10,     2,     0,     2,	(u8*)__dvdLowReadAudioNULL, sizeof(__dvdLowReadAudioNULL), "DVDLowAudioStream A",		FGROUP_DVDLowAudioStream,	0 },
+	{   0x8C,   16,    12,     1,     0,     2,	(u8*)__dvdLowReadAudioNULL, sizeof(__dvdLowReadAudioNULL), "DVDLowAudioStream B",		FGROUP_DVDLowAudioStream,	0 },
+	{   0x88,   18,     8,     2,     0,     2,	(u8*)__dvdLowAudioStatusNULL, sizeof(__dvdLowAudioStatusNULL), "DVDLowRequestAudioStatus",	FGROUP_NONE,			0 },
+	{   0x98,   19,     8,     2,     1,     3,	(u8*)__dvdLowAudioConfigNULL, sizeof(__dvdLowAudioConfigNULL), "DVDLowAudioBufferConfig",	FGROUP_NONE,			0 },
+#endif
 	{  0x308,   40,    18,    10,    23,    17,	(u8*)NULL,				FCODE___fwrite,					"__fwrite A",					FGROUP___fwrite,			0 },
 	{  0x338,   48,    20,    10,    24,    16,	(u8*)NULL,				FCODE___fwrite,					"__fwrite B",					FGROUP___fwrite,			0 },
 	{  0x2D8,   41,    17,     8,    21,    13,	(u8*)NULL,				FCODE___fwrite,					"__fwrite C",					FGROUP___fwrite,			0 },
@@ -189,15 +197,18 @@ FuncPattern FPatterns[] =
 	{   0xB4,   11,     5,     5,     3,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor A",			FGROUP_PADControlMotor,		0 },
 	{   0xA0,   10,     5,     5,     2,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor B",			FGROUP_PADControlMotor,		0 },
 	{   0xB8,   14,     5,     4,     2,     7,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor C",			FGROUP_PADControlMotor,		0 },
+	//{   0xB4,    8,     2,     5,     4,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),	"PADControlMotor_PKM",			FGROUP_PADControlMotor,		0 },
 
 	{  0x1F0,   34,     9,     1,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler A",			FGROUP_TCIntrruptHandler,	0 },
 	{  0x214,   41,     9,     5,     8,    22,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler B",			FGROUP_TCIntrruptHandler,	0 },
 	{  0x214,   37,     9,     5,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler C",			FGROUP_TCIntrruptHandler,	0 },
-	{   0xA8,   17,     6,     1,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler D",			FGROUP_TCIntrruptHandler,	0 },
+	{  0x158,   28,     5,     5,     6,     4,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_PKM",		FGROUP_TCIntrruptHandler,	0 },
+	{   0xA8,   17,     6,     1,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler E",			FGROUP_TCIntrruptHandler,	0 },
 
 	{   0x7C,   10,     3,     0,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler A",			FGROUP_EXIntrruptHandler,	0 },
 	{   0xC4,   19,     6,     4,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler B",			FGROUP_EXIntrruptHandler,	0 },
 	{   0xC4,   19,     6,     4,     1,     8,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler C",			FGROUP_EXIntrruptHandler,	0 },
+	{   0xBC,   16,     3,     4,     1,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_PKM",		FGROUP_EXIntrruptHandler,	0 },
 
 	{  0x340,   61,    10,     7,    26,    32,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler A",			FGROUP_SIInterruptHandler,	0 },
 	{  0x114,   21,     4,     4,     5,    11,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler B",			FGROUP_SIInterruptHandler,	0 },
@@ -211,23 +222,31 @@ FuncPattern FPatterns[] =
 
 	{   0xF0,   17,     7,     5,     5,     7,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
 	{   0xF0,   18,     7,     5,     5,     6,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
+	{   0xF8,   19,     5,     5,     6,     6,	EXILock,				sizeof(EXILock),				"EXILock_PKM",					FGROUP_EXILock,				0 },
 	{   0xD8,   21,     8,     5,     3,     3,	EXILock,				sizeof(EXILock),				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
 	{   0xD8,   21,     8,     5,     3,     2,	EXILock,				sizeof(EXILock),				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
+	{   0xC4,   18,     4,     5,     3,     3,	EXILock,				sizeof(EXILock),				"EXIUnlock_PKM",				FGROUP_EXIUnlock,			0 },
 	{  0x128,   18,     4,     6,    11,     8,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
 	{  0x128,   18,     4,     6,    11,     7,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
+	{  0x13C,   20,     4,     6,    11,     6,	EXISelect,				sizeof(EXISelect),				"EXISelect_PKM",				FGROUP_EXISelect,			0 },
 	{  0x258,   36,     8,     5,    12,    32,	EXIImm,					sizeof(EXIImm),					"EXIImm",						FGROUP_EXIImm,				0 },
 	{  0x258,   27,     8,     5,    12,    17,	EXIImm,					sizeof(EXIImm),					"EXIImm",						FGROUP_EXIImm,				0 },
+	{  0x158,   24,     7,     5,     7,     9,	EXIImm,					sizeof(EXIImm),					"EXIImm_PKM",					FGROUP_EXIImm,				0 },
 	{   0xE8,   17,     7,     5,     2,     5,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA",						FGROUP_EXIDMA,				0 },
 	{   0xE8,   17,     7,     5,     2,     4,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA",						FGROUP_EXIDMA,				0 },
+	{  0x124,   28,     8,     5,     2,     8,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA_PKM",					FGROUP_EXIDMA,				0 },
 	{  0x234,   39,     3,     3,    12,    19,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
 	{  0x248,   40,     3,     4,    13,    19,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
 	{  0x204,   31,     3,     3,    11,    17,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
 	{  0x234,   35,     3,     3,    12,    17,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
+	{  0x16C,   26,     3,     3,     9,     7,	EXILock,				sizeof(EXILock),				"EXISync_PKM",					FGROUP_EXISync,				0 },
 	{  0x10C,   20,     8,     6,    12,     4,	EXILock,				sizeof(EXILock),				"EXIDeselect",					FGROUP_EXIDeselect,			0 },
 	{  0x10C,   20,     8,     6,    12,     3,	EXILock,				sizeof(EXILock),				"EXIDeselect",					FGROUP_EXIDeselect,			0 },
+	{  0x104,   17,     3,     6,    12,     4,	EXILock,				sizeof(EXILock),				"EXIDeselect_PKM",				FGROUP_EXIDeselect,			0 },
 	{  0x170,   30,     7,     5,     8,     9,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
 	{  0x170,   30,     7,     5,     8,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
 	{  0x164,   30,     4,     5,     8,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
+	{  0x1B0,   34,     6,     5,     8,     8,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_PKM",				FGROUP___EXIProbe,			0 },
 //	{  0x378,   69,    11,    26,    20,    20,	EXIGetID,				sizeof(EXIGetID),				"EXIGetID",						FGROUP_NONE,				0 },
 	{   0xEC,   24,     6,     6,     3,     7,	__CARDReadStatus,		sizeof(__CARDReadStatus),		"__CARDReadStatus",				FGROUP_NONE,				0 },
 	{   0xA8,   17,     5,     4,     3,     5,	__CARDReadStatus+8,		8,								"__CARDClearStatus",			FGROUP_NONE,				0 },

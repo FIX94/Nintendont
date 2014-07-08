@@ -221,4 +221,55 @@ const u32 DVDGetDriveStatus[] = {
         0x4E800020
 };
 
+
+// Audio streaming replacement functions copied from Swiss r92
+const u32 __dvdLowAudioStatusNULL[17] = {
+        // execute function(1); passed in on r4
+        0x9421FFC0,     //  stwu        sp, -0x0040 (sp)
+        0x7C0802A6,     //  mflr        r0
+        0x90010000,     //  stw         r0, 0 (sp)
+        0x7C8903A6,     //  mtctr       r4
+        0x3C80CC00,     //  lis         r4, 0xCC00
+        0x2E830000,     //  cmpwi       cr5, r3, 0
+        0x4196000C,     //  beq-        cr5, +0xC ?
+        0x38600001,     //  li          r3, 1
+        0x48000008,     //  b           +0x8 ?
+        0x38600000,     //  li          r3, 0
+        0x90646020,     //  stw         r3, 0x6020 (r4)
+        0x38600001,     //  li          r3, 1
+        0x4E800421,     //  bctrl
+        0x80010000,     //  lwz         r0, 0 (sp)
+        0x7C0803A6,     //  mtlr        r0
+        0x38210040,     //  addi        sp, sp, 64
+        0x4E800020      //  blr
+};
+
+const u32 __dvdLowAudioConfigNULL[10] = {
+        // execute callback(1); passed in on r5 without actually touching the drive!
+        0x9421FFC0,     //  stwu        sp, -0x0040 (sp)
+        0x7C0802A6,     //  mflr        r0
+        0x90010000,     //  stw         r0, 0 (sp)
+        0x7CA903A6,     //  mtctr       r5
+        0x38600001,     //  li          r3, 1
+        0x4E800421,     //  bctrl
+        0x80010000,     //  lwz         r0, 0 (sp)
+        0x7C0803A6,     //  mtlr        r0
+        0x38210040,     //  addi        sp, sp, 64
+        0x4E800020      //  blr
+};
+
+const u32 __dvdLowReadAudioNULL[] = {
+        // execute callback(1); passed in on r6 without actually touching the drive!
+        0x9421FFC0,     //  stwu        sp, -0x0040 (sp)
+        0x7C0802A6,     //  mflr        r0
+        0x90010000,     //  stw         r0, 0 (sp)
+        0x7CC903A6,     //  mtctr       r6
+        0x38600001,     //  li          r3, 1
+        0x4E800421,     //  bctr;
+        0x80010000,     //  lwz         r0, 0 (sp)
+        0x7C0803A6,     //  mtlr        r0
+        0x38210040,     //  addi        sp, sp, 64
+        0x4E800020
+};
+
 #endif

@@ -66,6 +66,7 @@ extern vu32 SDisInit;
 extern u32 DiscChangeIRQ;
 
 void DIinit( bool FirstTime );
+bool DICheckTimer();
 void DIInterrupt();
 void DIRegister(void);
 void DIUnregister(void);
@@ -74,5 +75,6 @@ u32 DIReadThread(void *arg);
 void DIChangeDisc( u32 DiscNumber );
 void DIUpdateRegisters( void );
 void DIReadTGC_DOL(void);
-bool DICheckTGC(void);
+void DIReload(void);
+bool DICheckTGC(u32 Buffer, u32 Length);
 #endif
