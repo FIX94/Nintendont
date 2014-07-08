@@ -44,6 +44,7 @@ struct ipcmessage DI_CallbackMsg;
 u32 DI_MessageQueue = 0xFFFFFFFF;
 u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
+static u32 DI_IRQ_Timer = 0;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
 
@@ -179,9 +180,14 @@ static void DIReadISO()
 	f_lseek( &GameFile, 0x458 );
 	f_read( &GameFile, &Region, sizeof(u32), &read );
 }
+bool DICheckTimer(void)
+{
+	return (read32(HW_TIMER) - DI_IRQ_Timer) >= 3800;	// about 500 times a second
+}
 void DIInterrupt()
 {
 	DI_IRQ = false;
+	DI_IRQ_Timer = 0;
 
 	clear32(DI_SSTATUS, (1<<2) | (1<<4)); //transfer complete, no errors
 	sync_after_write((void*)DI_SSTATUS, 4);
@@ -692,7 +698,7 @@ void DIUpdateRegisters( void )
 							dbgprintf("DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, Buffer|0x80000000 );
 							Shutdown();
 						}
-						if( Buffer == 0x01300000 && DICheckTGC())
+						if( Buffer == 0x01300000 && DICheckTGC(Buffer,Length))
 						{
 							//copy in our own apploader
 							memcpy( (void*)Buffer, multidol_ldr, multidol_ldr_size );
@@ -716,8 +722,6 @@ void DIUpdateRegisters( void )
 							udelay(100);
 							CheckOSReport();
 						}
-						DI_CallbackMsg.result = -1;
-						sync_after_write(&DI_CallbackMsg, 0x20);
 						DIOK = 1;
 					}
 				} break;
@@ -738,7 +742,10 @@ void DIUpdateRegisters( void )
 				//write32( DI_SDMA_LEN, 0 );
 
 				if( DIOK == 2 )
+				{
 					DI_IRQ = true;
+					DI_IRQ_Timer = read32(HW_TIMER);
+				}
 				else
 				{
 					set32( DI_SSTATUS, 0x3A );
@@ -845,16 +852,15 @@ void DIReadTGC_DOL()
 		udelay(100);
 		CheckOSReport();
 	}
-	DI_CallbackMsg.result = -1;
-	sync_after_write(&DI_CallbackMsg, 0x20);
 
 	PatchState = 0;
 	DoPatches( (char*)loader_hdr, tgc_dol_hdrsize, tgc_dol_offset ); //start patch system
 	write32((u32)(loader_hdr + tgc_dol_hdrsize), tgc_dol_offset);
 	sync_after_write( loader_hdr, 0x120 );
 }
-
-bool DICheckTGC()
+#define PATCH_STATE_PATCH 2
+extern u32 DOLSize, DOLMinOff, DOLMaxOff;
+bool DICheckTGC(u32 Buffer, u32 Length)
 {
 	if(*(vu32*)di_dest == 0xAE0F38A2) //TGC Magic
 	{	//multidol, loader always comes after reading tgc header
@@ -862,7 +868,16 @@ bool DICheckTGC()
 		tgc_dol_offset = di_offset + *(vu32*)(di_dest + 0x1C);
 		return true;
 	}
-	dbgprintf("Game is loading another DOL\n");
+	else if(di_offset == 0x2440)
+	{	//we can patch the loader in this case, that works for some reason
+		dbgprintf("Game is resetting to original loader\n");
+		PatchState = PATCH_STATE_PATCH;
+		DOLSize = Length;
+		DOLMinOff = Buffer;
+		DOLMaxOff = DOLMinOff + Length;
+	}
+	else
+		dbgprintf("Game is loading another DOL\n");
 	return false;
 }
 void DIFinishAsync()

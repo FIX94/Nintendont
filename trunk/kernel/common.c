@@ -8,18 +8,20 @@
 void BootStatus(s32 Value, u32 secs, u32 scnt)
 {
 	//memset32( (void*)0x10004100, Value, 0x20 );
-	u32 drvs = scnt / 1024 * secs / 1024;
-	if(drvs > 10000)
+	if(scnt)
 	{
-		*(vu32*)(0x10004100 + 16) = 1; //drvs is in GB
-		drvs /= 1024;
-	} else
-		*(vu32*)(0x10004100 + 16) = 0;	//drvs is in MB
-		
+		float drvs = (float)scnt / 1024 * secs / 1024;
+		if(drvs > 1024)
+		{
+			*(vu32*)(0x10004100 + 16) = 1; //drvs is in GB
+			drvs /= 1024;
+		} else
+			*(vu32*)(0x10004100 + 16) = 0;	//drvs is in MB
+		*(vu32*)(0x10004100 + 4) = scnt;
+		*(vu32*)(0x10004100 + 8) = secs;
+		*(float*)(0x1000410C) = drvs;
+	}
 	*(vu32*)(0x10004100 + 0) = Value;
-	*(vu32*)(0x10004100 + 4) = scnt;
-	*(vu32*)(0x10004100 + 8) = secs;
-	*(vu32*)(0x10004100 + 12) = drvs;
 	*(vu32*)(0x10004100 + 20) = 0;		//clear error status
 	sync_after_write((void*)0x10004100, 0x20);
 }

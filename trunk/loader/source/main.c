@@ -62,7 +62,7 @@ extern u32 __SYS_GetRTC(u32 *gctime);
 
 #define STATUS_LOADING	(*(vu32*)(0x90004100))
 #define STATUS_SECTOR	(*(vu32*)(0x90004100 + 8))
-#define STATUS_DRIVE	(*(vu32*)(0x90004100 + 12))
+#define STATUS_DRIVE	(*(float*)(0x9000410C))
 #define STATUS_GB_MB	(*(vu32*)(0x90004100 + 16))
 #define STATUS_ERROR	(*(vu32*)(0x90004100 + 20))
 
@@ -419,7 +419,7 @@ int main(int argc, char **argv)
 		if(STATUS_LOADING > 5 && STATUS_LOADING < 20)
 		{
 			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Done!");
-			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %d%s Sector size: %d", STATUS_DRIVE, STATUS_GB_MB ? "GB" : "MB", STATUS_SECTOR);
+			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %.02f%s Sector size: %d", STATUS_DRIVE, STATUS_GB_MB ? "GB" : "MB", STATUS_SECTOR);
 		}
 		if(STATUS_LOADING == -5)
 			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Error! %d Shutting down", STATUS_ERROR);

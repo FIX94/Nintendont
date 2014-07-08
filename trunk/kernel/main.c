@@ -137,9 +137,14 @@ int _main( int argc, char *argv[] )
 			} break;
 		}
 	}
+#ifndef NINTENDONT_USB
+	s_size = 512;
+	s_cnt = fatfs->n_fatent * fatfs->csize;
+#endif
+
+	BootStatus(6, s_size, s_cnt);
 
 #ifdef NINTENDONT_USB
-	BootStatus(6, s_size, s_cnt);
 	s32 r = LoadModules(55);
 	//dbgprintf("ES:ES_LoadModules(%d):%d\r\n", 55, r );
 	if( r < 0 )
@@ -251,7 +256,7 @@ int _main( int argc, char *argv[] )
 		}
 		if(DI_IRQ == true)
 		{
-			if(DI_CallbackMsg.result == 0)
+			if(DI_CallbackMsg.result == 0 && DICheckTimer())
 				DIInterrupt();
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
