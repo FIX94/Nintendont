@@ -267,12 +267,12 @@ s32 SDHCInit()
 	__sd0_sdhc = 0;
 	__sdio_initialized = 0;
 
-	rw_buffer = (u8*)malloc( 4 * 1024 );
-	
+	rw_buffer = (u8*)malloc( 128 * PAGE_SIZE512 ); //64KB
+
 	iovec = (vector*)malloc( sizeof(vector) * 3 );
 	request = (struct _sdiorequest*)malloc( sizeof(struct _sdiorequest) );
 	response = (struct _sdioresponse*)malloc( sizeof(struct _sdioresponse) );
-	
+
 	dbgprintf("SD:Heap:%X\r\n", rw_buffer );
 
 	__sd0_fd = IOS_Open(_sd0_fs,1);
@@ -426,8 +426,8 @@ bool sdio_ReadSectors(sec_t sector, sec_t numSectors, void* buffer )
 			else
 				blk_off = sector;
 
-			if(numSectors > 8)
-				secs_to_read = 8;
+			if(numSectors > 128)
+				secs_to_read = 128;
 			else
 				secs_to_read = numSectors;
 			
@@ -491,8 +491,8 @@ bool sdio_WriteSectors(sec_t sector, sec_t numSectors,const void* buffer)
 				blk_off = (sector*PAGE_SIZE512);
 			else
 				blk_off = sector;
-			if(numSectors > 8)
-				secs_to_write = 8;
+			if(numSectors > 128)
+				secs_to_write = 128;
 			else
 				secs_to_write = numSectors;
 

@@ -772,7 +772,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 			}
 						
 			PSOHack = 0;
-		} else if( read32( (u32)Buffer ) == 0x7F454C46 )
+		} else if( read32( (u32)Buffer ) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum )
 		{
 #ifdef DEBUG_DI
 			dbgprintf("DIP:Game is loading an ELF 0x%08x (%u)\r\n", Offset, Length );

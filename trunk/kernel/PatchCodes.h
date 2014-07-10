@@ -229,13 +229,13 @@ const u32 __dvdLowAudioStatusNULL[17] = {
         0x7C0802A6,     //  mflr        r0
         0x90010000,     //  stw         r0, 0 (sp)
         0x7C8903A6,     //  mtctr       r4
-        0x3C80CC00,     //  lis         r4, 0xCC00
+        0x3C80CC00,     //  lis         r4, 0xC000
         0x2E830000,     //  cmpwi       cr5, r3, 0
         0x4196000C,     //  beq-        cr5, +0xC ?
         0x38600001,     //  li          r3, 1
         0x48000008,     //  b           +0x8 ?
         0x38600000,     //  li          r3, 0
-        0x90646020,     //  stw         r3, 0x6020 (r4)
+        0x90642F20,     //  stw         r3, 0x2F20 (r4)
         0x38600001,     //  li          r3, 1
         0x4E800421,     //  bctrl
         0x80010000,     //  lwz         r0, 0 (sp)
@@ -269,7 +269,7 @@ const u32 __dvdLowReadAudioNULL[] = {
         0x80010000,     //  lwz         r0, 0 (sp)
         0x7C0803A6,     //  mtlr        r0
         0x38210040,     //  addi        sp, sp, 64
-        0x4E800020
+        0x4E800020      //  blr
 };
 
 #endif
