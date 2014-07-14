@@ -1862,24 +1862,33 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					} break;
 					case FCODE_ARStartDMA:	//	ARStartDMA
 					{
-						memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
-						// Most games need length 0 to work properly here
-						if( (TITLE_ID) != 0x475852 &&	// Mega Man X Command Mission
-							(TITLE_ID) != 0x47384D &&	// Paper Mario
-							(TITLE_ID) != 0x474146 &&	// Animal Crossing
-							(TITLE_ID) != 0x475951 &&	// Mario Superstar Baseball
-							(TITLE_ID) != 0x47564A )	// Viewtiful Joe
+						if( (TITLE_ID) == 0x47384D ||	// Paper Mario
+							(TITLE_ID) == 0x475951 )	// Mario Superstar Baseball
 						{
-							u32 PatchOffset = 0;
-							for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
+							memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
+						}
+						else if((TITLE_ID) == 0x474832 ||	// NFS: HP2
+								(TITLE_ID) == 0x47564A )	// Viewtiful Joe
+						{
+							memcpy( (void*)FOffset, ARStartDMA_NFS, sizeof(ARStartDMA_NFS) );
+						}
+						else
+						{
+							memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
+							if( (TITLE_ID) != 0x475852 &&	// Mega Man X Command Mission
+								(TITLE_ID) != 0x474146 )	// Animal Crossing
 							{
-								if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
+								u32 PatchOffset = 0;
+								for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
 								{
-								#ifdef DEBUG_PATCH
-									dbgprintf("Patch:[ARStartDMA] Length 0\r\n", FOffset );
-								#endif
-									write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
-									break;
+									if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
+									{
+									#ifdef DEBUG_PATCH
+										dbgprintf("Patch:[ARStartDMA] Length 0\r\n", FOffset );
+									#endif
+										write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
+										break;
+									}
 								}
 							}
 						}
