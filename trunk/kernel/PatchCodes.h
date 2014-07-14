@@ -16,6 +16,8 @@
 #include "asm/ARInit.h"
 #include "asm/ARGetBaseAddress.h"
 #include "asm/ARStartDMA.h"
+#include "asm/ARStartDMA_PM.h"
+#include "asm/ARStartDMA_NFS.h"
 #include "asm/SIGetType.h"
 #include "asm/__OSReadROM.h"
 #include "asm/FakeInterrupt.h"
@@ -229,7 +231,7 @@ const u32 __dvdLowAudioStatusNULL[17] = {
         0x7C0802A6,     //  mflr        r0
         0x90010000,     //  stw         r0, 0 (sp)
         0x7C8903A6,     //  mtctr       r4
-        0x3C80CC00,     //  lis         r4, 0xC000
+        0x3C80C000,     //  lis         r4, 0xC000
         0x2E830000,     //  cmpwi       cr5, r3, 0
         0x4196000C,     //  beq-        cr5, +0xC ?
         0x38600001,     //  li          r3, 1
