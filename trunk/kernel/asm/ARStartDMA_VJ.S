@@ -9,7 +9,7 @@
 #	r6	u32 length
 
 #out
-#	none 
+#	none
 
 ARStartDMA:
 	stwu	%sp,	-0x10(%sp)
@@ -58,7 +58,7 @@ memcpy:
 	stwu	%r0,	4(%r5)
 	addic.	%r7,	%r7,	-4
 	bne		memcpy
-	
+
 	addi	%r5,	%r5,	4
 	sub		%r5,	%r5,	%r6
 	srwi	%r7,	%r6,	5
@@ -82,10 +82,24 @@ end:
 #	li		%r0,	0x40
 #	stw		%r0,	0x0050(%r3)
 
-#ARAM Transfer Fake
-	li		%r7,	0 #for games which need length 0
+#Early Exception Numbers from:
+#https://code.google.com/p/dolphin-emu/source/browse/Source/Core/Core/HW/DSP.cpp#702
 
-SetCount:
+#ARAM Transfer Fake
+	cmpwi	%r6,	0x1800
+	bgt		LateIRQ
+	cmpwi	%r6,	0x800
+	ble		LateIRQ
+
+EarlyIRQ:
+	li		%r6,	0
+	b		IRQ
+
+LateIRQ:
+	li		%r0,	0x20
+	divwu	%r6,	%r6,	%r0
+
+IRQ:
 	lis		%r3,	AR_DMA_CNT@h
 	stw		%r6,	AR_DMA_CNT@l(%r3)
 

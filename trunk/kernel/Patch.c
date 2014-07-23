@@ -1867,10 +1867,13 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
 						}
-						else if((TITLE_ID) == 0x474832 ||	// NFS: HP2
-								(TITLE_ID) == 0x47564A )	// Viewtiful Joe
+						else if((TITLE_ID) == 0x474832) // NFS: HP2
 						{
 							memcpy( (void*)FOffset, ARStartDMA_NFS, sizeof(ARStartDMA_NFS) );
+						}
+						else if((TITLE_ID) == 0x47564A) // Viewtiful Joe
+						{
+							memcpy( (void*)FOffset, ARStartDMA_VJ, sizeof(ARStartDMA_VJ) );
 						}
 						else
 						{
@@ -2137,7 +2140,8 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 								&& (TITLE_ID) != 0x474C4D  // Luigis Mansion 
 								&& (TITLE_ID) != 0x474346  // Pokemon Colosseum
 								&& (TITLE_ID) != 0x475049  // Pikmin
-								&& (TITLE_ID) != 0x474146) // Animal Crossing
+								&& (TITLE_ID) != 0x474146  // Animal Crossing
+								&& (TITLE_ID) != 0x474C56) // Chronicles of Narnia
 							{
 								#ifdef DEBUG_PATCH
 								dbgprintf("Patch:Skipped [ARQPostRequest]\r\n");

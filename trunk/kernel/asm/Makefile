@@ -32,7 +32,7 @@ all: $(HFILES)
 
 %.bin: %.elf
 	@echo " STRIP       $<"
-	@$(STRIP) $< -O binary -o $@
+	@$(STRIP) $< -O binary -S -s -o $@
 
 %.h: %.bin
 	@echo " BIN2H       $<"
