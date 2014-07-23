@@ -12,24 +12,25 @@
 #	none 
 
 ARStartDMA:
-	stwu    %sp,	-0x10(%sp)
-	mflr    %r0
-	stw     %r0,	8(%sp)
+	stwu	%sp,	-0x10(%sp)
+	mflr	%r0
+	stw		%r0,	8(%sp)
 
 	cmpwi	%r6,	0
 	beq		end
 
 	lis		%r7,	0x0FFF
 	ori		%r7,	%r7,	0xFFFF
-	
-	and		%r5,	%r5,	%r7
-	oris	%r5,	%r5,	0xD000	# mem2
+
 	and		%r4,	%r4,	%r7
-	oris	%r4,	%r4,	0xC000	# mem1
+	oris	%r4,	%r4,	0x8000	# mem1
+
+	and		%r5,	%r5,	%r7
+	oris	%r5,	%r5,	0x9000	# mem2
 
 	cmpwi	%r3,	1
 	bne		MRAM_TO_ARAM
-	
+
 ARAM_TO_MRAM:
 	mr		%r7,	%r5
 	mr		%r5,	%r4
@@ -95,15 +96,23 @@ EarlyIRQ:
 	b		IRQ
 
 LateIRQ:
-	li		%r0,	0x20
+	li		%r0,	0x10
 	divwu	%r6,	%r6,	%r0
+
+	li		%r0,	8
+	li		%r7,	12		#8<<12=0x8000
+	slw		%r0,	%r0,	%r7
+
+	cmpwi	%r6,	%r0
+	ble		IRQ
+	mr		%r6,	%r0
 
 IRQ:
 	lis		%r3,	AR_DMA_CNT@h
 	stw		%r6,	AR_DMA_CNT@l(%r3)
 
-	lwz     %r0, 8(%sp)
-	mtlr    %r0
-	addi    %sp, %sp, 0x10
+	lwz		%r0,	8(%sp)
+	mtlr	%r0
+	addi	%sp,	%sp,	0x10
 
 	blr

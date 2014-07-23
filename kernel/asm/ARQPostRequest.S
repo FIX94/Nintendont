@@ -11,7 +11,7 @@
 #	r10 cb
 
 #out
-#	none 
+#	none
 
 ARQPostRequest:
 	stwu    %sp,	-0x10(%sp)
@@ -34,19 +34,19 @@ ARQPostRequest:
 	stw		%r0,	0x14(%r3)	#	u32             dest
 
 	stw		%r10,	0x1C(%r3)	#	ARQCallback     callback
-	
+
 	cmpwi	%r9,	0
 	beq		callback
 
 	lis		%r4,	0x0FFF
 	ori		%r4,	%r4,	0xFFFF
-	
+
 	cmpwi	%r5,	1
 	beq		ARAM_TO_MRAM
 
 MRAM_TO_ARAM:
 	and		%r8,	%r8,	%r4
-	addis	%r8,	%r8,	0x9000	# mem2
+	oris	%r8,	%r8,	0x9000	# mem2
 
 #DCInvalidateRange
 	srwi	%r4,	%r9,	5
@@ -72,7 +72,7 @@ memcpy:
 	addic.	%r9,	%r9,	-4
 	bne		memcpy
 
-#restore offset	
+#restore offset
 	addi	%r8,	%r8,	4
 	sub		%r8,	%r8,	%r4
 
@@ -86,7 +86,7 @@ DCFlushRangeA:
 	dcbf	%r0,	%r4
 	addi	%r4,	%r4,	0x20
 	bdnz	DCFlushRangeA
-		
+
 callback:
 	cmpwi	%r10,	0
 	beq		end
@@ -96,15 +96,15 @@ callback:
 
 end:
 
-	lwz     %r0, 8(%sp)
-	mtlr    %r0
-	addi    %sp, %sp, 0x10
+	lwz		%r0,	8(%sp)
+	mtlr	%r0
+	addi	%sp,	%sp,	0x10
 
 	blr
-	
+
 ARAM_TO_MRAM:
 	and		%r7,	%r7,	%r4
-	addis	%r7,	%r7,	0x9000	# mem2
+	oris	%r7,	%r7,	0x9000	# mem2
 
 #DCFlushRange
 	srwi	%r4,	%r9,	5

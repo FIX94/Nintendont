@@ -17,6 +17,7 @@
 #include "asm/ARGetBaseAddress.h"
 #include "asm/ARStartDMA.h"
 #include "asm/ARStartDMA_PM.h"
+#include "asm/ARStartDMA_VJ.h"
 #include "asm/ARStartDMA_NFS.h"
 #include "asm/SIGetType.h"
 #include "asm/__OSReadROM.h"
