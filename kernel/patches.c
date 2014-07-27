@@ -212,6 +212,7 @@ FuncPattern FPatterns[] =
 
 	{  0x340,   61,    10,     7,    26,    32,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler A",			FGROUP_SIInterruptHandler,	0 },
 	{  0x114,   21,     4,     4,     5,    11,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler B",			FGROUP_SIInterruptHandler,	0 },
+	{  0x2EC,   50,     7,     9,    14,    27,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler C",			FGROUP_SIInterruptHandler,	0 },
 
 	{  0x10C,   27,    11,     8,     2,     4,	(u8*)NULL,				FCODE_PI_FIFO_WP_A,				"PI_FIFO_WP A A",				FGROUP_PI_FIFO_WP_A,		0 },
 	{  0x10C,   27,    11,     7,     2,     5,	(u8*)NULL,				FCODE_PI_FIFO_WP_A,				"PI_FIFO_WP A B",				FGROUP_PI_FIFO_WP_A,		0 },
