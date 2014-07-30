@@ -14,6 +14,9 @@ static vu32* const _siReg = (u32*)0xCD006400;
 static vu32* const MotorCommand = (u32*)0xD3003010;
 static vu32* reset = (u32*)0xC0002F54;
 static vu32* HIDPad = (u32*)0xD3002700;
+static vu32* PADIsBarrel = (u32*)0xD3002830;
+static vu32* PADBarrelEnabled = (u32*)0xD3002840;
+static vu32* PADBarrelPress = (u32*)0xD3002850;
 const s8 DEADZONE = 0x1A;
 #define HID_PAD_NONE	4
 #define HID_PAD_NOT_SET	0xFF
@@ -43,6 +46,7 @@ void _start()
 		Pad[chan].button = ((PADButtonsStick>>16)&0xFFFF);
 		if(Pad[chan].button & 0x8000) /* controller not enabled */
 		{
+			PADBarrelEnabled[chan] = 1; //if wavebird disconnects it cant reconnect
 			u32 psize = sizeof(PADStatus);
 			u8 *CurPad = (u8*)(&Pad[chan]);
 			while(psize--) *CurPad++ = 0;
@@ -55,23 +59,67 @@ void _start()
 			continue;
 		}
 		Pad[chan].err = 0;
-		Pad[chan].stickX = ((PADButtonsStick>>8)&0xFF)-128;
-		Pad[chan].stickY = ((PADButtonsStick>>0)&0xFF)-128;
-		Pad[chan].substickX = ((PADTriggerCStick>>24)&0xFF)-128;
-		Pad[chan].substickY = ((PADTriggerCStick>>16)&0xFF)-128;
 
-		/* Calculate left trigger with deadzone */
-		u8 tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
-		if(tmp_triggerL > DEADZONE)
-			Pad[chan].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+		/* save IsBarrel status */
+		PADIsBarrel[chan] = ((Pad[chan].button & 0x80) == 0) && PADBarrelEnabled[chan];
+		if(PADIsBarrel[chan])
+		{
+			u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
+			Pad[chan].triggerRight = (tmp_triggerR * 2.11f);
+			if(Pad[chan].triggerRight > DEADZONE) // need to do this manually
+				Pad[chan].button |= PAD_TRIGGER_R;
+
+			u8 curchan = chan*3;
+			if(Pad[chan].button & (PAD_BUTTON_Y | PAD_BUTTON_B)) //left
+			{
+				if(PADBarrelPress[0+curchan] == 5)
+					Pad[chan].button &= ~(PAD_BUTTON_Y | PAD_BUTTON_B);
+				else
+					PADBarrelPress[0+curchan]++;
+			}
+			else
+				PADBarrelPress[0+curchan] = 0;
+
+			if(Pad[chan].button & (PAD_BUTTON_X | PAD_BUTTON_A)) //left
+			{
+				if(PADBarrelPress[1+curchan] == 5)
+					Pad[chan].button &= ~(PAD_BUTTON_X | PAD_BUTTON_A);
+				else
+					PADBarrelPress[1+curchan]++;
+			}
+			else
+				PADBarrelPress[1+curchan] = 0;
+
+			if(Pad[chan].button & PAD_BUTTON_START) //start
+			{
+				if(PADBarrelPress[2+curchan] == 5)
+					Pad[chan].button &= ~PAD_BUTTON_START;
+				else
+					PADBarrelPress[2+curchan]++;
+			}
+			else
+				PADBarrelPress[2+curchan] = 0;
+		}
 		else
-			Pad[chan].triggerLeft = 0;
-		/* Calculate right trigger with deadzone */
-		u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
-		if(tmp_triggerR > DEADZONE)
-			Pad[chan].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
-		else
-			Pad[chan].triggerRight = 0;
+		{
+			Pad[chan].stickX = ((PADButtonsStick>>8)&0xFF)-128;
+			Pad[chan].stickY = ((PADButtonsStick>>0)&0xFF)-128;
+			Pad[chan].substickX = ((PADTriggerCStick>>24)&0xFF)-128;
+			Pad[chan].substickY = ((PADTriggerCStick>>16)&0xFF)-128;
+
+			/* Calculate left trigger with deadzone */
+			u8 tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
+			if(tmp_triggerL > DEADZONE)
+				Pad[chan].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+			else
+				Pad[chan].triggerLeft = 0;
+			/* Calculate right trigger with deadzone */
+			u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
+			if(tmp_triggerR > DEADZONE)
+				Pad[chan].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
+			else
+				Pad[chan].triggerRight = 0;
+		}
 
 		/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
 		if((Pad[chan].button&0x234) == 0x234)

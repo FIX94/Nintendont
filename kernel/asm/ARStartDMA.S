@@ -9,7 +9,7 @@
 #	r6	u32 length
 
 #out
-#	none 
+#	none
 
 ARStartDMA:
 	stwu	%sp,	-0x10(%sp)
@@ -47,7 +47,7 @@ DCInvalidateRange:
 	addi	%r7,	%r7,	0x20
 	bdnz	DCInvalidateRange
 
-memcpy_pre:	
+memcpy_pre:
 	mr		%r7,	%r6		#save length
 	lwz		%r0,	0(%r4)
 	stw		%r0,	0(%r5)
@@ -58,7 +58,7 @@ memcpy:
 	stwu	%r0,	4(%r5)
 	addic.	%r7,	%r7,	-4
 	bne		memcpy
-	
+
 	addi	%r5,	%r5,	4
 	sub		%r5,	%r5,	%r6
 	srwi	%r7,	%r6,	5

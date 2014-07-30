@@ -2168,7 +2168,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							dbgprintf("Patch:DVDGetDriveStatus\r\n");
 							#endif
 						}
-
+						if( FPatterns[j].Patch == (u8*)PADIsBarrel )
+						{
+							if(memcmp((void*)(FOffset), PADIsBarrelOri, sizeof(PADIsBarrelOri)) != 0)
+								break;
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:PADIsBarrel\r\n");
+							#endif
+						}
 						if( (FPatterns[j].Length >> 16) == (FCODES  >> 16) )
 						{
 							#ifdef DEBUG_PATCH

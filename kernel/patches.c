@@ -199,6 +199,8 @@ FuncPattern FPatterns[] =
 	{   0xB8,   14,     5,     4,     2,     7,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor C",			FGROUP_PADControlMotor,		0 },
 	//{   0xB4,    8,     2,     5,     4,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),	"PADControlMotor_PKM",			FGROUP_PADControlMotor,		0 },
 
+	{   0x14,    1,     0,     0,     2,     0,	(u8*)PADIsBarrel,		sizeof(PADIsBarrel),			"PADIsBarrel",					FGROUP_NONE,				0 },
+
 	{  0x1F0,   34,     9,     1,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler A",			FGROUP_TCIntrruptHandler,	0 },
 	{  0x214,   41,     9,     5,     8,    22,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler B",			FGROUP_TCIntrruptHandler,	0 },
 	{  0x214,   37,     9,     5,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler C",			FGROUP_TCIntrruptHandler,	0 },

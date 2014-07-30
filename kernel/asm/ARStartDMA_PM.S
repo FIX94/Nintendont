@@ -9,7 +9,7 @@
 #	r6	u32 length
 
 #out
-#	none 
+#	none
 
 ARStartDMA:
 	stwu	%sp,	-0x10(%sp)
@@ -40,14 +40,14 @@ MRAM_TO_ARAM:
 	srwi	%r7,	%r6,	5
 	mtctr	%r7
 	mr		%r7,	%r4
-	
+
 	li		%r0,	0
 DCInvalidateRange:
 	dcbi	%r0,	%r7
 	addi	%r7,	%r7,	0x20
 	bdnz	DCInvalidateRange
 
-memcpy_pre:	
+memcpy_pre:
 	mr		%r7,	%r6		#save length
 	lwz		%r0,	0(%r4)
 	stw		%r0,	0(%r5)
@@ -58,7 +58,7 @@ memcpy:
 	stwu	%r0,	4(%r5)
 	addic.	%r7,	%r7,	-4
 	bne		memcpy
-	
+
 	addi	%r5,	%r5,	4
 	sub		%r5,	%r5,	%r6
 	srwi	%r7,	%r6,	5
@@ -73,7 +73,7 @@ DCFlushRange:
 end:
 
 #Fake IRQ
-	
+
 #	lis		%r3,	0xC000
 
 #	li		%r0,	0x20
@@ -94,8 +94,7 @@ EarlyIRQ:
 	b		IRQ
 
 LateIRQ:
-	li		%r0,	0x20
-	divwu	%r6,	%r6,	%r0
+	srwi	%r6,	%r6,	5	#r6 / 0x20
 
 IRQ:
 	lis		%r3,	AR_DMA_CNT@h

@@ -26,6 +26,7 @@
 #include "asm/SIIntrruptHandler.h"
 #include "asm/PADRead.h"
 #include "asm/PADControlMotor.h"
+#include "asm/PADIsBarrel.h"
 #include "asm/DCInvalidateRange.h"
 #include "asm/DVDInquiryAsync.h"
 #include "asm/DVDSeekAbsAsyncPrio.h"
@@ -275,4 +276,14 @@ const u32 __dvdLowReadAudioNULL[] = {
         0x4E800020      //  blr
 };
 
+//function header is good enough to verify
+const u32 PADIsBarrelOri[] = {
+		0x2C030000,		// cmpwi	r3,0
+		0x4180000C,		// blt		0x10
+		0x2C030004,		// cmpwi	r3,4
+		0x4180000C,		// blt		0x18
+		0x38600000,		// li		r3,0
+		0x4E800020,		// blr
+		0x3C008000		// lis		r0,0x8000
+};
 #endif
