@@ -47,7 +47,7 @@ DCInvalidateRange:
 	addi	%r7,	%r7,	0x20
 	bdnz	DCInvalidateRange
 
-memcpy_pre:	
+memcpy_pre:
 	mr		%r7,	%r6		#save length
 	lwz		%r0,	0(%r4)
 	stw		%r0,	0(%r5)
@@ -73,7 +73,7 @@ DCFlushRange:
 end:
 
 #Fake IRQ
-	
+
 #	lis		%r3,	0xC000
 
 #	li		%r0,	0x20
@@ -96,8 +96,7 @@ EarlyIRQ:
 	b		IRQ
 
 LateIRQ:
-	li		%r0,	0x20
-	divwu	%r6,	%r6,	%r0
+	srwi	%r6,	%r6,	5	#r6 / 0x20
 
 IRQ:
 	lis		%r3,	AR_DMA_CNT@h

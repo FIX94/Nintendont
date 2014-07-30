@@ -14,6 +14,9 @@ MEM2
 0x93001000-0x93002700=old padread hid bin
 0x93002700=padread hid channel
 0x93002800-0x93002830=PadBuff
+
+0x93002830-0x93002890=pad barrel stuff
+
 0x93002900-0x93002B1C=nincfg
 
 0x93002EE0-0x93003000=tgc dol header
