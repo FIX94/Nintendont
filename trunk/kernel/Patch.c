@@ -1879,7 +1879,9 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						{
 							memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
 							if( (TITLE_ID) != 0x475852 &&	// Mega Man X Command Mission
-								(TITLE_ID) != 0x474146 )	// Animal Crossing
+								(TITLE_ID) != 0x474146 &&	// Animal Crossing
+								(TITLE_ID) != 0x474156 &&	// Avatar Last Airbender
+								(TITLE_ID) != 0x47504E )	// P.N.03
 							{
 								u32 PatchOffset = 0;
 								for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
@@ -1968,6 +1970,13 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							dbgprintf("Patch:[_SITransfer] 0x%08X\r\n", FOffset );
 							#endif
 						}
+						//e.g. Billy Hatcher
+						if (write32A(FOffset + 0xF8, 0x7F390078, 0x7F390038, 0)) // clear errors - andc r7,r7,r0
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[_SITransfer C] 0x%08X\r\n", FOffset );
+							#endif
+						}
 
 						//e.g. Mario Strikers
 						if (write32A(FOffset + 0x148, 0x5400007E, 0x50803E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
@@ -1983,11 +1992,26 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							dbgprintf("Patch:[_SITransfer] 0x%08X\r\n", FOffset );
 							#endif
 						}
+						//e.g. Billy Hatcher
+						if (write32A(FOffset + 0x168, 0x5400007E, 0x50603E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[_SITransfer C] 0x%08X\r\n", FOffset );
+							#endif
+						}
 					} break;
 					case FCODE_CompleteTransfer:	//	CompleteTransfer
 					{
 						//e.g. Mario Strikers
 						if (write32A(FOffset + 0x38, 0x5400007C, 0x5400003C, 0)) // clear  tc - rlwinm r0,r0,0,1,30
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[CompleteTransfer] 0x%08X\r\n", FOffset );
+							#endif
+						}
+
+						//e.g. Billy Hatcher (func before CompleteTransfer does this)
+						if (write32A(FOffset - 0x18, 0x57FF007C, 0x57FF003C, 0)) // clear  tc - rlwinm r31,r31,0,1,30
 						{
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:[CompleteTransfer] 0x%08X\r\n", FOffset );
@@ -2025,6 +2049,13 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						dbgprintf("Patch:Applied **IntrruptHandler patch 0x%X (PatchOffset=0x%X) \r\n", FOffset, PatchOffset);
 						#endif
 
+						//e.g. Billy Hatcher
+						if (write32A(FOffset + 0xB4, 0x7F7B0078, 0x7F7B0038, 0)) // clear  tc - andc r27,r27,r0
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIInterruptHandler] 0x%08X\r\n", FOffset );
+							#endif
+						}
 						if (FPatterns[j].Length >= 0x134)
 						{
 							//e.g. Mario Strikers
@@ -2059,6 +2090,13 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							dbgprintf("Patch:[SIInit] 0x%08X\r\n", FOffset );
 							#endif
 						}
+						//e.g. Billy Hatcher
+						if (write32A(FOffset + 0x5C, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIInit] 0x%08X\r\n", FOffset );
+							#endif
+						}
 					} break;
 					case FCODE_SIEnablePollingInterrupt:	//	SIEnablePollingInterrupt
 					{
@@ -2066,13 +2104,27 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 						if (write32A(FOffset + 0x68, 0x60000000, 0x54A50146, 0)) // leave rdstint alone - nop
 						{
 							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[SIEnablePollingInterrupt] 0x%08X\r\n", FOffset );
+							dbgprintf("Patch:[SIEnablePollingInterrupt A] 0x%08X\r\n", FOffset );
 							#endif
 						}
 						if (write32A(FOffset + 0x6C, 0x60000000, 0x54A5007C, 0)) // leave tcinit tcstart alone - nop
 						{
 							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[SIEnablePollingInterrupt] 0x%08X\r\n", FOffset );
+							dbgprintf("Patch:[SIEnablePollingInterrupt A] 0x%08X\r\n", FOffset );
+							#endif
+						}
+
+						//e.g. Billy Hatcher
+						if (write32A(FOffset + 0x78, 0x60000000, 0x57FF0146, 0)) // leave rdstint alone - nop
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIEnablePollingInterrupt B] 0x%08X\r\n", FOffset );
+							#endif
+						}
+						if (write32A(FOffset + 0x7C, 0x60000000, 0x57FF007C, 0)) // leave tcinit tcstart alone - nop
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[SIEnablePollingInterrupt B] 0x%08X\r\n", FOffset );
 							#endif
 						}
 					} break;
