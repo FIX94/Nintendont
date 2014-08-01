@@ -64,12 +64,7 @@ void _start()
 		PADIsBarrel[chan] = ((Pad[chan].button & 0x80) == 0) && PADBarrelEnabled[chan];
 		if(PADIsBarrel[chan])
 		{
-			u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
-			Pad[chan].triggerRight = (tmp_triggerR * 2.11f);
-			if(Pad[chan].triggerRight > DEADZONE) // need to do this manually
-				Pad[chan].button |= PAD_TRIGGER_R;
-
-			u8 curchan = chan*3;
+			u8 curchan = chan*4;
 			if(Pad[chan].button & (PAD_BUTTON_Y | PAD_BUTTON_B)) //left
 			{
 				if(PADBarrelPress[0+curchan] == 5)
@@ -99,6 +94,19 @@ void _start()
 			}
 			else
 				PADBarrelPress[2+curchan] = 0;
+
+			//signal lengthener
+			if(PADBarrelPress[3+curchan] == 0)
+			{
+				u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
+				if(tmp_triggerR > 0x16) // need to do this manually
+					PADBarrelPress[3+curchan] = 3;
+			}
+			else
+			{
+				Pad[chan].button |= PAD_TRIGGER_R;
+				PADBarrelPress[3+curchan]--;
+			}
 		}
 		else
 		{
