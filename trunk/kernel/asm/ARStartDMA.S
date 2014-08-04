@@ -1,7 +1,7 @@
 #include <asm.h>
 
 .set	AR_DMA_CNT,	0xCC005028
-
+.set	AR_STR,		0x930028A0
 #in
 #	r3	u32 type
 #	r4	u32 mainmem_addr
@@ -19,14 +19,23 @@ ARStartDMA:
 	cmpwi	%r6,	0
 	beq		end
 
-	lis		%r7,	0x0FFF
-	ori		%r7,	%r7,	0xFFFF
+	rlwinm	%r4,	%r4,	0,		7,		26 # 0x01ffffe0
+	oris	%r4,	%r4,	0x8000
 
-	and		%r4,	%r4,	%r7
-	oris	%r4,	%r4,	0x8000	# mem1
+	rlwinm	%r5,	%r5,	0,		8,		26 # 0x00ffffe0
+	oris	%r5,	%r5,	0x9000
 
-	and		%r5,	%r5,	%r7
-	oris	%r5,	%r5,	0x9000	# mem2
+#	lis		%r7,	AR_STR@h
+#	ori		%r0,	%r7,	AR_STR@l
+#	lis		%r7,	0xC000
+#	stw		%r0,	0x1860(%r7)
+#	stw		%r4,	0x1864(%r7)
+#	stw		%r5,	0x1868(%r7)
+#	stw		%r6,	0x186C(%r7)
+#wait_loop:
+#	lwz		%r0,	0x1860(%r7)
+#	cmpw	%r0,	%r3
+#	beq		wait_loop
 
 	cmpwi	%r3,	1
 	bne		MRAM_TO_ARAM

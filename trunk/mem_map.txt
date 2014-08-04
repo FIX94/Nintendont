@@ -17,6 +17,8 @@ MEM2
 
 0x93002830-0x93002890=pad barrel stuff
 
+0x930028a0-0x930028c0=ARStartDMA Debug str
+
 0x93002900-0x93002B1C=nincfg
 
 0x93002EE0-0x93003000=tgc dol header

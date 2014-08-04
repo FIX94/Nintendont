@@ -331,7 +331,7 @@ int _main( int argc, char *argv[] )
 			DIFinishAsync();
 			Shutdown();
 		}
-  //  sync_before_read( (void*)0x1860, 0x20 );
+		//sync_before_read( (void*)0x1860, 0x20 );
 		//if( read32(0x1860) != 0xdeadbeef )
 		//{
 		//	if( read32(0x1860) != 0 )
@@ -342,11 +342,10 @@ int _main( int argc, char *argv[] )
 		//					(char*)(P2C(read32(0x186C))),
 		//					(char*)(P2C(read32(0x1870))),
 		//					(char*)(P2C(read32(0x1874)))
-		//				);				
+		//				);
 		//	}
-
 		//	write32(0x1860, 0xdeadbeef);
-  //    sync_after_write( (void*)0x1860, 0x20 );
+		//	sync_after_write( (void*)0x1860, 0x20 );
 		//}
 		cc_ahbMemFlush(1);
 	}
