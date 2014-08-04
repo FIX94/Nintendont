@@ -622,6 +622,7 @@ int main(int argc, char **argv)
 	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
 	memset((void*)0x93002700, 0, 4); //set HID controller to 0
 	memset((void*)0x93002830, 0, 0x80); // clear PADIsBarrel
+	//strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
 	DCFlushRange((void*)0x93000000, 0x3000);
 
 	DCInvalidateRange((void*)0x93010010, 0x10000);

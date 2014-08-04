@@ -16,17 +16,11 @@ FakeInterrupt:
 	stw		%r3,	0x30(%r8)
 
 	lis		%r3,	FAKE_SI_INT@h
-	ori		%r3,	%r3,	FAKE_SI_INT@l
-	li		%r0,	0x0
-	dcbi	%r0,	%r3
-	lwz		%r0,	0(%r3)
+	lwz		%r0,	FAKE_SI_INT@l(%r3)
 	or		%r31,	%r31,	%r0
 
 	lis		%r3,	FAKE_EXI_INT@h
-	ori		%r3,	%r3,	FAKE_EXI_INT@l
-	li		%r0,	0x0
-	dcbi	%r0,	%r3
-	lwz		%r0,	0(%r3)
+	lwz		%r0,	FAKE_EXI_INT@l(%r3)
 	or		%r31,	%r31,	%r0
 
 end:

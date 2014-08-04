@@ -2263,7 +2263,20 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	}
 
 	PatchState = PATCH_STATE_DONE;
-		
+
+	if(GAME_ID == 0x47365145) //Megaman Collection
+	{
+		//memcpy((void*)0x5A110, OSReportDM, sizeof(OSReportDM));
+		//sync_after_write((void*)0x5A110, sizeof(OSReportDM));
+
+		//memcpy((void*)0x820FC, OSReportDM, sizeof(OSReportDM));
+		//sync_after_write((void*)0x820FC, sizeof(OSReportDM));
+
+		//Video Speed Fix
+		*(vu32*)0x000B3B5C = 0x3CC08A15;
+		*(vu32*)0x000B3B64 = 0x60C6866B;
+	}
+
 	if( (GAME_ID & 0xFFFFFF00) == 0x475A4C00 )	// GZL=Wind Waker
 	{
 		//Anti FrameDrop Panic
