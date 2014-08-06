@@ -6,9 +6,10 @@ MEM1
 
 MEM2
 0x90000000-0x91000000=aram
-0x91000000-0x91200000=memcard emu
-0x91200000-0x91280000=temporary di buffer
-0x91280000-0x93000000=cache (In Triforce mode some of this is reserved for DIMM memory)
+0x91000000-0x92000000=memcard emu - end point depends on memcard size
+0x92000000-0x92F80000=cache - start point depends on memcard size end point depends on Triforce
+0x92C80000-0x92F80000=(In Triforce mode this is reserved for DIMM memory)
+0x92F80000-0x93000000=temporary di buffer
 
 0x93000000-0x93001000=padread gc bin
 0x93001000-0x93002700=old padread hid bin
@@ -19,7 +20,7 @@ MEM2
 
 0x930028a0-0x930028c0=ARStartDMA Debug str
 
-0x93002900-0x93002B1C=nincfg
+0x93002900-0x93002B20=nincfg
 
 0x93002EE0-0x93003000=tgc dol header
 

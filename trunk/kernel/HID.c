@@ -122,6 +122,8 @@ s32 HIDInit( void )
 
 	ret = f_open( &f, "/controller.ini", FA_OPEN_EXISTING|FA_READ);
 	if( ret != FR_OK )
+		ret = f_open(&f, "/controller.ini.ini", FA_OPEN_EXISTING | FA_READ); // too many people don't read the instructions for windows
+	if (ret != FR_OK)
 	{
 		dbgprintf("HID:Failed to open config file:%u\r\n", ret );
 		free(HIDHeap);

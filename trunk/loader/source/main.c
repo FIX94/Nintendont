@@ -205,6 +205,7 @@ int main(int argc, char **argv)
 			ncfg->Version = NIN_CFG_VERSION;
 			ncfg->Language = NIN_LAN_AUTO;
 			ncfg->MaxPads = NIN_CFG_MAXPAD;
+			ncfg->MemCardBlocks = 0x2;//251 blocks
 		}
 
 		// Prevent autobooting if B is pressed
@@ -304,9 +305,12 @@ int main(int argc, char **argv)
 		char BasePath[20];
 		sprintf(BasePath, "%s:/saves", GetRootDevice());
 		mkdir(BasePath, S_IREAD | S_IWRITE);
-		char MemCardName[5];
-		memset(MemCardName, 0, 5);
-		memcpy(MemCardName, &(ncfg->GameID), 4);
+		char MemCardName[7];
+		memset(MemCardName, 0, 7);
+		if ( ncfg->Config & NIN_CFG_MC_MULTI )
+			memcpy(MemCardName, "ninmem", 6);
+		else
+			memcpy(MemCardName, &(ncfg->GameID), 4);
 		char MemCard[30];
 		sprintf(MemCard, "%s/%s.raw", BasePath, MemCardName);
 		gprintf("Using %s as Memory Card.\r\n", MemCard);
@@ -322,7 +326,7 @@ int main(int argc, char **argv)
 			}
 			char NullChar[1];
 			NullChar[0] = 0;
-			fwrite(NullChar, 1, NIN_RAW_MEMCARD_SIZE, f);
+			fwrite(NullChar, 1, MEM_CARD_SIZE(ncfg->MemCardBlocks), f);
 			gprintf("Memory Card File created!\r\n");
 		}
 		if(f != NULL)

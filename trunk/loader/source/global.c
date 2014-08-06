@@ -284,7 +284,9 @@ bool LoadNinCFG()
 	if (ncfg->Magicbytes != 0x01070CF6)
 		ConfigLoaded = false;
 
-	if (ncfg->Version != NIN_CFG_VERSION)
+	if (ncfg->Version == OLD_NIN_CFG_VERSION)
+		ncfg->MemCardBlocks = 0x2;//251 blocks
+	else if (ncfg->Version != NIN_CFG_VERSION)
 		ConfigLoaded = false;
 
 	if (ncfg->MaxPads > NIN_CFG_MAXPAD)

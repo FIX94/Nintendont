@@ -40,6 +40,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern NIN_CFG* ncfg;
 
 u32 Shutdown = 0;
+
+inline u32 SettingY(u32 row)
+{
+	return 148 + 16 * row;
+}
 void HandleWiiMoteEvent(s32 chan)
 {
 	Shutdown = 1;
@@ -206,10 +211,7 @@ void SelectGame( void )
 			}
 			else
 			{
-				ListMax = NIN_SETTINGS_LAST - 1;
-
-				if( (ncfg->VideoMode & NIN_VID_MASK) == NIN_VID_FORCE )
-					ListMax = NIN_SETTINGS_LAST;
+				ListMax = NIN_SETTINGS_LAST;
 
 				prevPosX = PosX;
 				PosX	= 0;
@@ -280,11 +282,17 @@ void SelectGame( void )
 			
 			if( FPAD_Down(0) )
 			{
-				PrintFormat( MENU_POS_X+30, 164+16*PosX, " " );
+				PrintFormat( MENU_POS_X+30, SettingY(PosX), " " );
 				
 				PosX++;
 
-				if( PosX >= ListMax )
+				if (((ncfg->VideoMode & NIN_VID_FORCE) != NIN_VID_FORCE) && (PosX == NIN_SETTINGS_VIDEOMODE))
+					PosX++;
+				if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
+					PosX++;
+				if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI))
+					PosX++;
+				if (PosX >= ListMax)
 				{
 					ScrollX = 0;
 					PosX	= 0;
@@ -294,12 +302,18 @@ void SelectGame( void )
 
 			} else if( FPAD_Up(0) )
 			{
-				PrintFormat( MENU_POS_X+30, 164+16*PosX, " " );
+				PrintFormat( MENU_POS_X+30, SettingY(PosX), " " );
 
 				PosX--;
 
-				if( PosX < 0 )
+				if (PosX < 0)
 					PosX = ListMax - 1;
+				if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI))
+					PosX--;
+				if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
+					PosX--;
+				if (((ncfg->VideoMode & NIN_VID_FORCE) != NIN_VID_FORCE) && (PosX == NIN_SETTINGS_VIDEOMODE))
+					PosX--;
 
 				redraw=1;
 			}
@@ -327,13 +341,8 @@ void SelectGame( void )
 						Video <<= 16;
 						ncfg->VideoMode &= ~NIN_VID_MASK;
 						ncfg->VideoMode |= Video;
-						if (Video == NIN_VID_FORCE)
-							ListMax = NIN_SETTINGS_LAST;
-						else
-						{
-							ListMax = NIN_SETTINGS_LAST - 1;
-							PrintFormat( MENU_POS_X+50, 164+16*(ListMax), "%29s", "" );
-						}
+						if (Video != NIN_VID_FORCE)
+							PrintFormat( MENU_POS_X+50, SettingY(NIN_SETTINGS_VIDEOMODE), "%29s", "" );
 					} break;
 					case NIN_SETTINGS_VIDEOMODE:
 					{
@@ -344,23 +353,38 @@ void SelectGame( void )
 						ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
 						ncfg->VideoMode |= Video;
 					} break;
+					case NIN_SETTINGS_MEMCARDBLOCKS:
+					{
+						ncfg->MemCardBlocks++;
+						if (ncfg->MemCardBlocks > MEM_CARD_MAX)
+							ncfg->MemCardBlocks = 0;
+					} break;
+					case NIN_SETTINGS_MEMCARDMULTI:
+					{
+						ncfg->Config ^= (NIN_CFG_MC_MULTI);
+					} break;
 				}
 				if ((ncfg->MaxPads > NIN_CFG_MAXPAD) || (ncfg->MaxPads < 1))
 					ncfg->MaxPads = (ncfg->Config & NIN_CFG_HID) ? 0 : 1;
+				if (!(ncfg->Config & NIN_CFG_MEMCARDEMU))
+				{
+					PrintFormat(MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDBLOCKS), "%29s", "");
+					PrintFormat(MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDMULTI), "%29s", "");
+				}
 			}
 
 			if( redraw )
 			{
 				u32 ListLoopIndex = 0;
 				for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
-					PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex, "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
-				PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex, "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
+					PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
 				ListLoopIndex++;
 
 				u32 LanIndex = ncfg->Language;
 				if (( LanIndex >= NIN_LAN_LAST ) ||  ( LanIndex < NIN_LAN_FIRST ))
 					LanIndex = NIN_LAN_LAST; //Auto
-				PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex,"%-18s:%-4s", OptionStrings[ListLoopIndex], LanguageStrings[LanIndex] );
+				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-4s", OptionStrings[ListLoopIndex], LanguageStrings[LanIndex] );
 				ListLoopIndex++;
 
 				u32 VideoIndex = (ncfg->VideoMode & NIN_VID_MASK) >> 16;
@@ -370,7 +394,7 @@ void SelectGame( void )
 					ncfg->VideoMode |= NIN_VID_AUTO;
 					VideoIndex = NIN_VID_INDEX_AUTO; //Auto
 				}
-				PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex,"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoStrings[VideoIndex] );
+				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoStrings[VideoIndex] );
 				ListLoopIndex++;
 
 				if( (ncfg->VideoMode & NIN_VID_FORCE) == NIN_VID_FORCE )
@@ -386,11 +410,21 @@ void SelectGame( void )
 						ncfg->VideoMode |= NIN_VID_FORCE_NTSC;
 						VideoModeIndex = NIN_VID_INDEX_FORCE_NTSC;
 					}
-					PrintFormat( MENU_POS_X+50, 164+16*ListLoopIndex,"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoModeStrings[VideoModeIndex] );
-					ListLoopIndex++;
+					PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoModeStrings[VideoModeIndex] );
 				}
+				ListLoopIndex++;
 
-				PrintFormat( MENU_POS_X+30, 164+16*PosX, ">" );
+				if ((ncfg->Config & NIN_CFG_MEMCARDEMU) == NIN_CFG_MEMCARDEMU)
+				{
+					u32 MemCardBlocksVal = ncfg->MemCardBlocks;
+					if (MemCardBlocksVal > MEM_CARD_MAX)
+						MemCardBlocksVal = 0;
+					PrintFormat(MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal));
+					PrintFormat(MENU_POS_X + 50, SettingY(ListLoopIndex+1), "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
+				}
+				ListLoopIndex+=2;
+
+				PrintFormat(MENU_POS_X + 30, SettingY(PosX), ">");
 			}
 		}
 		

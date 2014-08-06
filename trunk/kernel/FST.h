@@ -50,10 +50,10 @@ typedef struct
 
 u32		FSTInit	( char *GamePath );
 void	FSTCleanup ( void );
-void	FSTRead	( char *GamePath, u8 *Buffer, u32 Length, u32 Offset );
+u8*		FSTRead	( char *GamePath, u32* Length, u32 Offset );
 
 void	CacheInit( char *Table, bool ForceReinit );
 void	CacheFile( char *FileName, char *Table );
-u8*		CacheRead( u8 *Buffer, u32 Length, u32 Offset );
+u8*		CacheRead( u32* Length, u32 Offset );
 
 #endif

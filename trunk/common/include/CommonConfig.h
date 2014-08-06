@@ -5,7 +5,8 @@
 #include "NintendontVersion.h"
 #include "Metadata.h"
 
-#define NIN_CFG_VERSION		0x00000002
+#define NIN_CFG_VERSION		0x00000003
+#define OLD_NIN_CFG_VERSION	0x00000002
 
 #define NIN_CFG_MAXPAD 4
 
@@ -20,6 +21,7 @@ typedef struct NIN_CFG
 	char	CheatPath[255];
 	unsigned int		MaxPads;
 	unsigned int		GameID;
+	unsigned int		MemCardBlocks;
 } NIN_CFG;
 
 enum ninconfigbitpos
@@ -38,6 +40,8 @@ enum ninconfigbitpos
 	NIN_CFG_BIT_LED			= (11),
 	NIN_CFG_BIT_LOG			= (12),
 	NIN_CFG_BIT_LAST		= (13),
+
+	NIN_CFG_BIT_MC_MULTI	= (13),
 };
 
 enum ninconfig
@@ -55,6 +59,7 @@ enum ninconfig
 	NIN_CFG_USB			= (1<<NIN_CFG_BIT_USB),
 	NIN_CFG_LED			= (1<<NIN_CFG_BIT_LED),
 	NIN_CFG_LOG			= (1<<NIN_CFG_BIT_LOG),
+	NIN_CFG_MC_MULTI	= (1<<NIN_CFG_BIT_MC_MULTI),
 };
 
 enum ninextrasettings
@@ -63,6 +68,8 @@ enum ninextrasettings
 	NIN_SETTINGS_LANGUAGE,
 	NIN_SETTINGS_VIDEO,
 	NIN_SETTINGS_VIDEOMODE,
+	NIN_SETTINGS_MEMCARDBLOCKS,
+	NIN_SETTINGS_MEMCARDMULTI,
 	NIN_SETTINGS_LAST,
 };
 
@@ -120,7 +127,16 @@ enum VideoModes
 	GCVideoModePROG		= 3,
 };
 
-#define NIN_RAW_MEMCARD_SIZE	2*1024*1024 //2MB
-#define NIN_MEMCARD_BLOCKS		0x00000010 //251 Blocks
+
+//Mem0059 = 0, 0x04, 0x0080000
+//Mem0123 = 1, 0x08, 0x0100000
+//Mem0251 = 2, 0x10, 0x0200000
+//Mem0507 = 3, 0x20, 0x0400000
+//Mem1019 = 4, 0x40, 0x0800000
+//Mem2043 = 5, 0x80, 0x1000000
+#define MEM_CARD_MAX (5)
+#define MEM_CARD_CODE(x) (1<<(x+2))
+#define MEM_CARD_SIZE(x) (1<<(x+19))
+#define MEM_CARD_BLOCKS(x) ((1<<(x+6))-5)
 
 #endif

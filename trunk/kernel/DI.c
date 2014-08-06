@@ -48,8 +48,9 @@ static u32 DI_IRQ_Timer = 0;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
 
-u32	StreamBufferSize= 0x1E00000;
-u32 StreamBuffer	= 0x11200000+0x60;
+u32 StreamHeader	= 0x11200000;
+u32	StreamBufferSize= 0xE00000-0x60;
+u32 StreamBuffer	= 0x12200000+0x60;
 u32 Streaming		= 0;
 u32	StreamOffset	= 0;
 u32 StreamDiscOffset= 0;
@@ -75,7 +76,7 @@ u32 GCAMKeyC;
 
 u8 *MediaBuffer;
 u8 *NetworkCMDBuffer;
-u8 *DIMMMemory = (u8*)0x11280000;
+u8 *DIMMMemory = (u8*)0x12C80000;
 
 void DIRegister(void)
 {
@@ -555,7 +556,7 @@ void DIUpdateRegisters( void )
 										break;
 								}
 
-								uint8_t *header = (uint8_t*)0x11200000;
+								uint8_t *header = (uint8_t*)StreamHeader;
 								memset32(header, 0, 64);
 
 								// 0-3: sample count
@@ -760,7 +761,6 @@ void DIUpdateRegisters( void )
 	return;
 }
 
-static u8 *DI_Read_Buffer = (u8*)(0x11200000);
 u32 tgc_dol_offset = 0, tgc_dol_hdrsize = 0x100;
 u8 *di_src = NULL; char *di_dest = NULL; u32 di_length = 0, di_offset = 0;
 u32 DIReadThread(void *arg)
@@ -816,18 +816,24 @@ u32 DIReadThread(void *arg)
 				break;
 
 			case IOS_IOCTL:
-				di_src = DI_Read_Buffer;
+				di_src = 0;
 				di_dest = (char*)di_msg->ioctl.buffer_io;
 				di_length = di_msg->ioctl.length_io;
 				di_offset = (u32)di_msg->ioctl.buffer_in;
 
-				if( FSTMode )
-					FSTRead( GamePath, di_src, di_length, di_offset );
-				else
-					di_src = CacheRead( di_src, di_length, di_offset );
+				u32 Offset = 0;
+				u32 Length = di_length;
+				for (Offset = 0; Offset < di_length; Offset += Length)
+				{
+					Length = di_length - Offset;
+					if( FSTMode )
+						di_src = FSTRead(GamePath, &Length, di_offset + Offset);
+					else
+						di_src = CacheRead( &Length, di_offset + Offset );
 
-				memcpy( di_dest, di_src, di_length );
-				DoPatches( di_dest, di_length, di_offset );
+					memcpy( di_dest + Offset, di_src, Length );
+				}
+				DoPatches(di_dest, di_length, di_offset);
 				sync_after_write( di_dest, di_length );
 
 				mqueue_ack( di_msg, 0 );
