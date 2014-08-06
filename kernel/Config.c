@@ -70,3 +70,11 @@ inline u32 ConfigGetGameID(void)
 {
 	return ncfg->GameID;
 }
+inline u32 ConfigGetMemcardCode(void)
+{
+	return MEM_CARD_CODE(ncfg->MemCardBlocks);
+}
+inline u32 ConfigGetMemcardSize(void)
+{
+	return MEM_CARD_SIZE(ncfg->MemCardBlocks);
+}

@@ -51,6 +51,8 @@ u32 ConfigGetVideoMode( void );
 u32 ConfigGetLanguage( void );
 u32 ConfigGetMaxPads(void);
 u32 ConfigGetGameID(void);
+u32 ConfigGetMemcardCode(void);
+u32 ConfigGetMemcardSize(void);
 //bool IsWiiU;
 
 #endif

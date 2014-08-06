@@ -68,8 +68,13 @@ void EXIInit( void )
 		f_chdir("/saves");
 		u32 GameID = ConfigGetGameID();
 		memset32(MemCardName, 0, 0x20);
-		memcpy(MemCardName, &GameID, 4);
-		memcpy(MemCardName+4, ".raw", 4);
+		if ( ConfigGetConfig(NIN_CFG_MC_MULTI) )
+			memcpy(MemCardName, "ninmem.raw", 10);
+		else
+		{
+			memcpy(MemCardName, &GameID, 4);
+			memcpy(MemCardName + 4, ".raw", 4);
+		}
 		sync_after_write(MemCardName, 0x20);
 
 		dbgprintf("Trying to open %s\r\n", MemCardName);
@@ -87,12 +92,12 @@ void EXIInit( void )
 #endif
 
 		f_lseek( &MemCard, 0 );
-		f_read( &MemCard, MCard, NIN_RAW_MEMCARD_SIZE, &wrote );
+		f_read( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
 		f_close( &MemCard );
 #ifdef DEBUG_EXI
 		dbgprintf("done\r\n");
 #endif
-		sync_after_write( MCard, NIN_RAW_MEMCARD_SIZE );
+		sync_after_write( MCard, ConfigGetMemcardSize() );
 	}
 
 	GC_SRAM *sram = (GC_SRAM*)SRAM;
@@ -209,7 +214,7 @@ void EXISaveCard(void)
 		s32 ret = f_open( &MemCard, MemCardName, FA_WRITE );
 		if( ret == FR_OK )
 		{
-			sync_before_read(MCard, NIN_RAW_MEMCARD_SIZE);
+			sync_before_read(MCard, ConfigGetMemcardSize());
 			f_lseek(&MemCard, BlockOffLow);
 			f_write(&MemCard, MCard + BlockOffLow, BlockOffHigh - BlockOffLow, &wrote);
 			f_close(&MemCard);
@@ -232,12 +237,12 @@ void EXIShutdown( void )
 	dbgprintf("EXI: Saving memory card...");
 //#endif
 
-	sync_before_read( MCard, NIN_RAW_MEMCARD_SIZE );
+	sync_before_read( MCard, ConfigGetMemcardSize() );
 	s32 ret = f_open( &MemCard, MemCardName, FA_WRITE );
 	if( ret == FR_OK )
 	{
 		f_lseek( &MemCard, 0 );
-		f_write( &MemCard, MCard, NIN_RAW_MEMCARD_SIZE, &wrote );
+		f_write( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
 		f_close( &MemCard );
 	}
 	else
@@ -409,7 +414,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 			{
 				if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 				{
-					write32( 0x0D806010, NIN_MEMCARD_BLOCKS );
+					write32( 0x0D806010, ConfigGetMemcardCode() );
 				} else {
 					write32( 0x0D806010, 0x00000000 ); //no memory card
 				}

@@ -22,7 +22,9 @@ const char* OptionStrings[] =
 	"MaxPads",
 	"Language",
 	"Video",
-	"Videomode"
+	"Videomode",
+	"Memcard Blocks",
+	"Memcard Multi",
 };
 
 const char* LanguageStrings[] =
