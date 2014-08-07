@@ -44,16 +44,16 @@ u32 FCState[FILECACHE_MAX];
 
 extern FIL GameFile;
 
-static u8 *DI_Read_Buffer = (u8*)(0x11200000);
+static u8 *DI_Read_Buffer = (u8*)(0x12E80000);
 #define DI_READ_BUFFER_LENGTH (0x80000)
 
 u32 CacheIsInit = 0;
 u32 DataCacheCount	= 0;
 u32 TempCacheCount	= 0;
 u32 DataCacheOffset = 0;
-u8 *DCCache = (u8*)0x11280000;
-u32 DCacheLimit = 0x1C80000;
-u32 LastLength = 0, StartOffset = 0x1C80000, StartPos = 0;
+u8 *DCCache = (u8*)0x11000000;
+u32 DCacheLimit = 0x1E80000;
+u32 LastLength = 0, StartOffset = 0x1E80000, StartPos = 0;
 DataCache DC[DATACACHE_MAX];
 
 extern u32 Region;
@@ -358,8 +358,8 @@ void CacheInit( char *Table, bool ForceReinit )
 		StartOffset -= 0x300000;
 	}
 
-	s32 MemCardSize = ConfigGetMemcardSize() - 0x200000;
-	if (MemCardSize < 0)
+	u32 MemCardSize = ConfigGetMemcardSize();
+	if (!ConfigGetConfig(NIN_CFG_MEMCARDEMU))
 		MemCardSize = 0;
 	DCCache += MemCardSize;
 	DCacheLimit -= MemCardSize;
