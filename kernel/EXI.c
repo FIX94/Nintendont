@@ -44,7 +44,6 @@ u8 *FontBuf = (u8 *)(0x13100000);
 u32 CARDWriteCount = 0;
 u32 IPLReadOffset;
 FIL MemCard;
-bool SkipHandlerWait = false;
 bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
@@ -190,13 +189,11 @@ void EXIInterrupt(void)
 	write32( 0x14, 0x10 );		// EXI IRQ
 	sync_after_write( (void*)0, 0x20 );
 
-	if(SkipHandlerWait == true)
-		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-	else while(read32(0x14) == 0x10)
+	while(read32(0x14) == 0x10)
 	{
 		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 		wait_for_ppc(1);
-		sync_before_read((void*)0x14, 4);
+		sync_before_read( (void*)0, 0x20 );
 	}
 
 	EXI_IRQ = false;

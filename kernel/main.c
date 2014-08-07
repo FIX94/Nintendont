@@ -256,7 +256,7 @@ int _main( int argc, char *argv[] )
 		}
 		if(DI_IRQ == true)
 		{
-			if(DI_CallbackMsg.result == 0 && DICheckTimer())
+			if(DI_CallbackMsg.result == 0)
 				DIInterrupt();
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */

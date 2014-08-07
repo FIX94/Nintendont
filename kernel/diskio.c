@@ -14,7 +14,7 @@
 
 u32 s_size;
 u32 s_cnt;
-u32 max_sec = 4;
+u32 max_sec = 128;
 u8 *buffer = (u8*)NULL;
 
 #ifndef NINTENDONT_USB
@@ -97,13 +97,11 @@ DSTATUS disk_initialize(BYTE drv, WORD *ss)
 	}		
 	
 	s_cnt = USBStorage_Get_Capacity(&s_size);
-	
-	*ss = s_size;	
-	
-	max_sec = 0x8000 / s_size;
-	
+
+	*ss = s_size;
+
 	buffer = (u8*)malloca(max_sec * s_size, 32);
-	
+
 	dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
 
 	return r;

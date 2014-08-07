@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "alloc.h"
 #include "vsprintf.h"
 #include "Config.h"
+#include "DI.h"
 
 #ifndef DEBUG_FST
 #define dbgprintf(...)
@@ -53,7 +54,7 @@ u32 TempCacheCount	= 0;
 u32 DataCacheOffset = 0;
 u8 *DCCache = (u8*)0x11000000;
 u32 DCacheLimit = 0x1E80000;
-u32 LastLength = 0, StartOffset = 0x1E80000, StartPos = 0;
+u32 StartOffset = 0x1E80000, StartPos = 0;
 DataCache DC[DATACACHE_MAX];
 
 extern u32 Region;
@@ -517,18 +518,17 @@ void CacheFile( char *FileName, char *Table )
 		}
 	}
 }
-
+extern u32 LastLength;
 u8* CacheRead( u32* Length, u32 Offset )
 {
-	u32 read, i;
+	u32 i;
 
 	// nintendont loader asking, just return
 	if(CacheIsInit == 0)
 	{
 		if (*Length > DI_READ_BUFFER_LENGTH)
 			*Length = DI_READ_BUFFER_LENGTH;
-		f_lseek( &GameFile, Offset );
-		f_read( &GameFile, DI_Read_Buffer, *Length, &read );
+		DIReadISO(DI_Read_Buffer, *Length, Offset);
 		return DI_Read_Buffer;
 	}
 
@@ -549,8 +549,7 @@ u8* CacheRead( u32* Length, u32 Offset )
 		}
 		if (*Length > DI_READ_BUFFER_LENGTH)
 			*Length = DI_READ_BUFFER_LENGTH;
-		f_lseek(&GameFile, Offset);
-		f_read( &GameFile, DI_Read_Buffer, *Length, &read );
+		DIReadISO(DI_Read_Buffer, *Length, Offset);
 		return DI_Read_Buffer;
 	}
 
@@ -558,24 +557,18 @@ u8* CacheRead( u32* Length, u32 Offset )
 	// else
 	for( i = 0; i < DATACACHE_MAX; ++i )
 	{
-		if( Offset == DC[i].Offset && *Length == DC[i].Size )
+		if( Offset >= DC[i].Offset && Offset + *Length <= DC[i].Offset + DC[i].Size )
 		{
 			//dbgprintf("DI: Cached Read Offset:%08X Size:%08X Buffer:%p\r\n", DC[i].Offset, DC[i].Size, DC[i].Data );
-			return DC[i].Data;
+			return DC[i].Data + (Offset - DC[i].Offset);
 		}
 	}
 
-	// dont waste cache
-	if( (*Length == LastLength) && (TRIGame == 0) )
-	{
-		if (*Length > DI_READ_BUFFER_LENGTH)
-			*Length = DI_READ_BUFFER_LENGTH;
-		f_lseek(&GameFile, Offset);
-		f_read( &GameFile, DI_Read_Buffer, *Length, &read );
-		return DI_Read_Buffer;
-	}
-	// new length, just cache it
-	LastLength = *Length;
+	if( (*Length == LastLength) && (*Length < 0x10000) )
+		*Length = 0x10000; //pre-load data, guessing
+
+	if (*Length > DI_READ_BUFFER_LENGTH)
+		*Length = DI_READ_BUFFER_LENGTH;
 
 	// case we ran out of positions
 	if( TempCacheCount >= DATACACHE_MAX )
@@ -624,9 +617,7 @@ u8* CacheRead( u32* Length, u32 Offset )
 	DC[pos].Size = *Length;
 	sync_after_write(&DC[pos], sizeof(DataCache));
 
-	f_lseek( &GameFile, Offset );
-	f_read( &GameFile, DC[pos].Data, *Length, &read );
-	sync_after_write( DC[pos].Data, *Length );
+	DIReadISO(DC[pos].Data, *Length, Offset);
 
 	DataCacheOffset += *Length;
 	return DC[pos].Data;
