@@ -91,10 +91,21 @@ void EXIInit( void )
 		dbgprintf("EXI: Loading memory card...");
 #endif
 
-		f_lseek( &MemCard, 0 );
+		u32 FindBlocks = 0;
+		for (FindBlocks = 0; FindBlocks <= MEM_CARD_MAX; FindBlocks++)
+			if (MEM_CARD_SIZE(FindBlocks) == MemCard.fsize)
+				break;
+		if (FindBlocks > MEM_CARD_MAX)
+		{
+			dbgprintf("EXI: Memcard unexpected size %s:%u\r\n", MemCardName, MemCard.fsize );
+			Shutdown();
+		}
+		ConfigSetMemcardBlocks(FindBlocks);
+		f_lseek(&MemCard, 0);
 		f_read( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
 		f_close( &MemCard );
 #ifdef DEBUG_EXI
+		dbgprintf("EXI: Loaded memory card size %d\r\n", ConfigGetMemcardSize());
 		dbgprintf("done\r\n");
 #endif
 		sync_after_write( MCard, ConfigGetMemcardSize() );

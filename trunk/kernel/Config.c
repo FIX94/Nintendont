@@ -78,3 +78,8 @@ inline u32 ConfigGetMemcardSize(void)
 {
 	return MEM_CARD_SIZE(ncfg->MemCardBlocks);
 }
+inline void ConfigSetMemcardBlocks(u32 MemCardBlocks)
+{
+	ncfg->MemCardBlocks = MemCardBlocks;
+	sync_after_write(&(ncfg->MemCardBlocks), sizeof(ncfg->MemCardBlocks));
+}
