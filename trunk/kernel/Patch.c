@@ -40,7 +40,6 @@ vu32 Region = 0;
 extern FIL GameFile;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
-extern bool SkipHandlerWait;
 
 extern int dbgprintf( const char *fmt, ...);
 
@@ -2184,6 +2183,17 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 							#endif
 						}
 					} break;
+					case FCODE_RADTimerRead:
+					{
+						u32 res = 0;
+						res += write32A(FOffset + 0x48, 0x6000142A, 0x60009E40, 0); // 0x8A15 << 1
+						res += write32A(FOffset + 0x58, 0x6084ED4E, 0x60849E34, 0); // TB_BUS_CLOCK / 4000
+						res += write32A(FOffset + 0x60, 0x3CC08A15, 0x3CC0CF20, 0);
+						res += write32A(FOffset + 0x68, 0x60C6866C, 0x60C649A1 ,0);
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:Patched [RADTimerRead] %u/4 times\r\n", res);
+						#endif
+					} break;
 					default:
 					{
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
@@ -2264,18 +2274,18 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 	PatchState = PATCH_STATE_DONE;
 
-	if(GAME_ID == 0x47365145) //Megaman Collection
+	/*if(GAME_ID == 0x47365145) //Megaman Collection
 	{
-		//memcpy((void*)0x5A110, OSReportDM, sizeof(OSReportDM));
-		//sync_after_write((void*)0x5A110, sizeof(OSReportDM));
+		memcpy((void*)0x5A110, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x5A110, sizeof(OSReportDM));
 
-		//memcpy((void*)0x820FC, OSReportDM, sizeof(OSReportDM));
-		//sync_after_write((void*)0x820FC, sizeof(OSReportDM));
+		memcpy((void*)0x820FC, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x820FC, sizeof(OSReportDM));
 
-		//Video Speed Fix
-		*(vu32*)0x000B3B5C = 0x3CC08A15;
-		*(vu32*)0x000B3B64 = 0x60C6866B;
-	}
+		#ifdef DEBUG_PATCH
+		dbgprintf("Patch:Patched Megaman Collection\r\n");
+		#endif
+	}*/
 
 	if( (GAME_ID & 0xFFFFFF00) == 0x475A4C00 )	// GZL=Wind Waker
 	{

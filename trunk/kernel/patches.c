@@ -95,6 +95,7 @@ enum
 	FCODE_EXIDMA,
 	FCODE___CARDStat_A,
 	FCODE___CARDStat_B,
+	FCODE_RADTimerRead,
 } FPatternCodes;
 
 enum
@@ -281,4 +282,7 @@ FuncPattern FPatterns[] =
 //	{  0x130,   33,     8,     6,     5,     2,	__CARDReadSegment,		sizeof(__CARDReadSegment),		"__CARDReadSegment",			FGROUP_NONE,				0 },
 //	{   0x60,    7,     6,     1,     1,     3,	__CARDRead,				sizeof(__CARDRead),				"__CARDRead",					FGROUP_NONE,				0 },
 //	{   0xDC,   17,     9,     4,     3,     2,	__CARDEraseSector,		sizeof(__CARDEraseSector),		"__CARDEraseSector",			FGROUP_NONE,				0 },
+
+	//not from nintendos sdk, used by Bink Video
+	{   0xA4,    9,     4,     1,     0,     6,	(u8*)NULL,				FCODE_RADTimerRead,				"RADTimerRead",					FGROUP_NONE,				0 },
 };

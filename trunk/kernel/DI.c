@@ -44,7 +44,6 @@ struct ipcmessage DI_CallbackMsg;
 u32 DI_MessageQueue = 0xFFFFFFFF;
 u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
-static u32 DI_IRQ_Timer = 0;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
 
@@ -161,34 +160,36 @@ void DIChangeDisc( u32 DiscNumber )
 	// str was not alloced.  Do not free.
 	//free(str);
 }
-static void DIReadISO()
+
+u32 LastOffset = UINT_MAX, LastLength = 0;
+static u32 readptr;
+void DIReadISO(void *Buffer, u32 Length, u32 Offset)
 {
-	u32 read;
+	if(LastOffset != Offset)
+		f_lseek( &GameFile, Offset );
+
+	f_read( &GameFile, Buffer, Length, &readptr );
+	sync_after_write( Buffer, Length );
+
+	LastOffset = Offset + Length;
+	LastLength = Length;
+}
+
+static void DIReadISO_Header()
+{
 	/* Set Low Mem */
-	f_lseek( &GameFile, 0 );
-	f_read( &GameFile, (void*)0, 0x20, &read );
-	sync_after_write( (void*)0, 0x20 );
+	DIReadISO((void*)0x0, 0x20, 0x0);
 	/* Prepare Cache Files */
 	u32 FSTOffset, FSTSize;
-	f_lseek( &GameFile, 0x424 );
-	f_read( &GameFile, &FSTOffset, sizeof(u32), &read );
-	f_lseek( &GameFile, 0x428 );
-	f_read( &GameFile, &FSTSize, sizeof(u32), &read );
-	f_lseek( &GameFile, FSTOffset );
-	f_read( &GameFile, FSTBuf, FSTSize, &read );
-	sync_after_write( FSTBuf, FSTSize );
+	DIReadISO( &FSTOffset, sizeof(u32), 0x424 );
+	DIReadISO( &FSTSize, sizeof(u32), 0x428 );
+	DIReadISO( FSTBuf, FSTSize, FSTOffset );
 	/* Get Region */
-	f_lseek( &GameFile, 0x458 );
-	f_read( &GameFile, &Region, sizeof(u32), &read );
-}
-bool DICheckTimer(void)
-{
-	return (read32(HW_TIMER) - DI_IRQ_Timer) >= 3800;	// about 500 times a second
+	DIReadISO( &Region, sizeof(u32), 0x458 );
 }
 void DIInterrupt()
 {
 	DI_IRQ = false;
-	DI_IRQ_Timer = 0;
 
 	clear32(DI_SSTATUS, (1<<2) | (1<<4)); //transfer complete, no errors
 	sync_after_write((void*)DI_SSTATUS, 4);
@@ -743,10 +744,7 @@ void DIUpdateRegisters( void )
 				//write32( DI_SDMA_LEN, 0 );
 
 				if( DIOK == 2 )
-				{
 					DI_IRQ = true;
-					DI_IRQ_Timer = read32(HW_TIMER);
-				}
 				else
 				{
 					set32( DI_SSTATUS, 0x3A );
@@ -798,7 +796,7 @@ u32 DIReadThread(void *arg)
 					GameFile.cltbl = malloc(tmp * sizeof(DWORD));
 					GameFile.cltbl[0] = tmp; //fatfs automatically sets real size into tmp
 					f_lseek(&GameFile, CREATE_LINKMAP); //actually create it
-					DIReadISO();
+					DIReadISO_Header();
 				}
 				mqueue_ack( di_msg, 24 );
 				break;
@@ -811,6 +809,8 @@ u32 DIReadThread(void *arg)
 					f_close( &GameFile );
 					free(GameFile.cltbl);
 					GameFile.cltbl = NULL;
+					LastOffset = UINT_MAX;
+					LastLength = 0;
 				}
 				mqueue_ack( di_msg, 0 );
 				break;
@@ -831,7 +831,7 @@ u32 DIReadThread(void *arg)
 					else
 						di_src = CacheRead( &Length, di_offset + Offset );
 
-					memcpy( di_dest + Offset, di_src, Length );
+					memcpy( di_dest + Offset, di_src, Length > di_length ? di_length : Length );
 				}
 				DoPatches(di_dest, di_length, di_offset);
 				sync_after_write( di_dest, di_length );
