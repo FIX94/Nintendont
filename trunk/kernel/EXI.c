@@ -50,6 +50,8 @@ static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
 static TCHAR MemCardName[0x20];
+#define DI_BUFFER_OFFSET (0x200000)
+#define DI_BUFFER_SIZE (0x80000)
 
 static u32 TRIBackupOffset= 0;
 static u32 EXI2IRQ				= 0;
@@ -101,14 +103,22 @@ void EXIInit( void )
 			Shutdown();
 		}
 		ConfigSetMemcardBlocks(FindBlocks);
+		u32 ReadSize = ConfigGetMemcardSize();
+		if (ReadSize > DI_BUFFER_OFFSET)
+		{
+			f_lseek(&MemCard, DI_BUFFER_OFFSET);
+			f_read(&MemCard, MCard + DI_BUFFER_OFFSET + DI_BUFFER_SIZE, ReadSize - DI_BUFFER_OFFSET, &wrote);
+			sync_after_write(MCard + DI_BUFFER_OFFSET + DI_BUFFER_SIZE, ReadSize - DI_BUFFER_OFFSET);
+			ReadSize = DI_BUFFER_OFFSET;
+		}
 		f_lseek(&MemCard, 0);
-		f_read( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
+		f_read(&MemCard, MCard, ReadSize, &wrote);
 		f_close( &MemCard );
 #ifdef DEBUG_EXI
 		dbgprintf("EXI: Loaded memory card size %d\r\n", ConfigGetMemcardSize());
 		dbgprintf("done\r\n");
 #endif
-		sync_after_write( MCard, ConfigGetMemcardSize() );
+		sync_after_write( MCard, ReadSize );
 	}
 
 	GC_SRAM *sram = (GC_SRAM*)SRAM;
@@ -225,9 +235,24 @@ void EXISaveCard(void)
 		s32 ret = f_open( &MemCard, MemCardName, FA_WRITE );
 		if( ret == FR_OK )
 		{
-			sync_before_read(MCard, ConfigGetMemcardSize());
-			f_lseek(&MemCard, BlockOffLow);
-			f_write(&MemCard, MCard + BlockOffLow, BlockOffHigh - BlockOffLow, &wrote);
+			if (BlockOffLow < DI_BUFFER_OFFSET)
+			{
+				u32 WriteSize = BlockOffHigh - BlockOffLow;
+				if (BlockOffHigh > DI_BUFFER_OFFSET)
+					WriteSize = DI_BUFFER_OFFSET - BlockOffLow;
+				sync_before_read(MCard + BlockOffLow, WriteSize);
+				f_lseek(&MemCard, BlockOffLow);
+				f_write(&MemCard, MCard + BlockOffLow, WriteSize, &wrote);
+				BlockOffLow = DI_BUFFER_OFFSET;
+			}
+			if (BlockOffHigh > DI_BUFFER_OFFSET)
+			{
+				u32 WriteSize = BlockOffHigh - BlockOffLow;
+				sync_before_read(MCard + DI_BUFFER_SIZE + BlockOffLow, WriteSize);
+				f_lseek(&MemCard, BlockOffLow);
+				f_write(&MemCard, MCard + DI_BUFFER_SIZE + BlockOffLow, WriteSize, &wrote);
+			}
+
 			f_close(&MemCard);
 //#ifdef DEBUG_EXI
 			//dbgprintf("Done!\r\n");
@@ -248,12 +273,20 @@ void EXIShutdown( void )
 	dbgprintf("EXI: Saving memory card...");
 //#endif
 
-	sync_before_read( MCard, ConfigGetMemcardSize() );
 	s32 ret = f_open( &MemCard, MemCardName, FA_WRITE );
 	if( ret == FR_OK )
 	{
-		f_lseek( &MemCard, 0 );
-		f_write( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
+		u32 WriteSize = ConfigGetMemcardSize();
+		if (WriteSize > DI_BUFFER_OFFSET)
+		{
+			sync_before_read(MCard + DI_BUFFER_OFFSET + DI_BUFFER_SIZE, WriteSize - DI_BUFFER_OFFSET);
+			f_lseek(&MemCard, DI_BUFFER_OFFSET);
+			f_write(&MemCard, MCard + DI_BUFFER_OFFSET + DI_BUFFER_SIZE, WriteSize - DI_BUFFER_OFFSET, &wrote);
+			WriteSize = DI_BUFFER_OFFSET;
+		}
+		sync_before_read(MCard, WriteSize);
+		f_lseek(&MemCard, 0);
+		f_write( &MemCard, MCard, WriteSize, &wrote );
 		f_close( &MemCard );
 	}
 	else
@@ -405,9 +438,24 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 						changed = true;
 						sync_before_read( Data, Length );
 
-						memcpy( MCard+BlockOff, Data, Length );
-
-						sync_after_write( MCard+BlockOff, Length );	
+						u8* DataToWrite = Data;
+						u32 BlockOffToWrite = BlockOff;
+						u32 WriteSize = Length;
+						if (BlockOffToWrite < DI_BUFFER_OFFSET)
+						{
+							if (BlockOffToWrite + WriteSize > DI_BUFFER_OFFSET)
+								WriteSize = DI_BUFFER_OFFSET - BlockOffToWrite;
+							memcpy(MCard + BlockOffToWrite, DataToWrite, WriteSize);
+							sync_after_write(MCard + BlockOffToWrite, WriteSize);
+							BlockOffToWrite = DI_BUFFER_OFFSET;
+							DataToWrite += WriteSize;
+							WriteSize = Length - WriteSize;
+						}
+						if (BlockOffToWrite + Length > DI_BUFFER_OFFSET)
+						{
+							memcpy(MCard + DI_BUFFER_SIZE + BlockOffToWrite, DataToWrite, WriteSize);
+							sync_after_write(MCard + DI_BUFFER_SIZE + BlockOffToWrite, WriteSize);
+						}
 
 						IRQ_Cause = 10;	// TC(8) & EXI(2) IRQ
 						EXIOK = 2;
@@ -444,9 +492,24 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 			{
 			//	f_lseek( &MemCard, BlockOff );
 			//	f_read( &MemCard, Data, Length, &read );
-				sync_before_read( MCard+BlockOff, Length );
-
-				memcpy( Data, MCard+BlockOff, Length );
+				u8* DataToRead = Data;
+				u32 BlockOffToRead = BlockOff;
+				u32 ReadSize = Length;
+				if (BlockOffToRead < DI_BUFFER_OFFSET)
+				{
+					if (BlockOffToRead + ReadSize > DI_BUFFER_OFFSET)
+						ReadSize = DI_BUFFER_OFFSET - BlockOffToRead;
+					sync_before_read(MCard + BlockOffToRead, ReadSize);
+					memcpy(DataToRead, MCard + BlockOffToRead, ReadSize);
+					BlockOffToRead = DI_BUFFER_OFFSET;
+					DataToRead += ReadSize;
+					ReadSize = Length - ReadSize;
+				}
+				if (BlockOffToRead + Length > DI_BUFFER_OFFSET)
+				{
+					sync_before_read(MCard + DI_BUFFER_SIZE + BlockOffToRead, ReadSize);
+					memcpy(DataToRead, MCard + DI_BUFFER_SIZE + BlockOffToRead, ReadSize);
+				}
 
 				sync_after_write( Data, Length );
 

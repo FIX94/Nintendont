@@ -76,7 +76,7 @@ u32 GCAMKeyC;
 
 u8 *MediaBuffer;
 u8 *NetworkCMDBuffer;
-u8 *DIMMMemory = (u8*)0x12C80000;
+u8 *DIMMMemory = (u8*)0x12D00000;
 
 void DIRegister(void)
 {
