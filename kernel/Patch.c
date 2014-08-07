@@ -1527,12 +1527,12 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 					#endif
 
 					if (DspMatches[l].Length-UseLast > 0)
-						memcpy( (void*)0x12F80000+UseLast, (unsigned char*)Buffer+i+UseLast, DspMatches[l].Length-UseLast );
+						memcpy( (void*)0x11200000+UseLast, (unsigned char*)Buffer+i+UseLast, DspMatches[l].Length-UseLast );
 					
 					if (DspMatches[l].Length != UseLast)
 					{
 						sha1( SHA1i, NULL, 0, 0, NULL );
-						sha1( SHA1i, (void*)0x12F80000, DspMatches[l].Length, 2, hash );
+						sha1( SHA1i, (void*)0x11200000, DspMatches[l].Length, 2, hash );
 					}
 
 					if( memcmp( DSPHashes[DspMatches[l].SHA1], hash, 0x14 ) == 0 )

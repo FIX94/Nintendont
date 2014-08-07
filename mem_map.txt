@@ -6,10 +6,10 @@ MEM1
 
 MEM2
 0x90000000-0x91000000=aram
-0x91000000-0x92000000=memcard emu - end point depends on memcard size
-0x92000000-0x92F80000=cache - start point depends on memcard size end point depends on Triforce
-0x92C80000-0x92F80000=(In Triforce mode this is reserved for DIMM memory)
-0x92F80000-0x93000000=temporary di buffer
+0x91200000-0x91280000=temporary di buffer (Causes crashes if not here.  Would prefer it not to be in the middle of memcard memory)
+0x91000000-0x92080000=memcard emu - end point depends on memcard size (doesn't include di temp buffer above)
+0x92080000-0x93000000=cache - start point depends on memcard size, end point depends on Triforce
+0x92D00000-0x93000000=(In Triforce mode this is reserved for DIMM memory)
 
 0x93000000-0x93001000=padread gc bin
 0x93001000-0x93002700=old padread hid bin
