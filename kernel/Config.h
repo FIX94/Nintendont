@@ -53,6 +53,7 @@ u32 ConfigGetMaxPads(void);
 u32 ConfigGetGameID(void);
 u32 ConfigGetMemcardCode(void);
 u32 ConfigGetMemcardSize(void);
+void ConfigSetMemcardBlocks(u32 MemCardBlocks);
 //bool IsWiiU;
 
 #endif
