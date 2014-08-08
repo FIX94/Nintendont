@@ -2287,6 +2287,23 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		#endif
 	}*/
 
+
+	//osGetCount, double from 1.1574 to 0.7716
+	if(*(vu64*)(0x00141C00) == 0x3ff284b5dcc63f14ull)
+	{
+		*(vu64*)(0x00141C00) = 0x3fe8b0f27bb2fec5ull;
+		#ifdef DEBUG_PATCH
+		dbgprintf("Patch:Patched Majoras Mask NTSC-U\r\n");
+		#endif
+	}
+	else if(*(vu64*)(0x00130860) == 0x3ff284b5dcc63f14ull)
+	{
+		*(vu64*)(0x00130860) = 0x3fe8b0f27bb2fec5ull;
+		#ifdef DEBUG_PATCH
+		dbgprintf("Patch:Patched Majoras Mask PAL\r\n");
+		#endif
+	}
+
 	if( (GAME_ID & 0xFFFFFF00) == 0x475A4C00 )	// GZL=Wind Waker
 	{
 		//Anti FrameDrop Panic
