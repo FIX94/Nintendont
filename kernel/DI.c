@@ -732,11 +732,6 @@ void DIUpdateRegisters( void )
 					CacheInit(FSTBuf, false);
 					DIOK = 1;
 				} break;
-				case 0xFA:
-				{
-					DIReadTGC_DOL();
-					DIOK = 1;
-				} break;
 			}
 
 			if( DIOK )
@@ -759,7 +754,6 @@ void DIUpdateRegisters( void )
 	return;
 }
 
-u32 tgc_dol_offset = 0, tgc_dol_hdrsize = 0x100;
 u8 *di_src = NULL; char *di_dest = NULL; u32 di_length = 0, di_offset = 0;
 u32 DIReadThread(void *arg)
 {
@@ -845,47 +839,7 @@ u32 DIReadThread(void *arg)
 		}
 	}
 }
-extern u32 PatchState;
-void DIReadTGC_DOL()
-{
-	u8 *loader_hdr = (u8*)0x13002EE0;
-	/* dol header to restart patching */
-	DI_CallbackMsg.result = -1;
-	sync_after_write(&DI_CallbackMsg, 0x20);
-	IOS_IoctlAsync( DI_Handle, 0, (void*)tgc_dol_offset, 0, (void*)loader_hdr, tgc_dol_hdrsize, DI_MessageQueue, &DI_CallbackMsg );
-	while(DI_CallbackMsg.result)
-	{
-		udelay(100);
-		CheckOSReport();
-	}
 
-	PatchState = 0;
-	DoPatches( (char*)loader_hdr, tgc_dol_hdrsize, tgc_dol_offset ); //start patch system
-	write32((u32)(loader_hdr + tgc_dol_hdrsize), tgc_dol_offset);
-	sync_after_write( loader_hdr, 0x120 );
-}
-#define PATCH_STATE_PATCH 2
-extern u32 DOLSize, DOLMinOff, DOLMaxOff;
-bool DICheckTGC(u32 Buffer, u32 Length)
-{
-	if(*(vu32*)di_dest == 0xAE0F38A2) //TGC Magic
-	{	//multidol, loader always comes after reading tgc header
-		dbgprintf("Found TGC Header\n");
-		tgc_dol_offset = di_offset + *(vu32*)(di_dest + 0x1C);
-		return true;
-	}
-	else if(di_offset == 0x2440)
-	{	//we can patch the loader in this case, that works for some reason
-		dbgprintf("Game is resetting to original loader\n");
-		PatchState = PATCH_STATE_PATCH;
-		DOLSize = Length;
-		DOLMinOff = Buffer;
-		DOLMaxOff = DOLMinOff + Length;
-	}
-	else
-		dbgprintf("Game is loading another DOL\n");
-	return false;
-}
 void DIFinishAsync()
 {
 	if(DI_IRQ == true)
@@ -896,4 +850,42 @@ void DIFinishAsync()
 			CheckOSReport();
 		}
 	}
+}
+
+struct _TGCInfo
+{
+	u32 tgcoffset;
+	u32 doloffset;
+	u32 fstoffset;
+	u32 fstsize;
+	u32 userpos;
+	u32 fstupdate;
+	u32 isTGC;
+};
+static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x13002FE0;
+bool DICheckTGC(u32 Buffer, u32 Length)
+{
+	if(*(vu32*)di_dest == 0xAE0F38A2) //TGC Magic
+	{	//multidol, loader always comes after reading tgc header
+		dbgprintf("Found TGC Header\n");
+		TGCInfo->tgcoffset = di_offset + *(vu32*)(di_dest + 0x08);
+		TGCInfo->doloffset = di_offset + *(vu32*)(di_dest + 0x1C);
+		TGCInfo->fstoffset = di_offset + *(vu32*)(di_dest + 0x10);
+		TGCInfo->fstsize = *(vu32*)(di_dest + 0x14);
+		TGCInfo->userpos = *(vu32*)(di_dest + 0x24);
+		TGCInfo->fstupdate = *(vu32*)(di_dest + 0x34) - *(vu32*)(di_dest + 0x24) - di_offset;
+		TGCInfo->isTGC = 1;
+		sync_after_write((void*)TGCInfo, sizeof(struct _TGCInfo));
+		return true;
+	}
+	else if(di_offset == 0x2440)
+	{	//multidol, just clear tgc data structure for it to load the original
+		dbgprintf("Game is resetting to original loader\n");
+		memset32((void*)TGCInfo, 0, sizeof(struct _TGCInfo));
+		sync_after_write((void*)TGCInfo, sizeof(struct _TGCInfo));
+		return true;
+	}
+	else
+		dbgprintf("Game is loading another DOL\n");
+	return false;
 }

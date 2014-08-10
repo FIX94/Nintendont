@@ -20,12 +20,13 @@ static vu32* PADBarrelPress = (u32*)0xD3002850;
 const s8 DEADZONE = 0x1A;
 #define HID_PAD_NONE	4
 #define HID_PAD_NOT_SET	0xFF
-void _start()
+u32 _start()
 {
 	// Registers r1,r13-r31 automatically restored if used.
 	// Registers r0, r3-r12 should be handled by calling function
 	// Register r2 not changed
 	u8 Shutdown = 0;
+	u32 Rumble = 0;
 	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
 	MaxPads = ((NIN_CFG*)0xD3002900)->MaxPads;
 	if (MaxPads > NIN_CFG_MAXPAD)
@@ -110,6 +111,8 @@ void _start()
 		}
 		else
 		{
+			if(Pad[chan].button & 0x80)
+				Rumble |= ((1<<31)>>chan);
 			Pad[chan].stickX = ((PADButtonsStick>>8)&0xFF)-128;
 			Pad[chan].stickY = ((PADButtonsStick>>0)&0xFF)-128;
 			Pad[chan].substickX = ((PADTriggerCStick>>24)&0xFF)-128;
@@ -155,7 +158,7 @@ void _start()
 			break;
 		}
 		Pad[chan].err = 0;
-	
+		Rumble |= ((1<<31)>>chan);
 		/* first buttons */
 		u16 button = 0;
 		if(HID_CTRL->DPAD == 0)
@@ -334,5 +337,5 @@ void _start()
 			"blr\n"
 		);
 	}
-	return;
+	return Rumble;
 }

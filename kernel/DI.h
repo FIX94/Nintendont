@@ -73,7 +73,6 @@ void DIFinishAsync(void);
 u32 DIReadThread(void *arg);
 void DIChangeDisc( u32 DiscNumber );
 void DIUpdateRegisters( void );
-void DIReadTGC_DOL(void);
 void DIReadISO(void *Buffer, u32 Length, u32 Offset);
 void DIReload(void);
 bool DICheckTGC(u32 Buffer, u32 Length);

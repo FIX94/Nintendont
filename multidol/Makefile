@@ -17,15 +17,15 @@ else
 endif
 
 MACHDEP = -mcpu=750 -meabi -mhard-float
-CFLAGS = $(MACHDEP) -Os -s -Werror -Wall -fdata-sections -ffunction-sections
+CFLAGS = $(MACHDEP) -O1 -s -Werror -Wall -fdata-sections -ffunction-sections
 LDFLAGS = $(MACHDEP) -n -nostartfiles -nostdlib -Wl,--gc-sections,-T,openstub.ld -L.
 ASFLAGS = -D_LANGUAGE_ASSEMBLY -DHW_RVL
 
 TARGET_LINKED = multidol_ldr.elf
 TARGET = ../kernel/asm/multidol_ldr.bin
 
-CFILES = cache.c main.c
-OBJS = crt0.o comp.o cache.o main.o
+CFILES = cache.c main.c global.c apploader.c dip.c utils.c
+OBJS = crt0.o cache.o main.o global.o apploader.o dip.o utils.o
 
 DEPDIR = .deps
 
