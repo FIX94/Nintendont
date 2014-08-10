@@ -43,6 +43,10 @@ extern u32 SystemRegion;
 
 extern int dbgprintf( const char *fmt, ...);
 
+//osGetCount, double from 1.1574 to 0.7716
+#define DBL_1_1574		0x3ff284b5dcc63f14ull
+#define DBL_0_7716		0x3fe8b0f27bb2fec5ull
+
 unsigned char OSReportDM[] =
 {
 	0x7C, 0x08, 0x02, 0xA6, 0x90, 0x01, 0x00, 0x04, 0x90, 0xE1, 0x00, 0x08, 0x3C, 0xE0, 0xC0, 0x00, 
@@ -51,7 +55,6 @@ unsigned char OSReportDM[] =
 	0x41, 0x82, 0xFF, 0xF8, 0x80, 0xE1, 0x00, 0x08, 0x80, 0x01, 0x00, 0x04, 0x7C, 0x08, 0x03, 0xA6, 
 	0x4E, 0x80, 0x00, 0x20, 
 } ;
-
 
 const unsigned char DSPHashes[][0x14] =
 {
@@ -376,6 +379,14 @@ static bool write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
 	write32( Offset, Value );
 	return true;
 }
+static bool write64A( u32 Offset, u64 Value, u64 CurrentValue )
+{
+	if( read64(Offset) != CurrentValue )
+		return false;
+	write64( Offset, Value );
+	return true;
+}
+
 void PatchB( u32 dst, u32 src )
 {
 	u32 newval = (dst - src);
@@ -657,7 +668,7 @@ u32 DOLMaxOff  = 0;
 u32 DOLOffset  = 0;
 vu32 TRIGame   = 0;
 
-void DoPatches( char *Buffer, u32 Length, u32 Offset )
+void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 {
 	int i, j, k;
 	u32 read;
@@ -667,10 +678,6 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	{
 		if((u32)Buffer != 0x13002EE0)
 			return;
-	}
-	for( i=0; i < Length; i+=4 )
-	{
-		*(vu32*)(Buffer+i) = *(vu32*)(Buffer+i);
 	}
 
 	if( ((u32)Buffer <= 0x31A0)  && ((u32)Buffer + Length >= 0x31A0) )
@@ -684,7 +691,7 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 	// PSO 1&2
 	if( (TITLE_ID) == 0x47504F )
 	{
-		switch( Offset )
+		switch( DiscOffset )
 		{
 			case 0x56B8E7E0:	// AppSwitcher	[EUR]
 			case 0x56C49600:	// [USA] v1.1
@@ -774,10 +781,10 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		} else if( read32( (u32)Buffer ) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum )
 		{
 #ifdef DEBUG_DI
-			dbgprintf("DIP:Game is loading an ELF 0x%08x (%u)\r\n", Offset, Length );
+			dbgprintf("DIP:Game is loading an ELF 0x%08x (%u)\r\n", DiscOffset, Length );
 #endif
 			DOLMinOff = (u32)Buffer;
-			DOLOffset = Offset;
+			DOLOffset = DiscOffset;
 			DOLSize	  = 0;
 
 			if( Length > 0x1000 )
@@ -827,16 +834,18 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 
 	if (!(PatchState & PATCH_STATE_PATCH))
 		return;
-	
-	sync_before_read( (char*)Buffer, Length );
+
+	sync_after_write(Buffer, Length);
 
 	Buffer = (char*)DOLMinOff;
 	Length = DOLMaxOff - DOLMinOff;
-	#ifdef DEBUG_PATCH
-	dbgprintf("Patch: Offset:0x%08X EOffset:0x%08X Length:%08X\r\n", DOLMinOff, DOLMaxOff, Length );
 
+#ifdef DEBUG_PATCH
+	dbgprintf("Patch: Offset:0x%08X EOffset:0x%08X Length:%08X\r\n", Buffer, DOLMaxOff, Length );
 	dbgprintf("Patch:  Game ID = %x\r\n", read32(0));
-	#endif
+#endif
+
+	sync_before_read(Buffer, Length);
 
 	// HACK: PokemonXD and Pokemon Colosseum low memory clear patch
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
@@ -2287,18 +2296,14 @@ void DoPatches( char *Buffer, u32 Length, u32 Offset )
 		#endif
 	}*/
 
-
-	//osGetCount, double from 1.1574 to 0.7716
-	if(*(vu64*)(0x00141C00) == 0x3ff284b5dcc63f14ull)
+	if(write64A(0x00141C00, DBL_0_7716, DBL_1_1574))
 	{
-		*(vu64*)(0x00141C00) = 0x3fe8b0f27bb2fec5ull;
 		#ifdef DEBUG_PATCH
 		dbgprintf("Patch:Patched Majoras Mask NTSC-U\r\n");
 		#endif
 	}
-	else if(*(vu64*)(0x00130860) == 0x3ff284b5dcc63f14ull)
+	else if(write64A(0x00130860, DBL_0_7716, DBL_1_1574))
 	{
-		*(vu64*)(0x00130860) = 0x3fe8b0f27bb2fec5ull;
 		#ifdef DEBUG_PATCH
 		dbgprintf("Patch:Patched Majoras Mask PAL\r\n");
 		#endif

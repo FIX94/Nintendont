@@ -48,4 +48,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define		DI_SIMM		(*(vu32*)(DI_SHADOW+0x20))
 #define		DI_SCONFIG	(*(vu32*)(DI_SHADOW+0x24))
 
+int DVDLowRead( void *ptr, u32 len, u32 offset );
+
 #endif

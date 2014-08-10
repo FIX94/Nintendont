@@ -8,6 +8,10 @@
 .type  memset16 STT_FUNC
 .globl memset8
 .type  memset8 STT_FUNC
+.globl read64
+.type  read64 STT_FUNC
+.globl write64
+.type  write64 STT_FUNC
 
 .text
 
@@ -107,4 +111,10 @@ memset8:
 	bne		1b
 	bx		lr
 
+read64:
+	ldrd	r0,		[r0]
+	bx		lr
 
+write64:
+	strd	r2,		[r0]
+	bx		lr

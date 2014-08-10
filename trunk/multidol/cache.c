@@ -9,7 +9,14 @@
 // Copyright 2008-2009  Segher Boessenkool  <segher@kernel.crashing.org>
 // Copyright 2008-2009  Hector Martin  <marcan@marcansoft.com>
 
-#include "types.h"
+#include "cache.h"
+
+// this saves 12 bytes
+static void syncret(void) __attribute__((noinline));
+static void syncret(void)
+{
+	asm("sync ; isync");
+}
 
 void sync_before_read(void *p, u32 len)
 {
@@ -21,5 +28,31 @@ void sync_before_read(void *p, u32 len)
 	for ( ; a < b; a += 32)
 		asm("dcbi 0,%0" : : "b"(a) : "memory");
 
-	asm("sync ; isync");
+	syncret();
+}
+
+void sync_after_write(const void *p, u32 len)
+{
+	u32 a, b;
+
+	a = (u32)p & ~0x1f;
+	b = ((u32)p + len + 0x1f) & ~0x1f;
+
+	for ( ; a < b; a += 32)
+		asm("dcbf 0,%0" : : "b"(a));
+
+	syncret();
+}
+
+void sync_before_exec(const void *p, u32 len)
+{
+	u32 a, b;
+
+	a = (u32)p & ~0x1f;
+	b = ((u32)p + len + 0x1f) & ~0x1f;
+
+	for ( ; a < b; a += 32)
+		asm("dcbst 0,%0 ; sync ; icbi 0,%0" : : "b"(a));
+
+	syncret();
 }

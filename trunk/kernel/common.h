@@ -8,6 +8,8 @@
 extern void *memset8( void *dst, int x, size_t len );
 extern void *memset16( void *dst, int x, size_t len );
 extern void *memset32( void *dst, int x, size_t len );
+extern u64 read64( u32 addr );
+extern void write64( u32 addr, u64 data );
 
 u16 bs16( u16 s );
 u32 bs32( u32 i );
