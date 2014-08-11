@@ -37,6 +37,8 @@
 #include "asm/PADReadSteerVSSimple.h"
 #include "asm/patch_fwrite_Log.h"
 #include "asm/patch_fwrite_GC.h"
+#include "asm/FakeRSWLoad.h"
+#include "asm/FakeRSWStore.h"
 
 unsigned char SRAM[64] =
 {

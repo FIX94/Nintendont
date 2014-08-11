@@ -680,14 +680,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			return;
 	}
 
-	if( ((u32)Buffer <= 0x31A0)  && ((u32)Buffer + Length >= 0x31A0) )
-	{
-		#ifdef DEBUG_PATCH
-		//dbgprintf("Patch:[Patch31A0]\r\n");
-		#endif
-		Patch31A0();
-	}
-
 	// PSO 1&2
 	if( (TITLE_ID) == 0x47504F )
 	{
@@ -732,7 +724,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					DOLSize += dol->sizeText[i];
 				for( i=0; i < 11; ++i )
 					DOLSize += dol->sizeData[i];
-						
+
 				DOLReadSize = Length;
 
 				DOLMinOff=0x81800000;
@@ -763,7 +755,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				}
 
 				DOLMinOff -= 0x80000000;
-				DOLMaxOff -= 0x80000000;	
+				DOLMaxOff -= 0x80000000;
 
 				if( PSOHack )
 				{
@@ -775,8 +767,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 #endif
 
 				PatchState |= PATCH_STATE_LOAD;
+				POffset = 0x2F00;
 			}
-						
 			PSOHack = 0;
 		} else if( read32( (u32)Buffer ) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum )
 		{
@@ -799,18 +791,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			for( i=0; i < ehdr->e_phnum; ++i )
 			{
 				Elf32_Phdr phdr;
-									
+
 				f_lseek( &GameFile, DOLOffset + ehdr->e_phoff + i * sizeof(Elf32_Phdr) );
-				f_read( &GameFile, &phdr, sizeof(Elf32_Phdr), &read );				
+				f_read( &GameFile, &phdr, sizeof(Elf32_Phdr), &read );
 
 				DOLSize += (phdr.p_filesz+31) & (~31);	// align by 32byte
 			}
-			
 #ifdef DEBUG_DI
 			dbgprintf("DIP:ELF size:%u\r\n", DOLSize );
 #endif
 
 			PatchState |= PATCH_STATE_LOAD;
+			POffset = 0x2F00;
 		}
 	} 
 	else if ( PatchState & PATCH_STATE_LOAD )
@@ -832,6 +824,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchState = PATCH_STATE_DONE;
 	}
 
+	if( ((u32)Buffer <= 0x31A0) && ((u32)Buffer + Length >= 0x31A0) )
+	{
+		#ifdef DEBUG_PATCH
+		//dbgprintf("Patch:[Patch31A0]\r\n");
+		#endif
+		Patch31A0();
+	}
+
 	if (!(PatchState & PATCH_STATE_PATCH))
 		return;
 
@@ -846,6 +846,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 #endif
 
 	sync_before_read(Buffer, Length);
+
+	POffset -= sizeof(FakeRSWLoad);
+	u32 FakeRSWLoadAddr = POffset;
+	memcpy((void*)(POffset), FakeRSWLoad, sizeof(FakeRSWLoad));
+
+	POffset -= sizeof(TCIntrruptHandler);
+	u32 TCIntrruptHandlerAddr = POffset;
+	memcpy((void*)(POffset), TCIntrruptHandler, sizeof(TCIntrruptHandler));
 
 	// HACK: PokemonXD and Pokemon Colosseum low memory clear patch
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
@@ -1779,13 +1787,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#endif
 							break;
 						}
-
-						POffset -= sizeof(TCIntrruptHandler);
-						memcpy((void*)(POffset), TCIntrruptHandler, sizeof(TCIntrruptHandler));
-
-						write32(POffset, read32((FOffset + PatchOffset)));
-
-						PatchBL( POffset, (FOffset + PatchOffset) );						
+						PatchBL( TCIntrruptHandlerAddr, (FOffset + PatchOffset) );
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:Applied **IntrruptHandler patch 0x%X (PatchOffset=0x%X) \r\n", FOffset, PatchOffset);
 						#endif
@@ -2203,6 +2205,51 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						dbgprintf("Patch:Patched [RADTimerRead] %u/4 times\r\n", res);
 						#endif
 					} break;
+					case FCODE___OSResetSWInterruptHandler:
+					{
+						if(read32(FOffset + 0x84) == 0x540003DF)
+						{
+							PatchBL( FakeRSWLoadAddr, (FOffset + 0x84) );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:__OSResetSWInterruptHandler FakeRSWLoad\r\n");
+							#endif
+						}
+						if(read32(FOffset + 0x94) == 0x540003DF)
+						{
+							PatchBL( FakeRSWLoadAddr, (FOffset + 0x94) );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:__OSResetSWInterruptHandler FakeRSWLoad\r\n");
+							#endif
+						}
+						if(read32(FOffset + 0xD4) == 0x90033000)
+						{
+							POffset -= sizeof(FakeRSWStore);
+							memcpy((void*)(POffset), FakeRSWStore, sizeof(FakeRSWStore));
+							PatchBL( POffset, (FOffset + 0xD4) );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:__OSResetSWInterruptHandler FakeRSWStore\r\n");
+							#endif
+						}
+					} break;
+					case FCODE_OSGetResetButtonState:
+					{
+						/* Patch C */
+						if(read32(FOffset + 0x28) == 0x540003DF)
+						{
+							PatchBL( FakeRSWLoadAddr, (FOffset + 0x28) );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:OSGetResetButtonState FakeRSWLoad\r\n");
+							#endif
+						}
+						/* Patch A, B */
+						if(read32(FOffset + 0x2C) == 0x540003DF)
+						{
+							PatchBL( FakeRSWLoadAddr, (FOffset + 0x2C) );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:OSGetResetButtonState FakeRSWLoad\r\n");
+							#endif
+						}
+					} break;
 					default:
 					{
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
@@ -2255,7 +2302,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							
 						} else
 						{
-
 							memcpy( (void*)(FOffset), FPatterns[j].Patch, FPatterns[j].PatchLength );
 						}
 
