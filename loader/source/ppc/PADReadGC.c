@@ -138,6 +138,13 @@ u32 _start()
 			Shutdown = 1;
 			break;
 		}
+		if((Pad[chan].button&0x1030) == 0x1030)
+		{
+			/* reset status 3 */
+			*reset = 0x3DEA;
+		}
+		else /* for held status */
+			*reset = 0;
 		/* clear unneeded button attributes */
 		Pad[chan].button &= 0x9F7F;
 		/* set current command */
@@ -206,7 +213,15 @@ u32 _start()
 		if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 			button |= PAD_BUTTON_START;
 		Pad[chan].button = button;
-	
+
+		if((Pad[chan].button&0x1030) == 0x1030)
+		{
+			/* reset status 3 */
+			*reset = 0x3DEA;
+		}
+		else /* for held status */
+			*reset = 0;
+
 		/* then analog sticks */
 		s8 stickX, stickY, substickX, substickY;
 		if ((HID_CTRL->VID == 0x044F) && (HID_CTRL->PID == 0xB303))	//Logitech Thrustmaster Firestorm Dual Analog 2

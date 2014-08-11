@@ -169,6 +169,9 @@ int _main( int argc, char *argv[] )
 	memset32((void*)0x13160000, 0, 0x20);
 	sync_after_write((void*)0x13160000, 0x20);
 
+	memset32((void*)0x13026500, 0, 0x20);
+	sync_after_write((void*)0x13026500, 0x20);
+
 	bool UseHID = ConfigGetConfig(NIN_CFG_HID);
 	if( UseHID )
 	{
@@ -221,7 +224,8 @@ int _main( int argc, char *argv[] )
 	u32 Now = read32(HW_TIMER);
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
-
+	u32 ResetTimer = Now;
+	u32 Reset = 0;
 	bool SaveCard = false;
 	if( ConfigGetConfig(NIN_CFG_LED) )
 	{
@@ -325,6 +329,37 @@ int _main( int argc, char *argv[] )
 		{
 			DIFinishAsync();
 			break;
+		}
+
+		if(read32(DI_SCONFIG) == 0x3DEA)
+		{
+			if(Reset == 0)
+			{
+				dbgprintf("Fake Reset IRQ\n");
+				write32( 0x13026504, 0x2 ); // Reset irq
+				sync_after_write( (void*)0x13026500, 0x20 );
+				write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+				Reset = 1;
+			}
+		}
+		else if(Reset == 1)
+		{
+			write32( 0x13026504, 0x10000 ); // send pressed
+			sync_after_write( (void*)0x13026500, 0x20 );
+			ResetTimer = read32(HW_TIMER);
+			Reset = 2;
+		}
+		/* The cleanup is not connected to the button press */
+		if(Reset == 2)
+		{
+			if((read32(HW_TIMER) - ResetTimer) / 949219 > 0) //free after half a second
+			{
+				write32( 0x13026504, 0 ); // done, clear
+				sync_after_write( (void*)0x13026500, 0x20 );
+				write32(DI_SCONFIG, 0);
+				sync_after_write( (void*)DI_SCONFIG, 4 );
+				Reset = 0;
+			}
 		}
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
 		{
