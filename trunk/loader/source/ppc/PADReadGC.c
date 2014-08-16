@@ -244,6 +244,14 @@ u32 _start()
 				substickX	= 0;
 			substickY	= 127 - ((HID_Packet[HID_CTRL->CStickY.Offset] - 128) * 4);	//raw 88 89...9E 9F A0 A1 ... BA BB (up...center...down)
 		}
+		else
+		if ((HID_CTRL->VID == 0x044F) && (HID_CTRL->PID == 0xB315))	//Thrustmaster Dual Analog 4
+		{
+			stickX		= HID_Packet[HID_CTRL->StickX.Offset];			//raw 80 81...FF 00 ... 7E 7F (left...center...right)
+			stickY		= -1 - HID_Packet[HID_CTRL->StickY.Offset];		//raw 80 81...FF 00 ... 7E 7F (up...center...down)
+			substickX	= HID_Packet[HID_CTRL->CStickX.Offset];			//raw 80 81...FF 00 ... 7E 7F (left...center...right)
+			substickY	= 127 - HID_Packet[HID_CTRL->CStickY.Offset];	//raw 00 01...7F 80 ... FE FF (up...center...down)
+		}
 		else	//standard sticks
 		{
 			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
