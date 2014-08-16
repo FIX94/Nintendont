@@ -278,8 +278,26 @@ bool LoadNinCFG()
 	if (cfg == NULL)
 		return false;
 
-	if (fread(ncfg, sizeof(NIN_CFG), 1, cfg) != 1)
-		ConfigLoaded = false;
+	size_t BytesRead;
+	BytesRead = fread(ncfg, 1, sizeof(NIN_CFG), cfg);
+	switch( ncfg->Version )
+	{
+		default:
+		{
+			ConfigLoaded = false;
+			break;
+		}
+		case 2:
+		{
+			if(BytesRead != 540)
+				ConfigLoaded = false;
+		} break;
+		case NIN_CFG_VERSION:
+		{
+			if(BytesRead != sizeof(NIN_CFG))
+				ConfigLoaded = false;
+		} break;
+	}
 
 	if (ncfg->Magicbytes != 0x01070CF6)
 		ConfigLoaded = false;
