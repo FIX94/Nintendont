@@ -58,10 +58,6 @@ enum GameRegion
 	ALL,
 };
 
-extern u32 Streaming;
-extern u32 StreamOffset;
-extern s32 StreamSize;
-extern u32 StreamTimer;
 extern vu32 SDisInit;
 extern u32 DiscChangeIRQ;
 

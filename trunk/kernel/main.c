@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "DI.h"
 #include "ES.h"
 #include "SI.h"
-#include "StreamADPCM.h"
+#include "Stream.h"
 #include "HID.h"
 #include "EXI.h"
 #include "debug.h"
@@ -169,8 +169,8 @@ int _main( int argc, char *argv[] )
 	memset32((void*)0x13160000, 0, 0x20);
 	sync_after_write((void*)0x13160000, 0x20);
 
-	memset32((void*)0x13026500, 0, 0x20);
-	sync_after_write((void*)0x13026500, 0x20);
+	memset32((void*)0x13026500, 0, 0x100);
+	sync_after_write((void*)0x13026500, 0x100);
 
 	bool UseHID = ConfigGetConfig(NIN_CFG_HID);
 	if( UseHID )
@@ -206,6 +206,8 @@ int _main( int argc, char *argv[] )
 	BootStatus(11, s_size, s_cnt);
 
 	SIInit();
+
+	StreamInit();
 
 //This bit seems to be different on japanese consoles
 	u32 ori_ppcspeed = read32(HW_PPCSPEED);
@@ -282,22 +284,6 @@ int _main( int argc, char *argv[] )
 			}
 		}
 
-		if( Streaming )
-		{
-			if( (read32(HW_TIMER) * 19 / 10) - StreamTimer >= 5000000 )
-			{
-			//	dbgprintf(".");
-				StreamOffset += 64*1024;
-
-				if( StreamOffset >= StreamSize )
-				{
-					StreamOffset = StreamSize;
-					Streaming = 0;
-				}
-				StreamTimer = read32(HW_TIMER) * 19 / 10;
-			}
-		}
-
 		if ( DiscChangeIRQ == 1 )
 		{
 			DiscChangeTimer = read32(HW_TIMER);
@@ -319,6 +305,7 @@ int _main( int argc, char *argv[] )
 		EXIUpdateRegistersNEW();
 		GCAMUpdateRegisters();
 		SIUpdateRegisters();
+		StreamUpdateRegisters();
 		CheckOSReport();
 		if(EXICheckCard())
 		{

@@ -1,5 +1,5 @@
 /*
-AIInitDMA.S for Nintendont (Kernel)
+DVDLowAudioBufferConfig.S for Nintendont (Kernel)
 
 Copyright (C) 2014 FIX94
 
@@ -18,12 +18,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set	AI_MEM_BASE,	0xD3026560
+.set	REAL_STREAMING,	0xD302652C
 
-AIInitDMA:
-	lis		%r4,	0xCC00
-	oris	%r0,	%r30,	0x8000
-	lis		%r5,	AI_MEM_BASE@h
-	stwu	%r0,	AI_MEM_BASE@l(%r5)
-	stw		%r31,	4(%r5)
+DVDLowAudioBufferConfig:
+	mtctr	%r5
+	lis		%r5,	REAL_STREAMING@h
+	cmpwi	%r3,	0
+	beq		StopStream
+StartStream:
+	li		%r3,	1
+	b		SaveValue
+StopStream:
+	li		%r3,	0
+SaveValue:
+	stw		%r3,	REAL_STREAMING@l(%r5)
+cb:
+	li		%r3,	1
+	bctrl
 	blr

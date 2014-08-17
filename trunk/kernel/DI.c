@@ -25,7 +25,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ipc.h"
 #include "common.h"
 #include "alloc.h"
-#include "StreamADPCM.h"
 #include "ff.h"
 #include "dol.h"
 #include "Config.h"
@@ -47,16 +46,6 @@ bool DI_IRQ = false;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
 
-u32 StreamHeader	= 0x11200000;
-u32	StreamBufferSize= 0xE00000-0x60;
-u32 StreamBuffer	= 0x12200000+0x60;
-u32 Streaming		= 0;
-u32	StreamOffset	= 0;
-u32 StreamDiscOffset= 0;
-s32 StreamSize		= 0;
-u32 StreamRAMOffset	= 0;
-u32 StreamTimer		= 0;
-u32 StreamStopEnd	= 0;
 u32 DiscChangeIRQ	= 0;
 
 FIL GameFile;
@@ -493,172 +482,6 @@ void DIUpdateRegisters( void )
 
 					DIOK = 2;
 				} break;
-				case 0xE1:	// play Audio Stream
-				{
-					switch( (read32(DI_SCMD_0) >> 16 ) & 0xFF )
-					{
-						case 0x00:
-						{
-							if( read32(DI_SCMD_1) == 0 && read32(DI_SCMD_2) == 0 )
-							{
-								StreamStopEnd = 1;						
-								dbgprintf("DIP:DVDPrepareStreamAbsAsync( %08X, %08X )\r\n", read32(DI_SCMD_1), read32(DI_SCMD_2) );
-							}
-							else
-							{
-								StreamDiscOffset= read32(DI_SCMD_1)<<2;
-								StreamSize		= read32(DI_SCMD_2);
-								StreamOffset	= 0;
-								Streaming		= 1;
-								StreamStopEnd	= 0;
-								StreamTimer		= read32(HW_TIMER);
-
-								dbgprintf("DIP:Streaming %ds of audio...\r\n", StreamSize / 32 * 28 / 48043 );
-								dbgprintf("DIP:Size:%u\r\n", StreamSize );
-								dbgprintf("DIP:Samples:%u\r\n", StreamSize / (SAMPLES_PER_BLOCK*sizeof(u16)) );
-#ifdef AUDIOSTREAM
-								u32 read;
-								f_lseek( &GameFile, StreamDiscOffset );
-
-								#ifdef DEBUG_DI
-								u32 ret = f_read( &GameFile, (void*)(StreamBuffer+0x1000), StreamSize, &read );
-								#else
-								f_read( &GameFile, (void*)(StreamBuffer+0x1000), StreamSize, &read );
-								#endif
-
-								if( read != StreamSize )
-								{
-									dbgprintf("DIP:Failed to read:%u(%u) Error:%u\r\n", StreamSize, read, ret );
-									Shutdown();
-								}
-
-								u32 SrcOff = 0x1000;
-								u32	DstOff = 0;
-
-								unsigned int samples = StreamSize / 32;
-
-								while(samples)
-								{
-									transcode_frame( (char*)(StreamBuffer + SrcOff), 0, (char*)(StreamBuffer + DstOff) );
-									DstOff += 16;
-
-									transcode_frame( (char*)(StreamBuffer + SrcOff), 1, (char*)(StreamBuffer + DstOff) );
-									SrcOff += ONE_BLOCK_SIZE;
-									DstOff += 16;
-
-									samples--;
-
-								//	decode_ngc_dtk( (u8*)(0x11000000 + SrcOff), (u16*)(StreamBuffer + DstOff), 1, 0, 28, 0 );
-								//	decode_ngc_dtk( (u8*)buf+i*32, (s16*)(StreamBuffer + DstOff + 2), 2, 0, 28, 1 );
-
-								//	DecodeBlock( (s16*)(StreamBuffer + DstOff), (u8*)(StreamBuffer + 0x1300000 + SrcOff) );
-
-									if( DstOff >= StreamBufferSize )
-										break;
-								}
-
-								uint8_t *header = (uint8_t*)StreamHeader;
-								memset32(header, 0, 64);
-
-								// 0-3: sample count
-								*(vu32*)(header+0) = samples;
-
-								// 4-7: nibble count
-								*(vu32*)(header+4) = samples/14*16;
-
-								// 8-11: sample rate
-								*(vu32*)(header+8) = 48000;
-
-								// 12-13: loop flag (0)
-
-								// 14-15: format (0: ADPCM)
-
-								// 16-19: loop start, 20-23: loop end (0)
-
-								// 24-27: ca ("current" nibble offset)
-								*(vu32*)(header+24) = 2;
-
-								// 28-59 filter coefficients
-								{
-									// these are the fixed filters used by XA
-									const uint16_t coef[16] = {
-										0,      0,
-										0x3c,   0,
-										0x73,  -0x34,
-										0x62,  -0x37
-									};
-
-									u32 j;
-									for (j = 0; j < 16; j+=2)
-									{
-										u32 val = coef[j+1]<<5;
-											val|= (coef[j]<<5) << 16;
-
-										*(vu32*)(header+28+j*2) = val;
-									}
-								}
-								*(vu32*)(header+60) = *(vu32*)(StreamBuffer)<<16;
-
-								//sync_after_write( (void*)StreamBuffer, StreamBufferSize );
-
-								//sync_before_read( (void*)0, 0x20 );
-
-								*(vu32*)(0x14) = StreamBuffer|0xD0000000;
-								*(vu32*)(0x18) = (StreamBuffer+DstOff)|0xD0000000;
-
-								//sync_after_write( (void*)0, 0x20 );
-#endif
-								
-								dbgprintf("DIP:Streaming %ds of audio...\r\n", StreamSize / 32 * 28 / 48043 );  
-								dbgprintf("DIP:DVDPrepareStreamAbsAsync( %08X, %08X )\r\n", StreamDiscOffset, StreamSize );
-							}
-						} break;
-						case 0x01:
-						{
-							StreamDiscOffset= 0;
-							StreamSize		= 0;
-							StreamOffset	= 0;
-							Streaming		= 0;
-							
-							dbgprintf("DIP:DVDCancelStreamAsync()\r\n");
-						} break;
-						default:
-						{
-							dbgprintf("DIP:DVDStream(%d)\r\n", (read32(DI_SCMD_0) >> 16 ) & 0xFF );
-						} break;
-					} 
-					
-					DIOK = 2;
-
-				} break;
-				case 0xE2:	// request Audio Status
-				{
-					switch( read32(DI_SCMD_0)<<8 )
-					{
-						case 0x00000000:	// Streaming?
-						{
-							write32( DI_SIMM, Streaming );
-						} break;
-						case 0x01000000:	// What is the current address?
-						{
-							dbgprintf("DIP:StreamInfo:Cur:%08X End:%08X\r\n", StreamOffset, StreamSize );
-							write32( DI_SIMM, ((StreamDiscOffset+StreamOffset) >> 2) & (~0x1FFF) );
-						} break;
-						case 0x02000000:	// disc offset of file
-						{
-							write32( DI_SIMM, StreamDiscOffset>>2 );
-						} break;
-						case 0x03000000:	// Size of file
-						{
-							write32( DI_SIMM, StreamSize );
-						} break;
-					}
-
-				//	dbgprintf("DIP:DVDLowAudioGetConfig( %d, %08X )\r\n", (read32(DI_SCMD_0)>>16)&0xFF, read32(DI_SIMM) );
-
-					DIOK = 2;
-
-				} break;
 				case 0xE3:	// stop Motor
 				{
 					dbgprintf("DIP:DVDLowStopMotor()\r\n");
@@ -671,11 +494,6 @@ void DIUpdateRegisters( void )
 					
 					DIOK = 2;
 
-				} break;
-				case 0xE4:	// DVD Audio disable
-				{
-					DIOK = 2;
-				
 				} break;
 				case 0xA7:
 				case 0xA9:
