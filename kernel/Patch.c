@@ -47,6 +47,8 @@ extern int dbgprintf( const char *fmt, ...);
 #define DBL_1_1574		0x3ff284b5dcc63f14ull
 #define DBL_0_7716		0x3fe8b0f27bb2fec5ull
 
+const unsigned int cbForStateBusyOffsets[] = {0x4C, 0x44};
+
 unsigned char OSReportDM[] =
 {
 	0x7C, 0x08, 0x02, 0xA6, 0x90, 0x01, 0x00, 0x04, 0x90, 0xE1, 0x00, 0x08, 0x3C, 0xE0, 0xC0, 0x00, 
@@ -1044,6 +1046,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 
 	PatchFuncInterface( Buffer, Length );
+	sync_after_write( Buffer, Length );
+	sync_before_read( Buffer, Length );
 
 	CardLowestOff = 0;
 	
@@ -1190,7 +1194,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				//}
 
 				u32 SearchIndex = 0;
-				for (SearchIndex = 0; SearchIndex < 2; SearchIndex++)
+				for (SearchIndex = 0; SearchIndex < 3; SearchIndex++)
 				{
 					if (write32A(Offset + 0x1CC, 0x3C60C000, 0x3C60CC00, 0))
 						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x1CC);
@@ -1206,7 +1210,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x238);
 					if (write32A(Offset + 0x23C, 0x80032f50, 0x80036020, 0))
 						dbgprintf("Patch:[cbForStateBusy] 0x%08X\r\n", Offset + 0x23C);
-					Offset += 0x4C;
+					Offset += cbForStateBusyOffsets[SearchIndex];
 				}
 
 				PatchCount |= 8;
@@ -1599,11 +1603,23 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		#endif
 		Shutdown();
 	}
+	sync_after_write( Buffer, Length );
 	for (j = 0; j < sizeof(FPatterns) / sizeof(FuncPattern); ++j)
 		FPatterns[j].Found = 0;
-
+	sync_before_read( Buffer, Length );
 	for( i=0; i < Length; i+=4 )
 	{
+		/* XG3 needs to be scanned at all times for this thing */
+		if(memcmp((u8*)(Buffer+i), XG3TimerReadOri, sizeof(XG3TimerReadOri)) == 0)
+		{
+			write32((u32)(Buffer+i+8), 0x60C6ED4E); // TB_BUS_CLOCK / 4000
+			i+=12;
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:XG3 Timer 0x%08X\r\n", Buffer+i);
+			#endif
+			continue;
+		}
+
 		if( *(u32*)(Buffer + i) != 0x4E800020 )
 			continue;
 
@@ -1618,7 +1634,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if( FPatterns[j].Found ) //Skip already found patches
 				continue;
-							
+
 			if( CPattern( &fp, &(FPatterns[j]) ) )
 			{
 				u32 FOffset = (u32)Buffer + i;
@@ -2250,6 +2266,30 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#endif
 						}
 					} break;
+					case FCODE_AIInitDMA:
+					{
+						if(read32(FOffset + 0x20) == 0x3C80CC00)
+						{
+							POffset -= sizeof(AIInitDMA);
+							memcpy((void*)(POffset), AIInitDMA, sizeof(AIInitDMA));
+							PatchBL( POffset, (FOffset + 0x20) );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Saving Audio Locations\r\n");
+							#endif
+						}
+					} break;
+					case FCODE___DSPHandler:
+					{
+						if(read32(FOffset + 0xF8) == 0x2C000000)
+						{
+							POffset -= sizeof(__DSPHandler);
+							memcpy((void*)(POffset), __DSPHandler, sizeof(__DSPHandler));
+							PatchBL( POffset, (FOffset + 0xF8) );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Added Audio Mixer\r\n");
+							#endif
+						}
+					} break;
 					default:
 					{
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
@@ -2299,15 +2339,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#ifdef DEBUG_PATCH
 							dbgprintf("DIP:Unhandled dead case:%08X\r\n", FPatterns[j].Length );
 							#endif
-							
-						} else
+						}
+						else
 						{
 							memcpy( (void*)(FOffset), FPatterns[j].Patch, FPatterns[j].PatchLength );
 						}
-
 					} break;
 				}
-
 				// If this is a patch group set all others of this group as found aswell
 				if( FPatterns[j].Group )
 				{
@@ -2323,6 +2361,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						}
 					}
 				}
+				// We dont need to compare this to more patterns
+				i+=(FPatterns[j].Length-4);
+				break;
 			}
 		}
 	}
@@ -2408,6 +2449,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		#endif
 		SkipHandlerWait = true; //some patch doesnt get applied so without this it would freeze
 	}*/
+	sync_after_write( Buffer, Length );
 
 	for( j=0; j < sizeof(FPatterns)/sizeof(FuncPattern); ++j )
 	{

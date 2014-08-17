@@ -98,6 +98,8 @@ enum
 	FCODE_RADTimerRead,
 	FCODE___OSResetSWInterruptHandler,
 	FCODE_OSGetResetButtonState,
+	FCODE_AIInitDMA,
+	FCODE___DSPHandler,
 } FPatternCodes;
 
 enum
@@ -187,10 +189,10 @@ FuncPattern FPatterns[] =
 	{   0xDC,   23,    18,     3,     2,     4,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRead B",					FGROUP_DVDLowRead,			0 },
 	{  0x104,   29,    17,     5,     2,     3,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRead C",					FGROUP_DVDLowRead,			0 },
 #ifdef AUDIOSTREAM
-	{   0x94,   18,    10,     2,     0,     2,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowAudioStream A",			FGROUP_DVDLowAudioStream,	0 },
-	{   0x8C,   16,    12,     1,     0,     2,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowAudioStream B",			FGROUP_DVDLowAudioStream,	0 },
-	{   0x88,   18,     8,     2,     0,     2,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRequestAudioStatus",		FGROUP_NONE,				0 },
-	{   0x98,   19,     8,     2,     1,     3,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowAudioBufferConfig",		FGROUP_NONE,				0 },
+	{   0x94,   18,    10,     2,     0,     2,	(u8*)DVDLowAudioStream, sizeof(DVDLowAudioStream),		"DVDLowAudioStream A",			FGROUP_DVDLowAudioStream,	0 },
+	{   0x8C,   16,    12,     1,     0,     2,	(u8*)DVDLowAudioStream, sizeof(DVDLowAudioStream),		"DVDLowAudioStream B",			FGROUP_DVDLowAudioStream,	0 },
+	{   0x88,   18,     8,     2,     0,     2,	(u8*)DVDLowRequestAudioStatus, sizeof(DVDLowRequestAudioStatus), "DVDLowRequestAudioStatus",	FGROUP_NONE,		0 },
+	{   0x98,   19,     8,     2,     1,     3,	(u8*)DVDLowAudioBufferConfig, sizeof(DVDLowAudioBufferConfig), "DVDLowAudioBufferConfig",		FGROUP_NONE,		0 },
 #else
 	{   0x94,   18,    10,     2,     0,     2,	(u8*)__dvdLowReadAudioNULL, sizeof(__dvdLowReadAudioNULL), "DVDLowAudioStream A",		FGROUP_DVDLowAudioStream,	0 },
 	{   0x8C,   16,    12,     1,     0,     2,	(u8*)__dvdLowReadAudioNULL, sizeof(__dvdLowReadAudioNULL), "DVDLowAudioStream B",		FGROUP_DVDLowAudioStream,	0 },
@@ -291,6 +293,11 @@ FuncPattern FPatterns[] =
 	{  0x294,   39,    16,     5,    16,    46,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState A",	FGROUP_OSGetResetButtonState,	0 },
 	{  0x2A0,   40,    16,     5,    17,    46,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState B",	FGROUP_OSGetResetButtonState,	0 },
 	{  0x1F0,   34,    14,     6,    12,    28,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState C",	FGROUP_OSGetResetButtonState,	0 },
+
+#ifdef AUDIOSTREAM
+	{   0x84,    8,     4,     2,     0,     5,	(u8*)NULL,				FCODE_AIInitDMA,				"AIInitDMA",					FGROUP_NONE,				0 },
+	{  0x420,  103,    23,    34,    32,     9,	(u8*)NULL,				FCODE___DSPHandler,				"__DSPHandler",					FGROUP_NONE,				0 },
+#endif
 
 	//not from nintendos sdk, used by Bink Video
 	{   0xA4,    9,     4,     1,     0,     6,	(u8*)NULL,				FCODE_RADTimerRead,				"RADTimerRead",					FGROUP_NONE,				0 },

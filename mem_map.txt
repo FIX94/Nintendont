@@ -48,9 +48,11 @@ MEM2
 0x93024000-0x93024060=memory interface
 0x93026400-0x93026500=serial interface
 0x93026500=SI Fake Interrupt
+0x93026520-0x93026600=audio stream information
 0x93100000-0x93150000=ipl fonts buffer (0x1aff00-0x1fff00)
 0x93160000-0x93160008=OSReport (patch_fwrite)
 0x93200000=Cache FST Buffer
+0x93280000-0x932B3000=audio stream buffers
 
 Hardware Registers
 0x0D80600C=EXI Command/Loop

@@ -9,7 +9,7 @@
 #define CHEATS		1
 //#define HID		1
 //#define CARDDEBUG 1
-//#define AUDIOSTREAM 1
+#define AUDIOSTREAM 1
 
 //#define DEBUG_ES	1
 //#define DEBUG_HID	1

@@ -40,6 +40,12 @@
 #include "asm/FakeRSWLoad.h"
 #include "asm/FakeRSWStore.h"
 
+#include "asm/AIInitDMA.h"
+#include "asm/__DSPHandler.h"
+#include "asm/DVDLowAudioStream.h"
+#include "asm/DVDLowRequestAudioStatus.h"
+#include "asm/DVDLowAudioBufferConfig.h"
+
 unsigned char SRAM[64] =
 {
     0x42, 0x8B,
@@ -288,4 +294,12 @@ const u32 PADIsBarrelOri[] = {
 		0x4E800020,		// blr
 		0x3C008000		// lis		r0,0x8000
 };
+
+//XG3 does that all over the place
+const u32 XG3TimerReadOri[] = {
+		0x38A00000,		// li		r5, 0
+		0x38C00000,		// li		r6, 0
+		0x60C69E34,		// ori		r6, r6, 0x9E34
+};
+
 #endif
