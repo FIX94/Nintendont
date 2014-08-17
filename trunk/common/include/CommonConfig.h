@@ -6,7 +6,6 @@
 #include "Metadata.h"
 
 #define NIN_CFG_VERSION		0x00000003
-#define OLD_NIN_CFG_VERSION	0x00000002
 
 #define NIN_CFG_MAXPAD 4
 
