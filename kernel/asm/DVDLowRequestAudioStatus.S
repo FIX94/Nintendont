@@ -25,19 +25,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .set	FAKE_STREAMING,	0xD3026540
 .set	STREAM_LENGTH,	0xD3026544
 .set	STREAM_START,	0xD3026548
-.set	REALSTREAM_END,	0xD302654C
+.set	STREAM_CURRENT,	0xD302654C
+.set	REALSTREAM_END,	0xD3026550
 
 DVDLowRequestAudioStatus:
-	stwu	%r1,	-0x20(%r1)
-	mflr	%r0
-	stw		%r0,	0(%r1)
 	mtctr	%r4
 	lis		%r4,	STREAM_BASE@h
 	srwi	%r3,	%r3,	16		#cmd is in upper 16-bit
 	cmpwi	%cr5,	%r3,	0
 	beq		%cr5,	Streaming
 	cmpwi	%cr5,	%r3,	1
-	beq		%cr5,	StartOffset		#not what it should be, should be CurrentOffset, dontcare
+	beq		%cr5,	CurrentOffset
 	cmpwi	%cr5,	%r3,	2
 	beq		%cr5,	StartOffset
 
@@ -60,16 +58,17 @@ FakeStreaming:
 	lwz		%r3,	FAKE_STREAMING@l(%r4)
 	b		SetDI_SIMM
 
+CurrentOffset:
+	lwz		%r3,	STREAM_CURRENT@l(%r4)
+	b		ShiftOffset
+
 StartOffset:
 	lwz		%r3,	STREAM_START@l(%r4)
+ShiftOffset:
 	srwi	%r3,	%r3,	2
 
 SetDI_SIMM:
 	lis		%r4,	DI_SIMM@h
 	stw		%r3,	DI_SIMM@l(%r4)
 	li		%r3,	1		#for the cb that everything resulted ok
-	bctrl
-	lwz		%r0,	0(%r1)
-	mtlr	%r0
-	addi	%r1,	%r1,	0x20
-	blr
+	bctr		#will boot cb then return to original function, saves quite some code

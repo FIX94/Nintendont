@@ -152,11 +152,13 @@ u32 StreamGetChunkSize()
 #define FAKE_STREAMING 0x13026540
 #define STREAM_LENGTH 0x13026544
 #define STREAM_START 0x13026548
-#define REALSTREAM_END 0x1302654C
+#define STREAM_CURRENT 0x1302654C
+#define REALSTREAM_END 0x13026550
 
 #define AI_ADP_LOC 0x13026580
 #define LOOP_ENABLED 0x13026584
 
+extern s32 DI_Handle;
 void StreamUpdateRegisters()
 {
 	sync_before_read( (void*)STREAM_BASE, 0x40 );
@@ -175,9 +177,9 @@ void StreamUpdateRegisters()
 		{
 			write32(STREAM_BASE, 0); //clear status
 			sync_after_write( (void*)STREAM_BASE, 0x20 );
-			DIFinishAsync();
-			DIReadISO(StreamBuffer, StreamGetChunkSize(), StreamCurrent);
+			IOS_Ioctl(DI_Handle, 0, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
 			StreamCurrent += StreamGetChunkSize();
+			write32(STREAM_CURRENT, StreamCurrent);
 			if(StreamCurrent >= StreamEndOffset) //terrible loop but it works
 			{
 				u32 diff = StreamCurrent - StreamEndOffset;
@@ -210,10 +212,10 @@ void StreamUpdateRegisters()
 			StreamStart = CurrentStart;
 			StreamCurrent = StreamStart;
 			StreamEndOffset = StreamStart + StreamSize;
-			DIFinishAsync();
 			StreamPrepare(true); //TODO: find a game which doesnt need resampling
-			DIReadISO(StreamBuffer, StreamGetChunkSize(), StreamCurrent);
+			IOS_Ioctl(DI_Handle, 0, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
 			StreamCurrent += StreamGetChunkSize();
+			write32(STREAM_CURRENT, StreamCurrent);
 			StreamUpdate();
 			write32(AI_ADP_LOC, 0); //reset adp read pos
 			sync_after_write( (void*)AI_ADP_LOC, 0x20 );
@@ -222,8 +224,9 @@ void StreamUpdateRegisters()
 			//dbgprintf("Streaming %08x %08x\n", StreamStart, StreamSize);
 			StreamEnd = false;
 			/* Directly read in the second buffer */
-			DIReadISO(StreamBuffer, StreamGetChunkSize(), StreamCurrent);
+			IOS_Ioctl(DI_Handle, 0, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
 			StreamCurrent += StreamGetChunkSize();
+			write32(STREAM_CURRENT, StreamCurrent);
 			StreamUpdate();
 		}
 	}

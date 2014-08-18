@@ -24,46 +24,43 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .set	FAKE_STREAMING,	0xD3026540
 .set	STREAM_LENGTH,	0xD3026544
 .set	STREAM_START,	0xD3026548
-.set	REALSTREAM_END,	0xD302654C
+.set	STREAM_CURRENT,	0xD302654C
+.set	REALSTREAM_END,	0xD3026550
 .set	LOOP_ENABLED,	0xD3026584
 
 DVDLowAudioStream:
-	stwu	%r1,	-0x20(%r1)
-	mflr	%r0
-	stw		%r0,	0(%r1)
 	mtctr	%r6
-
 	lis		%r6,	1
 	cmpw	%r3,	%r6
 	lis		%r6,	STREAM_BASE@h
-	bne		setupstream
+	bne		SetupStream
+
+StopStream:
 	li		%r3,	0
 	stw		%r3,	REAL_STREAMING@l(%r6)
 	stw		%r3,	FAKE_STREAMING@l(%r6)
 	stw		%r3,	STREAM_LENGTH@l(%r6)
 	stw		%r3,	STREAM_START@l(%r6)
+	stw		%r3,	STREAM_CURRENT@l(%r6)
 	stw		%r3,	REALSTREAM_END@l(%r6)
-	b		startcb
+	b		StartCB
 
-setupstream:
+SetupStream:
 	cmpwi	%r4,	0
-	bne		startstream
+	bne		StartStream
 	li		%r3,	0
 	stw		%r3,	LOOP_ENABLED@l(%r6)
-	b		startcb
+	b		StartCB
 
-startstream:
+StartStream:
 	stw		%r4,	STREAM_LENGTH@l(%r6)
 	stw		%r5,	STREAM_START@l(%r6)
+	stw		%r5,	STREAM_CURRENT@l(%r6)
 	li		%r3,	1
 	stw		%r3,	LOOP_ENABLED@l(%r6)
 	stw		%r3,	FAKE_STREAMING@l(%r6)
 	stw		%r3,	STREAM_UPDATE@l(%r6)
 
-startcb:
+StartCB:
 	li		%r3,	1		#for the cb that everything resulted ok
-	bctrl
-	lwz		%r0,	0(%r1)
-	mtlr	%r0
-	addi	%r1,	%r1,	0x20
-	blr
+	bctr		#will boot cb then return to original function, saves quite some code

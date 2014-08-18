@@ -302,4 +302,12 @@ const u32 XG3TimerReadOri[] = {
 		0x60C69E34,		// ori		r6, r6, 0x9E34
 };
 
+//this is such a small function that it would be missed otherwise
+const u32 CrashTimerReadOri[] = {
+		0x3C000269,		// lis		r0, 0x269
+		0x6000FB20,		// ori		r0, r0, 0xFB20
+		0x90030000,		// stw		r0, 0(r3)
+		0x38600001,		// li		r3, 1
+		0x4E800020,		// blr
+};
 #endif

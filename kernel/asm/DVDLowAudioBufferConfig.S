@@ -25,14 +25,15 @@ DVDLowAudioBufferConfig:
 	lis		%r5,	REAL_STREAMING@h
 	cmpwi	%r3,	0
 	beq		StopStream
+
 StartStream:
 	li		%r3,	1
 	b		SaveValue
+
 StopStream:
 	li		%r3,	0
+
 SaveValue:
 	stw		%r3,	REAL_STREAMING@l(%r5)
-cb:
-	li		%r3,	1
-	bctrl
-	blr
+	li		%r3,	1		#for the cb that everything resulted ok
+	bctr		#will boot cb then return to original function, saves quite some code
