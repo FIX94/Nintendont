@@ -564,7 +564,7 @@ u8* CacheRead( u32* Length, u32 Offset )
 		}
 	}
 
-	if( (*Length == LastLength) && (*Length < 0x10000) )
+	if( (*Length == LastLength) && (*Length < 0x8000) )
 		*Length = 0x10000; //pre-load data, guessing
 
 	if (*Length > DI_READ_BUFFER_LENGTH)

@@ -1613,10 +1613,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if(memcmp((u8*)(Buffer+i), XG3TimerReadOri, sizeof(XG3TimerReadOri)) == 0)
 		{
 			write32((u32)(Buffer+i+8), 0x60C6ED4E); // TB_BUS_CLOCK / 4000
-			i+=12;
 			#ifdef DEBUG_PATCH
-			dbgprintf("Patch:XG3 Timer 0x%08X\r\n", Buffer+i);
+			dbgprintf("Patch:XG3 Timer 0x%08X\r\n", Buffer+i+8);
 			#endif
+			i+=12;
 			continue;
 		}
 
@@ -1624,6 +1624,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			continue;
 
 		i+=4;
+
+		if(memcmp((u8*)(Buffer+i), CrashTimerReadOri, sizeof(CrashTimerReadOri)) == 0)
+		{
+			// TB_BUS_CLOCK / 4
+			write32((u32)(Buffer+i+0), 0x3C00039E);
+			write32((u32)(Buffer+i+4), 0x6000F8B0);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Crash Bandicoot Timer 0x%08X\r\n", Buffer+i);
+			#endif
+			i+=16;
+			continue;
+		}
 
 		FuncPattern fp;
 		MPattern( (u8*)(Buffer+i), Length, &fp );
