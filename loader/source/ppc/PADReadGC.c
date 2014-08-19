@@ -206,10 +206,20 @@ u32 _start()
 			button |= PAD_BUTTON_Y;
 		if(HID_Packet[HID_CTRL->Z.Offset] & HID_CTRL->Z.Mask)
 			button |= PAD_TRIGGER_Z;
-		if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
-			button |= PAD_TRIGGER_L;
-		if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
-			button |= PAD_TRIGGER_R;
+		if( HID_CTRL->DigitalLR == 2)	//no digital trigger buttons compute from analog trigger values
+		{
+			if(HID_Packet[HID_CTRL->L.Offset] >= HID_CTRL->L.Mask)
+				button |= PAD_TRIGGER_L;
+			if(HID_Packet[HID_CTRL->R.Offset] >= HID_CTRL->R.Mask)
+				button |= PAD_TRIGGER_R;
+		}
+		else	//standard digital left and right trigger buttons
+		{
+			if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
+				button |= PAD_TRIGGER_L;
+			if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
+				button |= PAD_TRIGGER_R;
+		}
 		if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 			button |= PAD_BUTTON_START;
 		Pad[chan].button = button;
@@ -294,7 +304,7 @@ u32 _start()
 		Pad[chan].substickY = substickY;
 */
 		/* then triggers */
-		if( HID_CTRL->DigitalLR )
+		if( HID_CTRL->DigitalLR == 1)
 		{	/* digital triggers, not much to do */
 			if(Pad[chan].button & PAD_TRIGGER_L)
 				Pad[chan].triggerLeft = 255;
