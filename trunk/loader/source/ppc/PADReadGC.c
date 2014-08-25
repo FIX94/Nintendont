@@ -138,7 +138,7 @@ u32 _start()
 			Shutdown = 1;
 			break;
 		}
-		if((Pad[chan].button&0x1030) == 0x1030)
+		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
 			*reset = 0x3DEA;
@@ -184,16 +184,16 @@ u32 _start()
 		}
 		else
 		{
-			if((HID_Packet[HID_CTRL->Up.Offset] == HID_CTRL->Up.Mask)||(HID_Packet[HID_CTRL->UpLeft.Offset] == HID_CTRL->UpLeft.Mask)||(HID_Packet[HID_CTRL->RightUp.Offset]	== HID_CTRL->RightUp.Mask))
+			if(((HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Up.Mask)		 || ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask)			|| ((HID_Packet[HID_CTRL->RightUp.Offset]	& HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
 				button |= PAD_BUTTON_UP;
 	
-			if(	(HID_Packet[HID_CTRL->Right.Offset] == HID_CTRL->Right.Mask)||(HID_Packet[HID_CTRL->DownRight.Offset] == HID_CTRL->DownRight.Mask)||(HID_Packet[HID_CTRL->RightUp.Offset] == HID_CTRL->RightUp.Mask))
+			if(((HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Right.Mask) || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->RightUp.Offset] & HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
 				button |= PAD_BUTTON_RIGHT;
 	
-			if((HID_Packet[HID_CTRL->Down.Offset] == HID_CTRL->Down.Mask) ||(HID_Packet[HID_CTRL->DownRight.Offset] == HID_CTRL->DownRight.Mask) ||(HID_Packet[HID_CTRL->DownLeft.Offset] == HID_CTRL->DownLeft.Mask))
+			if(((HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Down.Mask)	 || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask))
 				button |= PAD_BUTTON_DOWN;
 	
-			if((HID_Packet[HID_CTRL->Left.Offset] == HID_CTRL->Left.Mask) || (HID_Packet[HID_CTRL->DownLeft.Offset] == HID_CTRL->DownLeft.Mask) || (HID_Packet[HID_CTRL->UpLeft.Offset] == HID_CTRL->UpLeft.Mask) )
+			if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
 				button |= PAD_BUTTON_LEFT;
 		}
 		if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
@@ -208,10 +208,20 @@ u32 _start()
 			button |= PAD_TRIGGER_Z;
 		if( HID_CTRL->DigitalLR == 2)	//no digital trigger buttons compute from analog trigger values
 		{
-			if(HID_Packet[HID_CTRL->L.Offset] >= HID_CTRL->L.Mask)
-				button |= PAD_TRIGGER_L;
-			if(HID_Packet[HID_CTRL->R.Offset] >= HID_CTRL->R.Mask)
-				button |= PAD_TRIGGER_R;
+			if ((HID_CTRL->VID == 0x0925) && (HID_CTRL->PID == 0x03E8))	//Mayflash Classic Controller Pro Adapter
+			{
+				if((HID_Packet[HID_CTRL->L.Offset] & 0x7C) >= HID_CTRL->L.Mask)	//only some bits are part of this control
+					button |= PAD_TRIGGER_L;
+				if((HID_Packet[HID_CTRL->R.Offset] & 0x0F) >= HID_CTRL->R.Mask)	//only some bits are part of this control
+					button |= PAD_TRIGGER_R;
+			}
+			else	//standard no digital trigger button
+			{
+				if(HID_Packet[HID_CTRL->L.Offset] >= HID_CTRL->L.Mask)
+					button |= PAD_TRIGGER_L;
+				if(HID_Packet[HID_CTRL->R.Offset] >= HID_CTRL->R.Mask)
+					button |= PAD_TRIGGER_R;
+			}
 		}
 		else	//standard digital left and right trigger buttons
 		{
@@ -224,7 +234,7 @@ u32 _start()
 			button |= PAD_BUTTON_START;
 		Pad[chan].button = button;
 
-		if((Pad[chan].button&0x1030) == 0x1030)
+		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
 			*reset = 0x3DEA;
@@ -261,6 +271,14 @@ u32 _start()
 			stickY		= -1 - HID_Packet[HID_CTRL->StickY.Offset];		//raw 80 81...FF 00 ... 7E 7F (up...center...down)
 			substickX	= HID_Packet[HID_CTRL->CStickX.Offset];			//raw 80 81...FF 00 ... 7E 7F (left...center...right)
 			substickY	= 127 - HID_Packet[HID_CTRL->CStickY.Offset];	//raw 00 01...7F 80 ... FE FF (up...center...down)
+		}
+		else
+		if ((HID_CTRL->VID == 0x0925) && (HID_CTRL->PID == 0x03E8))	//Mayflash Classic Controller Pro Adapter
+		{
+			stickX		= ((HID_Packet[HID_CTRL->StickX.Offset] & 0x3F) << 2) - 128;	//raw 06 07 ... 1E 1F 20 ... 37 38 (left ... center ... right)
+			stickY		= 127 - ((((HID_Packet[HID_CTRL->StickY.Offset] & 0x0F) << 2) | ((HID_Packet[3] & 0xC0) >> 6)) << 2);	//raw 06 07 ... 1F 20 21 ... 38 39 (up, center, down)
+			substickX	= ((HID_Packet[HID_CTRL->CStickX.Offset] & 0x1F) << 3) - 128;	//raw 03 04 ... 0E 0F 10 ... 1B 1C (left ... center ... right)
+			substickY	= 127 - ((((HID_Packet[HID_CTRL->CStickY.Offset] & 0x03) << 3) | ((HID_Packet[5] & 0xE0) >> 5)) << 3);	//raw 03 04 ... 1F 10 11 ... 1C 1D (up, center, down)
 		}
 		else	//standard sticks
 		{
@@ -327,6 +345,12 @@ u32 _start()
 					tmp_triggerL = 255;
 				if(Pad[chan].button & PAD_TRIGGER_R)
 					tmp_triggerR = 255;
+			}
+			else
+			if ((HID_CTRL->VID == 0x0925) && (HID_CTRL->PID == 0x03E8))	//Mayflash Classic Controller Pro Adapter
+			{
+				tmp_triggerL =   ((HID_Packet[HID_CTRL->LAnalog] & 0x7C) >> 2) << 3;	//raw 04 ... 1F (out ... in)
+				tmp_triggerR = (((HID_Packet[HID_CTRL->RAnalog] & 0x0F) << 1) | ((HID_Packet[6] & 0x80) >> 7)) << 3;	//raw 03 ... 1F (out ... in)
 			}
 			else	//standard analog triggers
 			{

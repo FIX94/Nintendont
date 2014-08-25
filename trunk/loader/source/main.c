@@ -186,6 +186,11 @@ int main(int argc, char **argv)
 	if(argc > 1) //every 0x00 gets counted as one arg so just make sure its more than the path and copy
 	{
 		memcpy(ncfg, argv[1], sizeof(NIN_CFG));
+		if (ncfg->Version == 2)	//need to upgrade config from ver 2 to ver 3
+		{
+			ncfg->MemCardBlocks = 0x2;//251 blocks
+			ncfg->Version = 3;
+		}
 		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD && ncfg->MaxPads > 0)
 		{
 			if(ncfg->Config & NIN_CFG_AUTO_BOOT)
