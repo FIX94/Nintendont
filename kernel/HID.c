@@ -226,6 +226,25 @@ s32 HIDInit( void )
 		HID_CTRL->UpLeft.Mask		= ConfigGetValue( Data, "UpLeft", 1 );
 	}
 
+	if( HID_CTRL->DPAD  &&	//DPAD == 1 and all offsets the same
+		HID_CTRL->Left.Offset == HID_CTRL->Down.Offset &&
+		HID_CTRL->Left.Offset == HID_CTRL->Right.Offset &&
+		HID_CTRL->Left.Offset == HID_CTRL->Up.Offset &&
+		HID_CTRL->Left.Offset == HID_CTRL->RightUp.Offset &&
+		HID_CTRL->Left.Offset == HID_CTRL->DownRight.Offset &&
+		HID_CTRL->Left.Offset == HID_CTRL->DownLeft.Offset &&
+		HID_CTRL->Left.Offset == HID_CTRL->UpLeft.Offset )
+		{
+		HID_CTRL->DPADMask = HID_CTRL->Left.Mask | HID_CTRL->Down.Mask | HID_CTRL->Right.Mask | HID_CTRL->Up.Mask
+			| HID_CTRL->RightUp.Mask | HID_CTRL->DownRight.Mask | HID_CTRL->DownLeft.Mask | HID_CTRL->UpLeft.Mask;	//mask is all the used bits ored togather
+		if ((HID_CTRL->DPADMask & 0xF0) == 0)	//if hi nibble isnt used
+			HID_CTRL->DPADMask = 0x0F;			//use all bits in low nibble
+		if ((HID_CTRL->DPADMask & 0x0F) == 0)	//if low nibble isnt used
+			HID_CTRL->DPADMask = 0xF0;			//use all bits in hi nibble
+		}
+	else
+		HID_CTRL->DPADMask = 0xFFFF;	//check all the bits
+
 	HID_CTRL->StickX.Offset		= ConfigGetValue( Data, "StickX", 0 );
 	HID_CTRL->StickX.DeadZone	= ConfigGetValue( Data, "StickX", 1 );
 	HID_CTRL->StickX.Radius		= ConfigGetDecValue( Data, "StickX", 2 );

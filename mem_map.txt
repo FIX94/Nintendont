@@ -39,7 +39,7 @@ MEM2
 0x93003020-0x93003420=ios58 kernel path
 0x93003420-0x93005000=old hid thread stack
 
-0x93005000-0x930050d0=hid controller positions
+0x93005000-0x930050d4=hid controller positions
 0x930050E0=hid packet
 
 0x93007420-0x93009000=old di thread stack
