@@ -655,7 +655,32 @@ void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2)
         *c2 += (buf[0x06 + i] ^ 0xFFFF); 
     }
 	//dbzprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
-} 
+}
+char *getVidStr(u32 in)
+{
+	switch(in)
+	{
+		case VI_NTSC:
+			return "NTSC";
+		case VI_PAL:
+			return "PAL50";
+		case VI_EUR60:
+			return "PAL60";
+		case VI_MPAL:
+			return "PAL-M";
+		case VI_480P:
+			return "480p";
+		default:
+			return "Unknown Video Mode";
+	}
+}
+void printvidpatch(u32 ori_v, u32 new_v, u32 addr)
+{
+#ifdef DEBUG_PATCH
+	dbgprintf("Patch:Replaced %s with %s: 0x%x \r\n", getVidStr(ori_v), getVidStr(new_v), addr );
+#endif
+}
+
 #define PATCH_STATE_NONE  0
 #define PATCH_STATE_LOAD  1
 #define PATCH_STATE_PATCH 2
@@ -829,7 +854,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	if( ((u32)Buffer <= 0x31A0) && ((u32)Buffer + Length >= 0x31A0) )
 	{
 		#ifdef DEBUG_PATCH
-		//dbgprintf("Patch:[Patch31A0]\r\n");
+		dbgprintf("Patch:[Patch31A0]\r\n");
 		#endif
 		Patch31A0();
 	}
@@ -849,13 +874,27 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	sync_before_read(Buffer, Length);
 
-	POffset -= sizeof(FakeRSWLoad);
-	u32 FakeRSWLoadAddr = POffset;
-	memcpy((void*)(POffset), FakeRSWLoad, sizeof(FakeRSWLoad));
+	/* Have the most important patches always loaded, important for games like 007 */
+	POffset -= sizeof(FakeInterrupt);
+	u32 FakeInterruptAddr = POffset;
+	memcpy( (void*)(POffset), FakeInterrupt, sizeof(FakeInterrupt) );
+
+	POffset -= sizeof(DCInvalidateRange);
+	u32 DCInvalidateRangeAddr = POffset;
+	memcpy( (void*)(POffset), DCInvalidateRange, sizeof(DCInvalidateRange) );
 
 	POffset -= sizeof(TCIntrruptHandler);
 	u32 TCIntrruptHandlerAddr = POffset;
 	memcpy((void*)(POffset), TCIntrruptHandler, sizeof(TCIntrruptHandler));
+
+	POffset -= sizeof(SIIntrruptHandler);
+	u32 SIIntrruptHandlerAddr = POffset;
+	memcpy((void*)(POffset), SIIntrruptHandler, sizeof(SIIntrruptHandler));
+
+	/* This gets used multiple times, dont waste by copying multiple */
+	POffset -= sizeof(FakeRSWLoad);
+	u32 FakeRSWLoadAddr = POffset;
+	memcpy((void*)(POffset), FakeRSWLoad, sizeof(FakeRSWLoad));
 
 	// HACK: PokemonXD and Pokemon Colosseum low memory clear patch
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
@@ -1081,10 +1120,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				#ifdef DEBUG_PATCH
 				dbgprintf("Patch:[__OSDispatchInterrupt] 0x%08X\r\n", (u32)Buffer + i );
 				#endif
-				POffset -= sizeof(FakeInterrupt);
-				memcpy( (void*)(POffset), FakeInterrupt, sizeof(FakeInterrupt) );
-				PatchBL( POffset, (u32)Buffer + i + 4 );
-				
+				PatchBL( FakeInterruptAddr, (u32)Buffer + i + 4 );
+
 				// EXI Device 0 Control Register
 				write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
 				write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
@@ -1142,12 +1179,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Found [__DVDIntrruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 			#endif
-			POffset -= sizeof(DCInvalidateRange);
-			memcpy( (void*)(POffset), DCInvalidateRange, sizeof(DCInvalidateRange) );
-			PatchBL(POffset, (u32)HwOffset);
-							
+			PatchBL(DCInvalidateRangeAddr, (u32)HwOffset);
 			Offset += 92;
-						
+
 			if( (read32(Offset-8) & 0xFFFF) == 0xCC00 )	// Loader
 			{
 				Offset -= 8;
@@ -1239,7 +1273,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				if( ((read32( (u32)Buffer + i + 4 ) & 0xFC1FFFFF ) == 0x800300CC) && ((read32( (u32)Buffer + i + 8 ) >> 24) == 0x54 ) )
 				{
 					#ifdef DEBUG_PATCH
-					dbgprintf( "Patch:[VIConfgiure] 0x%08X\r\n", (u32)(Buffer+i) );
+					dbgprintf( "Patch:[VIConfigure] 0x%08X\r\n", (u32)(Buffer+i) );
 					#endif
 					write32( (u32)Buffer + i + 4, 0x5400F0BE | ((read32( (u32)Buffer + i + 4 ) & 0x3E00000) >> 5	) );
 					PatchCount |= 16;
@@ -1391,81 +1425,116 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 #endif
 		if( (PatchCount & 128) == 0  )
 		{
-			u32 k=0;
-			for( j=0; j <= GXNtsc480Int; ++j )	// Don't replace the Prog struct
+			/* might be a bit overkill but should detect most video mode in memory */
+			while((read32((u32)Buffer+i) & 0xFFFFFF00) == 0 && (read32((u32)Buffer+i+4) & 0xFF000000) == 0x02000000
+				&& (read32((u32)Buffer+i+12) & 0xFF00FF00) == 0x00000200 && read32((u32)Buffer+i+24) == 0x00000606
+				&& read32((u32)Buffer+i+32) == 0x06060606 && read32((u32)Buffer+i+44) == 0x06060606)
 			{
-				if( memcmp( Buffer+i, GXMObjects[j], 0x3C ) == 0 )
+				if( ConfigGetConfig(NIN_CFG_FORCE_PROG) )
 				{
-					#ifdef DEBUG_PATCH
-					dbgprintf("Patch:Found GX pattern %u at %08X\r\n", j, (u32)Buffer+i );
-					#endif
-					if( ConfigGetConfig(NIN_CFG_FORCE_PROG) )
+					switch(read32((u32)Buffer+i))
 					{
-						switch( ConfigGetVideoMode() & NIN_VID_FORCE_MASK )
-						{
-							case NIN_VID_FORCE_NTSC:
-							{
-								memcpy( Buffer+i, GXMObjects[GXNtsc480Prog], 0x3C );
-							} break;
-							case NIN_VID_FORCE_PAL50:
-							{
-								memcpy( Buffer+i, GXMObjects[GXPal528Prog], 0x3C );
-							} break;
-							case NIN_VID_FORCE_PAL60:
-							{
-								memcpy( Buffer+i, GXMObjects[GXEurgb60Hz480Prog], 0x3C );
-							} break;
-						}
-
-					} else {
-
-						if( ConfigGetVideoMode() & NIN_VID_FORCE )
-						{
-							switch( ConfigGetVideoMode() & NIN_VID_FORCE_MASK )
-							{
-								case NIN_VID_FORCE_NTSC:
-								{
-									memcpy( Buffer+i, GXMObjects[GXNtsc480IntDf], 0x3C );
-								} break;
-								case NIN_VID_FORCE_PAL50:
-								{
-									memcpy( Buffer+i, GXMObjects[GXPal528IntDf], 0x3C );
-								} break;
-								case NIN_VID_FORCE_PAL60:
-								{
-									memcpy( Buffer+i, GXMObjects[GXEurgb60Hz480IntDf], 0x3C );
-								} break;
-								case NIN_VID_FORCE_MPAL:
-								{
-									memcpy( Buffer+i, GXMObjects[GXMpal480IntDf], 0x3C );
-								} break;
-							}
-						
-						} else {
-
-							switch( Region )
-							{
-								default:
-								case 1:
-								case 0:
-								{
-									memcpy( Buffer+i, GXMObjects[GXNtsc480IntDf], 0x3C );
-								} break;
-								case 2:
-								{
-									memcpy( Buffer+i, GXMObjects[GXEurgb60Hz480IntDf], 0x3C );
-								} break;
-							}
-						}
+						case 0x00: //NTSC
+							printvidpatch(VI_NTSC, VI_480P, (u32)Buffer+i);
+							write32( (u32)Buffer+i, 0x02 );
+							write32( (u32)Buffer+i+0x14, 0); //mode sf
+							memcpy( Buffer+i+0x30, GXProgAt30, sizeof(GXProgAt30) );
+							break;
+						case 0x04: //PAL50
+							printvidpatch(VI_PAL, VI_480P, (u32)Buffer+i);
+							write32( (u32)Buffer+i, 0x02 );
+							//write32( (u32)Buffer+i, 0x06 );
+							write32( (u32)Buffer+i+0x14, 0); //mode sf
+							memcpy( Buffer+i+0x30, GXProgAt30, sizeof(GXProgAt30) );
+							//memcpy(Buffer+i, GXNtsc480Prog, sizeof(GXNtsc480Prog));
+							break;
+						case 0x08: //MPAL
+						case 0x14: //PAL60
+							printvidpatch(VI_EUR60, VI_480P, (u32)Buffer+i);
+							write32( (u32)Buffer+i, 0x02 );
+							//write32( (u32)Buffer+i, 0x16 );
+							write32( (u32)Buffer+i+0x14, 0); //mode sf
+							memcpy( Buffer+i+0x30, GXProgAt30, sizeof(GXProgAt30) );
+							break;
+						default:
+							break;
 					}
-					k++;
 				}
+				else
+				{
+					u8 NinForceMode = ConfigGetVideoMode() & NIN_VID_FORCE_MASK;
+					switch(read32((u32)Buffer+i))
+					{
+						case 0x00: //NTSC
+							if(NinForceMode == NIN_VID_FORCE_NTSC)
+								break;
+							if(NinForceMode == NIN_VID_FORCE_MPAL)
+							{
+								printvidpatch(VI_NTSC, VI_MPAL, (u32)Buffer+i);
+								write32( (u32)Buffer+i, 0x08 );
+							}
+							else //PAL60
+							{
+								printvidpatch(VI_NTSC, VI_EUR60, (u32)Buffer+i);
+								write32( (u32)Buffer+i, 0x14 );
+							}
+							write32( (u32)Buffer+i+0x14, 1); //mode df
+							memcpy( Buffer+i+0x30, GXIntDfAt30, sizeof(GXIntDfAt30) );
+							break;
+						case 0x08: //MPAL
+							if(NinForceMode == NIN_VID_FORCE_MPAL)
+								break;
+							if(NinForceMode == NIN_VID_FORCE_NTSC)
+							{
+								printvidpatch(VI_MPAL, VI_NTSC, (u32)Buffer+i);
+								write32( (u32)Buffer+i, 0x00 );
+							}
+							else //PAL60
+							{
+								printvidpatch(VI_MPAL, VI_EUR60, (u32)Buffer+i);
+								write32( (u32)Buffer+i, 0x14 );
+							}
+							write32( (u32)Buffer+i+0x14, 1); //mode df
+							memcpy( Buffer+i+0x30, GXIntDfAt30, sizeof(GXIntDfAt30) );
+						case 0x04: //PAL50
+							if(NinForceMode == NIN_VID_FORCE_PAL50 || NinForceMode == NIN_VID_FORCE_PAL60)
+								break;
+							if(NinForceMode == NIN_VID_FORCE_MPAL)
+							{
+								printvidpatch(VI_PAL, VI_MPAL, (u32)Buffer+i);
+								write32( (u32)Buffer+i, 0x08 );
+							}
+							else //NTSC
+							{
+								printvidpatch(VI_PAL, VI_NTSC, (u32)Buffer+i);
+								write32( (u32)Buffer+i, 0x00 );
+							}
+							memcpy( Buffer+i+0x04, GXIntDfAt04, sizeof(GXIntDfAt04) ); //terrible workaround I know
+							write32( (u32)Buffer+i+0x14, 1); //mode df
+							memcpy( Buffer+i+0x30, GXIntDfAt30, sizeof(GXIntDfAt30) );
+							break;
+						case 0x14: //PAL60
+							if(NinForceMode == NIN_VID_FORCE_PAL50 || NinForceMode == NIN_VID_FORCE_PAL60)
+								break;
+							if(NinForceMode == NIN_VID_FORCE_MPAL)
+							{
+								printvidpatch(VI_EUR60, VI_MPAL, (u32)Buffer+i);
+								write32( (u32)Buffer+i, 0x08 );
+							}
+							else //NTSC
+							{
+								printvidpatch(VI_EUR60, VI_NTSC, (u32)Buffer+i);
+								write32( (u32)Buffer+i, 0x00 );
+							}
+							write32( (u32)Buffer+i+0x14, 1); //mode df
+							memcpy( Buffer+i+0x30, GXIntDfAt30, sizeof(GXIntDfAt30) );
+							break;
+						default:
+							break;
+					}
+				}
+				i+=0x3C;
 			}
-
-			if( k > 4 )
-			{
-				PatchCount |= 128;
-			}	
 		}
 
 		if( (PatchCount & 256) == 0 )	//DVDLowStopMotor
@@ -1888,15 +1957,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					} break;
 					case FCODE___CARDStat_A:	// CARD timeout
 					{
-						write32( FOffset+0x124, 0x60000000 );	
-						write32( FOffset+0x18C, 0x60000000 );	
+						write32( FOffset+0x124, 0x60000000 );
+						write32( FOffset+0x18C, 0x60000000 );
 
 					} break;
 					case FCODE___CARDStat_B:	// CARD timeout
 					{
-						write32( FOffset+0x118, 0x60000000 );	
-						write32( FOffset+0x180, 0x60000000 );	
-
+						write32( FOffset+0x118, 0x60000000 );
+						write32( FOffset+0x180, 0x60000000 );
+					} break;
+					case FCODE___CARDStat_C:	// CARD timeout
+					{
+						write32( FOffset+0x124, 0x60000000 );
+						write32( FOffset+0x194, 0x60000000 );
+						write32( FOffset+0x1FC, 0x60000000 );
 					} break;
 					case FCODE_ARStartDMA:	//	ARStartDMA
 					{
@@ -2076,13 +2150,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#endif
 							break;
 						}
-
-						POffset -= sizeof(SIIntrruptHandler);
-						memcpy((void*)(POffset), SIIntrruptHandler, sizeof(SIIntrruptHandler));
-
-						write32(POffset, read32((FOffset + PatchOffset)));
-
-						PatchBL( POffset, (FOffset + PatchOffset) );						
+						PatchBL( SIIntrruptHandlerAddr, (FOffset + PatchOffset) );
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:Applied **IntrruptHandler patch 0x%X (PatchOffset=0x%X) \r\n", FOffset, PatchOffset);
 						#endif
@@ -2222,6 +2290,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#endif
 						}
 					} break;
+					case FCODE_PI_FIFO_WP_F:	//	PI_FIFO_WP F
+					{
+						//e.g. Pokemon XD
+						if (write32A(FOffset + 0x78, 0x540400C2, 0x54040188, 0))
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Patched [PI_FIFO_WP F] 0x%08X\r\n", FOffset + 0x78);
+							#endif
+						}
+					} break;
 					case FCODE_RADTimerRead:
 					{
 						u32 res = 0;
@@ -2307,7 +2385,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
 						{
 							if (   (TITLE_ID) != 0x474D53  // Super Mario Sunshine
-								&& (TITLE_ID) != 0x474C4D  // Luigis Mansion 
+								&& (TITLE_ID) != 0x474C4D  // Luigis Mansion
 								&& (TITLE_ID) != 0x474346  // Pokemon Colosseum
 								&& (TITLE_ID) != 0x475049  // Pikmin
 								&& (TITLE_ID) != 0x474146  // Animal Crossing
@@ -2395,7 +2473,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		#endif
 	}*/
 
-	if(write64A(0x00141C00, DBL_0_7716, DBL_1_1574))
+	if(write64A(0x001463E0, DBL_0_7716, DBL_1_1574))
+	{
+		#ifdef DEBUG_PATCH
+		dbgprintf("Patch:Patched Majoras Mask NTSC-J\r\n");
+		#endif
+	}
+	else if(write64A(0x00141C00, DBL_0_7716, DBL_1_1574))
 	{
 		#ifdef DEBUG_PATCH
 		dbgprintf("Patch:Patched Majoras Mask NTSC-U\r\n");
