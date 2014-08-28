@@ -21,9 +21,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .set	AI_MEM_BASE,	0xD3026560
 
 AIInitDMA:
-	lis		%r4,	0xCC00
-	oris	%r0,	%r30,	0x8000
+	rlwinm	%r0,	%r30,	0,		7,		26 # 0x01ffffe0
+	oris	%r0,	%r0,	0x8000
+
 	lis		%r5,	AI_MEM_BASE@h
 	stwu	%r0,	AI_MEM_BASE@l(%r5)
 	stw		%r31,	4(%r5)
+
+	lis		%r4,	0xCC00
 	blr

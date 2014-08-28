@@ -118,7 +118,16 @@ void EXIInit( void )
 	sram->FlashIDChecksum[0] = 0xFF;
 
 	sram->DisplayOffsetH = 0;
-	sram->BootMode	&= ~0x40;	// Clear PAL60
+	switch(ConfigGetGameID() & 0xFF)
+	{
+		case 'E':
+		case 'J':
+			sram->BootMode	&= ~0x40;	// Clear PAL60
+			break;
+		default:
+			sram->BootMode	|= 0x40;	// Set PAL60
+			break;
+	}
 	sram->Flags		&= ~3;		// Clear Videomode
 	sram->Flags		&= ~0x80;	// Clear Progmode
 
@@ -167,7 +176,6 @@ void EXIInit( void )
 				*(vu32*)0xCC = 1;
 			}
 			sram->Flags		|= 1;
-			sram->BootMode	|= 0x40;
 
 		} break;
 	}

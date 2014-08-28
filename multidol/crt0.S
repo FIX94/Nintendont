@@ -7,13 +7,17 @@
 _start:
 
 	# Setup stack.
-	lis 1,__stack_top@ha ; addi 1,1,__stack_top@l ; li 0,0 ; stwu 0,-64(1)
+	lis %sp, __stack_top@ha ; addi %sp,%sp,__stack_top@l ; li %r0,0 ; stwu %r0,-0x40(%sp)
 
 	# Clear BSS.
-	lis 3,__bss_start@ha ; addi 3,3,__bss_start@l
-	li 4,0
-	lis 5,__bss_end@ha ; addi 5,5,__bss_end@l ; sub 5,5,3
+	lis %r3,__bss_start@ha ; addi %r3,%r3,__bss_start@l
+	li %r4,0
+	lis %r5,__bss_end@ha ; addi %r5,%r5,__bss_end@l ; sub %r5,%r5,%r3
 	bl _memset
 
 	# Go!
 	bl _main
+
+	#goto entrypoint
+	mtlr %r3
+	blr

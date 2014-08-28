@@ -38,17 +38,26 @@ ARQPostRequest:
 	cmpwi	%r9,	0
 	beq		callback
 
-	lis		%r4,	0x0FFF
-	ori		%r4,	%r4,	0xFFFF
-
 	cmpwi	%r5,	1
-	beq		ARAM_TO_MRAM
+	bne		MRAM_TO_ARAM
+
+ARAM_TO_MRAM:
+	rlwinm	%r7,	%r7,	0,		8,		26 # 0x00ffffe0
+	oris	%r7,	%r7,	0x9000
+
+	rlwinm	%r8,	%r8,	0,		7,		26 # 0x01ffffe0
+	oris	%r8,	%r8,	0x8000
+
+	b		DCInvalidateRange
 
 MRAM_TO_ARAM:
-	and		%r8,	%r8,	%r4
-	oris	%r8,	%r8,	0x9000	# mem2
+	rlwinm	%r7,	%r7,	0,		7,		26 # 0x01ffffe0
+	oris	%r7,	%r7,	0x8000
 
-#DCInvalidateRange
+	rlwinm	%r8,	%r8,	0,		8,		26 # 0x00ffffe0
+	oris	%r8,	%r8,	0x9000
+
+DCInvalidateRange:
 	srwi	%r4,	%r9,	5
 	mtctr	%r4
 	mr		%r4,	%r7
@@ -59,7 +68,7 @@ DCInvalidateRangeA:
 	addi	%r4,	%r4,	0x20
 	bdnz	DCInvalidateRangeA
 
-memcpy_pre:	
+memcpy_pre:
 	mr		%r4,	%r9		# save length
 
 	lwz		%r0,	0(%r7)
@@ -101,20 +110,3 @@ end:
 	addi	%sp,	%sp,	0x10
 
 	blr
-
-ARAM_TO_MRAM:
-	and		%r7,	%r7,	%r4
-	oris	%r7,	%r7,	0x9000	# mem2
-
-#DCFlushRange
-	srwi	%r4,	%r9,	5
-	mtctr	%r4
-	mr		%r4,	%r7
-
-	li		%r0,	0
-DCFlushRangeB:
-	dcbf	%r0,	%r4
-	addi	%r4,	%r4,	0x20
-	bdnz	DCFlushRangeB
-
-	b	memcpy_pre

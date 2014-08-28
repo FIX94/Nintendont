@@ -21,29 +21,29 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "string.h"
 #include "adp.h"
 #include "DI.h"
-
-bool StreamEnd = false;
+extern int dbgprintf( const char *fmt, ...);
+u32 StreamEnd = 0;
 u32 StreamEndOffset = 0;
 s32 StreamSize = 0;
 u32 StreamStart = 0;
 u32 StreamCurrent = 0;
 
-u8 *StreamBuffer = (u8*)0x132AA000;
+u8 *StreamBuffer = (u8*)0x132A0000;
 
-#define BUFSIZE 0x15000
-#define CHUNK_48 0x6000
-#define CHUNK_48to32 0x9000
+#define BUFSIZE 0xC400
+#define CHUNK_48 0x3800
+#define CHUNK_48to32 0x5400
 u32 cur_chunksize = 0;
 
-u32 buf1 = 0x13280000;
-u32 buf2 = 0x13295000;
+const u32 buf1 = 0x13280000;
+const u32 buf2 = 0x1328C400;
 u32 cur_buf = 0;
 u32 buf_loc = 0;
 
 s16 outl[SAMPLES_PER_BLOCK], outr[SAMPLES_PER_BLOCK];
 long hist[4];
 
-u8 samplecounter = 0;
+u32 samplecounter = 0;
 s16 samplebufferL = 0, samplebufferR = 0;
 PCMWriter CurrentWriter;
 void StreamInit()
@@ -62,9 +62,6 @@ void StreamInit()
 void StreamPrepare(bool resample)
 {
 	memset32(hist, 0, sizeof(hist));
-	cur_buf = buf1;
-	buf_loc = 0;
-
 	if(resample)
 	{
 		//dbgprintf("Using 48kHz ADP -> 32kHz PCM Decoder\n");
@@ -82,7 +79,7 @@ void StreamPrepare(bool resample)
 	}
 }
 
-static inline void write16INC(u32 buf, u32 *loc, u16 val)
+static inline void write16INC(u32 buf, u32 *loc, s16 val)
 {
 	write16(buf+(*loc), val);
 	*loc += 2;
@@ -99,6 +96,7 @@ static inline void CombineSamples(const u32 j, s16 *bufl, s16 *bufr)
 }
 void StreamUpdate()
 {
+	buf_loc = 0;
 	u32 i;
 	for(i = 0; i < cur_chunksize; i += ONE_BLOCK_SIZE)
 	{
@@ -107,7 +105,6 @@ void StreamUpdate()
 	}
 	sync_after_write((void*)cur_buf, BUFSIZE);
 	cur_buf = (cur_buf == buf1) ? buf2 : buf1;
-	buf_loc = 0;
 }
 
 void WritePCM48to32()
@@ -166,7 +163,7 @@ void StreamUpdateRegisters()
 	{
 		if(StreamEnd)
 		{
-			StreamEnd = false;
+			StreamEnd = 0;
 			StreamCurrent = 0;
 			write32(STREAM_BASE, 0); //clear status
 			write32(REAL_STREAMING, 0); //stop playing
@@ -177,7 +174,7 @@ void StreamUpdateRegisters()
 		{
 			write32(STREAM_BASE, 0); //clear status
 			sync_after_write( (void*)STREAM_BASE, 0x20 );
-			IOS_Ioctl(DI_Handle, 0, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
 			StreamCurrent += StreamGetChunkSize();
 			write32(STREAM_CURRENT, StreamCurrent);
 			if(StreamCurrent >= StreamEndOffset) //terrible loop but it works
@@ -192,7 +189,7 @@ void StreamUpdateRegisters()
 					StreamPrepare(true);
 				}
 				else
-					StreamEnd = true;
+					StreamEnd = 1;
 			}
 			StreamUpdate();
 		}
@@ -213,21 +210,22 @@ void StreamUpdateRegisters()
 			StreamCurrent = StreamStart;
 			StreamEndOffset = StreamStart + StreamSize;
 			StreamPrepare(true); //TODO: find a game which doesnt need resampling
-			IOS_Ioctl(DI_Handle, 0, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
 			StreamCurrent += StreamGetChunkSize();
-			write32(STREAM_CURRENT, StreamCurrent);
+			cur_buf = buf1; //reset adp buffer
 			StreamUpdate();
+			/* Directly read in the second buffer */
+			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+			StreamCurrent += StreamGetChunkSize();
+			StreamUpdate();
+			/* Send stream signal to PPC */
+			write32(STREAM_CURRENT, StreamCurrent);
 			write32(AI_ADP_LOC, 0); //reset adp read pos
 			sync_after_write( (void*)AI_ADP_LOC, 0x20 );
 			write32(REAL_STREAMING, 1); //set stream flag
 			sync_after_write( (void*)STREAM_BASE, 0x20 );
 			//dbgprintf("Streaming %08x %08x\n", StreamStart, StreamSize);
-			StreamEnd = false;
-			/* Directly read in the second buffer */
-			IOS_Ioctl(DI_Handle, 0, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
-			StreamCurrent += StreamGetChunkSize();
-			write32(STREAM_CURRENT, StreamCurrent);
-			StreamUpdate();
+			StreamEnd = 0;
 		}
 	}
 	else if(read32(FAKE_STREAMING) == 0 && StreamCurrent > 0)		//stop stream

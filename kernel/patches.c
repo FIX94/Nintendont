@@ -92,9 +92,11 @@ enum
 	FCODE_PI_FIFO_WP_C,
 	FCODE_PI_FIFO_WP_D,
 	FCODE_PI_FIFO_WP_E,
+	FCODE_PI_FIFO_WP_F,
 	FCODE_EXIDMA,
 	FCODE___CARDStat_A,
 	FCODE___CARDStat_B,
+	FCODE___CARDStat_C,
 	FCODE_RADTimerRead,
 	FCODE___OSResetSWInterruptHandler,
 	FCODE_OSGetResetButtonState,
@@ -116,6 +118,7 @@ enum
 	FGROUP_DVDLowAudioStream,
 	FGROUP___fwrite,
 	FGROUP_PADRead,
+	FGROUP_PADControlAllMotors,
 	FGROUP_PADControlMotor,
 	FGROUP_TCIntrruptHandler,
 	FGROUP_EXIntrruptHandler,
@@ -215,7 +218,9 @@ FuncPattern FPatterns[] =
 	{   0xB4,   11,     5,     5,     3,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor A",			FGROUP_PADControlMotor,		0 },
 	{   0xA0,   10,     5,     5,     2,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor B",			FGROUP_PADControlMotor,		0 },
 	{   0xB8,   14,     5,     4,     2,     7,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor C",			FGROUP_PADControlMotor,		0 },
-	//{   0xB4,    8,     2,     5,     4,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),	"PADControlMotor_PKM",			FGROUP_PADControlMotor,		0 },
+
+	{   0xB4,    8,     2,     5,     4,     5,	(u8*)PADControlAllMotors,sizeof(PADControlAllMotors),	"PADControlAllMotors A",		FGROUP_PADControlAllMotors,	0 },
+	{   0xC8,    9,     2,     5,     5,     5,	(u8*)PADControlAllMotors,sizeof(PADControlAllMotors),	"PADControlAllMotors B",		FGROUP_PADControlAllMotors,	0 },
 
 	{   0x14,    1,     0,     0,     2,     0,	(u8*)PADIsBarrel,		sizeof(PADIsBarrel),			"PADIsBarrel",					FGROUP_NONE,				0 },
 
@@ -243,6 +248,7 @@ FuncPattern FPatterns[] =
 	{   0x94,   14,     7,     0,     2,     4,	(u8*)NULL,				FCODE_PI_FIFO_WP_C,				"PI_FIFO_WP C",					FGROUP_NONE,				0 },
 	{   0xC4,   19,    10,     2,     3,     5,	(u8*)NULL,				FCODE_PI_FIFO_WP_D,				"PI_FIFO_WP D",					FGROUP_NONE,				0 },
 	{   0xC0,   21,     7,     6,     2,     3,	(u8*)NULL,				FCODE_PI_FIFO_WP_E,				"PI_FIFO_WP E",					FGROUP_NONE,				0 },
+	{   0x98,   15,     8,     2,     1,     3,	(u8*)NULL,				FCODE_PI_FIFO_WP_F,				"PI_FIFO_WP F",					FGROUP_NONE,				0 },
 
 	{   0xF0,   17,     7,     5,     5,     7,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
 	{   0xF0,   18,     7,     5,     5,     6,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
@@ -284,6 +290,7 @@ FuncPattern FPatterns[] =
 	{   0xA8,   17,     5,     4,     3,     5,	__CARDReadStatus+8,		8,								"__CARDClearStatus",			FGROUP_NONE,				0 },
 	{  0x1B0,   32,     6,     8,    13,    14,	(u8*)NULL,				FCODE___CARDStat_A,				"__CARDStat A",					FGROUP_NONE,				0 },
 	{  0x19C,   38,     8,     6,    13,    14,	(u8*)NULL,				FCODE___CARDStat_B,				"__CARDStat B",					FGROUP_NONE,				0 },
+	{  0x220,   37,     6,     9,    15,    25,	(u8*)NULL,				FCODE___CARDStat_C,				"__CARDStat C",					FGROUP_NONE,				0 },
 //	{  0x130,   33,     8,     6,     5,     2,	__CARDReadSegment,		sizeof(__CARDReadSegment),		"__CARDReadSegment",			FGROUP_NONE,				0 },
 //	{   0x60,    7,     6,     1,     1,     3,	__CARDRead,				sizeof(__CARDRead),				"__CARDRead",					FGROUP_NONE,				0 },
 //	{   0xDC,   17,     9,     4,     3,     2,	__CARDEraseSector,		sizeof(__CARDEraseSector),		"__CARDEraseSector",			FGROUP_NONE,				0 },

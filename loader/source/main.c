@@ -586,7 +586,7 @@ int main(int argc, char **argv)
 				gprintf("PAL60\r\n");
 
 				if(progressive)
-					vmode = &TVEurgb60Hz480Prog;
+					vmode = &TVNtsc480Prog;
 				else
 					vmode = &TVEurgb60Hz480IntDf;
 
@@ -594,7 +594,7 @@ int main(int argc, char **argv)
 				gprintf("MPAL\r\n");
 
 				if(progressive)
-					vmode = &TVEurgb60Hz480Prog;
+					vmode = &TVNtsc480Prog;
 				else
 					vmode = &TVMpal480IntDf;
 			} else {

@@ -9,6 +9,7 @@
 #define VI_DEBUG			3
 #define VI_DEBUG_PAL		4
 #define VI_EUR60			5
+#define VI_480P				6
 
 #define GXPal528IntDf		0
 #define GXEurgb60Hz480IntDf	1

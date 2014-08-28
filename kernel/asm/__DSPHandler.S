@@ -35,6 +35,7 @@ __DSPHandler:
 	lwz		%r3,	REAL_STREAMING@l(%r12)
 	cmpwi	%r3,	0
 	bne		startcp
+	cmpwi	%r0,	0
 	blr
 
 startcp:
@@ -53,12 +54,12 @@ startcp:
 	lwz		%r8,	AI_MEM_SIZE@l(%r12)
 
 	lwz		%r4,	AI_ADP_LOC@l(%r12)
-	li		%r3,	0x1500
-	slwi	%r3,	%r3,	4		#BUFSIZE=0x15000
+	li		%r3,	0xC40
+	slwi	%r3,	%r3,	4		#BUFSIZE=0xC400
 	cmplw	%r4,	%r3
 	blt		buf1
 buf2:
-	slwi	%r3,	%r3,	1		#MAXBUF=0x2A000
+	slwi	%r3,	%r3,	1		#MAXBUF=0x7000
 buf1:
 	lis		%r6,	AI_ADP_BUF@h
 
@@ -71,15 +72,6 @@ DCInvalidateRange1:
 	dcbi	%r0,	%r5
 	addi	%r5,	%r5,	0x20
 	bdnz	DCInvalidateRange1
-
-	srwi	%r7,	%r8,	5
-	mtctr	%r7
-	mr		%r5,	%r9
-	li		%r0,	0
-DCInvalidateRange2:
-	dcbi	%r0,	%r5
-	addi	%r5,	%r5,	0x20
-	bdnz	DCInvalidateRange2
 
 	li		%r5,	0
 startcopy:
@@ -154,10 +146,23 @@ changebuffer:
 	lis		%r7,	STREAM_BASE@h
 	li		%r0,	1
 	stw		%r0,	STREAM_BASE@l(%r7)
-	li		%r0,	0x1500
-	slwi	%r0,	%r0,	4		#BUFSIZE=0x15000
+	li		%r0,	0xC40
+	slwi	%r0,	%r0,	4		#BUFSIZE=0xC400
 	cmplw	%r4,	%r0
 	beq		copy2
+	cmplw	%r5,	%r8
+	beq		resetbuffer				#no need to invalidate if we are done anyways
+#invalidate buffer one
+	sub		%r7,	%r8,	%r5
+	srwi	%r7,	%r7,	5
+	mtctr	%r7
+	mr		%r7,	%r6
+	li		%r0,	0
+DCInvalidateRange3:
+	dcbi	%r0,	%r7
+	addi	%r7,	%r7,	0x20
+	bdnz	DCInvalidateRange3
+resetbuffer:
 	li		%r4,	0
 	b		copy2
 

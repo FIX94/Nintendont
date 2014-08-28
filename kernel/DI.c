@@ -645,9 +645,11 @@ u32 DIReadThread(void *arg)
 
 					memcpy( di_dest + Offset, di_src, Length > di_length ? di_length : Length );
 				}
-				DoPatches(di_dest, di_length, di_offset);
-				sync_after_write( di_dest, di_length );
-
+				if(di_msg->ioctl.command == 0)
+				{
+					DoPatches(di_dest, di_length, di_offset);
+					sync_after_write( di_dest, di_length );
+				}
 				mqueue_ack( di_msg, 0 );
 				break;
 

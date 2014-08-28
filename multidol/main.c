@@ -15,17 +15,8 @@
 #include "global.h"
 #include "apploader.h"
 
-u32 entrypoint = 0;
-void _main(void)
+u32 _main()
 {
 	RAMInit();
-	entrypoint = Apploader_Run();
-
-	asm volatile (
-		"lis %r3, entrypoint@h\n"
-		"ori %r3, %r3, entrypoint@l\n"
-		"lwz %r3, 0(%r3)\n"
-		"mtlr %r3\n"
-		"blr\n"
-	);
+	return Apploader_Run();
 }
