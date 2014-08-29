@@ -406,10 +406,19 @@ retry:
 		dbgprintf("ES:HIDIRQRead:IOS_Ioctl():%d\r\n", ret );
 		Shutdown();
 	}
-	if(HID_CTRL->MultiIn && Packet[0] != HID_CTRL->MultiInValue)
+	switch( HID_CTRL->MultiIn )
 	{
-		//udelay(500);
-		goto retry;
+		default:
+		case 0:	// MultiIn disabled
+			break;
+		case 1:	// match single controller
+			if (Packet[0] != HID_CTRL->MultiInValue)
+				goto retry;
+			break;
+		case 2: // multiple controllers fron a single adapter
+			if ((Packet[0] < HID_CTRL->MultiInValue) || (Packet[0] > NIN_CFG_MAXPAD))
+				goto retry;
+			break;
 	}
 	memcpy(HID_Packet, Packet, wMaxPacketSize);
 	sync_after_write(HID_Packet, wMaxPacketSize);
