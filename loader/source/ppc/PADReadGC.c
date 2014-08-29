@@ -158,6 +158,13 @@ u32 _start()
 		HIDPad = MaxPads;
 	for (chan = HIDPad; (chan < HID_PAD_NONE) && !Shutdown; chan = HID_PAD_NONE) // Run once for now
 	{
+		if (HID_CTRL->MultiIn == 2)		//multiple controllers connected to a single usb port
+		{
+			chan = chan + HID_Packet[0] - 1;	// the controller number is in the first byte 
+			if (chan >= NIN_CFG_MAXPAD)		//if would be higher than the maxnumber of controllers
+				continue;	//toss it and try next usb port
+		}
+		
 		if(HID_CTRL->Power.Mask &&	//shutdown if power configured and all power buttons pressed
 		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
 		{
@@ -263,6 +270,14 @@ u32 _start()
 			else
 				substickX	= 0;
 			substickY	= 127 - ((HID_Packet[HID_CTRL->CStickY.Offset] - 128) * 4);	//raw 88 89...9E 9F A0 A1 ... BA BB (up...center...down)
+		}
+		else
+		if ((HID_CTRL->VID == 0x045E) && (HID_CTRL->PID == 0x001B))	//Microsoft Sidewinder Force Feedback 2 Joystick
+		{
+			stickX		= ((HID_Packet[HID_CTRL->StickX.Offset] & 0xFC) >> 2) | ((HID_Packet[2] & 0x03) << 6);			//raw 80 81...FF 00 ... 7E 7F (left...center...right)
+			stickY		= -1 - (((HID_Packet[HID_CTRL->StickY.Offset] & 0xFC) >> 2) | ((HID_Packet[4] & 0x03) << 6));	//raw 80 81...FF 00 ... 7E 7F (up...center...down)
+			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] * 4;			//raw E0 E1...FF 00 ... 1E 1F (left...center...right)
+			substickY	= 127 - (HID_Packet[HID_CTRL->CStickY.Offset] * 2);	//raw 00 01...3F 40 ... 7E 7F (up...center...down)
 		}
 		else
 		if ((HID_CTRL->VID == 0x044F) && (HID_CTRL->PID == 0xB315))	//Thrustmaster Dual Analog 4
