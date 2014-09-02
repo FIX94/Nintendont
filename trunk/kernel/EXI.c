@@ -68,7 +68,12 @@ void EXIInit( void )
 		u32 GameID = ConfigGetGameID();
 		memset32(MemCardName, 0, 0x20);
 		if ( ConfigGetConfig(NIN_CFG_MC_MULTI) )
-			memcpy(MemCardName, "ninmem.raw", 10);
+		{
+			if ((GameID & 0xFF) == 'J')  // JPN games
+				memcpy(MemCardName, "ninmemj.raw", 11);
+			else
+				memcpy(MemCardName, "ninmem.raw", 10);
+		}
 		else
 		{
 			memcpy(MemCardName, &GameID, 4);

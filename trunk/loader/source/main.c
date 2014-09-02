@@ -191,7 +191,8 @@ int main(int argc, char **argv)
 			ncfg->MemCardBlocks = 0x2;//251 blocks
 			ncfg->Version = 3;
 		}
-		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD && ncfg->MaxPads > 0)
+		if((ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD)
+			&& (ncfg->MaxPads > 0 || (ncfg->Config & NIN_CFG_HID)))
 		{
 			if(ncfg->Config & NIN_CFG_AUTO_BOOT)
 			{	//do NOT remove, this can be used to see if nintendont knows args
@@ -336,10 +337,15 @@ int main(int argc, char **argv)
 		char BasePath[20];
 		sprintf(BasePath, "%s:/saves", GetRootDevice());
 		mkdir(BasePath, S_IREAD | S_IWRITE);
-		char MemCardName[7];
-		memset(MemCardName, 0, 7);
+		char MemCardName[8];
+		memset(MemCardName, 0, 8);
 		if ( ncfg->Config & NIN_CFG_MC_MULTI )
-			memcpy(MemCardName, "ninmem", 6);
+		{
+			if ((ncfg->GameID & 0xFF) == 'J')  // JPN games
+				memcpy(MemCardName, "ninmemj", 7);
+			else
+				memcpy(MemCardName, "ninmem", 6);
+		}
 		else
 			memcpy(MemCardName, &(ncfg->GameID), 4);
 		char MemCard[30];

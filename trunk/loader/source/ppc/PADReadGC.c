@@ -76,7 +76,7 @@ u32 _start()
 			else
 				PADBarrelPress[0+curchan] = 0;
 
-			if(Pad[chan].button & (PAD_BUTTON_X | PAD_BUTTON_A)) //left
+			if(Pad[chan].button & (PAD_BUTTON_X | PAD_BUTTON_A)) //right
 			{
 				if(PADBarrelPress[1+curchan] == 5)
 					Pad[chan].button &= ~(PAD_BUTTON_X | PAD_BUTTON_A);
