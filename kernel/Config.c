@@ -33,7 +33,7 @@ void ConfigInit( void )
 
 	if( IsWiiU )
 	{
-		ncfg->Config |= NIN_CFG_HID;
+		//ncfg->Config |= NIN_CFG_HID;
 		ncfg->MaxPads = 0;
 	}
 

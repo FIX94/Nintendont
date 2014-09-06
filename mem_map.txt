@@ -15,11 +15,15 @@ MEM2
 
 0x93000000-0x93001000=padread gc bin
 0x93001000-0x93002700=old padread hid bin
-0x93002700=padread hid channel
+0x93002700=padread hid motor
+0x93002704=padread game setting
+0x93002720-0x93002730=padread bt motor
+0x93002730-0x93002740=padread bt channel free
 0x93002800-0x93002830=PadBuff
 
 0x93002830-0x93002890=pad barrel stuff
-
+0x93002894=clear mem pos
+0x93002898=clear mem size
 0x930028a0-0x930028c0=ARStartDMA Debug str
 
 0x93002900-0x93002B20=nincfg

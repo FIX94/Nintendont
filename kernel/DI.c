@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "Patch.h"
 #include "FST.h"
-
+#include "BT.h"
 #include "asm/multidol_ldr.h"
 
 #ifndef DEBUG_DI
@@ -548,6 +548,7 @@ void DIUpdateRegisters( void )
 				case 0xF9:
 				{
 					CacheInit(FSTBuf, false);
+					BTInit();
 					DIOK = 1;
 				} break;
 			}
@@ -683,6 +684,10 @@ struct _TGCInfo
 	u32 isTGC;
 };
 static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x13002FE0;
+
+#define PATCH_STATE_PATCH 2
+extern u32 PatchState, DOLSize, DOLMinOff, DOLMaxOff;
+
 bool DICheckTGC(u32 Buffer, u32 Length)
 {
 	if(*(vu32*)di_dest == 0xAE0F38A2) //TGC Magic
@@ -699,11 +704,23 @@ bool DICheckTGC(u32 Buffer, u32 Length)
 		return true;
 	}
 	else if(di_offset == 0x2440)
-	{	//multidol, just clear tgc data structure for it to load the original
-		dbgprintf("Game is resetting to original loader\n");
-		memset32((void*)TGCInfo, 0, sizeof(struct _TGCInfo));
-		sync_after_write((void*)TGCInfo, sizeof(struct _TGCInfo));
-		return true;
+	{
+		u16 company = (read32(0x4) >> 16);
+		if(company == 0x3431 || company == 0x3730)
+		{	//we can patch the loader in this case, that works for some reason
+			dbgprintf("Game is resetting to original loader, using original\n");
+			PatchState = PATCH_STATE_PATCH;
+			DOLSize = Length;
+			DOLMinOff = Buffer;
+			DOLMaxOff = DOLMinOff + Length;
+		}
+		else
+		{	//multidol, just clear tgc data structure for it to load the original
+			dbgprintf("Game is resetting to original loader, using multidol\n");
+			memset32((void*)TGCInfo, 0, sizeof(struct _TGCInfo));
+			sync_after_write((void*)TGCInfo, sizeof(struct _TGCInfo));
+			return true;
+		}
 	}
 	else
 		dbgprintf("Game is loading another DOL\n");

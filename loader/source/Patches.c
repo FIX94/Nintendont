@@ -162,16 +162,16 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
 						break;
-					} else if( (ophdr->p_vaddr) == 0x2010D000 && (phdr->p_vaddr) == 0x20100000 )
+					} else if( (ophdr->p_vaddr) == 0x2010D000 && (phdr->p_vaddr) == 0x20F20000 )
 					{
 #ifdef DEBUG_MODULE_PATCH
 						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
 #endif
 						ophdr->p_vaddr = phdr->p_vaddr;
 						ophdr->p_paddr = phdr->p_paddr;
-						
-						ophdr->p_filesz = phdr->p_filesz;
-						ophdr->p_memsz  = phdr->p_filesz;
+						// is not set correctly because of BSS, meaning the VMA isnt set up to the actually used point
+						ophdr->p_filesz = 0x60000;
+						ophdr->p_memsz  = 0x60000;
 
 						ophdr->p_offset = ( size - loadersize );
 						size += (phdr->p_filesz);

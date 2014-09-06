@@ -11,5 +11,5 @@ OUTPUT_ARCH(powerpc:common)
 ENTRY(_start)
 
 SECTIONS {
-	. = 0xD3000000;
+	. = 0x93000000;
 }

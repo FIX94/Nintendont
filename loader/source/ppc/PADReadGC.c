@@ -4,62 +4,79 @@
 #include "hidmem.h"
 #define PAD_CHAN0_BIT				0x80000000
 
-static u32 chan, MaxPads;
-static vu32 PADButtonsStick, PADTriggerCStick;
 static u32 stubsize = 0x1800;
-static vu32 *stubdest = (u32*)0xC1330000;
-static vu32 *stubsrc = (u32*)0xD3011810;
+static vu32 *stubdest = (u32*)0x81330000;
+static vu32 *stubsrc = (u32*)0x93011810;
 static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* const _siReg = (u32*)0xCD006400;
 static vu32* const MotorCommand = (u32*)0xD3003010;
 static vu32* reset = (u32*)0xC0002F54;
-static vu32* HIDPad = (u32*)0xD3002700;
+static vu32* HIDMotor = (u32*)0x93002700;
+static vu32* PadUsed = (u32*)0x93002704;
+
 static vu32* PADIsBarrel = (u32*)0xD3002830;
 static vu32* PADBarrelEnabled = (u32*)0xD3002840;
 static vu32* PADBarrelPress = (u32*)0xD3002850;
+
+struct BTPadCont *BTPad = (struct BTPadCont*)0x932F0000;
+static vu32* BTMotor = (u32*)0x93002720;
+static vu32* BTPadFree = (u32*)0x93002730;
+static vu32* PadSetting = (u32*)0x93002740;
+
 const s8 DEADZONE = 0x1A;
 #define HID_PAD_NONE	4
 #define HID_PAD_NOT_SET	0xFF
+
+#define C_NOT_SET 0
+#define C_CCP 1
+#define C_CC 2
+
 u32 _start()
 {
 	// Registers r1,r13-r31 automatically restored if used.
 	// Registers r0, r3-r12 should be handled by calling function
 	// Register r2 not changed
-	u8 Shutdown = 0;
-	u32 Rumble = 0;
+	u32 Rumble = 0, memInvalidate, memFlush;
+	*PadUsed = 0;
+
+	memInvalidate = (u32)PadSetting;
+	asm volatile("dcbi 0,%0; sync; isync" : : "b"(memInvalidate) : "memory");
+
 	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
-	MaxPads = ((NIN_CFG*)0xD3002900)->MaxPads;
+	u32 MaxPads = ((NIN_CFG*)0xD3002900)->MaxPads;
 	if (MaxPads > NIN_CFG_MAXPAD)
 		MaxPads = NIN_CFG_MAXPAD;
-	u8 HIDPad = ((((NIN_CFG*)0xD3002900)->Config) & NIN_CFG_HID) == 0 ? HID_PAD_NONE : HID_PAD_NOT_SET;
-	for (chan = 0; (chan < MaxPads) && !Shutdown; ++chan)
+
+	if(*PadSetting == 2 && MaxPads > 1) //some games only accept one controller
+		MaxPads = 1;
+
+	u32 HIDPad = ((((NIN_CFG*)0xD3002900)->Config) & NIN_CFG_HID) == 0 ? HID_PAD_NONE : HID_PAD_NOT_SET;
+	u32 chan;
+	for (chan = 0; (chan < MaxPads); ++chan)
 	{
 		/* transfer the actual data */
-		u32 x;
+		u32 x, PADButtonsStick, PADTriggerCStick;
 		u32 addr = 0xCD006400 + (0x0c * chan);
 		asm volatile("lwz %0,0(%1) ; sync" : "=r"(x) : "b"(addr));
 		//we just needed the first read to clear the status
-		asm volatile("lwz %0,4(%1) ; sync" : "=r"(x) : "b"(addr));
-		PADButtonsStick = x;
-		asm volatile("lwz %0,8(%1) ; sync" : "=r"(x) : "b"(addr));
-		PADTriggerCStick = x;
+		asm volatile("lwz %0,4(%1) ; sync" : "=r"(PADButtonsStick) : "b"(addr));
+		asm volatile("lwz %0,8(%1) ; sync" : "=r"(PADTriggerCStick) : "b"(addr));
 		/* convert data to PADStatus */
 		Pad[chan].button = ((PADButtonsStick>>16)&0xFFFF);
 		if(Pad[chan].button & 0x8000) /* controller not enabled */
 		{
 			PADBarrelEnabled[chan] = 1; //if wavebird disconnects it cant reconnect
-			u32 psize = sizeof(PADStatus);
+			u32 psize = sizeof(PADStatus)-1; //dont set error twice
 			u8 *CurPad = (u8*)(&Pad[chan]);
 			while(psize--) *CurPad++ = 0;
 			if(HIDPad == HID_PAD_NOT_SET)
 			{
+				*HIDMotor = (MotorCommand[chan]&0x3);
 				HIDPad = chan;
-				continue;
 			}
-			Pad[chan].err = -1;
 			continue;
 		}
-		Pad[chan].err = 0;
+		*PadUsed |= (1<<chan);
 
 		/* save IsBarrel status */
 		PADIsBarrel[chan] = ((Pad[chan].button & 0x80) == 0) && PADBarrelEnabled[chan];
@@ -135,8 +152,7 @@ u32 _start()
 		/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
 		if((Pad[chan].button&0x234) == 0x234)
 		{
-			Shutdown = 1;
-			break;
+			goto Shutdown;
 		}
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
@@ -156,7 +172,7 @@ u32 _start()
 
 	if (HIDPad == HID_PAD_NOT_SET)
 		HIDPad = MaxPads;
-	for (chan = HIDPad; (chan < HID_PAD_NONE) && !Shutdown; chan = HID_PAD_NONE) // Run once for now
+	for (chan = HIDPad; (chan < HID_PAD_NONE); chan = HID_PAD_NONE) // Run once for now
 	{
 		if (HID_CTRL->MultiIn == 2)		//multiple controllers connected to a single usb port
 		{
@@ -164,14 +180,16 @@ u32 _start()
 			if (chan >= NIN_CFG_MAXPAD)		//if would be higher than the maxnumber of controllers
 				continue;	//toss it and try next usb port
 		}
-		
+		memInvalidate = (u32)HID_Packet;
+		asm volatile("dcbi 0,%0; sync; isync" : : "b"(memInvalidate) : "memory");
+
 		if(HID_CTRL->Power.Mask &&	//shutdown if power configured and all power buttons pressed
 		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
 		{
-			Shutdown = 1;
-			break;
+			goto Shutdown;
 		}
-		Pad[chan].err = 0;
+		*PadUsed |= (1<<chan);
+
 		Rumble |= ((1<<31)>>chan);
 		/* first buttons */
 		u16 button = 0;
@@ -385,29 +403,167 @@ u32 _start()
 		}
 	}
 
-	if (Shutdown)
+	if(MaxPads == 0) //wiiu
+		MaxPads = (*PadSetting == 2) ? 1 : 4;
+
+	for(chan = 0; chan < MaxPads; ++chan)
 	{
-		/* stop audio dma */
-		_dspReg[27] = (_dspReg[27]&~0x8000);
-		/* reset status 1 */
-		*reset = 0x1DEA;
-		while(*reset == 0x1DEA) ;
-		/* load in stub */
-		u32 a = (u32)stubdest;
-		u32 end = (u32)(stubdest + stubsize);
-		for ( ; a < end; a += 32)
+		if(*PadUsed & (1<<chan))
 		{
-			u8 b;
-			for(b = 0; b < 4; ++b)
-				*stubdest++ = *stubsrc++;
-			__asm("dcbi 0,%0 ; sync ; icbi 0,%0" : : "b"(a));
+			BTPadFree[chan] = 0;
+			continue;
 		}
-		__asm(
-			"sync ; isync\n"
-			"lis %r3, 0x8133\n"
-			"mtlr %r3\n"
-			"blr\n"
-		);
+		BTPadFree[chan] = 1;
+
+		memInvalidate = (u32)&BTPad[chan];
+		asm volatile("dcbi 0,%0; sync ; isync" : : "b"(memInvalidate) : "memory");
+
+		if(BTPad[chan].used == C_NOT_SET)
+			continue;
+
+		*PadUsed |= (1<<chan);
+
+		Rumble |= ((1<<31)>>chan);
+		BTMotor[chan] = (MotorCommand[chan]&0x3) == 1;
+
+		s8 tmp_stick = 0;
+		if(BTPad[chan].xAxisL > 0x7F)
+			tmp_stick = 0x7F;
+		else if(BTPad[chan].xAxisL < -0x80)
+			tmp_stick = -0x80;
+		else
+			tmp_stick = BTPad[chan].xAxisL;
+		Pad[chan].stickX = tmp_stick;
+
+		if(BTPad[chan].xAxisR > 0x7F)
+			tmp_stick = 0x7F;
+		else if(BTPad[chan].xAxisR < -0x80)
+			tmp_stick = -0x80;
+		else
+			tmp_stick = BTPad[chan].xAxisR;
+		Pad[chan].substickX = tmp_stick;
+
+		if(BTPad[chan].yAxisL > 0x7F)
+			tmp_stick = 0x7F;
+		else if(BTPad[chan].yAxisL < -0x80)
+			tmp_stick = -0x80;
+		else
+			tmp_stick = BTPad[chan].yAxisL;
+		Pad[chan].stickY = tmp_stick;
+
+		if(BTPad[chan].yAxisR > 0x7F)
+			tmp_stick = 0x7F;
+		else if(BTPad[chan].yAxisR < -0x80)
+			tmp_stick = -0x80;
+		else
+			tmp_stick = BTPad[chan].yAxisR;
+		Pad[chan].substickY = tmp_stick;
+
+		u16 button = 0;
+		if(BTPad[chan].button & 0x0001)
+			button |= PAD_BUTTON_UP;
+		if(BTPad[chan].button & 0x0002)
+			button |= PAD_BUTTON_LEFT;
+
+		if(BTPad[chan].used == C_CC)
+		{
+			Pad[chan].triggerLeft = BTPad[chan].triggerL;
+			if(BTPad[chan].button & 0x2000)
+				button |= PAD_TRIGGER_L;
+
+			Pad[chan].triggerRight = BTPad[chan].triggerR;
+			if(BTPad[chan].button & 0x0200)
+				button |= PAD_TRIGGER_R;
+
+			if(BTPad[chan].button & 0x0004)
+				button |= PAD_TRIGGER_Z;
+		}
+		else
+		{
+			if(BTPad[chan].button & 0x0080)
+			{
+				button |= PAD_TRIGGER_L;
+				Pad[chan].triggerLeft = 0xFF;
+			}
+			else
+				Pad[chan].triggerLeft = 0;
+
+			if(BTPad[chan].button & 0x0004)
+			{
+				button |= PAD_TRIGGER_R;
+				Pad[chan].triggerRight = 0xFF;
+			}
+			else
+				Pad[chan].triggerRight = 0;
+
+			if(BTPad[chan].button & 0x0200)
+				button |= PAD_TRIGGER_Z;
+		}
+
+		if(BTPad[chan].button & 0x0008)
+			button |= PAD_BUTTON_X;
+		if(BTPad[chan].button & 0x0010)
+			button |= PAD_BUTTON_A;
+		if(BTPad[chan].button & 0x0020)
+			button |= PAD_BUTTON_Y;
+		if(BTPad[chan].button & 0x0040)
+			button |= PAD_BUTTON_B;
+
+		if(BTPad[chan].button & 0x0400)
+			button |= PAD_BUTTON_START;
+
+		if(BTPad[chan].button & 0x0800)
+			goto Shutdown;
+
+		if(BTPad[chan].button & 0x4000)
+			button |= PAD_BUTTON_DOWN;
+		if(BTPad[chan].button & 0x8000)
+			button |= PAD_BUTTON_RIGHT;
+
+		Pad[chan].button = button;
+
+		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+		{
+			/* reset status 3 */
+			*reset = 0x3DEA;
+		}
+		else /* for held status */
+			*reset = 0;
 	}
+	//some games need all pads without errors to work
+	for(chan = 0; chan < MaxPads; ++chan)
+		Pad[chan].err = (*PadUsed & (1<<chan)) ? 0 : ((*PadSetting == 1) ? 0 : -1);
+
+	memFlush = (u32)HIDMotor;
+	asm volatile("dcbf 0,%0; sync; isync" : : "b"(memFlush) : "memory");
+	memFlush = (u32)BTMotor;
+	asm volatile("dcbf 0,%0; sync; isync" : : "b"(memFlush) : "memory");
+
 	return Rumble;
+
+Shutdown:
+	/* stop audio dma */
+	_dspReg[27] = (_dspReg[27]&~0x8000);
+	/* reset status 1 */
+	*reset = 0x1DEA;
+	while(*reset == 0x1DEA) ;
+	/* load in stub */
+	memFlush = (u32)stubdest;
+	u32 end = memFlush + stubsize;
+	for ( ; memFlush < end; memFlush += 32)
+	{
+		memInvalidate = (u32)stubsrc;
+		asm volatile("dcbi 0,%0; sync; isync" : : "b"(memInvalidate) : "memory");
+		u8 b;
+		for(b = 0; b < 8; ++b)
+			*stubdest++ = *stubsrc++;
+		asm volatile("dcbst 0,%0; sync ; icbi 0,%0; isync" : : "b"(memFlush));
+	}
+	asm volatile(
+		"sync; isync\n"
+		"lis %r3, 0x8133\n"
+		"mtlr %r3\n"
+		"blr\n"
+	);
+	return 0;
 }
