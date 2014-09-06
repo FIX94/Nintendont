@@ -23,6 +23,7 @@ else
 	CFLAGS	+= -UNINTENDONT_USB
 	BINFILE = ../loader/data/kernel.bin
 endif
+OBJECTS	+= lwbt/bte.o lwbt/btmemb.o lwbt/btmemr.o lwbt/btpbuf.o lwbt/hci.o lwbt/l2cap.o lwbt/physbusif.o BT.o
 
 .PHONY: FORCE
 
@@ -58,4 +59,4 @@ $(TARGET) : kernel.ld $(OBJECTS)
 -include $(OBJECTS:.o=.d)
 
 clean:
-	-rm -f *.elf *.o *.bin *.d *.map
+	-rm -f *.elf *.o *.bin *.d *.map lwbt/*.d lwbt/*.o

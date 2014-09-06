@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "DI.h"
 #include "ES.h"
 #include "SI.h"
+#include "BT.h"
+#include "lwbt/bte.h"
 #include "Stream.h"
 #include "HID.h"
 #include "EXI.h"
@@ -61,8 +63,14 @@ extern bool DI_IRQ, EXI_IRQ;
 extern s32 DI_Handle;
 extern struct ipcmessage DI_CallbackMsg;
 
+extern char __bss_start, __bss_end;
 int _main( int argc, char *argv[] )
 {
+	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
+	dbgprintf("memset32(%08x, 0, %08x)\n", &__bss_start, &__bss_end - &__bss_start);
+	memset32(&__bss_start, 0, &__bss_end - &__bss_start);
+	sync_after_write(&__bss_start, &__bss_end - &__bss_start);
+
 	s32 ret = 0;
 	u32 HID_Thread = 0, DI_Thread = 0;
 	
@@ -306,6 +314,7 @@ int _main( int argc, char *argv[] )
 		GCAMUpdateRegisters();
 		SIUpdateRegisters();
 		StreamUpdateRegisters();
+		BTUpdateRegisters();
 		CheckOSReport();
 		if(EXICheckCard())
 		{
@@ -351,6 +360,7 @@ int _main( int argc, char *argv[] )
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
 		{
 			DIFinishAsync();
+			BTE_Shutdown();
 			Shutdown();
 		}
 		//sync_before_read( (void*)0x1860, 0x20 );
@@ -402,6 +412,8 @@ int _main( int argc, char *argv[] )
 
 	if (ConfigGetConfig(NIN_CFG_LOG))
 		closeLog();
+
+	BTE_Shutdown();
 
 //unmount FAT device
 	f_mount(0, NULL);

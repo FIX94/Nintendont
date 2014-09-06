@@ -58,26 +58,51 @@ void W16(u32 Address, u16 Data)
 void W32(u32 Address, u32 Data)
 {
 	if( Address & 3 )
-	{		
-		u32 valA = read32( Address & (~3) );
-		u32 valB = read32( (Address+3) & (~3) );
-
-		u32 Off = Address & 3;
-	
-		valA = valA & (0xFFFFFFFF<<((4-Off)*8));
-		valB = valB & (0xFFFFFFFF>>(Off*8));
-	
-		valA |= Data >> (Off*8) ;
-		valB |= Data << ((4-Off)*8) ;
-		
-		write32( Address & (~3), valA );
-	//	dbgprintf("[%08X] %08X\r\n", Address & (~3), valA );
-		write32( (Address+3) & (~3), valB );
-	//	dbgprintf("[%08X] %08X\r\n", (Address+3) & (~3), valB );
-
-	} else {
+	{
+		//dbgprintf("[%08X] %08X\r\n",Address,Data);
+		u32 valA = read32(Address & (~3));
+		u32 valB = read32((Address + 3) & (~3));
+		//dbgprintf("[%08X] %08X\r\n", Address & (~3), valA );
+		//dbgprintf("[%08X] %08X\r\n", (Address+3) & (~3), valB );
+		if((Address & 3) == 1)
+		{
+			valA &= 0xFF000000;
+			valA |= Data>>8;
+			write32(Address & (~3), valA);
+			valB &= 0x00FFFFFF;
+			valB |= (Data&0xFF)<<24;
+			write32((Address + 3) & (~3), valB);
+		}
+		else if((Address & 3) == 2)
+		{
+			valA &= 0xFFFF0000;
+			valA |= Data>>16;
+			write32(Address & (~3), valA);
+			valB &= 0x0000FFFF;
+			valB |= (Data&0xFFFF)<<16;
+			write32((Address + 3) & (~3), valB);
+		}
+		else
+		{
+			valA &= 0xFFFFFF00;
+			valA |= Data>>24;
+			write32(Address & (~3), valA);
+			valB &= 0x000000FF;
+			valB |= (Data&0xFFFFFF)<<8;
+			write32((Address + 3) & (~3), valB);
+		}
+		//dbgprintf("[%08X] %08X\r\n", Address & (~3), valA );
+		//dbgprintf("[%08X] %08X\r\n", (Address+3) & (~3), valB );
+	}
+	else
+	{
 		write32( Address, Data );
 	}
+}
+
+u16 R16(u32 Address)
+{
+	return R32(Address) >> 16;
 }
 
 u32 R32(u32 Address)
@@ -86,15 +111,12 @@ u32 R32(u32 Address)
 	{
 		u32 valA = read32(Address & (~3));
 		u32 valB = read32((Address + 3) & (~3));
-		
-		u32 Off = Address & 3;
-		
-		valA = valA << ((4 - Off) * 8);
-		valB = valB >> (Off * 8);
-		
-		return valA | valB;
-	} 
-	
+		if((Address & 3) == 1)
+			return ((valA&0xFFFFFF)<<8) | (valB>>24);
+		else if((Address & 3) == 2)
+			return ((valA&0xFFFF)<<16) | (valB>>16);
+		return ((valA&0xFF)<<24) | (valB>>8);
+	}
 	return read32(Address);
 }
 

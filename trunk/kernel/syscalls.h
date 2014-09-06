@@ -59,6 +59,7 @@ s32 IOS_Seek( u32 fd, u32 where, u32 whence );
 s32 IOS_Ioctl(s32 fd, s32 request, void *buffer_in, s32 length_in, void *buffer_io, s32 length_io);
 s32 IOS_Ioctlv(s32 fd, s32 request, s32 InCount, s32 OutCont, void *vec);
 s32 IOS_IoctlAsync(s32 fd, s32 request, void *buffer_in, s32 length_in, void *buffer_io, s32 length_io, int queue, struct ipcmessage *message);
+s32 IOS_IoctlvAsync(s32 fd, s32 request, s32 InCount, s32 OutCont, void *vec, int id, void *message);
 
 #define mqueue_ack(a, b) syscall_2a(a, b)
 void syscall_2a(struct ipcmessage *message, int retval);

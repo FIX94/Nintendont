@@ -381,6 +381,10 @@ int main(int argc, char **argv)
 
 	WPAD_Shutdown();
 
+	//for BT.c
+	CONF_GetPadDevices((conf_pads*)0x932C0000);
+	DCFlushRange((void*)0x932C0000, sizeof(conf_pads));
+
 	DCInvalidateRange( (void*)0x939F02F0, 0x20 );
 
 	memcpy( (void*)0x939F02F0, Boot2Patch, sizeof(Boot2Patch) );
@@ -661,7 +665,7 @@ int main(int argc, char **argv)
 
 	DCInvalidateRange((void*)0x93000000, 0x3000);
 	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
-	memset((void*)0x93002700, 0, 4); //set HID controller to 0
+	memset((void*)0x93002700, 0, 0x80); //set controller structs to 0
 	memset((void*)0x93002830, 0, 0x80); // clear PADIsBarrel
 	//strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
 	DCFlushRange((void*)0x93000000, 0x3000);

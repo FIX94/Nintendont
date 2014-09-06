@@ -9,6 +9,7 @@ FakeInterrupt:
 #check if IPC IRQ
 	lwz		%r31,	0x3000(%r3)
 	andi.	%r31,	%r31,	0xBFFF
+	bne		end
 
 	lis		%r8,	0xCD00
 	li		%r3,	0x34
