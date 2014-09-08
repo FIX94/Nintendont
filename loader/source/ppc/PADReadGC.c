@@ -23,6 +23,11 @@ static vu32* BTMotor = (u32*)0x93002720;
 static vu32* BTPadFree = (u32*)0x93002730;
 static vu32* PadSetting = (u32*)0x93002740;
 
+static u32 PrevAdapterChannel1 = 0;
+static u32 PrevAdapterChannel2 = 0;
+static u32 PrevAdapterChannel3 = 0;
+static u32 PrevAdapterChannel4 = 0;
+
 const s8 DEADZONE = 0x1A;
 #define HID_PAD_NONE	4
 #define HID_PAD_NOT_SET	0xFF
@@ -176,9 +181,14 @@ u32 _start()
 	{
 		if (HID_CTRL->MultiIn == 2)		//multiple controllers connected to a single usb port
 		{
+			*PadUsed |= (1<<(PrevAdapterChannel1 + chan)) | (1<<(PrevAdapterChannel2 + chan)) | (1<<(PrevAdapterChannel3 + chan))| (1<<(PrevAdapterChannel4 + chan));	//depending on adapter it may only send every 4th time
 			chan = chan + HID_Packet[0] - 1;	// the controller number is in the first byte 
 			if (chan >= NIN_CFG_MAXPAD)		//if would be higher than the maxnumber of controllers
 				continue;	//toss it and try next usb port
+			PrevAdapterChannel1 = PrevAdapterChannel2;
+			PrevAdapterChannel2 = PrevAdapterChannel3;
+			PrevAdapterChannel3 = PrevAdapterChannel4;
+			PrevAdapterChannel4 = HID_Packet[0] - 1;
 		}
 		memInvalidate = (u32)HID_Packet;
 		asm volatile("dcbi 0,%0; sync; isync" : : "b"(memInvalidate) : "memory");
@@ -522,6 +532,11 @@ u32 _start()
 
 		Pad[chan].button = button;
 
+		/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
+		if((Pad[chan].button&0x234) == 0x234)
+		{
+			goto Shutdown;
+		}
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
