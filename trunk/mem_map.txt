@@ -19,6 +19,7 @@ MEM2
 0x93002704=padread game setting
 0x93002720-0x93002730=padread bt motor
 0x93002730-0x93002740=padread bt channel free
+0x93002740-0x93002743=PadSetting
 0x93002800-0x93002830=PadBuff
 
 0x93002830-0x93002890=pad barrel stuff
