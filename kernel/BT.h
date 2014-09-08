@@ -30,6 +30,7 @@ struct BTPadStat {
 	u32 transferstate;
 	u32 channel;
 	u32 rumble;
+	u32 rumbletime;
 	struct bte_pcb *sock;
 	struct bd_addr bdaddr;
 } ALIGNED(32);

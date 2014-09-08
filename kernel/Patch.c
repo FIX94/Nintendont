@@ -2538,15 +2538,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchB( 0x00006950, 0x003191BC );
 		}*/
 	}
-
-	if(TITLE_ID == 0x475437 || TITLE_ID == 0x474345) //splinter cell games always needs one pad enabled to work
-		write32(0x13002740, 2);
-	else if(TITLE_ID == 0x474234) //Burnout 2 always needs all pads enabled to work
-		write32(0x13002740, 1);
-	else
-		write32(0x13002740, 0);
-	sync_after_write((void*)0x13002740, 0x20);
-
 	/*else if( ((GAME_ID & 0xFFFFFF00) == 0x47414C00) || GAME_ID == 0x474C4D45 ) //Melee or NTSC Luigis Mansion
 	{
 		#ifdef DEBUG_PATCH

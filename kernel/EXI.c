@@ -199,14 +199,15 @@ void EXIInterrupt(void)
 {
 	write32( 0x10, IRQ_Cause );
 	write32( 0x18, IRQ_Cause2 );
-	write32( 0x14, 0x10 );		// EXI IRQ
+	write32( 0x13026508, 0x10 );		// EXI IRQ
 	sync_after_write( (void*)0, 0x20 );
+	sync_after_write( (void*)0x13026500, 0x20 );
 
-	while(read32(0x14) == 0x10)
+	while(read32(0x13026508) == 0x10)
 	{
 		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 		wait_for_ppc(1);
-		sync_before_read( (void*)0, 0x20 );
+		sync_before_read( (void*)0x13026500, 0x20 );
 	}
 
 	EXI_IRQ = false;

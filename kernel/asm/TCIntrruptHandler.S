@@ -1,6 +1,6 @@
 #include <asm.h>
 
-.set FAKE_EXI_INT,	0xC0000014
+.set FAKE_EXI_INT,	0xD3026508
 
 TCIntrruptHandler:
 

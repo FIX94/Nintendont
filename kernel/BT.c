@@ -71,10 +71,10 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		if(chan == CHAN_NOT_SET)
 			return ERR_OK;
 		BTPad[chan].used = C_CCP;
-		BTPad[chan].xAxisL = (swab16(R16((u32)(((u8*)buffer)+1)))>>3)-256;
-		BTPad[chan].xAxisR = (swab16(R16((u32)(((u8*)buffer)+3)))>>3)-256;
-		BTPad[chan].yAxisL = (swab16(R16((u32)(((u8*)buffer)+5)))>>3)-256;
-		BTPad[chan].yAxisR = (swab16(R16((u32)(((u8*)buffer)+7)))>>3)-256;
+		BTPad[chan].xAxisL = ((swab16(R16((u32)(((u8*)buffer)+1)))-0x840)*7)>>6;
+		BTPad[chan].xAxisR = ((swab16(R16((u32)(((u8*)buffer)+3)))-0x820)*7)>>6;
+		BTPad[chan].yAxisL = ((swab16(R16((u32)(((u8*)buffer)+5)))-0x800)*7)>>6;
+		BTPad[chan].yAxisR = ((swab16(R16((u32)(((u8*)buffer)+7)))-0x7E0)*7)>>6;
 		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+9)));
 		sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
 	}
@@ -413,6 +413,24 @@ void BTUpdateRegisters(void)
 				}
 			}
 		}
+		if(CurRumble == 0)
+		{
+			if(LastRumble == 1)
+			{
+				if((read32(HW_TIMER) - BTPadConnected[i]->rumbletime) > 94922)
+					BTPadConnected[i]->rumbletime = 0;
+				else //extend to at least 1/20th of a second
+					CurRumble = 1;
+			}
+		}
+		else if(CurRumble == 1)
+		{
+			if(LastRumble != 1)
+				BTPadConnected[i]->rumbletime = read32(HW_TIMER);
+		}
+		else if(CurRumble == 2) //direct stop
+			CurRumble = 0;
+
 		if(LastChan != CurChan || LastRumble != CurRumble)
 		{
 			if(CurChan == CHAN_NOT_SET || ((LastChan != CHAN_NOT_SET) && CurChan < LastChan))

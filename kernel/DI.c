@@ -705,8 +705,9 @@ bool DICheckTGC(u32 Buffer, u32 Length)
 	}
 	else if(di_offset == 0x2440)
 	{
+		u32 gameid = (read32(0) >> 8);
 		u16 company = (read32(0x4) >> 16);
-		if(company == 0x3431 || company == 0x3730)
+		if(company == 0x3431 || company == 0x3730 || gameid == 0x474143 || gameid == 0x47434C)
 		{	//we can patch the loader in this case, that works for some reason
 			dbgprintf("Game is resetting to original loader, using original\n");
 			PatchState = PATCH_STATE_PATCH;
