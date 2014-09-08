@@ -67,7 +67,7 @@ extern char __bss_start, __bss_end;
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
-	dbgprintf("memset32(%08x, 0, %08x)\n", &__bss_start, &__bss_end - &__bss_start);
+	//dbgprintf("memset32(%08x, 0, %08x)\n", &__bss_start, &__bss_end - &__bss_start);
 	memset32(&__bss_start, 0, &__bss_end - &__bss_start);
 	sync_after_write(&__bss_start, &__bss_end - &__bss_start);
 
@@ -250,11 +250,11 @@ int _main( int argc, char *argv[] )
 		_ahbMemFlush(0);
 
 		//Check this.  Purpose is to send another interrupt if wasn't processed
-		if (((read32(0x14) != 0) || (read32(0x13026514) != 0))
+		/*if (((read32(0x14) != 0) || (read32(0x13026514) != 0))
 			&& (read32(HW_ARMIRQFLAG) & (1 << 30)) == 0)
 		{
 			write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
-		}
+		}*/
 		if (EXI_IRQ == true)
 		{
 			if(EXICheckTimer())

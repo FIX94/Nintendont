@@ -21,7 +21,6 @@ static vu32* PADBarrelPress = (u32*)0xD3002850;
 struct BTPadCont *BTPad = (struct BTPadCont*)0x932F0000;
 static vu32* BTMotor = (u32*)0x93002720;
 static vu32* BTPadFree = (u32*)0x93002730;
-static vu32* PadSetting = (u32*)0x93002740;
 
 static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
@@ -42,18 +41,12 @@ u32 _start()
 	// Registers r0, r3-r12 should be handled by calling function
 	// Register r2 not changed
 	u32 Rumble = 0, memInvalidate, memFlush;
-	*PadUsed = 0;
-
-	memInvalidate = (u32)PadSetting;
-	asm volatile("dcbi 0,%0; sync; isync" : : "b"(memInvalidate) : "memory");
+	u32 used = 0;
 
 	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
 	u32 MaxPads = ((NIN_CFG*)0xD3002900)->MaxPads;
 	if (MaxPads > NIN_CFG_MAXPAD)
 		MaxPads = NIN_CFG_MAXPAD;
-
-	if(*PadSetting == 2 && MaxPads > 1) //some games only accept one controller
-		MaxPads = 1;
 
 	u32 HIDPad = ((((NIN_CFG*)0xD3002900)->Config) & NIN_CFG_HID) == 0 ? HID_PAD_NONE : HID_PAD_NOT_SET;
 	u32 chan;
@@ -81,7 +74,7 @@ u32 _start()
 			}
 			continue;
 		}
-		*PadUsed |= (1<<chan);
+		used |= (1<<chan);
 
 		/* save IsBarrel status */
 		PADIsBarrel[chan] = ((Pad[chan].button & 0x80) == 0) && PADBarrelEnabled[chan];
@@ -198,7 +191,7 @@ u32 _start()
 		{
 			goto Shutdown;
 		}
-		*PadUsed |= (1<<chan);
+		used |= (1<<chan);
 
 		Rumble |= ((1<<31)>>chan);
 		/* first buttons */
@@ -414,11 +407,11 @@ u32 _start()
 	}
 
 	if(MaxPads == 0) //wiiu
-		MaxPads = (*PadSetting == 2) ? 1 : 4;
+		MaxPads = 4;
 
 	for(chan = 0; chan < MaxPads; ++chan)
 	{
-		if(*PadUsed & (1<<chan))
+		if(used & (1<<chan))
 		{
 			BTPadFree[chan] = 0;
 			continue;
@@ -431,10 +424,10 @@ u32 _start()
 		if(BTPad[chan].used == C_NOT_SET)
 			continue;
 
-		*PadUsed |= (1<<chan);
+		used |= (1<<chan);
 
 		Rumble |= ((1<<31)>>chan);
-		BTMotor[chan] = (MotorCommand[chan]&0x3) == 1;
+		BTMotor[chan] = MotorCommand[chan]&0x3;
 
 		s8 tmp_stick = 0;
 		if(BTPad[chan].xAxisL > 0x7F)
@@ -547,7 +540,9 @@ u32 _start()
 	}
 	//some games need all pads without errors to work
 	for(chan = 0; chan < MaxPads; ++chan)
-		Pad[chan].err = (*PadUsed & (1<<chan)) ? 0 : ((*PadSetting == 1) ? 0 : -1);
+		Pad[chan].err = (used & (1<<chan)) ? 0 : -1;
+
+	*PadUsed = used;
 
 	memFlush = (u32)HIDMotor;
 	asm volatile("dcbf 0,%0; sync; isync" : : "b"(memFlush) : "memory");

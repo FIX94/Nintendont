@@ -21,6 +21,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "debug.h"
 #include "string.h"
 
+#define SI_GC_CONTROLLER 0x09000000
+#define SI_ERROR_NO_RESPONSE 0x08
+
 u32 SI_IRQ = 0;
 bool complete = true;
 u32 cur_control = 0;
@@ -82,7 +85,7 @@ void SIUpdateRegisters()
 		//cur_control &= ~(1 << 29); //we normally always have some communication error?
 		u32 chan = (cur_control >> 1) & 0x3;
 		u32 ChanBuff = PAD_BUFF + (chan * 0xC);
-		bool PadGood = read32(ChanBuff + 8) == 0;
+		bool PadGood = !!(read32(0x13002704) & (1<<chan));
 		if (chan >= ConfigGetMaxPads())
 			PadGood = false;
 		switch ((read32(SI_IO_BUF) >> 24) & 0xFF)
@@ -90,7 +93,7 @@ void SIUpdateRegisters()
 			case 0x00: // Get Type
 				{
 					//dbgprintf("SI GetType\r\n");
-					write32(SI_IO_BUF, PadGood ? 0x09000000 : 0x08);//0x80
+					write32(SI_IO_BUF, PadGood ? SI_GC_CONTROLLER : SI_ERROR_NO_RESPONSE);
 					sync_after_write((void*)SI_IO_BUF, 4);
 				} break;
 			case 0x40: // Direct Cmd
