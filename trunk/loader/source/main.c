@@ -191,8 +191,7 @@ int main(int argc, char **argv)
 			ncfg->MemCardBlocks = 0x2;//251 blocks
 			ncfg->Version = 3;
 		}
-		if((ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD)
-			&& (ncfg->MaxPads > 0 || (ncfg->Config & NIN_CFG_HID)))
+		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD)
 		{
 			if(ncfg->Config & NIN_CFG_AUTO_BOOT)
 			{	//do NOT remove, this can be used to see if nintendont knows args
@@ -490,10 +489,16 @@ int main(int argc, char **argv)
 		}
 		if(STATUS_LOADING > 8 && STATUS_LOADING < 20)
 		{
-			if (ncfg->Config & NIN_CFG_HID)
-				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Done!");
+			if ((ncfg->MaxPads == 1) && (ncfg->Config & NIN_CFG_HID))
+				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube and HID Ports");
+			else if ((ncfg->MaxPads > 0) && (ncfg->Config & NIN_CFG_HID))
+				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube, HID and BT Port");//message at max length dont fix typo
+			else if (ncfg->MaxPads > 0)
+				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube and BT Ports");
+			else if (ncfg->Config & NIN_CFG_HID)
+				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using HID and Bluetooth Ports");
 			else
-				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube Ports... Done!");
+				PrintFormat(MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Bluetooth Ports... Done!");
 		}
 		if(STATUS_LOADING == -8)
 		{

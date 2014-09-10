@@ -313,9 +313,6 @@ bool LoadNinCFG()
 	if (ncfg->MaxPads > NIN_CFG_MAXPAD)
 		ConfigLoaded = false;
 
-	if ((ncfg->MaxPads == 0) && !(ncfg->Config & NIN_CFG_HID))
-		ConfigLoaded = false;
-
 	if (ncfg->MaxPads < 0)
 		ConfigLoaded = false;
 

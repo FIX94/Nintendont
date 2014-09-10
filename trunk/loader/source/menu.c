@@ -159,6 +159,8 @@ void SelectGame( void )
 				}
 			}
 		}
+		if (gamecount >= MAX_GAMES)	//if array is full
+			break;
 	}
 
 	if( gamecount == 0 )
@@ -180,6 +182,22 @@ void SelectGame( void )
 	if( ListMax > 14 )
 		ListMax = 14;
 	bool SaveSettings = false;
+
+//	set default game to game that currently set in configuration
+	for (i = 0; i < gamecount; ++i)
+	{
+		if (strcasecmp(strchr(gi[i].Path,':')+1, ncfg->GamePath) == 0)
+		{
+			if( i >= ListMax )
+			{
+				PosX	= ListMax - 1;
+				ScrollX = i - ListMax + 1;
+			} else {
+				PosX = i;
+			}
+			break;
+		}
+	}
 
 	while(1)
 	{
@@ -220,7 +238,6 @@ void SelectGame( void )
 			}
 
 			redraw = 1;
-			SaveSettings = true;
 
 			ClearScreen();
 		}
@@ -246,6 +263,7 @@ void SelectGame( void )
 				}
 			
 				redraw=1;
+				SaveSettings = true;
 			} else if( FPAD_Up(0) || FPAD_Left(0) )
 			{
 				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
@@ -263,6 +281,7 @@ void SelectGame( void )
 				}
 
 				redraw=1;
+				SaveSettings = true;
 			}
 
 			if( FPAD_OK(0) )
@@ -320,6 +339,7 @@ void SelectGame( void )
 
 			if( FPAD_OK(0) )
 			{
+				SaveSettings = true;
 				if ( PosX < NIN_CFG_BIT_LAST )
 					ncfg->Config ^= (1 << PosX);
 				else switch( PosX )
@@ -327,6 +347,8 @@ void SelectGame( void )
 					case NIN_SETTINGS_MAX_PADS:
 					{
 						ncfg->MaxPads++;
+						if (ncfg->MaxPads > NIN_CFG_MAXPAD)
+							ncfg->MaxPads = 0;
 					} break;
 					case NIN_SETTINGS_LANGUAGE:
 					{
@@ -364,8 +386,6 @@ void SelectGame( void )
 						ncfg->Config ^= (NIN_CFG_MC_MULTI);
 					} break;
 				}
-				if ((ncfg->MaxPads > NIN_CFG_MAXPAD) || (ncfg->MaxPads < 1))
-					ncfg->MaxPads = (ncfg->Config & NIN_CFG_HID) ? 0 : 1;
 				if (!(ncfg->Config & NIN_CFG_MEMCARDEMU))
 				{
 					PrintFormat(MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDBLOCKS), "%29s", "");
