@@ -174,7 +174,7 @@ u32 _start()
 	{
 		if (HID_CTRL->MultiIn == 2)		//multiple controllers connected to a single usb port
 		{
-			*PadUsed |= (1<<(PrevAdapterChannel1 + chan)) | (1<<(PrevAdapterChannel2 + chan)) | (1<<(PrevAdapterChannel3 + chan))| (1<<(PrevAdapterChannel4 + chan));	//depending on adapter it may only send every 4th time
+			used |= (1<<(PrevAdapterChannel1 + chan)) | (1<<(PrevAdapterChannel2 + chan)) | (1<<(PrevAdapterChannel3 + chan))| (1<<(PrevAdapterChannel4 + chan));	//depending on adapter it may only send every 4th time
 			chan = chan + HID_Packet[0] - 1;	// the controller number is in the first byte 
 			if (chan >= NIN_CFG_MAXPAD)		//if would be higher than the maxnumber of controllers
 				continue;	//toss it and try next usb port
