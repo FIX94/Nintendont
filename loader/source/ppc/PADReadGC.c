@@ -31,9 +31,11 @@ const s8 DEADZONE = 0x1A;
 #define HID_PAD_NONE	4
 #define HID_PAD_NOT_SET	0xFF
 
-#define C_NOT_SET 0
-#define C_CCP 1
-#define C_CC 2
+#define C_NOT_SET	(0<<0)
+#define C_CCP		(1<<0)
+#define C_CC		(1<<1)
+#define C_SWAP		(1<<2)
+#define C_RUMBLE_WM	(1<<3)
 
 u32 _start()
 {
@@ -424,6 +426,9 @@ u32 _start()
 		if(BTPad[chan].used == C_NOT_SET)
 			continue;
 
+		if(BTPad[chan].button & BT_BUTTON_HOME)
+			goto Shutdown;
+
 		used |= (1<<chan);
 
 		Rumble |= ((1<<31)>>chan);
@@ -463,65 +468,84 @@ u32 _start()
 		Pad[chan].substickY = tmp_stick;
 
 		u16 button = 0;
-		if(BTPad[chan].button & 0x0001)
-			button |= PAD_BUTTON_UP;
-		if(BTPad[chan].button & 0x0002)
+		if(BTPad[chan].button & BT_DPAD_LEFT)
 			button |= PAD_BUTTON_LEFT;
+		if(BTPad[chan].button & BT_DPAD_RIGHT)
+			button |= PAD_BUTTON_RIGHT;
+		if(BTPad[chan].button & BT_DPAD_DOWN)
+			button |= PAD_BUTTON_DOWN;
+		if(BTPad[chan].button & BT_DPAD_UP)
+			button |= PAD_BUTTON_UP;
 
-		if(BTPad[chan].used == C_CC)
+		if(BTPad[chan].used & C_CC)
 		{
 			Pad[chan].triggerLeft = BTPad[chan].triggerL;
-			if(BTPad[chan].button & 0x2000)
+			if(BTPad[chan].button & BT_TRIGGER_L)
 				button |= PAD_TRIGGER_L;
 
 			Pad[chan].triggerRight = BTPad[chan].triggerR;
-			if(BTPad[chan].button & 0x0200)
+			if(BTPad[chan].button & BT_TRIGGER_R)
 				button |= PAD_TRIGGER_R;
 
-			if(BTPad[chan].button & 0x0004)
+			if(BTPad[chan].button & BT_TRIGGER_ZR)
 				button |= PAD_TRIGGER_Z;
 		}
 		else
 		{
-			if(BTPad[chan].button & 0x0080)
+			if(BTPad[chan].button & BT_TRIGGER_ZL)
 			{
-				button |= PAD_TRIGGER_L;
-				Pad[chan].triggerLeft = 0xFF;
+				if(BTPad[chan].button & BT_TRIGGER_L)
+					Pad[chan].triggerLeft = 0x7F;
+				else
+				{
+					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
 			}
 			else
 				Pad[chan].triggerLeft = 0;
 
-			if(BTPad[chan].button & 0x0004)
+			if(BTPad[chan].button & BT_TRIGGER_ZR)
 			{
-				button |= PAD_TRIGGER_R;
-				Pad[chan].triggerRight = 0xFF;
+				if(BTPad[chan].button & BT_TRIGGER_L)
+					Pad[chan].triggerRight = 0x7F;
+				else
+				{
+					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
 			}
 			else
 				Pad[chan].triggerRight = 0;
 
-			if(BTPad[chan].button & 0x0200)
+			if(BTPad[chan].button & BT_TRIGGER_R)
 				button |= PAD_TRIGGER_Z;
 		}
 
-		if(BTPad[chan].button & 0x0008)
-			button |= PAD_BUTTON_X;
-		if(BTPad[chan].button & 0x0010)
-			button |= PAD_BUTTON_A;
-		if(BTPad[chan].button & 0x0020)
-			button |= PAD_BUTTON_Y;
-		if(BTPad[chan].button & 0x0040)
-			button |= PAD_BUTTON_B;
-
-		if(BTPad[chan].button & 0x0400)
+		if(BTPad[chan].used & C_SWAP)
+		{	/* turn buttons quarter clockwise */
+			if(BTPad[chan].button & BT_BUTTON_B)
+				button |= PAD_BUTTON_A;
+			if(BTPad[chan].button & BT_BUTTON_Y)
+				button |= PAD_BUTTON_B;
+			if(BTPad[chan].button & BT_BUTTON_A)
+				button |= PAD_BUTTON_X;
+			if(BTPad[chan].button & BT_BUTTON_X)
+				button |= PAD_BUTTON_Y;
+		}
+		else
+		{
+			if(BTPad[chan].button & BT_BUTTON_A)
+				button |= PAD_BUTTON_A;
+			if(BTPad[chan].button & BT_BUTTON_B)
+				button |= PAD_BUTTON_B;
+			if(BTPad[chan].button & BT_BUTTON_X)
+				button |= PAD_BUTTON_X;
+			if(BTPad[chan].button & BT_BUTTON_Y)
+				button |= PAD_BUTTON_Y;
+		}
+		if(BTPad[chan].button & BT_BUTTON_START)
 			button |= PAD_BUTTON_START;
-
-		if(BTPad[chan].button & 0x0800)
-			goto Shutdown;
-
-		if(BTPad[chan].button & 0x4000)
-			button |= PAD_BUTTON_DOWN;
-		if(BTPad[chan].button & 0x8000)
-			button |= PAD_BUTTON_RIGHT;
 
 		Pad[chan].button = button;
 

@@ -31,6 +31,10 @@ struct BTPadStat {
 	u32 channel;
 	u32 rumble;
 	u32 rumbletime;
+	s16 xAxisLmid;
+	s16 xAxisRmid;
+	s16 yAxisLmid;
+	s16 yAxisRmid;
 	struct bte_pcb *sock;
 	struct bd_addr bdaddr;
 } ALIGNED(32);
@@ -45,6 +49,25 @@ struct BTPadCont {
 	u8 triggerL;
 	u8 triggerR;
 } ALIGNED(32);
+
+#define BT_DPAD_UP              0x0001
+#define BT_DPAD_LEFT            0x0002
+#define BT_TRIGGER_ZR           0x0004
+#define BT_BUTTON_X             0x0008
+#define BT_BUTTON_A             0x0010
+#define BT_BUTTON_Y             0x0020
+#define BT_BUTTON_B             0x0040
+#define BT_TRIGGER_ZL           0x0080
+#define BT_TRIGGER_R            0x0200
+#define BT_BUTTON_START         0x0400
+#define BT_BUTTON_HOME          0x0800
+#define BT_BUTTON_SELECT        0x1000
+#define BT_TRIGGER_L            0x2000
+#define BT_DPAD_DOWN            0x4000
+#define BT_DPAD_RIGHT           0x8000
+
+//is normally 0x10, pushed into cc buttons
+#define WM_BUTTON_MINUS         0x0100
 
 /* From LibOGC conf.h */
 
