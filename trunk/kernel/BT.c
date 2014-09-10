@@ -49,17 +49,27 @@ u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 
 #define CHAN_NOT_SET 4
 
-#define TRANSFER_DONE 0
+#define TRANSFER_CONNECT 0
 #define TRANSFER_EXT1 1
 #define TRANSFER_EXT2 2
-#define TRANSFER_CONNECT 3
-#define TRANSFER_SET_IDENT 4
-#define TRANSFER_GET_IDENT 5
+#define TRANSFER_SET_IDENT 3
+#define TRANSFER_GET_IDENT 4
+#define TRANSFER_CALIBRATE 5
+#define TRANSFER_DONE 6
 
-#define C_NOT_SET 0
-#define C_CCP 1
-#define C_CC 2
+#define C_NOT_SET	(0<<0)
+#define C_CCP		(1<<0)
+#define C_CC		(1<<1)
+#define C_SWAP		(1<<2)
+#define C_RUMBLE_WM	(1<<3)
 
+static void BTSetControllerState(struct bte_pcb *sock, u32 State)
+{
+	u8 buf[2];
+	buf[0] = 0x11;
+	buf[1] = State;
+	bte_senddata(sock,buf,2);
+}
 static s32 BTHandleData(void *arg,void *buffer,u16 len)
 {
 	sync_before_read(arg, sizeof(struct BTPadStat));
@@ -68,31 +78,76 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 
 	if(*(u8*)buffer == 0x3D)
 	{
+		if(stat->transferstate == TRANSFER_CALIBRATE)
+		{
+			stat->xAxisLmid = swab16(R16((u32)(((u8*)buffer)+1)));
+			stat->xAxisRmid = swab16(R16((u32)(((u8*)buffer)+3)));
+			stat->yAxisLmid = swab16(R16((u32)(((u8*)buffer)+5)));
+			stat->yAxisRmid = swab16(R16((u32)(((u8*)buffer)+7)));
+			stat->transferstate = TRANSFER_DONE;
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
 		if(chan == CHAN_NOT_SET)
 			return ERR_OK;
-		BTPad[chan].used = C_CCP;
-		BTPad[chan].xAxisL = ((swab16(R16((u32)(((u8*)buffer)+1)))-0x840)*7)>>6;
-		BTPad[chan].xAxisR = ((swab16(R16((u32)(((u8*)buffer)+3)))-0x820)*7)>>6;
-		BTPad[chan].yAxisL = ((swab16(R16((u32)(((u8*)buffer)+5)))-0x800)*7)>>6;
-		BTPad[chan].yAxisR = ((swab16(R16((u32)(((u8*)buffer)+7)))-0x7E0)*7)>>6;
+		sync_before_read(&BTPad[chan], sizeof(struct BTPadCont));
+		BTPad[chan].xAxisL = ((swab16(R16((u32)(((u8*)buffer)+1))) - stat->xAxisLmid) *7) >>6;
+		BTPad[chan].xAxisR = ((swab16(R16((u32)(((u8*)buffer)+3))) - stat->xAxisRmid) *7) >>6;
+		BTPad[chan].yAxisL = ((swab16(R16((u32)(((u8*)buffer)+5))) - stat->yAxisLmid) *7) >>6;
+		BTPad[chan].yAxisR = ((swab16(R16((u32)(((u8*)buffer)+7))) - stat->yAxisRmid) *7) >>6;
+		u32 prevButton = BTPad[chan].button;
 		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+9)));
+		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
+		{
+			dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
+			stat->controller = (stat->controller & C_SWAP) ? (stat->controller & ~C_SWAP) : (stat->controller | C_SWAP);
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
+		BTPad[chan].used = stat->controller;
 		sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
 	}
 	else if(*(u8*)buffer == 0x34)
 	{
+		if(stat->transferstate == TRANSFER_CALIBRATE)
+		{
+			stat->xAxisLmid = *((u8*)buffer+3)&0x3F;
+			stat->xAxisRmid = ((*((u8*)buffer+5)&0x80)>>7) | ((*((u8*)buffer+4)&0xC0)>>5) | ((*((u8*)buffer+3)&0xC0)>>3);
+			stat->yAxisLmid = *((u8*)buffer+4)&0x3F;
+			stat->yAxisRmid = *((u8*)buffer+5)&0x1F;
+			stat->transferstate = TRANSFER_DONE;
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
 		if(chan == CHAN_NOT_SET || stat->controller == C_NOT_SET)
 			return ERR_OK;
-		BTPad[chan].used = stat->controller;
-		BTPad[chan].xAxisL = ((*((u8*)buffer+3)&0x3F)<<2)-126;
-		BTPad[chan].xAxisR = ((((*((u8*)buffer+5)&0x80)>>7) | ((*((u8*)buffer+4)&0xC0)>>5) | ((*((u8*)buffer+3)&0xC0)>>3))<<3)-124;
-		BTPad[chan].yAxisL = ((*((u8*)buffer+4)&0x3F)<<2)-126;
-		BTPad[chan].yAxisR = ((*((u8*)buffer+5)&0x1F)<<3)-124;
-		BTPad[chan].button = ~(((*((u8*)buffer+7)&0xFE)<<8) | *((u8*)buffer+8));
-		if(stat->controller == C_CC)
+		sync_before_read(&BTPad[chan], sizeof(struct BTPadCont));
+		BTPad[chan].xAxisL = ((*((u8*)buffer+3)&0x3F) - stat->xAxisLmid) <<2;
+		BTPad[chan].xAxisR = ((((*((u8*)buffer+5)&0x80)>>7) | ((*((u8*)buffer+4)&0xC0)>>5) | ((*((u8*)buffer+3)&0xC0)>>3)) - stat->xAxisRmid) <<3;
+		BTPad[chan].yAxisL = ((*((u8*)buffer+4)&0x3F) - stat->yAxisLmid) <<2;
+		BTPad[chan].yAxisR = ((*((u8*)buffer+5)&0x1F) - stat->yAxisRmid) <<3;
+		if(stat->controller & C_CC)
 		{
 			BTPad[chan].triggerL = (((*((u8*)buffer+6)&0xE0)>>5) | ((*((u8*)buffer+5)&0x60)>>2))<<3;
 			BTPad[chan].triggerR = (*((u8*)buffer+6)&0x1F)<<3;
 		}
+		u32 prevButton = BTPad[chan].button;
+		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+7))) | (*((u8*)buffer+2) & 0x10)<<4; //unused 0x100 for wiimote minus
+		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
+		{
+			dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
+			stat->controller = (stat->controller & C_SWAP) ? (stat->controller & ~C_SWAP) : (stat->controller | C_SWAP);
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
+		if((!(prevButton & WM_BUTTON_MINUS)) && BTPad[chan].button & WM_BUTTON_MINUS)
+		{
+			dbgprintf("%s rumble for wiimote\n", (stat->controller & C_RUMBLE_WM) ? "Disabling" : "Enabling");
+			stat->controller = (stat->controller & C_RUMBLE_WM) ? (stat->controller & ~C_RUMBLE_WM) : (stat->controller | C_RUMBLE_WM);
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
+		BTPad[chan].used = stat->controller;
 		sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
 	}
 	else if(*(u8*)buffer == 0x30)
@@ -161,7 +216,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				buf[2] = stat->transfertype;
 				bte_senddata(stat->sock,buf,3);
 			}
-			stat->transferstate = TRANSFER_DONE;
+			stat->transferstate = TRANSFER_CALIBRATE;
 			sync_after_write(arg, sizeof(struct BTPadStat));
 		}
 	}
@@ -226,10 +281,7 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 	stat->channel = CHAN_NOT_SET;
 	stat->rumble = 0;
 
-	buf[0] = 0x11;
-	buf[1] = LEDState[stat->channel] | stat->rumble;
-	buf[2] = 0x00;
-	bte_senddata(stat->sock,buf,2);
+	BTSetControllerState(stat->sock, LEDState[CHAN_NOT_SET]);
 
 	//wiimote extensions need some extra stuff first, start with getting its status
 	if(stat->transfertype == 0x34)
@@ -248,7 +300,7 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 		buf[1] = 0x00;
 		buf[2] = stat->transfertype;
 		bte_senddata(stat->sock,buf,3);
-		stat->transferstate = TRANSFER_DONE;
+		stat->transferstate = TRANSFER_CALIBRATE;
 		stat->controller = C_CCP;
 	}
 
@@ -440,12 +492,10 @@ void BTUpdateRegisters(void)
 			}
 			BTPadConnected[i]->channel = CurChan;
 			BTPadConnected[i]->rumble = CurRumble;
-			u8 buf[2];
-			buf[0] = 0x11;
-			buf[1] = LEDState[BTPadConnected[i]->channel];
-			if(BTPadConnected[i]->transfertype == 0x3D) //classic controller doesnt have rumble
-				buf[1] |= BTPadConnected[i]->rumble;
-			bte_senddata(BTPadConnected[i]->sock,buf,2);
+			if(BTPadConnected[i]->transfertype == 0x3D || BTPadConnected[i]->controller & C_RUMBLE_WM)
+				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan] | CurRumble);
+			else //classic controller doesnt have rumble, can be forced to wiimote if wanted
+				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan]);
 			sync_after_write(BTPadConnected[i], sizeof(struct BTPadStat));
 		}
 	}
