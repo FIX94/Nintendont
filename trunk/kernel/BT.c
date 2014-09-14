@@ -63,6 +63,8 @@ u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 #define C_SWAP		(1<<2)
 #define C_RUMBLE_WM	(1<<3)
 
+const s8 DEADZONE = 0x1A;
+
 static void BTSetControllerState(struct bte_pcb *sock, u32 State)
 {
 	u8 buf[2];
@@ -76,7 +78,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 	struct BTPadStat *stat = (struct BTPadStat*)arg;
 	u32 chan = stat->channel;
 
-	if(*(u8*)buffer == 0x3D)
+	if(*(u8*)buffer == 0x3D)	//21 expansion bytes report
 	{
 		if(stat->transferstate == TRANSFER_CALIBRATE)
 		{
@@ -107,7 +109,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		BTPad[chan].used = stat->controller;
 		sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
 	}
-	else if(*(u8*)buffer == 0x34)
+	else if(*(u8*)buffer == 0x34)	//core buttons with 19 exptension bytes report
 	{
 		if(stat->transferstate == TRANSFER_CALIBRATE)
 		{
@@ -128,8 +130,18 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		BTPad[chan].yAxisR = ((*((u8*)buffer+5)&0x1F) - stat->yAxisRmid) <<3;
 		if(stat->controller & C_CC)
 		{
-			BTPad[chan].triggerL = (((*((u8*)buffer+6)&0xE0)>>5) | ((*((u8*)buffer+5)&0x60)>>2))<<3;
-			BTPad[chan].triggerR = (*((u8*)buffer+6)&0x1F)<<3;
+			/* Calculate left trigger with deadzone */
+			u8 tmp_triggerL = (((*((u8*)buffer+6)&0xE0)>>5) | ((*((u8*)buffer+5)&0x60)>>2))<<3;
+			if(tmp_triggerL > DEADZONE)
+				BTPad[chan].triggerL = (tmp_triggerL - DEADZONE) * 1.11f;
+			else
+				BTPad[chan].triggerL = 0;
+			/* Calculate right trigger with deadzone */
+			u8 tmp_triggerR = (*((u8*)buffer+6)&0x1F)<<3;
+			if(tmp_triggerR > DEADZONE)
+				BTPad[chan].triggerR = (tmp_triggerR - DEADZONE) * 1.11f;
+			else
+				BTPad[chan].triggerR = 0;
 		}
 		u32 prevButton = BTPad[chan].button;
 		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+7))) | (*((u8*)buffer+2) & 0x10)<<4; //unused 0x100 for wiimote minus
@@ -150,7 +162,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		BTPad[chan].used = stat->controller;
 		sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
 	}
-	else if(*(u8*)buffer == 0x30)
+	else if(*(u8*)buffer == 0x30)	//core buttons report
 	{
 		if(stat->transferstate == TRANSFER_CONNECT)
 		{
@@ -162,9 +174,9 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 			sync_after_write(arg, sizeof(struct BTPadStat));
 		}
 	}
-	else if(*(u8*)buffer == 0x20)
+	else if(*(u8*)buffer == 0x20)	//status report
 	{
-		if(*((u8*)buffer+3) & 0x02)
+		if(*((u8*)buffer+3) & 0x02)	//expansion controller connected
 		{
 			if(stat->transferstate == TRANSFER_EXT1)
 			{
@@ -193,7 +205,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 			}
 		}
 	}
-	else if(*(u8*)buffer == 0x21)
+	else if(*(u8*)buffer == 0x21)	//read memory data
 	{
 		if(stat->transferstate == TRANSFER_GET_IDENT)
 		{
@@ -220,7 +232,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 			sync_after_write(arg, sizeof(struct BTPadStat));
 		}
 	}
-	else if(*(u8*)buffer == 0x22)
+	else if(*(u8*)buffer == 0x22)	//acknowledge output report, return function result 
 	{
 		if(*((u8*)buffer+3) & 0x02)
 		{
