@@ -204,6 +204,9 @@ s32 HIDInit( void )
 	HID_CTRL->Y.Offset	= ConfigGetValue( Data, "Y", 0 );
 	HID_CTRL->Y.Mask	= ConfigGetValue( Data, "Y", 1 );
 
+	HID_CTRL->ZL.Offset	= ConfigGetValue( Data, "ZL", 0 );
+	HID_CTRL->ZL.Mask	= ConfigGetValue( Data, "ZL", 1 );
+
 	HID_CTRL->Z.Offset	= ConfigGetValue( Data, "Z", 0 );
 	HID_CTRL->Z.Mask	= ConfigGetValue( Data, "Z", 1 );
 

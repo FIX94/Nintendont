@@ -38,6 +38,7 @@ typedef struct Controller
 	layout B;
 	layout X;
 	layout Y;
+	layout ZL;
 	layout Z;
 	
 	layout L;
