@@ -246,7 +246,7 @@ void SelectGame( void )
 
 		if( MenuMode == 0 )		//game select menu
 		{
-			if( FPAD_Down(0) || FPAD_Right(0) )
+			if( FPAD_Down(0) )
 			{
 				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
@@ -264,7 +264,30 @@ void SelectGame( void )
 			
 				redraw=1;
 				SaveSettings = true;
-			} else if( FPAD_Up(0) || FPAD_Left(0) )
+			}
+			else if( FPAD_Right(0) )
+			{
+				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+
+				if( PosX == ListMax - 1 )
+				{
+					if( PosX + ListMax + ScrollX < gamecount)
+						ScrollX = ScrollX + ListMax;
+					else
+					if( PosX + ScrollX != gamecount -1)
+						ScrollX = gamecount - ListMax;
+					else {
+						PosX	= 0;
+						ScrollX = 0;
+					}
+				} else {
+					PosX = ListMax - 1;
+				}
+			
+				redraw=1;
+				SaveSettings = true;
+			}
+			else if( FPAD_Up(0) )
 			{
 				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
@@ -278,6 +301,27 @@ void SelectGame( void )
 					}
 				} else {
 					PosX--;
+				}
+
+				redraw=1;
+				SaveSettings = true;
+			}
+			else if( FPAD_Left(0) )
+			{
+				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+
+				if( PosX == 0 )
+				{
+					if( ScrollX - (s32)ListMax >= 0 )
+						ScrollX = ScrollX - ListMax;
+					else
+					if( ScrollX != 0 )
+						ScrollX = 0;
+					else {
+						ScrollX = gamecount - ListMax;
+					}
+				} else {
+					PosX = 0;
 				}
 
 				redraw=1;

@@ -236,7 +236,18 @@ u32 _start()
 			button |= PAD_BUTTON_Y;
 		if(HID_Packet[HID_CTRL->Z.Offset] & HID_CTRL->Z.Mask)
 			button |= PAD_TRIGGER_Z;
-		if( HID_CTRL->DigitalLR == 2)	//no digital trigger buttons compute from analog trigger values
+
+		if( HID_CTRL->DigitalLR == 1)	//digital trigger buttons only
+		{
+			if(!(HID_Packet[HID_CTRL->ZL.Offset] & HID_CTRL->ZL.Mask))	//ZL acts as shift for half pressed
+			{
+				if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
+					button |= PAD_TRIGGER_L;
+				if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
+					button |= PAD_TRIGGER_R;
+			}
+		}
+		else if( HID_CTRL->DigitalLR == 2)	//no digital trigger buttons compute from analog trigger values
 		{
 			if ((HID_CTRL->VID == 0x0925) && (HID_CTRL->PID == 0x03E8))	//Mayflash Classic Controller Pro Adapter
 			{
@@ -362,12 +373,18 @@ u32 _start()
 		/* then triggers */
 		if( HID_CTRL->DigitalLR == 1)
 		{	/* digital triggers, not much to do */
-			if(Pad[chan].button & PAD_TRIGGER_L)
-				Pad[chan].triggerLeft = 255;
+			if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
+				if(HID_Packet[HID_CTRL->ZL.Offset] & HID_CTRL->ZL.Mask)	//ZL acts as shift for half pressed
+					Pad[chan].triggerLeft = 0x7F;
+				else
+					Pad[chan].triggerLeft = 255;
 			else
 				Pad[chan].triggerLeft = 0;
-			if(Pad[chan].button & PAD_TRIGGER_R)
-				Pad[chan].triggerRight = 255;
+			if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
+				if(HID_Packet[HID_CTRL->ZL.Offset] & HID_CTRL->ZL.Mask)	//ZL acts as shift for half pressed
+					Pad[chan].triggerRight = 0x7F;
+				else
+					Pad[chan].triggerRight = 255;
 			else
 				Pad[chan].triggerRight = 0;
 		}
@@ -490,7 +507,7 @@ u32 _start()
 			if(BTPad[chan].button & BT_TRIGGER_ZR)
 				button |= PAD_TRIGGER_Z;
 		}
-		else
+		else	//digital triggers
 		{
 			if(BTPad[chan].button & BT_TRIGGER_ZL)
 			{
