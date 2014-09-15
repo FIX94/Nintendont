@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdlib.h>
 #include <gccore.h>
 #include <wiiuse/wpad.h>
+#include <wupc/wupc.h>
 #include <fat.h>
 #include <sys/dir.h>
 #include <unistd.h>
@@ -378,6 +379,7 @@ int main(int argc, char **argv)
 	WPAD_Disconnect(2);
 	WPAD_Disconnect(3);
 
+	WUPC_Shutdown();
 	WPAD_Shutdown();
 
 	//for BT.c
