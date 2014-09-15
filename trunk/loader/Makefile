@@ -29,18 +29,18 @@ INCLUDES	:=	include
 CFLAGS	= -g -Os -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH
 CXXFLAGS	=	$(CFLAGS)
 
-LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map -Wl,--section-start,.init=0x81280000
+LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map -Wl,--section-start,.init=0x81280000,-wrap,wiiuse_register
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lwiiuse -lbte -lfat -logc -lm
+LIBS	:= -lwiiuse -lwupc -lbte -lfat -logc -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:=
+LIBDIRS	:= $(CURDIR)/extlibs
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional

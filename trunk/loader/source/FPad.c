@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include "FPad.h"
-
+#include <wupc/wupc.h>
 static u32 WPAD_Pressed;
 static u32 PAD_Pressed;
 static s8  PAD_Stick_Y;
@@ -41,6 +41,7 @@ static u32 Repeat;
 void FPAD_Init( void )
 {
 	PAD_Init();
+	WUPC_Init();
 	WPAD_Init();
 
 	WPAD_Pressed = 0;
@@ -61,6 +62,13 @@ void FPAD_Update( void )
 	WPAD_ScanPads();
 	for(i = 0; i < WPAD_MAX_WIIMOTES; ++i)
 	{
+		struct WUPCData *wstat = WUPC_Data(i);
+		if(wstat != NULL)
+		{
+			WPAD_Pressed |= wstat->button;
+			PAD_Stick_Y |= (wstat->yAxisL > 0x80) ? 31 : ((wstat->yAxisL < -0x80) ? -31 : 0);
+			PAD_Stick_X |= (wstat->xAxisL > 0x80) ? 31 : ((wstat->xAxisL < -0x80) ? -31 : 0);
+		}
 		WPADData *status = WPAD_Data(i);
 		if(status->err == WPAD_ERR_NONE)
 		{
