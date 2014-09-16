@@ -68,7 +68,7 @@ const s8 DEADZONE = 0x1A;
 static void BTSetControllerState(struct bte_pcb *sock, u32 State)
 {
 	u8 buf[2];
-	buf[0] = 0x11;
+	buf[0] = 0x11;	//set LEDs and rumble
 	buf[1] = State;
 	bte_senddata(sock,buf,2);
 }
@@ -167,14 +167,14 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		if(stat->transferstate == TRANSFER_CONNECT)
 		{
 			u8 buf[2];
-			buf[0] = 0x15;
-			buf[1] = 0x00;
-			bte_senddata(stat->sock,buf,2);
+			buf[0] = 0x15;	//request status report
+			buf[1] = 0x00;	//turn off rumble
+			bte_senddata(stat->sock,buf,2);	//returns 0x20 status report
 			stat->transferstate = TRANSFER_EXT1;
 			sync_after_write(arg, sizeof(struct BTPadStat));
 		}
 	}
-	else if(*(u8*)buffer == 0x20)	//status report
+	else if(*(u8*)buffer == 0x20)	//status report - responce to 0x15 or automaticly generated when expansion controller is plugged or unplugged
 	{
 		if(*((u8*)buffer+3) & 0x02)	//expansion controller connected
 		{
@@ -187,7 +187,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				data[2] = 0xA4; data[3] = 0x00; data[4] = 0xF0; //address
 				data[5] = 0x01; //length
 				data[6] = 0x55; //data
-				bte_senddata(stat->sock,data,22);
+				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result 
 				stat->transferstate = TRANSFER_EXT2;
 				sync_after_write(arg, sizeof(struct BTPadStat));
 			}
@@ -223,8 +223,8 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				}
 				/* Finally enable reading */
 				u8 buf[3];
-				buf[0] = 0x12;
-				buf[1] = 0x00;
+				buf[0] = 0x12;	//set data reporting mode
+				buf[1] = 0x00;	//report only when data changes
 				buf[2] = stat->transfertype;
 				bte_senddata(stat->sock,buf,3);
 			}
@@ -245,7 +245,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				data[2] = 0xA4; data[3] = 0x00; data[4] = 0xFB; //address
 				data[5] = 0x01; //length
 				data[6] = 0x00; //data
-				bte_senddata(stat->sock,data,22);
+				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result
 				stat->transferstate = TRANSFER_SET_IDENT;
 				sync_after_write(arg, sizeof(struct BTPadStat));
 			}
@@ -256,7 +256,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				data[1] = 0x04; //read from registers
 				data[2] = 0xA4; data[3] = 0x00; data[4] = 0xFA; //address
 				data[5] = 0x00; data[6] = 0x06; //length
-				bte_senddata(stat->sock,data,7);
+				bte_senddata(stat->sock,data,7);	//returns 0x21 Read Memory Data 
 				stat->transferstate = TRANSFER_GET_IDENT;
 				sync_after_write(arg, sizeof(struct BTPadStat));
 			}
@@ -298,18 +298,18 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 	//wiimote extensions need some extra stuff first, start with getting its status
 	if(stat->transfertype == 0x34)
 	{
-		buf[0] = 0x12;
-		buf[1] = 0x00;
+		buf[0] = 0x12;	//set data reporting mode
+		buf[1] = 0x00;	//report only when data changes
 		buf[2] = 0x30; //get normal buttons once
-		bte_senddata(stat->sock,buf,2);
+		bte_senddata(stat->sock,buf,3);
 		stat->transferstate = TRANSFER_CONNECT;
 		stat->controller = C_NOT_SET;
 	}
 	else
 	{
 		dbgprintf("Connected WiiU Pro Controller\n");
-		buf[0] = 0x12;
-		buf[1] = 0x00;
+		buf[0] = 0x12;	//set data reporting mode
+		buf[1] = 0x00;	//report only when data changes
 		buf[2] = stat->transfertype;
 		bte_senddata(stat->sock,buf,3);
 		stat->transferstate = TRANSFER_CALIBRATE;
@@ -379,7 +379,7 @@ static s32 BTCompleteCB(s32 result,void *usrdata)
 			BD_ADDR(&(bdaddr),BTDevices->registered[i].bdaddr[5],BTDevices->registered[i].bdaddr[4],BTDevices->registered[i].bdaddr[3],
 							BTDevices->registered[i].bdaddr[2],BTDevices->registered[i].bdaddr[1],BTDevices->registered[i].bdaddr[0]);
 
-			if(strstr(BTDevices->registered[i].name, "-UC") != NULL)
+			if(strstr(BTDevices->registered[i].name, "-UC") != NULL)	//if wiiu pro controller
 				BTPadStatus[i].transfertype = 0x3D;
 			else
 				BTPadStatus[i].transfertype = 0x34;
