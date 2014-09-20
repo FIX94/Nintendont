@@ -284,13 +284,13 @@ int _main( int argc, char *argv[] )
 		udelay(10); //wait for other threads
 
 		//Baten Kaitos save hax
-		if( read32(0) == 0x474B4245 )
+		/*if( read32(0) == 0x474B4245 )
 		{
 			if( read32( 0x0073E640 ) == 0xFFFFFFFF )
 			{
 				write32( 0x0073E640, 0 );
 			}
-		}
+		}*/
 
 		if ( DiscChangeIRQ == 1 )
 		{
@@ -332,16 +332,14 @@ int _main( int argc, char *argv[] )
 			if(Reset == 0)
 			{
 				dbgprintf("Fake Reset IRQ\n");
-				write32( 0x13026504, 0x2 ); // Reset irq
-				sync_after_write( (void*)0x13026500, 0x20 );
+				write32( EXI2DATA, 0x2 ); // Reset irq
 				write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 				Reset = 1;
 			}
 		}
 		else if(Reset == 1)
 		{
-			write32( 0x13026504, 0x10000 ); // send pressed
-			sync_after_write( (void*)0x13026500, 0x20 );
+			write32( EXI2DATA, 0x10000 ); // send pressed
 			ResetTimer = read32(HW_TIMER);
 			Reset = 2;
 		}
@@ -350,8 +348,7 @@ int _main( int argc, char *argv[] )
 		{
 			if((read32(HW_TIMER) - ResetTimer) / 949219 > 0) //free after half a second
 			{
-				write32( 0x13026504, 0 ); // done, clear
-				sync_after_write( (void*)0x13026500, 0x20 );
+				write32( EXI2DATA, 0 ); // done, clear
 				write32(DI_SCONFIG, 0);
 				sync_after_write( (void*)DI_SCONFIG, 4 );
 				Reset = 0;

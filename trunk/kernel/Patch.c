@@ -34,8 +34,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define GAME_ID		(read32(0))
 #define TITLE_ID	(GAME_ID >> 8)
 
+#define PATCH_OFFSET_START (0x2F00 - (sizeof(u32) * 5))
 u32 CardLowestOff = 0;
-u32 POffset = 0x2F00;
+u32 POffset = PATCH_OFFSET_START;
 vu32 Region = 0;
 extern FIL GameFile;
 extern vu32 TRIGame;
@@ -408,25 +409,32 @@ void PatchBL( u32 dst, u32 src )
 */
 void Patch31A0( void )
 {
-	POffset -= sizeof(u32) * 5;
-	
+	u32 PatchOffset = PATCH_OFFSET_START;
+
 	u32 i;
 	for (i = 0; i < (4 * 0x04); i+=0x04)
 	{
 		u32 Orig = *(vu32*)(0x319C + i);
 		if ((Orig & 0xF4000002) == 0x40000000)
 		{
-			u32 NewAddr = (Orig & 0x3FFFFC) + 0x319C - POffset;
+			u32 NewAddr = (Orig & 0x3FFFFC) + 0x319C - PatchOffset;
 			Orig = (Orig & 0xFC000003) | NewAddr;
 #ifdef DEBUG_PATCH
-			dbgprintf("[%08X] Patch31A0 %08X: 0x%08X\r\n", 0x319C + i, POffset + i, Orig);
+			dbgprintf("[%08X] Patch31A0 %08X: 0x%08X\r\n", 0x319C + i, PatchOffset + i, Orig);
 #endif
 		}
-		*(vu32*)(POffset + i) = Orig;
+		*(vu32*)(PatchOffset + i) = Orig;
 	}
 
-	PatchB( POffset, 0x319C );
-	PatchB( 0x31AC, POffset+0x10 );
+	PatchB( PatchOffset, 0x319C );
+	PatchB( 0x31AC, PatchOffset+0x10 );
+}
+
+u32 PatchCopy(const u8 *PatchPtr, const u32 PatchSize)
+{
+	POffset -= PatchSize;
+	memcpy( (void*)POffset, PatchPtr, PatchSize );
+	return POffset;
 }
 
 void PatchFuncInterface( char *dst, u32 Length )
@@ -792,9 +800,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 #ifdef DEBUG_DI
 				dbgprintf("DIP:DOLSize:%d DOLMinOff:0x%08X DOLMaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
 #endif
-
 				PatchState |= PATCH_STATE_LOAD;
-				POffset = 0x2F00;
 			}
 			PSOHack = 0;
 		} else if( read32( (u32)Buffer ) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum )
@@ -827,11 +833,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 #ifdef DEBUG_DI
 			dbgprintf("DIP:ELF size:%u\r\n", DOLSize );
 #endif
-
 			PatchState |= PATCH_STATE_LOAD;
-			POffset = 0x2F00;
 		}
-	} 
+	}
 	else if ( PatchState & PATCH_STATE_LOAD )
 	{
 		if( DOLReadSize == 0 )
@@ -874,27 +878,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	sync_before_read(Buffer, Length);
 
-	/* Have the most important patches always loaded, important for games like 007 */
-	POffset -= sizeof(FakeInterrupt);
-	u32 FakeInterruptAddr = POffset;
-	memcpy( (void*)(POffset), FakeInterrupt, sizeof(FakeInterrupt) );
+	/* Have gc patches loaded at the same place for reloading games */
+	POffset = PATCH_OFFSET_START;
 
-	POffset -= sizeof(DCInvalidateRange);
-	u32 DCInvalidateRangeAddr = POffset;
-	memcpy( (void*)(POffset), DCInvalidateRange, sizeof(DCInvalidateRange) );
+	u32 DCInvalidateRangeAddr = PatchCopy(DCInvalidateRange, sizeof(DCInvalidateRange));
 
-	POffset -= sizeof(TCIntrruptHandler);
-	u32 TCIntrruptHandlerAddr = POffset;
-	memcpy((void*)(POffset), TCIntrruptHandler, sizeof(TCIntrruptHandler));
+	u32 FakeInterruptAddr = PatchCopy(FakeInterrupt, sizeof(FakeInterrupt));
+	u32 TCIntrruptHandlerAddr = PatchCopy(TCIntrruptHandler, sizeof(TCIntrruptHandler));
+	u32 SIIntrruptHandlerAddr = PatchCopy(SIIntrruptHandler, sizeof(SIIntrruptHandler));
 
-	POffset -= sizeof(SIIntrruptHandler);
-	u32 SIIntrruptHandlerAddr = POffset;
-	memcpy((void*)(POffset), SIIntrruptHandler, sizeof(SIIntrruptHandler));
+	u32 FakeRSWLoadAddr = PatchCopy(FakeRSWLoad, sizeof(FakeRSWLoad));
+	u32 FakeRSWStoreAddr = PatchCopy(FakeRSWStore, sizeof(FakeRSWStore));
 
-	/* This gets used multiple times, dont waste by copying multiple */
-	POffset -= sizeof(FakeRSWLoad);
-	u32 FakeRSWLoadAddr = POffset;
-	memcpy((void*)(POffset), FakeRSWLoad, sizeof(FakeRSWLoad));
+	u32 AIInitDMAAddr = PatchCopy(AIInitDMA, sizeof(AIInitDMA));
+	u32 __DSPHandlerAddr = PatchCopy(__DSPHandler, sizeof(__DSPHandler));
 
 	// HACK: PokemonXD and Pokemon Colosseum low memory clear patch
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
@@ -966,15 +963,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//	PatchBL( POffset, 0x00392DC );
 		//
 		//} else {
-
-			POffset -= sizeof(PADReadB);
-			memcpy( (void*)POffset, PADReadB, sizeof(PADReadB) );
-			PatchB( POffset, 0x0038EF0 );
-
-			POffset -= sizeof(PADReadSteer);
-			memcpy( (void*)POffset, PADReadSteer, sizeof(PADReadSteer) );
-			PatchBL( POffset, 0x00392DC );
-
+			PatchB( PatchCopy(PADReadB, sizeof(PADReadB)), 0x0038EF0 );
+			PatchBL( PatchCopy(PADReadSteer, sizeof(PADReadSteer)), 0x00392DC );
 		//}
 
 		//memcpy( (void*)0x002CE3C, OSReportDM, sizeof(OSReportDM) );
@@ -1066,13 +1056,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//GXProg patch
 		memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
 
-		POffset -= sizeof(PADReadB);
-		memcpy( (void*)POffset, PADReadB, sizeof(PADReadB) );
-		PatchB( POffset, 0x003C6EC );
-
-		POffset -= sizeof(PADReadSteer);
-		memcpy( (void*)POffset, PADReadSteer, sizeof(PADReadSteer) );
-		PatchBL( POffset, 0x003CAD4 );
+		PatchB( PatchCopy(PADReadB, sizeof(PADReadB)), 0x003C6EC );
+		PatchBL( PatchCopy(PADReadSteer, sizeof(PADReadSteer)), 0x003CAD4 );
 
 		//some report check skip
 		//write32( 0x00307CC, 0x60000000 );
@@ -2017,30 +2002,22 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					{
 						if( TRIGame == 1 )
 						{
-							POffset-= sizeof( GCAMSendCommand2 );
-							memcpy( (void*)POffset, GCAMSendCommand2, sizeof(GCAMSendCommand2) );
-							PatchB( POffset, FOffset );
+							PatchB( PatchCopy(GCAMSendCommand2, sizeof(GCAMSendCommand2)), FOffset );
 							break;
 						}
 						if( TRIGame == 2 )
 						{
-							POffset-= sizeof( GCAMSendCommandVSExp );
-							memcpy( (void*)POffset, GCAMSendCommandVSExp, sizeof(GCAMSendCommandVSExp) );
-							PatchB( POffset, FOffset );
+							PatchB( PatchCopy(GCAMSendCommandVSExp, sizeof(GCAMSendCommandVSExp)), FOffset );
 							break;
 						}
 						if( TRIGame == 3 )
 						{
-							POffset-= sizeof( GCAMSendCommandF );
-							memcpy( (void*)POffset, GCAMSendCommandF, sizeof(GCAMSendCommandF) );
-							PatchB( POffset, FOffset );
+							PatchB( PatchCopy(GCAMSendCommandF, sizeof(GCAMSendCommandF)), FOffset );
 							break;
 						}
 						if( TRIGame == 4 )
 						{
-							POffset-= sizeof( GCAMSendCommand );
-							memcpy( (void*)POffset, GCAMSendCommand, sizeof(GCAMSendCommand) );
-							PatchB( POffset, FOffset );
+							PatchB( PatchCopy(GCAMSendCommand, sizeof(GCAMSendCommand)), FOffset );
 							break;
 						}
 					} break;
@@ -2329,9 +2306,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						}
 						if(read32(FOffset + 0xD4) == 0x90033000)
 						{
-							POffset -= sizeof(FakeRSWStore);
-							memcpy((void*)(POffset), FakeRSWStore, sizeof(FakeRSWStore));
-							PatchBL( POffset, (FOffset + 0xD4) );
+							PatchBL( FakeRSWStoreAddr, (FOffset + 0xD4) );
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:__OSResetSWInterruptHandler FakeRSWStore\r\n");
 							#endif
@@ -2360,9 +2335,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					{
 						if(read32(FOffset + 0x20) == 0x3C80CC00)
 						{
-							POffset -= sizeof(AIInitDMA);
-							memcpy((void*)(POffset), AIInitDMA, sizeof(AIInitDMA));
-							PatchBL( POffset, (FOffset + 0x20) );
+							PatchBL( AIInitDMAAddr, (FOffset + 0x20) );
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:Saving Audio Locations\r\n");
 							#endif
@@ -2372,9 +2345,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					{
 						if(read32(FOffset + 0xF8) == 0x2C000000)
 						{
-							POffset -= sizeof(__DSPHandler);
-							memcpy((void*)(POffset), __DSPHandler, sizeof(__DSPHandler));
-							PatchBL( POffset, (FOffset + 0xF8) );
+							PatchBL( __DSPHandlerAddr, (FOffset + 0xF8) );
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:Added Audio Mixer\r\n");
 							#endif
