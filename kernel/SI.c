@@ -64,8 +64,7 @@ void SIInterrupt()
 		//dbgprintf("SI Done Transfer %d, 0x%08X\r\n", SI_IRQ, cur_control);
 	}
 
-	write32( 0x13026500, 0x8 );		// SI IRQ
-	sync_after_write( (void*)0x13026500, 0x20 );
+	write32( EXI2CR, 0x8 );		// SI IRQ
 	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 
 	complete ^= 1;

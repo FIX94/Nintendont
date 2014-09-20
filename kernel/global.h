@@ -160,6 +160,13 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define HW_GPIO_IN		(HW_BASE+0xE8)
 #define HW_GPIO_OWNER	(HW_BASE+0xFC)
 
+//used by exi channel 2 which we dont need
+#define EXI2CSR			(HW_BASE+0x6828) //bit 0-13 are usable
+#define EXI2MAR			(HW_BASE+0x682C) //bit 4-22 are usable
+#define EXI2LENGTH		(HW_BASE+0x6830) //bit 4-22 are usable
+#define EXI2CR			(HW_BASE+0x6834) //bit 1-5 are usable
+#define EXI2DATA		(HW_BASE+0x6838) //all bits are usable
+
 #define GPIO_POWER		(1<<0)
 #define GPIO_SHUTDOWN	(1<<1)
 #define GPIO_SLOT_LED	(1<<5)

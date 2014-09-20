@@ -27,9 +27,18 @@ struct WUPCData {
 	s16 yAxisL;
 	s16 yAxisR;
 	u32 button;
+	u8 battery;
+	u8 extra;
 };
 
+#define WUPC_EXTRA_BUTTON_RSTICK	0x01
+#define WUPC_EXTRA_BUTTON_LSTICK	0x02
+
+#define WUPC_EXTRA_CHARGING			0x04
+#define WUPC_EXTRA_USBCONNECTED		0x08
+
 void WUPC_Init();
+void WUPC_Disconnect(u8 chan);
 void WUPC_Shutdown();
 struct WUPCData *WUPC_Data(u8 chan);
 void WUPC_Rumble(u8 chan, bool rumble);

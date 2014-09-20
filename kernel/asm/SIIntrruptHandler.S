@@ -1,6 +1,6 @@
 #include <asm.h>
 
-.set FAKE_SI_INT,	0xD3026500
+.set FAKE_SI_INT,	0xCD806834
 
 SIIntrruptHandler:
 
