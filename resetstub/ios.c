@@ -314,7 +314,7 @@ ios_ioctlvreboot(int fd, u32 n, u32 in_count, u32 out_count, struct ioctlv *vec)
 }
 
 #include "usbgecko.h"
-static vu32* reset = (u32*)0xC0002F54;
+static vu32* reset = (u32*)0xCD806020;
 void ios_reload(void)
 {
 	usbgecko_printf("waiting for reset\n");

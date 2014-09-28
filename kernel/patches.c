@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 enum
 {
 	FCODES								= 0xdead0000,
+	FCODE_ARInit,
 	FCODE_ARStartDMA,
 	FCODE_AIResetStreamSampleCount,
 	FCODE_Return,
@@ -49,6 +50,7 @@ enum
 	FCODE___ARChecksize_A,
 	FCODE___ARChecksize_B,
 	FCODE___ARChecksize_C,
+	FCODE___ARChecksize_DBG,
 	FCODE___OSReadROM,
 	FCODE_C_MTXPerspective,
 	FCODE_C_MTXLightPerspective,
@@ -100,6 +102,7 @@ enum
 	FCODE_RADTimerRead,
 	FCODE___OSResetSWInterruptHandler,
 	FCODE_OSGetResetButtonState,
+	FCODE___OSInitAudioSystem,
 	FCODE_AIInitDMA,
 	FCODE___DSPHandler,
 } FPatternCodes;
@@ -108,6 +111,7 @@ enum
 {
 	FGROUP_NONE				= 0x0,
 	FGROUP_DVDInquiryAsync,
+	FGROUP_ARStartDMA,
 	FGROUP_SIGetType,
 	FGROUP__SITransfer,
 	FGROUP_CompleteTransfer,
@@ -133,6 +137,7 @@ enum
 	FGROUP___EXIProbe,
 	FGROUP_PI_FIFO_WP_A,
 	FGROUP_OSGetResetButtonState,
+	FGROUP___OSInitAudioSystem,
 } FPatternGroups;
 
 FuncPattern FPatterns[] =
@@ -148,7 +153,9 @@ FuncPattern FPatterns[] =
 #endif
 //	{  0x208,   38,    18,     3,    13,    10,	SITransfer,				sizeof(SITransfer),				"__SITransfer",					FGROUP_NONE,				0 },
 	{  0x158,   26,    22,     5,    13,     2,	ARQPostRequest,			sizeof(ARQPostRequest),			"ARQPostRequest",				FGROUP_NONE,				0 },
-	{   0xEC,    9,     6,     2,     0,     8,	(u8*)NULL,				FCODE_ARStartDMA,				"ARStartDMA",					FGROUP_NONE,				0 },
+	{  0x168,   31,    13,    10,     2,     3,	(u8*)NULL,				FCODE_ARInit,					"ARInit_DBG",					FGROUP_NONE,				0 },
+	{   0xEC,    9,     6,     2,     0,     8,	(u8*)NULL,				FCODE_ARStartDMA,				"ARStartDMA",					FGROUP_ARStartDMA,			0 },
+	{  0x16C,   29,     3,     5,     3,     9,	(u8*)NULL,				FCODE_ARStartDMA,				"ARStartDMA_DBG",				FGROUP_ARStartDMA,			0 },
 	{   0x44,    4,     4,     0,     0,     2,	(u8*)NULL,				FCODE_GXInitTlutObj,			"GXInitTlutObj A",				FGROUP_NONE,				0 },	// Don't group them, false hit prevents finding real offset
 	{   0x34,    5,     4,     0,     0,     0,	(u8*)NULL,				FCODE_GXInitTlutObj,			"GXInitTlutObj B",				FGROUP_NONE,				0 },
 	{  0x1C0,   35,     9,     8,     7,    19,	SIGetType,				sizeof(SIGetType),				"SIGetType A",					FGROUP_SIGetType,			0 },
@@ -158,21 +165,25 @@ FuncPattern FPatterns[] =
 	{  0x208,   38,    18,     3,    13,    10,	(u8*)NULL,				FCODE__SITransfer,				"_SITransfer A",				FGROUP__SITransfer,			0 },
 	{  0x204,   37,    18,     3,    13,    11,	(u8*)NULL,				FCODE__SITransfer,				"_SITransfer B",				FGROUP__SITransfer,			0 },
 	{  0x208,   38,    11,     7,    13,     9,	(u8*)NULL,				FCODE__SITransfer,				"_SITransfer C",				FGROUP__SITransfer,			0 },
+	{  0x204,   37,    11,     7,    13,     9,	(u8*)NULL,				FCODE__SITransfer,				"_SITransfer_DBG",				FGROUP__SITransfer,			0 },
 	{  0x2F8,   60,    22,     2,    16,    25,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer A",			FGROUP_CompleteTransfer,	0 },
 	{  0x240,   40,    14,     0,    13,    11,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer B",			FGROUP_CompleteTransfer,	0 },
 	{  0x180,   29,     9,     3,     9,     9,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer C",			FGROUP_CompleteTransfer,	0 },
+	{   0xE0,   18,     4,     0,     6,     3,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer_DBG",			FGROUP_CompleteTransfer,	0 },
 	{   0xB0,   21,     9,     8,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit A",						FGROUP_SIInit,				0 },
 	{   0x70,   13,     8,     2,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit B",						FGROUP_SIInit,				0 },
 	{   0x90,   17,     8,     6,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit C",						FGROUP_SIInit,				0 },
 	{   0xA0,   20,     8,     7,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit D",						FGROUP_SIInit,				0 },
 	{   0xB0,   22,     9,     8,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit E",						FGROUP_SIInit,				0 },
+	{   0x9C,   19,     9,     6,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit F",						FGROUP_SIInit,				0 },
+	{   0x7C,   15,     9,     2,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit_DBG",					FGROUP_SIInit,				0 },
 	{   0x94,    8,    10,     2,     4,     2,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt A",	FGROUP_SIPollingInterrupt,	0 },
 	{   0xA4,    9,     5,     2,     6,     4,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt B",	FGROUP_SIPollingInterrupt,	0 },
 
 	{  0x910,   87,    33,    18,     5,    63,	(u8*)NULL,				FCODE___ARChecksize_A,			"__ARChecksize A",				FGROUP___ARChecksize,		0 },
 	{ 0x17F0,  204,    51,    27,     5,   178,	(u8*)NULL,				FCODE___ARChecksize_B,			"__ARChecksize B",				FGROUP___ARChecksize,		0 },
 	{  0xEC8,  129,    29,    32,     9,    80,	(u8*)NULL,				FCODE___ARChecksize_C,			"__ARChecksize C",				FGROUP___ARChecksize,		0 },
-	
+	{  0x530,  183,     4,    58,    13,    16,	(u8*)NULL,				FCODE___ARChecksize_DBG,		"__ARChecksize_DBG",			FGROUP___ARChecksize,		0 },
 //	{  0x120,   28,     6,    10,     2,     7,	(u8*)NULL,				FCODE___OSReadROM,				"__OSReadROM",					FGROUP_NONE,				0 },
 
 	{   0xCC,    3,     3,     1,     0,     3,	(u8*)NULL,				FCODE_C_MTXPerspective,			"C_MTXPerspective",				FGROUP_NONE,				0 },
@@ -228,19 +239,24 @@ FuncPattern FPatterns[] =
 	{  0x214,   41,     9,     5,     8,    22,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler B",			FGROUP_TCIntrruptHandler,	0 },
 	{  0x214,   37,     9,     5,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler C",			FGROUP_TCIntrruptHandler,	0 },
 	{  0x158,   28,     5,     5,     6,     4,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_PKM",		FGROUP_TCIntrruptHandler,	0 },
+	{   0xE4,   22,     3,     8,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
 	{   0xE8,   23,     3,     8,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
+	{   0xC4,   18,     4,     4,     3,     4,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
 	{   0xA8,   17,     6,     1,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler E",			FGROUP_TCIntrruptHandler,	0 },
 
 	{   0x7C,   10,     3,     0,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler A",			FGROUP_EXIntrruptHandler,	0 },
 	{   0xC4,   19,     6,     4,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler B",			FGROUP_EXIntrruptHandler,	0 },
 	{   0xC4,   19,     6,     4,     1,     8,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler C",			FGROUP_EXIntrruptHandler,	0 },
 	{   0xBC,   16,     3,     4,     1,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_PKM",		FGROUP_EXIntrruptHandler,	0 },
+	{   0xC4,   20,     2,     6,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
 	{   0xC8,   21,     2,     6,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
+	{   0xA4,   16,     3,     2,     3,     2,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
 
 	{  0x340,   61,    10,     7,    26,    32,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler A",			FGROUP_SIInterruptHandler,	0 },
 	{  0x114,   21,     4,     4,     5,    11,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler B",			FGROUP_SIInterruptHandler,	0 },
 	{  0x2EC,   50,     7,     9,    14,    27,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler C",			FGROUP_SIInterruptHandler,	0 },
 	{  0x258,   39,     6,     7,    15,    17,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler D",			FGROUP_SIInterruptHandler,	0 },
+	{   0x8C,   13,     4,     3,     1,     3,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler_DBG",			FGROUP_SIInterruptHandler,	0 },
 
 	{  0x10C,   27,    11,     8,     2,     4,	(u8*)NULL,				FCODE_PI_FIFO_WP_A,				"PI_FIFO_WP A A",				FGROUP_PI_FIFO_WP_A,		0 },
 	{  0x10C,   27,    11,     7,     2,     5,	(u8*)NULL,				FCODE_PI_FIFO_WP_A,				"PI_FIFO_WP A B",				FGROUP_PI_FIFO_WP_A,		0 },
@@ -258,6 +274,7 @@ FuncPattern FPatterns[] =
 	{   0xD8,   21,     8,     5,     3,     2,	EXILock,				sizeof(EXILock),				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
 	{   0xC4,   18,     4,     5,     3,     3,	EXILock,				sizeof(EXILock),				"EXIUnlock_PKM",				FGROUP_EXIUnlock,			0 },
 	{   0xF0,   23,     4,     6,     5,     4,	EXILock,				sizeof(EXILock),				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
+	{   0xEC,   22,     4,     6,     5,     4,	EXILock,				sizeof(EXILock),				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
 	{  0x128,   18,     4,     6,    11,     8,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
 	{  0x128,   18,     4,     6,    11,     7,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
 	{  0x13C,   20,     4,     6,    11,     6,	EXISelect,				sizeof(EXISelect),				"EXISelect_PKM",				FGROUP_EXISelect,			0 },
@@ -276,15 +293,19 @@ FuncPattern FPatterns[] =
 	{  0x234,   35,     3,     3,    12,    17,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
 	{  0x16C,   26,     3,     3,     9,     7,	EXILock,				sizeof(EXILock),				"EXISync_PKM",					FGROUP_EXISync,				0 },
 	{  0x1A8,   34,     2,     7,     9,     8,	EXILock,				sizeof(EXILock),				"EXISync_DBG",					FGROUP_EXISync,				0 },
+	{  0x13C,   25,     2,     6,     7,     7,	EXILock,				sizeof(EXILock),				"EXISync_DBG",					FGROUP_EXISync,				0 },
 	{  0x10C,   20,     8,     6,    12,     4,	EXILock,				sizeof(EXILock),				"EXIDeselect",					FGROUP_EXIDeselect,			0 },
 	{  0x10C,   20,     8,     6,    12,     3,	EXILock,				sizeof(EXILock),				"EXIDeselect",					FGROUP_EXIDeselect,			0 },
 	{  0x104,   17,     3,     6,    12,     4,	EXILock,				sizeof(EXILock),				"EXIDeselect_PKM",				FGROUP_EXIDeselect,			0 },
 	{  0x130,   22,     3,     7,    14,     5,	EXILock,				sizeof(EXILock),				"EXIDeselect_DBG",				FGROUP_EXIDeselect,			0 },
+	{  0x12C,   21,     3,     7,    14,     5,	EXILock,				sizeof(EXILock),				"EXIDeselect_DBG",				FGROUP_EXIDeselect,			0 },
 	{  0x170,   30,     7,     5,     8,     9,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
 	{  0x170,   30,     7,     5,     8,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
 	{  0x164,   30,     4,     5,     8,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
 	{  0x1B0,   34,     6,     5,     8,     8,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_PKM",				FGROUP___EXIProbe,			0 },
+	{  0x1B8,   38,     5,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
 	{  0x1BC,   39,     5,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
+	{  0x1AC,   38,     2,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
 //	{  0x378,   69,    11,    26,    20,    20,	EXIGetID,				sizeof(EXIGetID),				"EXIGetID",						FGROUP_NONE,				0 },
 	{   0xEC,   24,     6,     6,     3,     7,	__CARDReadStatus,		sizeof(__CARDReadStatus),		"__CARDReadStatus",				FGROUP_NONE,				0 },
 	{   0xA8,   17,     5,     4,     3,     5,	__CARDReadStatus+8,		8,								"__CARDClearStatus",			FGROUP_NONE,				0 },
@@ -301,6 +322,8 @@ FuncPattern FPatterns[] =
 	{  0x2A0,   40,    16,     5,    17,    46,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState B",	FGROUP_OSGetResetButtonState,	0 },
 	{  0x1F0,   34,    14,     6,    12,    28,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState C",	FGROUP_OSGetResetButtonState,	0 },
 
+	{  0x28C,   70,     8,     8,    10,     4,	(u8*)NULL,				FCODE___OSInitAudioSystem,		"__OSInitAudioSystem_DBG",	FGROUP___OSInitAudioSystem,		0 },
+	{  0x2B8,   77,     8,    12,    10,     4,	(u8*)NULL,				FCODE___OSInitAudioSystem,		"__OSInitAudioSystem_DBG2",	FGROUP___OSInitAudioSystem,		0 },
 #ifdef AUDIOSTREAM
 	{   0x84,    8,     4,     2,     0,     5,	(u8*)NULL,				FCODE_AIInitDMA,				"AIInitDMA",					FGROUP_NONE,				0 },
 	{  0x420,  103,    23,    34,    32,     9,	(u8*)NULL,				FCODE___DSPHandler,				"__DSPHandler",					FGROUP_NONE,				0 },

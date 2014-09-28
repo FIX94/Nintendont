@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "global.h"
 #include "EXI.h"
+#include "DI.h"
 #include "ff.h"
 #include "common.h"
 #include "vsprintf.h"
@@ -59,8 +60,9 @@ void EXIInit( void )
 	dbgprintf("EXIInit Start\r\n");
 	u32 i, wrote, ret;
 	
-	write32( 0x0D80600C, 0 );
-	write32( 0x0D806010, 0 );
+	write32( DIP_CMD_1, 0 );
+	write32( DIP_CMD_2, 0 );
+	write32( DIP_IMM, 0 );
 
 	write32( EXI2CSR, 0 );
 	write32( EXI2CR, 0 );

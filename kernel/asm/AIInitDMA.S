@@ -18,11 +18,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set	AI_MEM_BASE,	0xD3026560
+.set	AI_MEM_BASE,	0xCD80682C
 
 AIInitDMA:
 	rlwinm	%r0,	%r30,	0,		7,		26 # 0x01ffffe0
-	oris	%r0,	%r0,	0x8000
 
 	lis		%r5,	AI_MEM_BASE@h
 	stwu	%r0,	AI_MEM_BASE@l(%r5)

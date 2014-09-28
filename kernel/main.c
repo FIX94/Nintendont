@@ -321,13 +321,13 @@ int _main( int argc, char *argv[] )
 			Now = read32(HW_TIMER);
 			SaveCard = true;
 		}
-		if(read32(DI_SCONFIG) == 0x1DEA)
+		if(read32(DIP_IMM) == 0x1DEA)
 		{
 			DIFinishAsync();
 			break;
 		}
 
-		if(read32(DI_SCONFIG) == 0x3DEA)
+		if(read32(DIP_IMM) == 0x3DEA)
 		{
 			if(Reset == 0)
 			{
@@ -349,8 +349,7 @@ int _main( int argc, char *argv[] )
 			if((read32(HW_TIMER) - ResetTimer) / 949219 > 0) //free after half a second
 			{
 				write32( EXI2DATA, 0 ); // done, clear
-				write32(DI_SCONFIG, 0);
-				sync_after_write( (void*)DI_SCONFIG, 4 );
+				write32(DIP_IMM, 0);
 				Reset = 0;
 			}
 		}
@@ -388,17 +387,13 @@ int _main( int argc, char *argv[] )
 	thread_cancel(DI_Thread, 0);
 	DIUnregister();
 
-	write32( DI_SCONFIG, 0 );
-	sync_after_write( (void*)DI_SCONFIG, 4 );
+	write32( DIP_IMM, 0 );
 	/* reset time */
 	while(1)
 	{
-		_ahbMemFlush(0);
-		sync_before_read( (void*)DI_SCONFIG, 4 );
-		if(read32(DI_SCONFIG) == 0x2DEA)
+		if(read32(DIP_IMM) == 0x2DEA)
 			break;
 		wait_for_ppc(1);
-		cc_ahbMemFlush(1);
 	}
 
 	if( ConfigGetConfig(NIN_CFG_LED) )

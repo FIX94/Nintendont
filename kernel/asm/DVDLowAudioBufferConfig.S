@@ -18,8 +18,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set	REAL_STREAMING,	0xD302652C
-.set	AI_STREAM_PAUSE,0xD302656C
+.set	REAL_STREAMING,	0xCD806014
+
 DVDLowAudioBufferConfig:
 	mtctr	%r5
 	lis		%r5,	REAL_STREAMING@h
@@ -27,24 +27,19 @@ DVDLowAudioBufferConfig:
 	beq		StopStream
 
 StartStream:
-	lwz		%r3,	AI_STREAM_PAUSE@l(%r5)
-	cmpwi	%r3,	0
-	beq		StartCB		#dont start when not paused before
+	lwz		%r3,	REAL_STREAMING@l(%r5)
+	cmpwi	%r3,	0x40
+	bne		StartCB		#dont start when not paused before
 
-	li		%r3,	0
-	stw		%r3,	AI_STREAM_PAUSE@l(%r5)
-	li		%r3,	1
+	li		%r3,	0x20
 	b		SaveValue
 
 StopStream:
 	lwz		%r3,	REAL_STREAMING@l(%r5)
-	cmpwi	%r3,	0
-	beq		StartCB		#dont pause when not even streaming
+	cmpwi	%r3,	0x20
+	bne		StartCB		#dont pause when not even streaming
 
-	li		%r3,	1
-	stw		%r3,	AI_STREAM_PAUSE@l(%r5)
-	li		%r3,	0
-
+	li		%r3,	0x40
 SaveValue:
 	stw		%r3,	REAL_STREAMING@l(%r5)
 StartCB:
