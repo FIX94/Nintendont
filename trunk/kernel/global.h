@@ -122,6 +122,8 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define		HW_ARMIRQMASK		(HW_REG_BASE + 0x03C)
 #define		HW_IPC_PPCCTRL		(HW_REG_BASE + 0x004)
 #define		HW_IPC_ARMCTRL		(HW_REG_BASE + 0x00C)
+#define		HW_IPC_PPCMSG		(HW_REG_BASE + 0x000)
+#define		HW_IPC_ARMMSG		(HW_REG_BASE + 0x008)
 #define		HW_TIMER			(HW_REG_BASE + 0x010) //increments around every 526.7 nanoseconds
 #define		HW_PPCSPEED			(HW_REG_BASE + 0x018)
 #define		HW_VERSION			(HW_REG_BASE + 0x214)

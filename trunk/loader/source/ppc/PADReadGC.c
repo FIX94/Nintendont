@@ -10,7 +10,7 @@ static vu32 *stubsrc = (u32*)0x93011810;
 static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* const _siReg = (u32*)0xCD006400;
 static vu32* const MotorCommand = (u32*)0xD3003010;
-static vu32* reset = (u32*)0xC0002F54;
+static vu32* reset = (u32*)0xCD806020;
 static vu32* HIDMotor = (u32*)0x93002700;
 static vu32* PadUsed = (u32*)0x93002704;
 
@@ -584,6 +584,8 @@ u32 _start()
 		Pad[chan].err = (used & (1<<chan)) ? 0 : -1;
 
 	*PadUsed = used;
+	if(*(vu32*)0xC0000000 == 0x47434F45 || *(vu32*)0xC0000000 == 0x47544945) //Call of Duty, Tiger Woods 2003
+		*(vu32*)0xD3026438 = (*(vu32*)0xD3026438 == 0) ? 0x20202020 : 0; //switch between new data and no data
 
 	memFlush = (u32)HIDMotor;
 	asm volatile("dcbf 0,%0; sync; isync" : : "b"(memFlush) : "memory");

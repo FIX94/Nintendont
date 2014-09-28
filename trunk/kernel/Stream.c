@@ -29,6 +29,8 @@ u32 StreamStart = 0;
 u32 StreamCurrent = 0;
 
 u8 *StreamBuffer = (u8*)0x132A0000;
+#define REAL_STREAMING DIP_DMA_ADR
+#define AI_ADP_LOC DIP_DMA_LEN
 
 #define BUFSIZE 0xC400
 #define CHUNK_48 0x3800
@@ -57,6 +59,9 @@ void StreamInit()
 	sync_after_write((void*)buf1, BUFSIZE);
 	memset32((void*)buf2, 0, BUFSIZE);
 	sync_after_write((void*)buf2, BUFSIZE);
+
+	write32(REAL_STREAMING, 0);
+	write32(AI_ADP_LOC, 0);
 }
 
 void StreamPrepare(bool resample)
@@ -145,15 +150,13 @@ u32 StreamGetChunkSize()
 
 #define STREAM_BASE 0x13026520
 #define STREAM_UPDATE 0x13026524
-#define REAL_STREAMING 0x1302652C
 #define FAKE_STREAMING 0x13026540
 #define STREAM_LENGTH 0x13026544
 #define STREAM_START 0x13026548
 #define STREAM_CURRENT 0x1302654C
 #define REALSTREAM_END 0x13026550
 
-#define AI_ADP_LOC 0x13026580
-#define LOOP_ENABLED 0x13026584
+#define LOOP_ENABLED 0x13026580
 
 extern s32 DI_Handle;
 void StreamUpdateRegisters()
@@ -182,7 +185,7 @@ void StreamUpdateRegisters()
 				u32 diff = StreamCurrent - StreamEndOffset;
 				u32 startpos = StreamGetChunkSize() - diff;
 				memset32(StreamBuffer + startpos, 0, diff);
-				sync_before_read( (void*)AI_ADP_LOC, 0x20 );
+				sync_before_read( (void*)LOOP_ENABLED, 0x20 );
 				if(read32(LOOP_ENABLED) == 1)
 				{
 					StreamCurrent = StreamStart;
@@ -221,8 +224,7 @@ void StreamUpdateRegisters()
 			/* Send stream signal to PPC */
 			write32(STREAM_CURRENT, StreamCurrent);
 			write32(AI_ADP_LOC, 0); //reset adp read pos
-			sync_after_write( (void*)AI_ADP_LOC, 0x20 );
-			write32(REAL_STREAMING, 1); //set stream flag
+			write32(REAL_STREAMING, 0x20); //set stream flag
 			sync_after_write( (void*)STREAM_BASE, 0x20 );
 			//dbgprintf("Streaming %08x %08x\n", StreamStart, StreamSize);
 			StreamEnd = 0;
@@ -231,8 +233,6 @@ void StreamUpdateRegisters()
 	else if(read32(FAKE_STREAMING) == 0 && StreamCurrent > 0)		//stop stream
 	{
 		StreamCurrent = 0;
-		sync_before_read( (void*)STREAM_BASE, 0x20 );
 		write32(REAL_STREAMING, 0); //clear stream flag
-		sync_after_write((void*)STREAM_BASE, 0x20);
 	}
 }

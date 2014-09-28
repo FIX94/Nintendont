@@ -22,6 +22,7 @@
 #include "asm/SIGetType.h"
 #include "asm/__OSReadROM.h"
 #include "asm/FakeInterrupt.h"
+#include "asm/FakeInterrupt_DBG.h"
 #include "asm/TCIntrruptHandler.h"
 #include "asm/SIIntrruptHandler.h"
 #include "asm/PADRead.h"
