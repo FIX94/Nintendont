@@ -232,7 +232,9 @@ int _main( int argc, char *argv[] )
 	BootStatus(0xdeadbeef, s_size, s_cnt);
 
 	u32 Now = read32(HW_TIMER);
+	#ifdef PATCHALL
 	u32 PADTimer = Now;
+	#endif
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
 	u32 Reset = 0;
@@ -255,6 +257,7 @@ int _main( int argc, char *argv[] )
 		{
 			write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
 		}*/
+		#ifdef PATCHALL
 		if (EXI_IRQ == true)
 		{
 			if(EXICheckTimer())
@@ -262,12 +265,13 @@ int _main( int argc, char *argv[] )
 		}
 		if(SI_IRQ != 0)
 		{
-			if (((read32(HW_TIMER) - PADTimer) >= 65000) || (SI_IRQ & 0x2))	// about 29 times a second
+			if (((read32(HW_TIMER) - PADTimer) > 7910) || (SI_IRQ & 0x2))	// about 240 times a second
 			{
 				SIInterrupt();
 				PADTimer = read32(HW_TIMER);
 			}
 		}
+		#endif
 		if(DI_IRQ == true)
 		{
 			if(DI_CallbackMsg.result == 0)
@@ -310,11 +314,13 @@ int _main( int argc, char *argv[] )
 		}
 		_ahbMemFlush(1);
 		DIUpdateRegisters();
+		#ifdef PATCHALL
 		EXIUpdateRegistersNEW();
 		GCAMUpdateRegisters();
 		SIUpdateRegisters();
-		StreamUpdateRegisters();
 		BTUpdateRegisters();
+		#endif
+		StreamUpdateRegisters();
 		CheckOSReport();
 		if(EXICheckCard())
 		{
@@ -356,7 +362,9 @@ int _main( int argc, char *argv[] )
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
 		{
 			DIFinishAsync();
+			#ifdef PATCHALL
 			BTE_Shutdown();
+			#endif
 			Shutdown();
 		}
 		//sync_before_read( (void*)0x1860, 0x20 );
@@ -405,7 +413,9 @@ int _main( int argc, char *argv[] )
 	if (ConfigGetConfig(NIN_CFG_LOG))
 		closeLog();
 
+#ifdef PATCHALL
 	BTE_Shutdown();
+#endif
 
 //unmount FAT device
 	f_mount(0, NULL);

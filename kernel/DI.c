@@ -548,7 +548,9 @@ void DIUpdateRegisters( void )
 				case 0xF9:
 				{
 					CacheInit(FSTBuf, false);
+					#ifdef PATCHALL
 					BTInit();
+					#endif
 					DIOK = 1;
 				} break;
 			}
