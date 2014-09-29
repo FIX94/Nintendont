@@ -89,6 +89,7 @@ enum
 										//SIInterruptHandler_B,
 										//SIInterruptHandler_C,
 										//SIInterruptHandler_D,
+	FCODE_PADIsBarrel,
 	FCODE_PI_FIFO_WP_A,
 	FCODE_PI_FIFO_WP_B,
 	FCODE_PI_FIFO_WP_C,
@@ -96,6 +97,7 @@ enum
 	FCODE_PI_FIFO_WP_E,
 	FCODE_PI_FIFO_WP_F,
 	FCODE_EXIDMA,
+	FCODE_EXIUnlock,
 	FCODE___CARDStat_A,
 	FCODE___CARDStat_B,
 	FCODE___CARDStat_C,
@@ -158,6 +160,7 @@ FuncPattern FPatterns[] =
 	{  0x16C,   29,     3,     5,     3,     9,	(u8*)NULL,				FCODE_ARStartDMA,				"ARStartDMA_DBG",				FGROUP_ARStartDMA,			0 },
 	{   0x44,    4,     4,     0,     0,     2,	(u8*)NULL,				FCODE_GXInitTlutObj,			"GXInitTlutObj A",				FGROUP_NONE,				0 },	// Don't group them, false hit prevents finding real offset
 	{   0x34,    5,     4,     0,     0,     0,	(u8*)NULL,				FCODE_GXInitTlutObj,			"GXInitTlutObj B",				FGROUP_NONE,				0 },
+#ifdef PATCHALL
 	{  0x1C0,   35,     9,     8,     7,    19,	SIGetType,				sizeof(SIGetType),				"SIGetType A",					FGROUP_SIGetType,			0 },
 	{  0x1F4,   27,     9,     9,     9,    24,	SIGetType,				sizeof(SIGetType),				"SIGetType B",					FGROUP_SIGetType,			0 },
 
@@ -179,13 +182,13 @@ FuncPattern FPatterns[] =
 	{   0x7C,   15,     9,     2,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit_DBG",					FGROUP_SIInit,				0 },
 	{   0x94,    8,    10,     2,     4,     2,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt A",	FGROUP_SIPollingInterrupt,	0 },
 	{   0xA4,    9,     5,     2,     6,     4,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt B",	FGROUP_SIPollingInterrupt,	0 },
-
+#endif
 	{  0x910,   87,    33,    18,     5,    63,	(u8*)NULL,				FCODE___ARChecksize_A,			"__ARChecksize A",				FGROUP___ARChecksize,		0 },
 	{ 0x17F0,  204,    51,    27,     5,   178,	(u8*)NULL,				FCODE___ARChecksize_B,			"__ARChecksize B",				FGROUP___ARChecksize,		0 },
 	{  0xEC8,  129,    29,    32,     9,    80,	(u8*)NULL,				FCODE___ARChecksize_C,			"__ARChecksize C",				FGROUP___ARChecksize,		0 },
 	{  0x530,  183,     4,    58,    13,    16,	(u8*)NULL,				FCODE___ARChecksize_DBG,		"__ARChecksize_DBG",			FGROUP___ARChecksize,		0 },
 //	{  0x120,   28,     6,    10,     2,     7,	(u8*)NULL,				FCODE___OSReadROM,				"__OSReadROM",					FGROUP_NONE,				0 },
-
+#ifdef PATCHALL
 	{   0xCC,    3,     3,     1,     0,     3,	(u8*)NULL,				FCODE_C_MTXPerspective,			"C_MTXPerspective",				FGROUP_NONE,				0 },
 	{   0xC8,    3,     3,     1,     0,     3,	(u8*)NULL,				FCODE_C_MTXLightPerspective,	"C_MTXLightPerspective",		FGROUP_NONE,				0 },
 	{  0x144,    9,     3,     1,    10,     6,	(u8*)NULL,				FCODE_J3DUClipper_clip,			"J3DUClipper::clip()",			FGROUP_NONE,				0 },	// These are two different functions
@@ -198,7 +201,7 @@ FuncPattern FPatterns[] =
 	{   0xB0,   19,    12,     4,     0,     2,	(u8*)NULL,				FCODE_PatchFunc,				"GCAMWrite",					FGROUP_NONE,				0 },
 	{   0x98,   19,     9,     4,     0,     2,	(u8*)NULL,				FCODE_PatchFunc,				"GCAMIdentify",					FGROUP_NONE,				0 },
 	{   0x54,   10,     2,     2,     0,     2,	(u8*)NULL,				FCODE_GCAMSendCommand,			"GCAMSendCommand",				FGROUP_NONE,				0 },
-
+#endif
 	{  0x10C,   30,    18,     5,     2,     3,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRead A",					FGROUP_DVDLowRead,			0 },
 	{   0xDC,   23,    18,     3,     2,     4,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRead B",					FGROUP_DVDLowRead,			0 },
 	{  0x104,   29,    17,     5,     2,     3,	(u8*)NULL,				FCODE_PatchFunc,				"DVDLowRead C",					FGROUP_DVDLowRead,			0 },
@@ -219,7 +222,7 @@ FuncPattern FPatterns[] =
 //	{  0x1FC,   47,     4,    14,    18,     7,	(u8*)NULL,				FCODE___fwrite_D,				"__fwrite D",					FGROUP___fwrite,			0 },
 
 	{   0x98,    8,     3,     0,     3,     5,	(u8*)NULL,				FCODE___GXSetVAT,				"__GXSetVAT",					FGROUP_NONE,				0 },
-
+#ifdef PATCHALL
 	{  0x3A8,   86,    13,    27,    17,    24,	(u8*)PADRead,			sizeof(PADRead),				"PADRead A",					FGROUP_PADRead,				0 },
 	{  0x2FC,   73,     8,    23,    16,    15,	(u8*)PADRead,			sizeof(PADRead),				"PADRead B",					FGROUP_PADRead,				0 },
 	{  0x3B0,   87,    13,    27,    17,    25,	(u8*)PADRead,			sizeof(PADRead),				"PADRead C",					FGROUP_PADRead,				0 },
@@ -233,7 +236,7 @@ FuncPattern FPatterns[] =
 	{   0xB4,    8,     2,     5,     4,     5,	(u8*)PADControlAllMotors,sizeof(PADControlAllMotors),	"PADControlAllMotors A",		FGROUP_PADControlAllMotors,	0 },
 	{   0xC8,    9,     2,     5,     5,     5,	(u8*)PADControlAllMotors,sizeof(PADControlAllMotors),	"PADControlAllMotors B",		FGROUP_PADControlAllMotors,	0 },
 
-	{   0x14,    1,     0,     0,     2,     0,	(u8*)PADIsBarrel,		sizeof(PADIsBarrel),			"PADIsBarrel",					FGROUP_NONE,				0 },
+	{   0x14,    1,     0,     0,     2,     0,	(u8*)NULL,				FCODE_PADIsBarrel,				"PADIsBarrel",					FGROUP_NONE,				0 },
 
 	{  0x1F0,   34,     9,     1,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler A",			FGROUP_TCIntrruptHandler,	0 },
 	{  0x214,   41,     9,     5,     8,    22,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler B",			FGROUP_TCIntrruptHandler,	0 },
@@ -256,8 +259,8 @@ FuncPattern FPatterns[] =
 	{  0x114,   21,     4,     4,     5,    11,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler B",			FGROUP_SIInterruptHandler,	0 },
 	{  0x2EC,   50,     7,     9,    14,    27,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler C",			FGROUP_SIInterruptHandler,	0 },
 	{  0x258,   39,     6,     7,    15,    17,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler D",			FGROUP_SIInterruptHandler,	0 },
-	{   0x8C,   13,     4,     3,     1,     3,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler_DBG",			FGROUP_SIInterruptHandler,	0 },
-
+	{   0x8C,   13,     4,     3,     1,     3,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler_DBG",		FGROUP_SIInterruptHandler,	0 },
+#endif
 	{  0x10C,   27,    11,     8,     2,     4,	(u8*)NULL,				FCODE_PI_FIFO_WP_A,				"PI_FIFO_WP A A",				FGROUP_PI_FIFO_WP_A,		0 },
 	{  0x10C,   27,    11,     7,     2,     5,	(u8*)NULL,				FCODE_PI_FIFO_WP_A,				"PI_FIFO_WP A B",				FGROUP_PI_FIFO_WP_A,		0 },
 	{   0xD8,   20,    11,     3,     3,     6,	(u8*)NULL,				FCODE_PI_FIFO_WP_B,				"PI_FIFO_WP B",					FGROUP_NONE,				0 },
@@ -265,16 +268,16 @@ FuncPattern FPatterns[] =
 	{   0xC4,   19,    10,     2,     3,     5,	(u8*)NULL,				FCODE_PI_FIFO_WP_D,				"PI_FIFO_WP D",					FGROUP_NONE,				0 },
 	{   0xC0,   21,     7,     6,     2,     3,	(u8*)NULL,				FCODE_PI_FIFO_WP_E,				"PI_FIFO_WP E",					FGROUP_NONE,				0 },
 	{   0x98,   15,     8,     2,     1,     3,	(u8*)NULL,				FCODE_PI_FIFO_WP_F,				"PI_FIFO_WP F",					FGROUP_NONE,				0 },
-
+#ifdef PATCHALL
 	{   0xF0,   17,     7,     5,     5,     7,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
 	{   0xF0,   18,     7,     5,     5,     6,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
 	{   0xF8,   19,     5,     5,     6,     6,	EXILock,				sizeof(EXILock),				"EXILock_PKM",					FGROUP_EXILock,				0 },
 	{  0x1A4,   35,     5,     9,    13,     6,	EXILock,				sizeof(EXILock),				"EXILock_DBG",					FGROUP_EXILock,				0 },
-	{   0xD8,   21,     8,     5,     3,     3,	EXILock,				sizeof(EXILock),				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
-	{   0xD8,   21,     8,     5,     3,     2,	EXILock,				sizeof(EXILock),				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
-	{   0xC4,   18,     4,     5,     3,     3,	EXILock,				sizeof(EXILock),				"EXIUnlock_PKM",				FGROUP_EXIUnlock,			0 },
-	{   0xF0,   23,     4,     6,     5,     4,	EXILock,				sizeof(EXILock),				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
-	{   0xEC,   22,     4,     6,     5,     4,	EXILock,				sizeof(EXILock),				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
+	{   0xD8,   21,     8,     5,     3,     3,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
+	{   0xD8,   21,     8,     5,     3,     2,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
+	{   0xC4,   18,     4,     5,     3,     3,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_PKM",				FGROUP_EXIUnlock,			0 },
+	{   0xF0,   23,     4,     6,     5,     4,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
+	{   0xEC,   22,     4,     6,     5,     4,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
 	{  0x128,   18,     4,     6,    11,     8,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
 	{  0x128,   18,     4,     6,    11,     7,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
 	{  0x13C,   20,     4,     6,    11,     6,	EXISelect,				sizeof(EXISelect),				"EXISelect_PKM",				FGROUP_EXISelect,			0 },
@@ -321,7 +324,7 @@ FuncPattern FPatterns[] =
 	{  0x294,   39,    16,     5,    16,    46,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState A",	FGROUP_OSGetResetButtonState,	0 },
 	{  0x2A0,   40,    16,     5,    17,    46,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState B",	FGROUP_OSGetResetButtonState,	0 },
 	{  0x1F0,   34,    14,     6,    12,    28,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState C",	FGROUP_OSGetResetButtonState,	0 },
-
+#endif
 	{  0x28C,   70,     8,     8,    10,     4,	(u8*)NULL,				FCODE___OSInitAudioSystem,		"__OSInitAudioSystem_DBG",	FGROUP___OSInitAudioSystem,		0 },
 	{  0x2B8,   77,     8,    12,    10,     4,	(u8*)NULL,				FCODE___OSInitAudioSystem,		"__OSInitAudioSystem_DBG2",	FGROUP___OSInitAudioSystem,		0 },
 #ifdef AUDIOSTREAM
