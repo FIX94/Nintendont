@@ -2008,8 +2008,27 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					} break;
 					case FCODE_ARStartDMA:	//	ARStartDMA
 					{
-						if( (TITLE_ID) == 0x47384D ||	// Paper Mario
-							(TITLE_ID) == 0x475951 )	// Mario Superstar Baseball
+						if( (TITLE_ID) == 0x474234 ||	// Burnout 2
+							(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
+							(TITLE_ID) == 0x474146 ||	// Animal Crossing
+							(TITLE_ID) == 0x475852 )	// Mega Man X Command Mission
+						{
+							u32 PatchOffset = 0x20;
+							while ((read32(FOffset + PatchOffset) != 0x3CC0CC00) && (PatchOffset < 0x40)) // MaxSearch=0x40
+								PatchOffset += 4;
+							if (read32(FOffset + PatchOffset) != 0x3CC0CC00)	// lis	r6,	0xCC00
+							{
+								FPatterns[j].Found = 0; // False hit
+								break;
+							}
+							PatchBL( PatchCopy(ARStartDMA_Hook, sizeof(ARStartDMA_Hook)), (FOffset + PatchOffset) );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", FPatterns[j].Name, FOffset, PatchOffset);
+							#endif
+							break;
+						}
+						else if( (TITLE_ID) == 0x47384D ||	// Paper Mario
+								 (TITLE_ID) == 0x475951 )	// Mario Superstar Baseball
 						{
 							memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
 						}
@@ -2017,16 +2036,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							memcpy( (void*)FOffset, ARStartDMA_NFS, sizeof(ARStartDMA_NFS) );
 						}
-						else if((TITLE_ID) == 0x47564A) // Viewtiful Joe
-						{
-							memcpy( (void*)FOffset, ARStartDMA_VJ, sizeof(ARStartDMA_VJ) );
-						}
 						else
 						{
 							memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
-							if( (TITLE_ID) != 0x475852 &&	// Mega Man X Command Mission
-								(TITLE_ID) != 0x474146 &&	// Animal Crossing
-								(TITLE_ID) != 0x474156 &&	// Avatar Last Airbender
+							if( (TITLE_ID) != 0x474156 &&	// Avatar Last Airbender
 								(TITLE_ID) != 0x47504E )	// P.N.03
 							{
 								u32 PatchOffset = 0;

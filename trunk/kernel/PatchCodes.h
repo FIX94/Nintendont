@@ -19,6 +19,7 @@
 #include "asm/ARStartDMA_PM.h"
 #include "asm/ARStartDMA_VJ.h"
 #include "asm/ARStartDMA_NFS.h"
+#include "asm/ARStartDMA_Hook.h"
 #include "asm/SIGetType.h"
 #include "asm/__OSReadROM.h"
 #include "asm/FakeInterrupt.h"
