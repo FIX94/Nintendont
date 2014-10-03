@@ -1703,7 +1703,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			i+=12;
 			continue;
 		}
-
+		/* Pokemon XD uses this check pattern in various locations */
+		if(*(u32*)(Buffer + i) == 0x80033014 && (*(u32*)(Buffer + i + 12) & 0xFFF0FFFF) == 0x541037FE)
+		{
+			write32((u32)(Buffer+i+12), (read32((u32)(Buffer+i+12)) & 0xFFFF0000) | 0x00001FFE); // Change WRAPPED bit
+			printpatchfound("PI_FIFO_WP", (u32)Buffer + i + 12);
+			i+=16;
+			continue;
+		}
 		if( *(u32*)(Buffer + i) != 0x4E800020 )
 			continue;
 
@@ -2028,7 +2035,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							break;
 						}
 						else if( (TITLE_ID) == 0x47384D ||	// Paper Mario
-								 (TITLE_ID) == 0x475951 )	// Mario Superstar Baseball
+								 (TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
+								 (TITLE_ID) == 0x474154 ||	// ATV Quad Power Racing 2
+								 (TITLE_ID) == 0x47504E )	// P.N.03
 						{
 							memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
 						}
@@ -2039,8 +2048,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						else
 						{
 							memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
-							if( (TITLE_ID) != 0x474156 &&	// Avatar Last Airbender
-								(TITLE_ID) != 0x47504E )	// P.N.03
+							if( (TITLE_ID) != 0x474156 )	// Avatar Last Airbender
 							{
 								u32 PatchOffset = 0;
 								for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
@@ -2265,9 +2273,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						res += write32A(FOffset + 0x58, 0x6084ED4E, 0x60849E34, 0); // TB_BUS_CLOCK / 4000
 						res += write32A(FOffset + 0x60, 0x3CC08A15, 0x3CC0CF20, 0);
 						res += write32A(FOffset + 0x68, 0x60C6866C, 0x60C649A1 ,0);
-						#ifdef DEBUG_PATCH
-						dbgprintf("Patch:Patched [RADTimerRead] %u/4 times\r\n", res);
-						#endif
+						if(res == 0)
+							FPatterns[j].Found = 0;
+						else
+							printpatchfound(FPatterns[j].Name, FOffset);
 					} break;
 					case FCODE___OSResetSWInterruptHandler:
 					{
@@ -2435,6 +2444,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		#ifdef DEBUG_PATCH
 		dbgprintf("Patch:Patched Megaman Collection\r\n");
 		#endif
+	}
+	if(GAME_ID == 0x47585845) // Pokemon XD
+	{
+		memcpy((void*)0x2A65CC, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x2A65CC, sizeof(OSReportDM));
 	}*/
 
 	if(write64A(0x001463E0, DBL_0_7716, DBL_1_1574))
