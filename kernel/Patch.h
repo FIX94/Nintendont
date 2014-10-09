@@ -46,6 +46,13 @@ typedef struct FuncPattern
 	u32 Found;
 } FuncPattern;
 
+typedef struct FuncPatterns
+{
+	FuncPattern *pat;
+	u32 patlen;
+	u32 patmode;
+} FuncPatterns;
+
 typedef struct GC_SRAM 
 {
 /* 0x00 */	u16 CheckSum1;

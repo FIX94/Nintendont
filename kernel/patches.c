@@ -142,7 +142,7 @@ enum
 	FGROUP___OSInitAudioSystem,
 } FPatternGroups;
 
-FuncPattern FPatterns[] =
+FuncPattern NormalFPatterns[] =
 {
 	{   0xCC,   17,    10,     5,     3,     2,	DVDInquiryAsync,		sizeof(DVDInquiryAsync),		"DVDInquiryAsync A",			FGROUP_DVDInquiryAsync,		0 },
 	{   0xC0,   18,     8,     4,     1,     3,	DVDInquiryAsync,		sizeof(DVDInquiryAsync),		"DVDInquiryAsync B",			FGROUP_DVDInquiryAsync,		0 },
@@ -160,29 +160,7 @@ FuncPattern FPatterns[] =
 	{  0x16C,   29,     3,     5,     3,     9,	(u8*)NULL,				FCODE_ARStartDMA,				"ARStartDMA_DBG",				FGROUP_ARStartDMA,			0 },
 	{   0x44,    4,     4,     0,     0,     2,	(u8*)NULL,				FCODE_GXInitTlutObj,			"GXInitTlutObj A",				FGROUP_NONE,				0 },	// Don't group them, false hit prevents finding real offset
 	{   0x34,    5,     4,     0,     0,     0,	(u8*)NULL,				FCODE_GXInitTlutObj,			"GXInitTlutObj B",				FGROUP_NONE,				0 },
-#ifdef PATCHALL
-	{  0x1C0,   35,     9,     8,     7,    19,	SIGetType,				sizeof(SIGetType),				"SIGetType A",					FGROUP_SIGetType,			0 },
-	{  0x1F4,   27,     9,     9,     9,    24,	SIGetType,				sizeof(SIGetType),				"SIGetType B",					FGROUP_SIGetType,			0 },
 
-	{  0x168,   22,    10,     7,     6,    10,	SITransfer,				sizeof(SITransfer),				"SITransfer",					FGROUP_NONE,				0 },
-	{  0x208,   38,    18,     3,    13,    10,	(u8*)NULL,				FCODE__SITransfer,				"_SITransfer A",				FGROUP__SITransfer,			0 },
-	{  0x204,   37,    18,     3,    13,    11,	(u8*)NULL,				FCODE__SITransfer,				"_SITransfer B",				FGROUP__SITransfer,			0 },
-	{  0x208,   38,    11,     7,    13,     9,	(u8*)NULL,				FCODE__SITransfer,				"_SITransfer C",				FGROUP__SITransfer,			0 },
-	{  0x204,   37,    11,     7,    13,     9,	(u8*)NULL,				FCODE__SITransfer,				"_SITransfer_DBG",				FGROUP__SITransfer,			0 },
-	{  0x2F8,   60,    22,     2,    16,    25,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer A",			FGROUP_CompleteTransfer,	0 },
-	{  0x240,   40,    14,     0,    13,    11,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer B",			FGROUP_CompleteTransfer,	0 },
-	{  0x180,   29,     9,     3,     9,     9,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer C",			FGROUP_CompleteTransfer,	0 },
-	{   0xE0,   18,     4,     0,     6,     3,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer_DBG",			FGROUP_CompleteTransfer,	0 },
-	{   0xB0,   21,     9,     8,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit A",						FGROUP_SIInit,				0 },
-	{   0x70,   13,     8,     2,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit B",						FGROUP_SIInit,				0 },
-	{   0x90,   17,     8,     6,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit C",						FGROUP_SIInit,				0 },
-	{   0xA0,   20,     8,     7,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit D",						FGROUP_SIInit,				0 },
-	{   0xB0,   22,     9,     8,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit E",						FGROUP_SIInit,				0 },
-	{   0x9C,   19,     9,     6,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit F",						FGROUP_SIInit,				0 },
-	{   0x7C,   15,     9,     2,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit_DBG",					FGROUP_SIInit,				0 },
-	{   0x94,    8,    10,     2,     4,     2,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt A",	FGROUP_SIPollingInterrupt,	0 },
-	{   0xA4,    9,     5,     2,     6,     4,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt B",	FGROUP_SIPollingInterrupt,	0 },
-#endif
 	{  0x910,   87,    33,    18,     5,    63,	(u8*)NULL,				FCODE___ARChecksize_A,			"__ARChecksize A",				FGROUP___ARChecksize,		0 },
 	{ 0x17F0,  204,    51,    27,     5,   178,	(u8*)NULL,				FCODE___ARChecksize_B,			"__ARChecksize B",				FGROUP___ARChecksize,		0 },
 	{  0xEC8,  129,    29,    32,     9,    80,	(u8*)NULL,				FCODE___ARChecksize_C,			"__ARChecksize C",				FGROUP___ARChecksize,		0 },
@@ -222,45 +200,7 @@ FuncPattern FPatterns[] =
 //	{  0x1FC,   47,     4,    14,    18,     7,	(u8*)NULL,				FCODE___fwrite_D,				"__fwrite D",					FGROUP___fwrite,			0 },
 
 	{   0x98,    8,     3,     0,     3,     5,	(u8*)NULL,				FCODE___GXSetVAT,				"__GXSetVAT",					FGROUP_NONE,				0 },
-#ifdef PATCHALL
-	{  0x3A8,   86,    13,    27,    17,    24,	(u8*)PADRead,			sizeof(PADRead),				"PADRead A",					FGROUP_PADRead,				0 },
-	{  0x2FC,   73,     8,    23,    16,    15,	(u8*)PADRead,			sizeof(PADRead),				"PADRead B",					FGROUP_PADRead,				0 },
-	{  0x3B0,   87,    13,    27,    17,    25,	(u8*)PADRead,			sizeof(PADRead),				"PADRead C",					FGROUP_PADRead,				0 },
-	{  0x334,   78,     7,    20,    17,    19,	(u8*)PADRead,			sizeof(PADRead),				"PADRead D",					FGROUP_PADRead,				0 },
-	{  0x2A8,   66,     4,    20,    17,    14,	(u8*)PADRead,			sizeof(PADRead),				"PADRead E",					FGROUP_PADRead,				0 },
 
-	{   0xB4,   11,     5,     5,     3,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor A",			FGROUP_PADControlMotor,		0 },
-	{   0xA0,   10,     5,     5,     2,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor B",			FGROUP_PADControlMotor,		0 },
-	{   0xB8,   14,     5,     4,     2,     7,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor C",			FGROUP_PADControlMotor,		0 },
-
-	{   0xB4,    8,     2,     5,     4,     5,	(u8*)PADControlAllMotors,sizeof(PADControlAllMotors),	"PADControlAllMotors A",		FGROUP_PADControlAllMotors,	0 },
-	{   0xC8,    9,     2,     5,     5,     5,	(u8*)PADControlAllMotors,sizeof(PADControlAllMotors),	"PADControlAllMotors B",		FGROUP_PADControlAllMotors,	0 },
-
-	{   0x14,    1,     0,     0,     2,     0,	(u8*)NULL,				FCODE_PADIsBarrel,				"PADIsBarrel",					FGROUP_NONE,				0 },
-
-	{  0x1F0,   34,     9,     1,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler A",			FGROUP_TCIntrruptHandler,	0 },
-	{  0x214,   41,     9,     5,     8,    22,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler B",			FGROUP_TCIntrruptHandler,	0 },
-	{  0x214,   37,     9,     5,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler C",			FGROUP_TCIntrruptHandler,	0 },
-	{  0x158,   28,     5,     5,     6,     4,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_PKM",		FGROUP_TCIntrruptHandler,	0 },
-	{   0xE4,   22,     3,     8,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
-	{   0xE8,   23,     3,     8,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
-	{   0xC4,   18,     4,     4,     3,     4,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
-	{   0xA8,   17,     6,     1,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler E",			FGROUP_TCIntrruptHandler,	0 },
-
-	{   0x7C,   10,     3,     0,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler A",			FGROUP_EXIntrruptHandler,	0 },
-	{   0xC4,   19,     6,     4,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler B",			FGROUP_EXIntrruptHandler,	0 },
-	{   0xC4,   19,     6,     4,     1,     8,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler C",			FGROUP_EXIntrruptHandler,	0 },
-	{   0xBC,   16,     3,     4,     1,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_PKM",		FGROUP_EXIntrruptHandler,	0 },
-	{   0xC4,   20,     2,     6,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
-	{   0xC8,   21,     2,     6,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
-	{   0xA4,   16,     3,     2,     3,     2,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
-
-	{  0x340,   61,    10,     7,    26,    32,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler A",			FGROUP_SIInterruptHandler,	0 },
-	{  0x114,   21,     4,     4,     5,    11,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler B",			FGROUP_SIInterruptHandler,	0 },
-	{  0x2EC,   50,     7,     9,    14,    27,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler C",			FGROUP_SIInterruptHandler,	0 },
-	{  0x258,   39,     6,     7,    15,    17,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler D",			FGROUP_SIInterruptHandler,	0 },
-	{   0x8C,   13,     4,     3,     1,     3,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler_DBG",		FGROUP_SIInterruptHandler,	0 },
-#endif
 	{  0x10C,   27,    11,     8,     2,     4,	(u8*)NULL,				FCODE_PI_FIFO_WP_A,				"PI_FIFO_WP A A",				FGROUP_PI_FIFO_WP_A,		0 },
 	{  0x10C,   27,    11,     7,     2,     5,	(u8*)NULL,				FCODE_PI_FIFO_WP_A,				"PI_FIFO_WP A B",				FGROUP_PI_FIFO_WP_A,		0 },
 	{   0xD8,   20,    11,     3,     3,     6,	(u8*)NULL,				FCODE_PI_FIFO_WP_B,				"PI_FIFO_WP B",					FGROUP_NONE,				0 },
@@ -269,56 +209,6 @@ FuncPattern FPatterns[] =
 	{   0xC0,   21,     7,     6,     2,     3,	(u8*)NULL,				FCODE_PI_FIFO_WP_E,				"PI_FIFO_WP E",					FGROUP_NONE,				0 },
 	{   0x98,   15,     8,     2,     1,     3,	(u8*)NULL,				FCODE_PI_FIFO_WP_F,				"PI_FIFO_WP F",					FGROUP_NONE,				0 },
 #ifdef PATCHALL
-	{   0xF0,   17,     7,     5,     5,     7,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
-	{   0xF0,   18,     7,     5,     5,     6,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
-	{   0xF8,   19,     5,     5,     6,     6,	EXILock,				sizeof(EXILock),				"EXILock_PKM",					FGROUP_EXILock,				0 },
-	{  0x1A4,   35,     5,     9,    13,     6,	EXILock,				sizeof(EXILock),				"EXILock_DBG",					FGROUP_EXILock,				0 },
-	{   0xD8,   21,     8,     5,     3,     3,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
-	{   0xD8,   21,     8,     5,     3,     2,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
-	{   0xC4,   18,     4,     5,     3,     3,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_PKM",				FGROUP_EXIUnlock,			0 },
-	{   0xF0,   23,     4,     6,     5,     4,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
-	{   0xEC,   22,     4,     6,     5,     4,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
-	{  0x128,   18,     4,     6,    11,     8,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
-	{  0x128,   18,     4,     6,    11,     7,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
-	{  0x13C,   20,     4,     6,    11,     6,	EXISelect,				sizeof(EXISelect),				"EXISelect_PKM",				FGROUP_EXISelect,			0 },
-	{  0x1CC,   33,     3,    10,    17,     6,	EXISelect,				sizeof(EXISelect),				"EXISelect_DBG",				FGROUP_EXISelect,			0 },
-	{  0x258,   36,     8,     5,    12,    32,	EXIImm,					sizeof(EXIImm),					"EXIImm",						FGROUP_EXIImm,				0 },
-	{  0x258,   27,     8,     5,    12,    17,	EXIImm,					sizeof(EXIImm),					"EXIImm",						FGROUP_EXIImm,				0 },
-	{  0x158,   24,     7,     5,     7,     9,	EXIImm,					sizeof(EXIImm),					"EXIImm_PKM",					FGROUP_EXIImm,				0 },
-	{  0x1E4,   38,     7,     9,    12,     9,	EXIImm,					sizeof(EXIImm),					"EXIImm_DBG",					FGROUP_EXIImm,				0 },
-	{   0xE8,   17,     7,     5,     2,     5,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA",						FGROUP_EXIDMA,				0 },
-	{   0xE8,   17,     7,     5,     2,     4,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA",						FGROUP_EXIDMA,				0 },
-	{  0x124,   28,     8,     5,     2,     8,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA_PKM",					FGROUP_EXIDMA,				0 },
-	{  0x1C0,   42,     5,     10,    8,     6,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA_DBG",					FGROUP_EXIDMA,				0 },
-	{  0x234,   39,     3,     3,    12,    19,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
-	{  0x248,   40,     3,     4,    13,    19,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
-	{  0x204,   31,     3,     3,    11,    17,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
-	{  0x234,   35,     3,     3,    12,    17,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
-	{  0x16C,   26,     3,     3,     9,     7,	EXILock,				sizeof(EXILock),				"EXISync_PKM",					FGROUP_EXISync,				0 },
-	{  0x1A8,   34,     2,     7,     9,     8,	EXILock,				sizeof(EXILock),				"EXISync_DBG",					FGROUP_EXISync,				0 },
-	{  0x13C,   25,     2,     6,     7,     7,	EXILock,				sizeof(EXILock),				"EXISync_DBG",					FGROUP_EXISync,				0 },
-	{  0x10C,   20,     8,     6,    12,     4,	EXILock,				sizeof(EXILock),				"EXIDeselect",					FGROUP_EXIDeselect,			0 },
-	{  0x10C,   20,     8,     6,    12,     3,	EXILock,				sizeof(EXILock),				"EXIDeselect",					FGROUP_EXIDeselect,			0 },
-	{  0x104,   17,     3,     6,    12,     4,	EXILock,				sizeof(EXILock),				"EXIDeselect_PKM",				FGROUP_EXIDeselect,			0 },
-	{  0x130,   22,     3,     7,    14,     5,	EXILock,				sizeof(EXILock),				"EXIDeselect_DBG",				FGROUP_EXIDeselect,			0 },
-	{  0x12C,   21,     3,     7,    14,     5,	EXILock,				sizeof(EXILock),				"EXIDeselect_DBG",				FGROUP_EXIDeselect,			0 },
-	{  0x170,   30,     7,     5,     8,     9,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
-	{  0x170,   30,     7,     5,     8,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
-	{  0x164,   30,     4,     5,     8,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
-	{  0x1B0,   34,     6,     5,     8,     8,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_PKM",				FGROUP___EXIProbe,			0 },
-	{  0x1B8,   38,     5,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
-	{  0x1BC,   39,     5,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
-	{  0x1AC,   38,     2,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
-//	{  0x378,   69,    11,    26,    20,    20,	EXIGetID,				sizeof(EXIGetID),				"EXIGetID",						FGROUP_NONE,				0 },
-	{   0xEC,   24,     6,     6,     3,     7,	__CARDReadStatus,		sizeof(__CARDReadStatus),		"__CARDReadStatus",				FGROUP_NONE,				0 },
-	{   0xA8,   17,     5,     4,     3,     5,	__CARDReadStatus+8,		8,								"__CARDClearStatus",			FGROUP_NONE,				0 },
-	{  0x1B0,   32,     6,     8,    13,    14,	(u8*)NULL,				FCODE___CARDStat_A,				"__CARDStat A",					FGROUP_NONE,				0 },
-	{  0x19C,   38,     8,     6,    13,    14,	(u8*)NULL,				FCODE___CARDStat_B,				"__CARDStat B",					FGROUP_NONE,				0 },
-	{  0x220,   37,     6,     9,    15,    25,	(u8*)NULL,				FCODE___CARDStat_C,				"__CARDStat C",					FGROUP_NONE,				0 },
-//	{  0x130,   33,     8,     6,     5,     2,	__CARDReadSegment,		sizeof(__CARDReadSegment),		"__CARDReadSegment",			FGROUP_NONE,				0 },
-//	{   0x60,    7,     6,     1,     1,     3,	__CARDRead,				sizeof(__CARDRead),				"__CARDRead",					FGROUP_NONE,				0 },
-//	{   0xDC,   17,     9,     4,     3,     2,	__CARDEraseSector,		sizeof(__CARDEraseSector),		"__CARDEraseSector",			FGROUP_NONE,				0 },
-
 	{   0xF0,   20,    11,     3,     3,     9,	(u8*)NULL,			FCODE___OSResetSWInterruptHandler,	"__OSResetSWInterruptHandler",	FGROUP_NONE,				0 },
 
 	{  0x294,   39,    16,     5,    16,    46,	(u8*)NULL,				FCODE_OSGetResetButtonState,	"OSGetResetButtonState A",	FGROUP_OSGetResetButtonState,	0 },
@@ -334,4 +224,147 @@ FuncPattern FPatterns[] =
 
 	//not from nintendos sdk, used by Bink Video
 	{   0xA4,    9,     4,     1,     0,     6,	(u8*)NULL,				FCODE_RADTimerRead,				"RADTimerRead",					FGROUP_NONE,				0 },
+};
+
+FuncPattern SIFPatterns[] =
+{
+	{  0x2F8,   60,    22,     2,    16,    25,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer A",			FGROUP_CompleteTransfer,	0 },
+	{  0x240,   40,    14,     0,    13,    11,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer B",			FGROUP_CompleteTransfer,	0 },
+	{  0x180,   29,     9,     3,     9,     9,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer C",			FGROUP_CompleteTransfer,	0 },
+	{   0xE0,   18,     4,     0,     6,     3,	(u8*)NULL,				FCODE_CompleteTransfer,			"CompleteTransfer_DBG",			FGROUP_CompleteTransfer,	0 },
+
+	{  0x340,   61,    10,     7,    26,    32,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler A",			FGROUP_SIInterruptHandler,	0 },
+	{  0x114,   21,     4,     4,     5,    11,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler B",			FGROUP_SIInterruptHandler,	0 },
+	{  0x2EC,   50,     7,     9,    14,    27,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler C",			FGROUP_SIInterruptHandler,	0 },
+	{  0x258,   39,     6,     7,    15,    17,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler D",			FGROUP_SIInterruptHandler,	0 },
+	{   0x8C,   13,     4,     3,     1,     3,	(u8*)NULL,				FCODE_SIInterruptHandler,		"SIInterruptHandler_DBG",		FGROUP_SIInterruptHandler,	0 },
+
+	{   0x94,    8,    10,     2,     4,     2,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt A",	FGROUP_SIPollingInterrupt,	0 },
+	{   0xA4,    9,     5,     2,     6,     4,	(u8*)NULL,				FCODE_SIEnablePollingInterrupt,	"SIEnablePollingInterrupt B",	FGROUP_SIPollingInterrupt,	0 },
+
+	{   0xB0,   21,     9,     8,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit A",						FGROUP_SIInit,				0 },
+	{   0x70,   13,     8,     2,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit B",						FGROUP_SIInit,				0 },
+	{   0x90,   17,     8,     6,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit C",						FGROUP_SIInit,				0 },
+	{   0xA0,   20,     8,     7,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit D",						FGROUP_SIInit,				0 },
+	{   0xB0,   22,     9,     8,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit E",						FGROUP_SIInit,				0 },
+	{   0x9C,   19,     9,     6,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit F",						FGROUP_SIInit,				0 },
+	{   0x7C,   15,     9,     2,     0,     2,	(u8*)NULL,				FCODE_SIInit,					"SIInit_DBG",					FGROUP_SIInit,				0 },
+
+	{  0x208,   38,    18,     3,    13,    10,	(u8*)NULL,				FCODE__SITransfer,				"__SITransfer A",				FGROUP__SITransfer,			0 },
+	{  0x204,   37,    18,     3,    13,    11,	(u8*)NULL,				FCODE__SITransfer,				"__SITransfer B",				FGROUP__SITransfer,			0 },
+	{  0x208,   38,    11,     7,    13,     9,	(u8*)NULL,				FCODE__SITransfer,				"__SITransfer C",				FGROUP__SITransfer,			0 },
+	{  0x204,   37,    11,     7,    13,     9,	(u8*)NULL,				FCODE__SITransfer,				"__SITransfer_DBG",				FGROUP__SITransfer,			0 },
+
+	{  0x168,   22,    10,     7,     6,    10,	SITransfer,				sizeof(SITransfer),				"SITransfer",					FGROUP_NONE,				0 },
+
+	{  0x1C0,   35,     9,     8,     7,    19,	SIGetType,				sizeof(SIGetType),				"SIGetType A",					FGROUP_SIGetType,			0 },
+	{  0x1F4,   27,     9,     9,     9,    24,	SIGetType,				sizeof(SIGetType),				"SIGetType B",					FGROUP_SIGetType,			0 },
+
+	{  0x3A8,   86,    13,    27,    17,    24,	(u8*)PADRead,			sizeof(PADRead),				"PADRead A",					FGROUP_PADRead,				0 },
+	{  0x2FC,   73,     8,    23,    16,    15,	(u8*)PADRead,			sizeof(PADRead),				"PADRead B",					FGROUP_PADRead,				0 },
+	{  0x3B0,   87,    13,    27,    17,    25,	(u8*)PADRead,			sizeof(PADRead),				"PADRead C",					FGROUP_PADRead,				0 },
+	{  0x334,   78,     7,    20,    17,    19,	(u8*)PADRead,			sizeof(PADRead),				"PADRead D",					FGROUP_PADRead,				0 },
+	{  0x2A8,   66,     4,    20,    17,    14,	(u8*)PADRead,			sizeof(PADRead),				"PADRead E",					FGROUP_PADRead,				0 },
+
+	{   0xB4,    8,     2,     5,     4,     5,	(u8*)PADControlAllMotors,sizeof(PADControlAllMotors),	"PADControlAllMotors A",		FGROUP_PADControlAllMotors,	0 },
+	{   0xC8,    9,     2,     5,     5,     5,	(u8*)PADControlAllMotors,sizeof(PADControlAllMotors),	"PADControlAllMotors B",		FGROUP_PADControlAllMotors,	0 },
+
+	{   0xB4,   11,     5,     5,     3,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor A",			FGROUP_PADControlMotor,		0 },
+	{   0xA0,   10,     5,     5,     2,     5,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor B",			FGROUP_PADControlMotor,		0 },
+	{   0xB8,   14,     5,     4,     2,     7,	(u8*)PADControlMotor,	sizeof(PADControlMotor),		"PADControlMotor C",			FGROUP_PADControlMotor,		0 },
+
+	{   0x14,    1,     0,     0,     2,     0,	(u8*)NULL,				FCODE_PADIsBarrel,				"PADIsBarrel",					FGROUP_NONE,				0 },
+};
+
+FuncPattern EXIFPatterns[] =
+{
+	{  0x258,   36,     8,     5,    12,    32,	EXIImm,					sizeof(EXIImm),					"EXIImm",						FGROUP_EXIImm,				0 },
+	{  0x258,   27,     8,     5,    12,    17,	EXIImm,					sizeof(EXIImm),					"EXIImm",						FGROUP_EXIImm,				0 },
+	{  0x158,   24,     7,     5,     7,     9,	EXIImm,					sizeof(EXIImm),					"EXIImm_PKM",					FGROUP_EXIImm,				0 },
+	{  0x1E4,   38,     7,     9,    12,     9,	EXIImm,					sizeof(EXIImm),					"EXIImm_DBG",					FGROUP_EXIImm,				0 },
+
+	{   0xE8,   17,     7,     5,     2,     5,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA",						FGROUP_EXIDMA,				0 },
+	{   0xE8,   17,     7,     5,     2,     4,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA",						FGROUP_EXIDMA,				0 },
+	{  0x124,   28,     8,     5,     2,     8,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA_PKM",					FGROUP_EXIDMA,				0 },
+	{  0x1C0,   42,     5,     10,    8,     6,	(u8*)NULL,				FCODE_EXIDMA,					"EXIDMA_DBG",					FGROUP_EXIDMA,				0 },
+
+	{  0x234,   39,     3,     3,    12,    19,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
+	{  0x248,   40,     3,     4,    13,    19,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
+	{  0x204,   31,     3,     3,    11,    17,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
+	{  0x234,   35,     3,     3,    12,    17,	EXILock,				sizeof(EXILock),				"EXISync",						FGROUP_EXISync,				0 },
+	{  0x16C,   26,     3,     3,     9,     7,	EXILock,				sizeof(EXILock),				"EXISync_PKM",					FGROUP_EXISync,				0 },
+	{  0x1A8,   34,     2,     7,     9,     8,	EXILock,				sizeof(EXILock),				"EXISync_DBG",					FGROUP_EXISync,				0 },
+	{  0x13C,   25,     2,     6,     7,     7,	EXILock,				sizeof(EXILock),				"EXISync_DBG",					FGROUP_EXISync,				0 },
+
+	{  0x170,   30,     7,     5,     8,     9,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
+	{  0x170,   30,     7,     5,     8,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
+	{  0x164,   30,     4,     5,     8,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe",					FGROUP___EXIProbe,			0 },
+	{  0x1B0,   34,     6,     5,     8,     8,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_PKM",				FGROUP___EXIProbe,			0 },
+	{  0x1B8,   38,     5,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
+	{  0x1BC,   39,     5,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
+	{  0x1AC,   38,     2,     7,    10,    10,	EXIProbe,				sizeof(EXIProbe),				"__EXIProbe_DBG",				FGROUP___EXIProbe,			0 },
+
+	{  0x128,   18,     4,     6,    11,     8,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
+	{  0x128,   18,     4,     6,    11,     7,	EXISelect,				sizeof(EXISelect),				"EXISelect",					FGROUP_EXISelect,			0 },
+	{  0x13C,   20,     4,     6,    11,     6,	EXISelect,				sizeof(EXISelect),				"EXISelect_PKM",				FGROUP_EXISelect,			0 },
+	{  0x1CC,   33,     3,    10,    17,     6,	EXISelect,				sizeof(EXISelect),				"EXISelect_DBG",				FGROUP_EXISelect,			0 },
+
+	{  0x10C,   20,     8,     6,    12,     4,	EXILock,				sizeof(EXILock),				"EXIDeselect",					FGROUP_EXIDeselect,			0 },
+	{  0x10C,   20,     8,     6,    12,     3,	EXILock,				sizeof(EXILock),				"EXIDeselect",					FGROUP_EXIDeselect,			0 },
+	{  0x104,   17,     3,     6,    12,     4,	EXILock,				sizeof(EXILock),				"EXIDeselect_PKM",				FGROUP_EXIDeselect,			0 },
+	{  0x130,   22,     3,     7,    14,     5,	EXILock,				sizeof(EXILock),				"EXIDeselect_DBG",				FGROUP_EXIDeselect,			0 },
+	{  0x12C,   21,     3,     7,    14,     5,	EXILock,				sizeof(EXILock),				"EXIDeselect_DBG",				FGROUP_EXIDeselect,			0 },
+
+	{   0x7C,   10,     3,     0,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler A",			FGROUP_EXIntrruptHandler,	0 },
+	{   0xC4,   19,     6,     4,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler B",			FGROUP_EXIntrruptHandler,	0 },
+	{   0xC4,   19,     6,     4,     1,     8,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler C",			FGROUP_EXIntrruptHandler,	0 },
+	{   0xBC,   16,     3,     4,     1,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_PKM",		FGROUP_EXIntrruptHandler,	0 },
+	{   0xC4,   20,     2,     6,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
+	{   0xC8,   21,     2,     6,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
+	{   0xA4,   16,     3,     2,     3,     2,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"EXIntrruptHandler_DBG",		FGROUP_EXIntrruptHandler,	0 },
+
+	{  0x1F0,   34,     9,     1,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler A",			FGROUP_TCIntrruptHandler,	0 },
+	{  0x214,   41,     9,     5,     8,    22,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler B",			FGROUP_TCIntrruptHandler,	0 },
+	{  0x214,   37,     9,     5,     8,    21,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler C",			FGROUP_TCIntrruptHandler,	0 },
+	{  0x158,   28,     5,     5,     6,     4,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_PKM",		FGROUP_TCIntrruptHandler,	0 },
+	{   0xE4,   22,     3,     8,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
+	{   0xE8,   23,     3,     8,     3,     3,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
+	{   0xC4,   18,     4,     4,     3,     4,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler_DBG",		FGROUP_TCIntrruptHandler,	0 },
+	{   0xA8,   17,     6,     1,     1,     7,	(u8*)NULL,				FCODE_EXIIntrruptHandler,		"TCIntrruptHandler E",			FGROUP_TCIntrruptHandler,	0 },
+
+	{   0xF0,   17,     7,     5,     5,     7,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
+	{   0xF0,   18,     7,     5,     5,     6,	EXILock,				sizeof(EXILock),				"EXILock",						FGROUP_EXILock,				0 },
+	{   0xF8,   19,     5,     5,     6,     6,	EXILock,				sizeof(EXILock),				"EXILock_PKM",					FGROUP_EXILock,				0 },
+	{  0x1A4,   35,     5,     9,    13,     6,	EXILock,				sizeof(EXILock),				"EXILock_DBG",					FGROUP_EXILock,				0 },
+
+	{   0xD8,   21,     8,     5,     3,     3,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
+	{   0xD8,   21,     8,     5,     3,     2,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock",					FGROUP_EXIUnlock,			0 },
+	{   0xC4,   18,     4,     5,     3,     3,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_PKM",				FGROUP_EXIUnlock,			0 },
+	{   0xF0,   23,     4,     6,     5,     4,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
+	{   0xEC,   22,     4,     6,     5,     4,	(u8*)NULL,				FCODE_EXIUnlock,				"EXIUnlock_DBG",				FGROUP_EXIUnlock,			0 },
+
+//	{  0x378,   69,    11,    26,    20,    20,	EXIGetID,				sizeof(EXIGetID),				"EXIGetID",						FGROUP_NONE,				0 },
+	{   0xEC,   24,     6,     6,     3,     7,	__CARDReadStatus,		sizeof(__CARDReadStatus),		"__CARDReadStatus",				FGROUP_NONE,				0 },
+	{   0xA8,   17,     5,     4,     3,     5,	__CARDReadStatus+8,		8,								"__CARDClearStatus",			FGROUP_NONE,				0 },
+	{  0x1B0,   32,     6,     8,    13,    14,	(u8*)NULL,				FCODE___CARDStat_A,				"__CARDStat A",					FGROUP_NONE,				0 },
+	{  0x19C,   38,     8,     6,    13,    14,	(u8*)NULL,				FCODE___CARDStat_B,				"__CARDStat B",					FGROUP_NONE,				0 },
+	{  0x220,   37,     6,     9,    15,    25,	(u8*)NULL,				FCODE___CARDStat_C,				"__CARDStat C",					FGROUP_NONE,				0 },
+//	{  0x130,   33,     8,     6,     5,     2,	__CARDReadSegment,		sizeof(__CARDReadSegment),		"__CARDReadSegment",			FGROUP_NONE,				0 },
+//	{   0x60,    7,     6,     1,     1,     3,	__CARDRead,				sizeof(__CARDRead),				"__CARDRead",					FGROUP_NONE,				0 },
+//	{   0xDC,   17,     9,     4,     3,     2,	__CARDEraseSector,		sizeof(__CARDEraseSector),		"__CARDEraseSector",			FGROUP_NONE,				0 },
+};
+
+enum
+{
+	PCODE_NORMAL = 0,
+	PCODE_SI,
+	PCODE_EXI,
+	PCODE_MAX,
+} AllPGroups;
+
+FuncPatterns AllFPatterns[] = 
+{
+	{ NormalFPatterns, sizeof(NormalFPatterns) / sizeof(FuncPattern), PCODE_NORMAL },
+	{ SIFPatterns, sizeof(SIFPatterns) / sizeof(FuncPattern), PCODE_SI },
+	{ EXIFPatterns, sizeof(EXIFPatterns) / sizeof(FuncPattern), PCODE_EXI },
 };

@@ -212,9 +212,9 @@ int _main( int argc, char *argv[] )
 	EXIInit();
 
 	BootStatus(11, s_size, s_cnt);
-
+#ifdef PATCHSI
 	SIInit();
-
+#endif
 	StreamInit();
 
 //This bit seems to be different on japanese consoles
@@ -232,7 +232,7 @@ int _main( int argc, char *argv[] )
 	BootStatus(0xdeadbeef, s_size, s_cnt);
 
 	u32 Now = read32(HW_TIMER);
-	#ifdef PATCHALL
+	#ifdef PATCHSI
 	u32 PADTimer = Now;
 	#endif
 	u32 DiscChangeTimer = Now;
@@ -263,6 +263,8 @@ int _main( int argc, char *argv[] )
 			if(EXICheckTimer())
 				EXIInterrupt();
 		}
+		#endif
+		#ifdef PATCHSI
 		if(SI_IRQ != 0)
 		{
 			if (((read32(HW_TIMER) - PADTimer) > 7910) || (SI_IRQ & 0x2))	// about 240 times a second
@@ -317,7 +319,6 @@ int _main( int argc, char *argv[] )
 		#ifdef PATCHALL
 		EXIUpdateRegistersNEW();
 		GCAMUpdateRegisters();
-		SIUpdateRegisters();
 		BTUpdateRegisters();
 		#endif
 		StreamUpdateRegisters();
@@ -327,12 +328,13 @@ int _main( int argc, char *argv[] )
 			Now = read32(HW_TIMER);
 			SaveCard = true;
 		}
+		#ifdef PATCHSI
+		SIUpdateRegisters();
 		if(read32(DIP_IMM) == 0x1DEA)
 		{
 			DIFinishAsync();
 			break;
 		}
-
 		if(read32(DIP_IMM) == 0x3DEA)
 		{
 			if(Reset == 0)
@@ -359,6 +361,7 @@ int _main( int argc, char *argv[] )
 				Reset = 0;
 			}
 		}
+		#endif
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
 		{
 			DIFinishAsync();

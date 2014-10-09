@@ -35,7 +35,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define TITLE_ID	(GAME_ID >> 8)
 
 #define PATCH_OFFSET_START (0x2F00 - (sizeof(u32) * 5))
-u32 CardLowestOff = 0;
 u32 POffset = PATCH_OFFSET_START;
 vu32 Region = 0;
 extern FIL GameFile;
@@ -439,6 +438,10 @@ u32 PatchCopy(const u8 *PatchPtr, const u32 PatchSize)
 
 void PatchFuncInterface( char *dst, u32 Length )
 {
+	u32 SIPatched = 0;
+	u32 EXIPatched = 0;
+	u32 AIPatched = 0;
+
 	int i;
 
 	u32 LISReg=-1;
@@ -470,10 +473,9 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD00 );	// Patch to: lis rX, 0xCD00
-				#ifdef DEBUG_PATCH
-				dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-				#endif
+				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+				//dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				AIPatched++;
 				LISReg = -1;
 			}
 			u32 dst = (op >> 21) & 0x1F;
@@ -485,14 +487,31 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				#ifdef PATCHALL
+				#ifdef PATCHSI
 				write32( (u32)LISOff, (LISReg<<21) | 0x3C00D302 );	// Patch to: lis rX, 0xD302
-				dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				#else
 				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
-				dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				#endif
+				SIPatched++;
 				LISReg = -1;
+			}
+			u32 dst = (op >> 21) & 0x1F;
+			if( dst == LISReg )
+				LISReg = -1;
+		} else if( (op & 0xFC00FF00) == 0x38006800 ) // addi rX, rY, 0x6C00 (exi)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if( src == LISReg )
+			{
+				if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
+				{
+					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					EXIPatched++;
+					LISReg = -1;
+				}
 			}
 			u32 dst = (op >> 21) & 0x1F;
 			if( dst == LISReg )
@@ -510,19 +529,31 @@ void PatchFuncInterface( char *dst, u32 Length )
 			{
 				if( (val & 0xFF00) == 0x6C00 ) // case with 0x6CXY(rZ) (ai)
 				{
-					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD00 );	// Patch to: lis rX, 0xCD00
-					dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD00\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+					//dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					AIPatched++;
 					LISReg = -1;
 				}
 				else if((val & 0xFF00) == 0x6400) // case with 0x64XY(rZ) (si)
 				{
-					#ifdef PATCHALL
+					#ifdef PATCHSI
 					write32( (u32)LISOff, (LISReg<<21) | 0x3C00D302 );	// Patch to: lis rX, 0xD302
-					dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					#else
 					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
-					dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					#endif
+					SIPatched++;
+					LISReg = -1;
+				}
+				else if((val & 0xFF00) == 0x6800) // case with 0x68XY(rZ) (exi)
+				{
+					if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
+					{
+						write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+						//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+						EXIPatched++;
+					}
 					LISReg = -1;
 				}
 			}
@@ -531,12 +562,18 @@ void PatchFuncInterface( char *dst, u32 Length )
 				LISReg = -1;
 		}
 
-
 		if( op == 0x4E800020 )	// blr
 		{
 			LISReg=-1;
 		}
 	}
+#ifdef DEBUG_PATCH
+	dbgprintf("Patch:PatchFuncInterface Summary\r\n");
+	dbgprintf("Patch:SI patched %u times\r\n", SIPatched);
+	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
+		dbgprintf("Patch:EXI patched %u times\r\n", EXIPatched);
+	dbgprintf("Patch:AI patched %u times\r\n", AIPatched);
+	#endif
 }
 
 void PatchFunc( char *ptr )
@@ -571,10 +608,10 @@ void PatchFunc( char *ptr )
 
 		// Triforce
 		if( (op & 0xFC00FFFF) == 0x380000A8 )	// li rX, 0xA8
-		{			
+		{
 			write32( (u32)ptr + i, (op & 0x3E00000) | 0x380000A7 );		// Patch to: li rX, 0xA7
 			#ifdef DEBUG
-		  dbgprintf("[%08X] %08X: li rX, 0xA7\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
+			dbgprintf("[%08X] %08X: li rX, 0xA7\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
 			#endif
 		}
 
@@ -608,7 +645,7 @@ void PatchFunc( char *ptr )
 					dbgprintf("[%08X] %08X: stw r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
 					#endif
 				}
-			}			
+			}
 		}
 
 		i += 4;
@@ -1091,14 +1128,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	PatchFuncInterface( Buffer, Length );
 	sync_after_write( Buffer, Length );
 	sync_before_read( Buffer, Length );
+#ifdef DEBUG_PATCH
+	dbgprintf("Patch:Applying required patches\r\n");
+#endif
 
-	CardLowestOff = 0;
-
-	#ifdef PATCHALL
+#ifdef PATCHALL
 	u32 PatchCount = 1|64|128;
-	#else
+#else
 	u32 PatchCount = 1|2|16|64|128|2048;
-	#endif
+#endif
 
 #ifdef CHEATS
 	if( IsWiiU )
@@ -1128,11 +1166,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				printpatchfound("__OSDispatchInterrupt", (u32)Buffer + i);
 				PatchBL( FakeInterruptAddr, (u32)Buffer + i + 4 );
-
-				// EXI Device 0 Control Register
-				write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
-				write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
-
+				if(ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true)
+				{
+					// EXI Device 0 Control Register
+					write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
+					write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
+				}
 				// EXI Device 2 Control Register (Trifroce)
 				write32A( (u32)Buffer+i+0x188, 0x3C60C000, 0x3C60CC00, 1 );
 				write32A( (u32)Buffer+i+0x18C, 0x38630018, 0x38636800, 1 );
@@ -1144,11 +1183,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				printpatchfound("__OSDispatchInterrupt", (u32)Buffer + i);
 				PatchBL( FakeInterrupt_DBGAddr, (u32)Buffer + i + 4 );
-
-				// EXI Device 0 Control Register
-				write32A( (u32)Buffer+i+0x138, 0x3C60C000, 0x3C60CC00, 1 );
-				write32A( (u32)Buffer+i+0x13C, 0x83C30010, 0x83C36800, 1 );
-
+				if(ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true)
+				{
+					// EXI Device 0 Control Register
+					write32A( (u32)Buffer+i+0x138, 0x3C60C000, 0x3C60CC00, 1 );
+					write32A( (u32)Buffer+i+0x13C, 0x83C30010, 0x83C36800, 1 );
+				}
 				PatchCount |= 2048;
 			}
 		}
@@ -1347,9 +1387,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					#ifdef DEBUG_PATCH
 					dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
 					#endif
-
-				} else {
-										
+				}
+				else
+				{
 					if( fs.fsize != 0 )
 					{
 						DBGSize = fs.fsize;
@@ -1362,24 +1402,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							dbgprintf( "Patch:Could not read:\"%s\":%d\r\n", "/sneek/kenobiwii.bin", ret );
 							#endif
 							f_close( &fs );
-
-						} else {
-
+						}
+						else
+						{
 							f_close( &fs );
 
 							if( IsWiiU )
 							{
 								*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
-
-							} else {
-
+							}
+							else
+							{
 								if( ConfigGetConfig(NIN_CFG_DEBUGWAIT) )
 									*(vu32*)(P2C(*(vu32*)0x1808)) = 1;
 								else
 									*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
 							}
 
-							memcpy( (void *)0x1800, (void*)0, 6 );				
+							memcpy( (void *)0x1800, (void*)0, 6 );
 
 							u32 newval = 0x18A8 - DebuggerHook;
 								newval&= 0x03FFFFFC;
@@ -1671,11 +1711,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	free(SHA1i);
 	#ifdef DEBUG_PATCH
 	dbgprintf("PatchCount:%08X\r\n", PatchCount );
-
-	if( (PatchCount & 1024) == 0  )	
-	{
+	if( (PatchCount & 1024) == 0  )
 		dbgprintf("Patch:Unknown DSP ROM\r\n");
-	}
 	#endif
 
 	if( ((PatchCount & (1|2|4|8|2048)) != (1|2|4|8|2048)) )
@@ -1685,13 +1722,22 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		#endif
 		Shutdown();
 	}
+	#ifdef DEBUG_PATCH
+	dbgprintf("Patch:Required patches applied\r\n");
+	#endif
 	sync_after_write( Buffer, Length );
 
 	#ifdef DEBUG_PATCH
 	dbgprintf("Patch:Starting Pattern Search\r\n");
 	#endif
-	for (j = 0; j < sizeof(FPatterns) / sizeof(FuncPattern); ++j)
-		FPatterns[j].Found = 0;
+	u32 patitr;
+	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
+	{
+		FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
+		u32 CurPatternsLen = AllFPatterns[patitr].patlen;
+		for( j=0; j < CurPatternsLen; ++j )
+			CurPatterns[j].Found = 0;
+	}
 	sync_before_read( Buffer, Length );
 	for( i=0; i < Length; i+=4 )
 	{
@@ -1730,703 +1776,727 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		MPattern( (u8*)(Buffer+i), Length, &fp );
 		//if ((((u32)Buffer + i) & 0x7FFFFFFF) == 0x00000000) //(FuncPrint)
 		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d\r\n", fp.Length, fp.Loads, fp.Stores, fp.FCalls, fp.Branch, fp.Moves);
-
-		for( j=0; j < sizeof(FPatterns)/sizeof(FuncPattern); ++j )
+		for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 		{
-			if( FPatterns[j].Found ) //Skip already found patches
+			if(AllFPatterns[patitr].patmode == PCODE_EXI && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false)
 				continue;
-
-			if( CPattern( &fp, &(FPatterns[j]) ) )
+			#ifndef PATCHSI
+			if(AllFPatterns[patitr].patmode == PCODE_SI)
+				continue;
+			#endif
+			FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
+			u32 CurPatternsLen = AllFPatterns[patitr].patlen;
+			bool patfound = false;
+			for( j=0; j < CurPatternsLen; ++j )
 			{
-				u32 FOffset = (u32)Buffer + i;
+				if( CurPatterns[j].Found ) //Skip already found patches
+					continue;
 
-				FPatterns[j].Found = FOffset;
-				//#ifdef DEBUG_PATCH
-				//dbgprintf("Patch:[%s] found (0x%08X)\r\n", FPatterns[j].Name, FOffset );
-				//#endif
-
-				switch( FPatterns[j].PatchLength )
+				if( CPattern( &fp, &(CurPatterns[j]) ) )
 				{
-					case FCODE_PatchFunc:	// DVDLowRead
+					u32 FOffset = (u32)Buffer + i;
+
+					CurPatterns[j].Found = FOffset;
+					//#ifdef DEBUG_PATCH
+					//dbgprintf("Patch:[%s] found (0x%08X)\r\n", CurPatterns[j].Name, FOffset );
+					//#endif
+
+					switch( CurPatterns[j].PatchLength )
 					{
-						printpatchfound(FPatterns[j].Name, FOffset);
-						PatchFunc( (char*)FOffset );
-					} break;
-					case FCODE_Return:	// __AI_set_stream_sample_rate
-					{
-						printpatchfound(FPatterns[j].Name, FOffset);
-						write32( FOffset, 0x4E800020 );
-					} break;
-					case FCODE_AIResetStreamSampleCount:	// Audiostreaming hack
-					{
-						switch( TITLE_ID )
+						case FCODE_PatchFunc:	// DVDLowRead
 						{
-							case 0x474544:	// Eternal Darkness
-							break;
-							default:
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							PatchFunc( (char*)FOffset );
+						} break;
+						case FCODE_Return:	// __AI_set_stream_sample_rate
+						{
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							write32( FOffset, 0x4E800020 );
+						} break;
+						case FCODE_AIResetStreamSampleCount:	// Audiostreaming hack
+						{
+							switch( TITLE_ID )
 							{
-								printpatchfound(FPatterns[j].Name, FOffset);
-								write32( FOffset + 0xB4, 0x60000000 );
-								write32( FOffset + 0xC0, 0x60000000 );
-							} break;
-						}
-					} break;
-					case FCODE_GXInitTlutObj:	// GXInitTlutObj
-					{
-						if( read32( FOffset+0x34 ) == 0x5400023E )
-						{
-							printpatchfound(FPatterns[j].Name, FOffset + 0x34);
-							write32( FOffset+0x34, 0x5400033E );
-						}
-						else if( read32( FOffset+0x28 ) == 0x5004C00E )
-						{
-							printpatchfound(FPatterns[j].Name, FOffset + 0x28);
-							write32( FOffset+0x28, 0x5004C016 );
-						}
-						else
-							FPatterns[j].Found = 0; // False hit
-					} break;
-					case FCODE___ARChecksize_A:		// __ARChecksize A
-					case FCODE___ARChecksize_B:		// __ARChecksize B
-					case FCODE___ARChecksize_C:		// __ARChecksize C
-					case FCODE___ARChecksize_DBG:	// __ARChecksize DBG
-					{
-						if (FPatterns[j].PatchLength == FCODE___ARChecksize_B)
-						{
-							u32 PatchVal = read32(FOffset + 0x370);
-							if ((PatchVal & 0xFFE0FFFF) == 0x40801464) // bne +0x1464
-							{
-								write32(FOffset + 0x370, 0x48001464); // b +0x1464
-								printpatchfound(FPatterns[j].Name, FOffset + 0x370);
+								case 0x474544:	// Eternal Darkness
 								break;
-							}
-						}
-						printpatchfound(FPatterns[j].Name, FOffset);
-						u32 EndOffset = FOffset + FPatterns[j].Length;
-						u32 Register = (*(vu32*)(EndOffset-24) >> 21) & 0x1F;
-						*(vu32*)(FOffset) = 0x3C000100 | ( Register << 21 );
-						u32 k = 0;
-						if (FPatterns[j].PatchLength == FCODE___ARChecksize_DBG)
-						{
-							*(vu32*)(FOffset+4)=*(vu32*)(EndOffset-32);
-							k = 4;
-						}
-						*(vu32*)(FOffset+4+k) = *(vu32*)(EndOffset-28);
-						*(vu32*)(FOffset+8+k) = *(vu32*)(EndOffset-24);
-						*(vu32*)(FOffset+12+k)= *(vu32*)(EndOffset-20);
-						*(vu32*)(FOffset+16+k)= 0x4E800020;
-					} break;
-// Widescreen hack by Extrems
-					case FCODE_C_MTXPerspective:	//	C_MTXPerspective
-					{
-						if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
-							break;
-
-						printpatchfound(FPatterns[j].Name, FOffset);
-						*(volatile float *)0x50 = 0.5625f;
-
-						memcpy((void*)(FOffset+ 28),(void*)(FOffset+ 36),44);
-						memcpy((void*)(FOffset+188),(void*)(FOffset+192),16);
-
-						*(unsigned int*)(FOffset+52) = 0x48000001 | ((*(unsigned int*)(FOffset+52) & 0x3FFFFFC) + 8);
-						*(unsigned int*)(FOffset+72) = 0x3C600000 | (0x80000050 >> 16);		// lis		3, 0x8180
-						*(unsigned int*)(FOffset+76) = 0xC0230000 | (0x80000050 & 0xFFFF);	// lfs		1, -0x1C (3)
-						*(unsigned int*)(FOffset+80) = 0xEC240072;							// fmuls	1, 4, 1
-					} break;
-					case FCODE_C_MTXLightPerspective:	//	C_MTXLightPerspective
-					{
-						if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
-							break;
-
-						printpatchfound(FPatterns[j].Name, FOffset);
-						*(volatile float *)0x50 = 0.5625f;
-
-						*(u32*)(FOffset+36) = *(u32*)(FOffset+32);
-
-						memcpy((void*)(FOffset+ 28),(void*)(FOffset+ 36),60);
-						memcpy((void*)(FOffset+184),(void*)(FOffset+188),16);
-
-						*(u32*)(FOffset+68) += 8;
-						*(u32*)(FOffset+88) = 0x3C600000 | (0x80000050 >> 16); 		// lis		3, 0x8180
-						*(u32*)(FOffset+92) = 0xC0230000 | (0x80000050 & 0xFFFF);	// lfs		1, -0x90 (3)
-						*(u32*)(FOffset+96) = 0xEC240072;							// fmuls	1, 4, 1
-					} break;
-					case FCODE_J3DUClipper_clip:	//	clip
-					{
-						if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
-							break;
-
-						printpatchfound(FPatterns[j].Name, FOffset);
-						write32( FOffset,   0x38600000 );
-						write32( FOffset+4, 0x4E800020 );
-					} break;
-					case FCODE___OSReadROM:	//	__OSReadROM
-					{
-						printpatchfound(FPatterns[j].Name, FOffset);
-						memcpy( (void*)FOffset, __OSReadROM, sizeof(__OSReadROM) );
-					} break;
-					case FCODE___OSInitAudioSystem:
-					{
-						if(write32A(FOffset + 0x94, 0x48000018, 0x40820018, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0x94);
-						if(write32A(FOffset + 0xA8, 0x48000018, 0x40820018, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0xA8);
-					} break;
-					case FCODE___GXSetVAT:	// Patch for __GXSetVAT, fixes the dungeon map freeze in Wind Waker
-					{
-						switch( TITLE_ID )
-						{
-							case 0x505A4C:	// The Legend of Zelda: Collector's Edition
-								if( !(DOLSize == 3847012 || DOLSize == 3803812) )			// only patch the main.dol of the Zelda:ww game 
-									break;
-							case 0x475A4C:	// The Legend of Zelda: The Wind Waker
-							{
-								write32(FOffset, (read32(FOffset) & 0xff00ffff) | 0x00220000);
-								memcpy( (void *)(FOffset + 4), __GXSetVAT_patch, sizeof(__GXSetVAT_patch) );
-								printpatchfound(FPatterns[j].Name, FOffset);
-							} break;
-							default:
-							break;
-						}
-					} break;
-					case FCODE_EXIIntrruptHandler:
-					{
-						u32 PatchOffset = 0x4;
-						while ((read32(FOffset + PatchOffset) != 0x90010004) && (PatchOffset < 0x20)) // MaxSearch=0x20
-							PatchOffset += 4;
-						if (read32(FOffset + PatchOffset) != 0x90010004) 	// stw r0, 0x0004(sp)
-						{
-							FPatterns[j].Found = 0; // False hit
-							break;
-						}
-						PatchBL( TCIntrruptHandlerAddr, (FOffset + PatchOffset) );
-						#ifdef DEBUG_PATCH
-						dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", FPatterns[j].Name, FOffset, PatchOffset);
-						#endif
-					} break;
-					case FCODE_EXIDMA:	// EXIDMA
-					{
-						u32 off		= 0;
-						u32 reg		=-1;
-						u32 valueB	= 0;
-
-						while(1)
-						{
-							off += 4;
-
-							u32 op = read32( (u32)FOffset + off );
-
-							if( reg == -1 )
-							if( (op & 0xFC1F0000) == 0x3C000000 )	// lis rX, 0xCC00
-							{
-								reg = (op & 0x3E00000) >> 21;
-								if( reg == 3 )
+								default:
 								{
-									value  = read32( FOffset + off ) & 0x0000FFFF;
-									#ifdef DEBUG_PATCH
-									//dbgprintf("lis:%08X value:%04X\r\n", FOffset+off, value );
-									#endif
-								}
+									printpatchfound(CurPatterns[j].Name, FOffset);
+									write32( FOffset + 0xB4, 0x60000000 );
+									write32( FOffset + 0xC0, 0x60000000 );
+								} break;
 							}
-
-							if( reg != -1 )
-							if( (op & 0xFC000000) == 0x38000000 )	// addi rX, rY, z
+						} break;
+						case FCODE_GXInitTlutObj:	// GXInitTlutObj
+						{
+							if( read32( FOffset+0x34 ) == 0x5400023E )
 							{
-								u32 src = (op >> 16) & 0x1F;
-
-								if( src == reg )
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x34);
+								write32( FOffset+0x34, 0x5400033E );
+							}
+							else if( read32( FOffset+0x28 ) == 0x5004C00E )
+							{
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x28);
+								write32( FOffset+0x28, 0x5004C016 );
+							}
+							else
+								CurPatterns[j].Found = 0; // False hit
+						} break;
+						case FCODE___ARChecksize_A:		// __ARChecksize A
+						case FCODE___ARChecksize_B:		// __ARChecksize B
+						case FCODE___ARChecksize_C:		// __ARChecksize C
+						case FCODE___ARChecksize_DBG:	// __ARChecksize DBG
+						{
+							if (CurPatterns[j].PatchLength == FCODE___ARChecksize_B)
+							{
+								u32 PatchVal = read32(FOffset + 0x370);
+								if ((PatchVal & 0xFFE0FFFF) == 0x40801464) // bne +0x1464
 								{
-									valueB = read32( FOffset + off ) & 0x0000FFFF;
-									#ifdef DEBUG_PATCH
-									//dbgprintf("addi:%08X value:%04X\r\n", FOffset+off, valueB);
-									#endif
+									write32(FOffset + 0x370, 0x48001464); // b +0x1464
+									printpatchfound(CurPatterns[j].Name, FOffset + 0x370);
 									break;
 								}
 							}
-
-							if( op == 0x4E800020 )	// blr
-								break;
-						}
-
-						if( valueB & 0x8000 )
-							value =  (( value << 16) - (((~valueB) & 0xFFFF)+1) );
-						else
-							value =  (value << 16) + valueB;
-						#ifdef DEBUG_PATCH
-						//dbgprintf("F:%08X\r\n", value );
-						#endif
-
-						printpatchfound(FPatterns[j].Name, FOffset);
-						memcpy( (void*)(FOffset), EXIDMA, sizeof(EXIDMA) );
-
-						valueB = 0x90E80000 | (value&0xFFFF);
-						value  = 0x3D000000 | (value>>16);
-
-						if( valueB & 0x8000 )
-							value++;
-
-						valueB+=4;
-
-						write32( FOffset+0x10, value );
-						write32( FOffset+0x14, valueB );
-					} break;
-					case FCODE_EXIUnlock:
-					{
-						u32 k;
-						u32 found = 0;
-						for(k = 0; k < FPatterns[j].Length; k+=4)
-						{
-							if(read32(FOffset+k) == 0x54000734)
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							u32 EndOffset = FOffset + CurPatterns[j].Length;
+							u32 Register = (*(vu32*)(EndOffset-24) >> 21) & 0x1F;
+							*(vu32*)(FOffset) = 0x3C000100 | ( Register << 21 );
+							u32 k = 0;
+							if (CurPatterns[j].PatchLength == FCODE___ARChecksize_DBG)
 							{
-								printpatchfound(FPatterns[j].Name, FOffset + k);
-								memcpy((void*)FOffset, EXILock, sizeof(EXILock));
-								found = 1;
+								*(vu32*)(FOffset+4)=*(vu32*)(EndOffset-32);
+								k = 4;
+							}
+							*(vu32*)(FOffset+4+k) = *(vu32*)(EndOffset-28);
+							*(vu32*)(FOffset+8+k) = *(vu32*)(EndOffset-24);
+							*(vu32*)(FOffset+12+k)= *(vu32*)(EndOffset-20);
+							*(vu32*)(FOffset+16+k)= 0x4E800020;
+						} break;
+	// Widescreen hack by Extrems
+						case FCODE_C_MTXPerspective:	//	C_MTXPerspective
+						{
+							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
+								break;
+
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							*(volatile float *)0x50 = 0.5625f;
+
+							memcpy((void*)(FOffset+ 28),(void*)(FOffset+ 36),44);
+							memcpy((void*)(FOffset+188),(void*)(FOffset+192),16);
+
+							*(unsigned int*)(FOffset+52) = 0x48000001 | ((*(unsigned int*)(FOffset+52) & 0x3FFFFFC) + 8);
+							*(unsigned int*)(FOffset+72) = 0x3C600000 | (0x80000050 >> 16);		// lis		3, 0x8180
+							*(unsigned int*)(FOffset+76) = 0xC0230000 | (0x80000050 & 0xFFFF);	// lfs		1, -0x1C (3)
+							*(unsigned int*)(FOffset+80) = 0xEC240072;							// fmuls	1, 4, 1
+						} break;
+						case FCODE_C_MTXLightPerspective:	//	C_MTXLightPerspective
+						{
+							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
+								break;
+
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							*(volatile float *)0x50 = 0.5625f;
+
+							*(u32*)(FOffset+36) = *(u32*)(FOffset+32);
+
+							memcpy((void*)(FOffset+ 28),(void*)(FOffset+ 36),60);
+							memcpy((void*)(FOffset+184),(void*)(FOffset+188),16);
+
+							*(u32*)(FOffset+68) += 8;
+							*(u32*)(FOffset+88) = 0x3C600000 | (0x80000050 >> 16); 		// lis		3, 0x8180
+							*(u32*)(FOffset+92) = 0xC0230000 | (0x80000050 & 0xFFFF);	// lfs		1, -0x90 (3)
+							*(u32*)(FOffset+96) = 0xEC240072;							// fmuls	1, 4, 1
+						} break;
+						case FCODE_J3DUClipper_clip:	//	clip
+						{
+							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
+								break;
+
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							write32( FOffset,   0x38600000 );
+							write32( FOffset+4, 0x4E800020 );
+						} break;
+						case FCODE___OSReadROM:	//	__OSReadROM
+						{
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							memcpy( (void*)FOffset, __OSReadROM, sizeof(__OSReadROM) );
+						} break;
+						case FCODE___OSInitAudioSystem:
+						{
+							if(write32A(FOffset + 0x94, 0x48000018, 0x40820018, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x94);
+							if(write32A(FOffset + 0xA8, 0x48000018, 0x40820018, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0xA8);
+						} break;
+						case FCODE___GXSetVAT:	// Patch for __GXSetVAT, fixes the dungeon map freeze in Wind Waker
+						{
+							switch( TITLE_ID )
+							{
+								case 0x505A4C:	// The Legend of Zelda: Collector's Edition
+									if( !(DOLSize == 3847012 || DOLSize == 3803812) )			// only patch the main.dol of the Zelda:ww game 
+										break;
+								case 0x475A4C:	// The Legend of Zelda: The Wind Waker
+								{
+									write32(FOffset, (read32(FOffset) & 0xff00ffff) | 0x00220000);
+									memcpy( (void *)(FOffset + 4), __GXSetVAT_patch, sizeof(__GXSetVAT_patch) );
+									printpatchfound(CurPatterns[j].Name, FOffset);
+								} break;
+								default:
 								break;
 							}
-						}
-						if(found == 0)
-							FPatterns[j].Found = 0; // False hit
-					} break;
-					case FCODE___CARDStat_A:	// CARD timeout
-					{
-						write32( FOffset+0x124, 0x60000000 );
-						write32( FOffset+0x18C, 0x60000000 );
-						printpatchfound(FPatterns[j].Name, FOffset);
-					} break;
-					case FCODE___CARDStat_B:	// CARD timeout
-					{
-						write32( FOffset+0x118, 0x60000000 );
-						write32( FOffset+0x180, 0x60000000 );
-						printpatchfound(FPatterns[j].Name, FOffset);
-					} break;
-					case FCODE___CARDStat_C:	// CARD timeout
-					{
-						write32( FOffset+0x124, 0x60000000 );
-						write32( FOffset+0x194, 0x60000000 );
-						write32( FOffset+0x1FC, 0x60000000 );
-						printpatchfound(FPatterns[j].Name, FOffset);
-					} break;
-					case FCODE_ARInit:
-					{
-						if(write32A(FOffset + 0xD8, 0x48000018, 0x41820018, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0xD8);
-						else
-							FPatterns[j].Found = 0;
-					} break;
-					case FCODE_ARStartDMA:	//	ARStartDMA
-					{
-						if( (TITLE_ID) == 0x474234 ||	// Burnout 2
-							(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
-							(TITLE_ID) == 0x474146 ||	// Animal Crossing
-							(TITLE_ID) == 0x475852 )	// Mega Man X Command Mission
+						} break;
+						case FCODE_EXIIntrruptHandler:
 						{
-							u32 PatchOffset = 0x20;
-							while ((read32(FOffset + PatchOffset) != 0x3CC0CC00) && (PatchOffset < 0x40)) // MaxSearch=0x40
+							u32 PatchOffset = 0x4;
+							while ((read32(FOffset + PatchOffset) != 0x90010004) && (PatchOffset < 0x20)) // MaxSearch=0x20
 								PatchOffset += 4;
-							if (read32(FOffset + PatchOffset) != 0x3CC0CC00)	// lis	r6,	0xCC00
+							if (read32(FOffset + PatchOffset) != 0x90010004) 	// stw r0, 0x0004(sp)
 							{
-								FPatterns[j].Found = 0; // False hit
+								CurPatterns[j].Found = 0; // False hit
 								break;
 							}
-							PatchBL( PatchCopy(ARStartDMA_Hook, sizeof(ARStartDMA_Hook)), (FOffset + PatchOffset) );
+							PatchBL( TCIntrruptHandlerAddr, (FOffset + PatchOffset) );
 							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", FPatterns[j].Name, FOffset, PatchOffset);
+							dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", CurPatterns[j].Name, FOffset, PatchOffset);
 							#endif
-							break;
-						}
-						else if( (TITLE_ID) == 0x47384D ||	// Paper Mario
-								 (TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
-								 (TITLE_ID) == 0x474154 ||	// ATV Quad Power Racing 2
-								 (TITLE_ID) == 0x47504E )	// P.N.03
+						} break;
+						case FCODE_EXIDMA:	// EXIDMA
 						{
-							memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
-						}
-						else if((TITLE_ID) == 0x474832) // NFS: HP2
-						{
-							memcpy( (void*)FOffset, ARStartDMA_NFS, sizeof(ARStartDMA_NFS) );
-						}
-						else
-						{
-							memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
-							if( (TITLE_ID) != 0x474156 )	// Avatar Last Airbender
+							u32 off		= 0;
+							u32 reg		=-1;
+							u32 valueB	= 0;
+
+							while(1)
 							{
-								u32 PatchOffset = 0;
-								for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
+								off += 4;
+
+								u32 op = read32( (u32)FOffset + off );
+
+								if( reg == -1 )
+								if( (op & 0xFC1F0000) == 0x3C000000 )	// lis rX, 0xCC00
 								{
-									if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
+									reg = (op & 0x3E00000) >> 21;
+									if( reg == 3 )
 									{
-										write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
+										value  = read32( FOffset + off ) & 0x0000FFFF;
+										#ifdef DEBUG_PATCH
+										//dbgprintf("lis:%08X value:%04X\r\n", FOffset+off, value );
+										#endif
+									}
+								}
+
+								if( reg != -1 )
+								if( (op & 0xFC000000) == 0x38000000 )	// addi rX, rY, z
+								{
+									u32 src = (op >> 16) & 0x1F;
+
+									if( src == reg )
+									{
+										valueB = read32( FOffset + off ) & 0x0000FFFF;
+										#ifdef DEBUG_PATCH
+										//dbgprintf("addi:%08X value:%04X\r\n", FOffset+off, valueB);
+										#endif
 										break;
 									}
 								}
-							}
-						}
-						printpatchfound(FPatterns[j].Name, FOffset);
-					} break;
-					case FCODE_GCAMSendCommand:
-					{
-						if( TRIGame > 0 )
-							printpatchfound(FPatterns[j].Name, FOffset);
-						if( TRIGame == 1 )
-						{
-							PatchB( PatchCopy(GCAMSendCommand2, sizeof(GCAMSendCommand2)), FOffset );
-							break;
-						}
-						if( TRIGame == 2 )
-						{
-							PatchB( PatchCopy(GCAMSendCommandVSExp, sizeof(GCAMSendCommandVSExp)), FOffset );
-							break;
-						}
-						if( TRIGame == 3 )
-						{
-							PatchB( PatchCopy(GCAMSendCommandF, sizeof(GCAMSendCommandF)), FOffset );
-							break;
-						}
-						if( TRIGame == 4 )
-						{
-							PatchB( PatchCopy(GCAMSendCommand, sizeof(GCAMSendCommand)), FOffset );
-							break;
-						}
-					} break;
-					case FCODE___fwrite:	// patch_fwrite_Log
-					case FCODE___fwrite_D:	// patch_fwrite_LogB
-					{
-						if( ConfigGetConfig( NIN_CFG_DEBUGGER ) || !ConfigGetConfig(NIN_CFG_OSREPORT) )
-						{
-							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[patch_fwrite_Log] skipped (0x%08X)\r\n", FOffset);
-							#endif
-							break;
-						}
 
-						if( IsWiiU )
+								if( op == 0x4E800020 )	// blr
+									break;
+							}
+
+							if( valueB & 0x8000 )
+								value =  (( value << 16) - (((~valueB) & 0xFFFF)+1) );
+							else
+								value =  (value << 16) + valueB;
+							#ifdef DEBUG_PATCH
+							//dbgprintf("F:%08X\r\n", value );
+							#endif
+
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							memcpy( (void*)(FOffset), EXIDMA, sizeof(EXIDMA) );
+
+							valueB = 0x90E80000 | (value&0xFFFF);
+							value  = 0x3D000000 | (value>>16);
+
+							if( valueB & 0x8000 )
+								value++;
+
+							valueB+=4;
+
+							write32( FOffset+0x10, value );
+							write32( FOffset+0x14, valueB );
+						} break;
+						case FCODE_EXIUnlock:
 						{
-							if( FPatterns[j].Patch == patch_fwrite_GC ) // patch_fwrite_Log works fine
+							u32 k;
+							u32 found = 0;
+							for(k = 0; k < CurPatterns[j].Length; k+=4)
 							{
+								if(read32(FOffset+k) == 0x54000734)
+								{
+									printpatchfound(CurPatterns[j].Name, FOffset + k);
+									memcpy((void*)FOffset, EXILock, sizeof(EXILock));
+									found = 1;
+									break;
+								}
+							}
+							if(found == 0)
+								CurPatterns[j].Found = 0; // False hit
+						} break;
+						case FCODE___CARDStat_A:	// CARD timeout
+						{
+							write32( FOffset+0x124, 0x60000000 );
+							write32( FOffset+0x18C, 0x60000000 );
+							printpatchfound(CurPatterns[j].Name, FOffset);
+						} break;
+						case FCODE___CARDStat_B:	// CARD timeout
+						{
+							write32( FOffset+0x118, 0x60000000 );
+							write32( FOffset+0x180, 0x60000000 );
+							printpatchfound(CurPatterns[j].Name, FOffset);
+						} break;
+						case FCODE___CARDStat_C:	// CARD timeout
+						{
+							write32( FOffset+0x124, 0x60000000 );
+							write32( FOffset+0x194, 0x60000000 );
+							write32( FOffset+0x1FC, 0x60000000 );
+							printpatchfound(CurPatterns[j].Name, FOffset);
+						} break;
+						case FCODE_ARInit:
+						{
+							if(write32A(FOffset + 0xD8, 0x48000018, 0x41820018, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0xD8);
+							else
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_ARStartDMA:	//	ARStartDMA
+						{
+							if( (TITLE_ID) == 0x474234 ||	// Burnout 2
+								(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
+								(TITLE_ID) == 0x474146 ||	// Animal Crossing
+								(TITLE_ID) == 0x475852 )	// Mega Man X Command Mission
+							{
+								u32 PatchOffset = 0x20;
+								while ((read32(FOffset + PatchOffset) != 0x3CC0CC00) && (PatchOffset < 0x40)) // MaxSearch=0x40
+									PatchOffset += 4;
+								if (read32(FOffset + PatchOffset) != 0x3CC0CC00)	// lis	r6,	0xCC00
+								{
+									CurPatterns[j].Found = 0; // False hit
+									break;
+								}
+								PatchBL( PatchCopy(ARStartDMA_Hook, sizeof(ARStartDMA_Hook)), (FOffset + PatchOffset) );
 								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:[patch_fwrite_GC] skipped (0x%08X)\r\n", FOffset);
+								dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", CurPatterns[j].Name, FOffset, PatchOffset);
 								#endif
 								break;
 							}
-						}
-						printpatchfound(FPatterns[j].Name, FOffset);
-						memcpy((void*)FOffset, patch_fwrite_Log, sizeof(patch_fwrite_Log));
-						if (FPatterns[j].PatchLength == FCODE___fwrite_D)
-						{
-							write32(FOffset, 0x7C852379); // mr.     %r5,%r4
-							write32(FOffset + sizeof(patch_fwrite_Log) - 0x8, 0x38600000); // li      %r3,0
-						}
-						break;
-					}
-					case FCODE__SITransfer:	//	_SITransfer
-					{
-						//e.g. Mario Strikers
-						if (write32A(FOffset + 0x60, 0x7CE70078, 0x7CE70038, 0)) // clear errors - andc r7,r7,r0
-							printpatchfound(FPatterns[j].Name, FOffset + 0x60);
-
-						//e.g. Billy Hatcher
-						if (write32A(FOffset + 0xF8, 0x7F390078, 0x7F390038, 0)) // clear errors - andc r7,r7,r0
-							printpatchfound(FPatterns[j].Name, FOffset + 0xF8);
-
-						//e.g. Mario Strikers
-						if (write32A(FOffset + 0x148, 0x5400007E, 0x50803E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-							printpatchfound(FPatterns[j].Name, FOffset + 0x148);
-
-						//e.g. Luigi's Mansion
-						if (write32A(FOffset + 0x140, 0x5400007E, 0x50A03E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-							printpatchfound(FPatterns[j].Name, FOffset + 0x140);
-
-						//e.g. Billy Hatcher
-						if (write32A(FOffset + 0x168, 0x5400007E, 0x50603E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-							printpatchfound(FPatterns[j].Name, FOffset + 0x168);
-
-						//e.g. Batman Vengeance
-						if (write32A(FOffset + 0x164, 0x5400007E, 0x50603E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-							printpatchfound(FPatterns[j].Name, FOffset + 0x164);
-					} break;
-					case FCODE_CompleteTransfer:	//	CompleteTransfer
-					{
-						//e.g. Mario Strikers
-						if (write32A(FOffset + 0x38, 0x5400007C, 0x5400003C, 0)) // clear  tc - rlwinm r0,r0,0,1,30
-							printpatchfound(FPatterns[j].Name, FOffset + 0x38);
-
-						//e.g. Billy Hatcher (func before CompleteTransfer does this)
-						if (write32A(FOffset - 0x18, 0x57FF007C, 0x57FF003C, 0)) // clear  tc - rlwinm r31,r31,0,1,30
-							printpatchfound(FPatterns[j].Name, FOffset - 0x18);
-
-						u32 k = 0;
-						for(k = 0x10; k < 0x20; k+=4)
-						{
-							if (write32A(FOffset + k, 0x3C000000, 0x3C008000, 0)) // clear  tc - lis r0,0
+							else if( (TITLE_ID) == 0x47384D ||	// Paper Mario
+									 (TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
+									 (TITLE_ID) == 0x474154 ||	// ATV Quad Power Racing 2
+									 (TITLE_ID) == 0x47504E )	// P.N.03
 							{
-								printpatchfound(FPatterns[j].Name, FOffset + k);
+								memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
+							}
+							else if((TITLE_ID) == 0x474832) // NFS: HP2
+							{
+								memcpy( (void*)FOffset, ARStartDMA_NFS, sizeof(ARStartDMA_NFS) );
+							}
+							else
+							{
+								memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
+								if( (TITLE_ID) != 0x474156 )	// Avatar Last Airbender
+								{
+									u32 PatchOffset = 0;
+									for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
+									{
+										if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
+										{
+											write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
+											break;
+										}
+									}
+								}
+							}
+							printpatchfound(CurPatterns[j].Name, FOffset);
+						} break;
+						case FCODE_GCAMSendCommand:
+						{
+							if( TRIGame > 0 )
+								printpatchfound(CurPatterns[j].Name, FOffset);
+							if( TRIGame == 1 )
+							{
+								PatchB( PatchCopy(GCAMSendCommand2, sizeof(GCAMSendCommand2)), FOffset );
 								break;
 							}
-						}
-					} break;
-					case FCODE_SIInterruptHandler:	//	SIInterruptHandler
-					{
-						u32 PatchOffset = 0x4;
-						while ((read32(FOffset + PatchOffset) != 0x90010004) && (PatchOffset < 0x20)) // MaxSearch=0x20
-							PatchOffset += 4;
-						if (read32(FOffset + PatchOffset) != 0x90010004) 	// stw r0, 0x0004(sp)
+							if( TRIGame == 2 )
+							{
+								PatchB( PatchCopy(GCAMSendCommandVSExp, sizeof(GCAMSendCommandVSExp)), FOffset );
+								break;
+							}
+							if( TRIGame == 3 )
+							{
+								PatchB( PatchCopy(GCAMSendCommandF, sizeof(GCAMSendCommandF)), FOffset );
+								break;
+							}
+							if( TRIGame == 4 )
+							{
+								PatchB( PatchCopy(GCAMSendCommand, sizeof(GCAMSendCommand)), FOffset );
+								break;
+							}
+						} break;
+						case FCODE___fwrite:	// patch_fwrite_Log
+						case FCODE___fwrite_D:	// patch_fwrite_LogB
 						{
-							FPatterns[j].Found = 0; // False hit
+							if( ConfigGetConfig( NIN_CFG_DEBUGGER ) || !ConfigGetConfig(NIN_CFG_OSREPORT) )
+							{
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:[patch_fwrite_Log] skipped (0x%08X)\r\n", FOffset);
+								#endif
+								break;
+							}
+
+							if( IsWiiU )
+							{
+								if( CurPatterns[j].Patch == patch_fwrite_GC ) // patch_fwrite_Log works fine
+								{
+									#ifdef DEBUG_PATCH
+									dbgprintf("Patch:[patch_fwrite_GC] skipped (0x%08X)\r\n", FOffset);
+									#endif
+									break;
+								}
+							}
+							printpatchfound(CurPatterns[j].Name, FOffset);
+							memcpy((void*)FOffset, patch_fwrite_Log, sizeof(patch_fwrite_Log));
+							if (CurPatterns[j].PatchLength == FCODE___fwrite_D)
+							{
+								write32(FOffset, 0x7C852379); // mr.     %r5,%r4
+								write32(FOffset + sizeof(patch_fwrite_Log) - 0x8, 0x38600000); // li      %r3,0
+							}
 							break;
 						}
-						PatchBL( SIIntrruptHandlerAddr, (FOffset + PatchOffset) );
-						#ifdef DEBUG_PATCH
-						dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", FPatterns[j].Name, FOffset, PatchOffset);
-						#endif
-
-						if (FPatterns[j].Length >= 0xB4)
-						{
-							//e.g. Billy Hatcher
-							if (write32A(FOffset + 0xB4, 0x7F7B0078, 0x7F7B0038, 0)) // clear  tc - andc r27,r27,r0
-								printpatchfound(FPatterns[j].Name, FOffset + 0xB4);
-						}
-						if (FPatterns[j].Length >= 0x134)
+						case FCODE__SITransfer:	//	_SITransfer
 						{
 							//e.g. Mario Strikers
-							if (write32A(FOffset + 0x134, 0x7CA50078, 0x7CA50038, 0)) // clear  tc - andc r5,r5,r0
-								printpatchfound(FPatterns[j].Name, FOffset + 0x134);
-						}
-					} break;
-					case FCODE_SIInit:	//	SIInit
-					{
-						u32 k;
-						for(k = 0x40; k < FPatterns[j].Length; k+=4)
-						{
-							if (write32A(FOffset + k, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
-							{
-								printpatchfound(FPatterns[j].Name, FOffset + k);
-								break;
-							}
-						}
-					} break;
-					case FCODE_SIEnablePollingInterrupt:	//	SIEnablePollingInterrupt
-					{
-						//e.g. SSBM
-						if (write32A(FOffset + 0x68, 0x60000000, 0x54A50146, 0)) // leave rdstint alone - nop
-							printpatchfound(FPatterns[j].Name, FOffset + 0x68);
-						if (write32A(FOffset + 0x6C, 0x60000000, 0x54A5007C, 0)) // leave tcinit tcstart alone - nop
-							printpatchfound(FPatterns[j].Name, FOffset + 0x6C);
+							if (write32A(FOffset + 0x60, 0x7CE70078, 0x7CE70038, 0)) // clear errors - andc r7,r7,r0
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x60);
 
-						//e.g. Billy Hatcher
-						if (write32A(FOffset + 0x78, 0x60000000, 0x57FF0146, 0)) // leave rdstint alone - nop
-							printpatchfound(FPatterns[j].Name, FOffset + 0x78);
-						if (write32A(FOffset + 0x7C, 0x60000000, 0x57FF007C, 0)) // leave tcinit tcstart alone - nop
-							printpatchfound(FPatterns[j].Name, FOffset + 0x7C);
-					} break;
-					case FCODE_PADIsBarrel:
-					{
-						if(memcmp((void*)(FOffset), PADIsBarrelOri, sizeof(PADIsBarrelOri)) != 0)
+							//e.g. Billy Hatcher
+							if (write32A(FOffset + 0xF8, 0x7F390078, 0x7F390038, 0)) // clear errors - andc r7,r7,r0
+								printpatchfound(CurPatterns[j].Name, FOffset + 0xF8);
+
+							//e.g. Mario Strikers
+							if (write32A(FOffset + 0x148, 0x5400007E, 0x50803E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x148);
+
+							//e.g. Luigi's Mansion
+							if (write32A(FOffset + 0x140, 0x5400007E, 0x50A03E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x140);
+
+							//e.g. Billy Hatcher
+							if (write32A(FOffset + 0x168, 0x5400007E, 0x50603E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x168);
+
+							//e.g. Batman Vengeance
+							if (write32A(FOffset + 0x164, 0x5400007E, 0x50603E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x164);
+						} break;
+						case FCODE_CompleteTransfer:	//	CompleteTransfer
 						{
-							FPatterns[j].Found = 0; // False hit
-							break;
-						}
-						memcpy((void*)(FOffset), PADIsBarrel, sizeof(PADIsBarrel));
-						printpatchfound(FPatterns[j].Name, FOffset);
-					} break;
-					case FCODE_PI_FIFO_WP_A:	//	PI_FIFO_WP A
-					{
-						//e.g. F-Zero
-						if (write32A(FOffset + 0x68, 0x54C600C2, 0x54C60188, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0x68);
-						if (write32A(FOffset + 0xE4, 0x540000C2, 0x54000188, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0xE4);
-					} break;
-					case FCODE_PI_FIFO_WP_B:	//	PI_FIFO_WP B
-					{
-						//e.g. F-Zero
-						if (write32A(FOffset + 0x4C, 0x540300C2, 0x54030188, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0x4C);
-					} break;
-					case FCODE_PI_FIFO_WP_C:	//	PI_FIFO_WP C
-					{
-						//e.g. F-Zero
-						if (write32A(FOffset + 0x14, 0x540600C2, 0x54060188, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0x14);
-					} break;
-					case FCODE_PI_FIFO_WP_D:	//	PI_FIFO_WP D
-					{
-						//e.g. Paper Mario
-						if (write32A(FOffset + 0x40, 0x540400C2, 0x54040188, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0x40);
-					} break;
-					case FCODE_PI_FIFO_WP_E:	//	PI_FIFO_WP E
-					{
-						//e.g. Paper Mario
-						if (write32A(FOffset + 0x34, 0x541E1FFE, 0x541E37FE, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0x34);
-					} break;
-					case FCODE_PI_FIFO_WP_F:	//	PI_FIFO_WP F
-					{
-						//e.g. Pokemon XD
-						if (write32A(FOffset + 0x78, 0x540400C2, 0x54040188, 0))
-							printpatchfound(FPatterns[j].Name, FOffset + 0x78);
-					} break;
-					case FCODE_RADTimerRead:
-					{
-						u32 res = 0;
-						res += write32A(FOffset + 0x48, 0x6000142A, 0x60009E40, 0); // 0x8A15 << 1
-						res += write32A(FOffset + 0x58, 0x6084ED4E, 0x60849E34, 0); // TB_BUS_CLOCK / 4000
-						res += write32A(FOffset + 0x60, 0x3CC08A15, 0x3CC0CF20, 0);
-						res += write32A(FOffset + 0x68, 0x60C6866C, 0x60C649A1 ,0);
-						if(res == 0)
-							FPatterns[j].Found = 0;
-						else
-							printpatchfound(FPatterns[j].Name, FOffset);
-					} break;
-					case FCODE___OSResetSWInterruptHandler:
-					{
-						u32 found = 0;
-						if(read32(FOffset + 0x84) == 0x540003DF)
-						{
-							PatchBL( FakeRSWLoadAddr, (FOffset + 0x84) );
-							printpatchfound(FPatterns[j].Name, FOffset + 0x84);
-							found = 1;
-						}
-						if(read32(FOffset + 0x94) == 0x540003DF)
-						{
-							PatchBL( FakeRSWLoadAddr, (FOffset + 0x94) );
-							printpatchfound(FPatterns[j].Name, FOffset + 0x94);
-							found = 1;
-						}
-						if(read32(FOffset + 0xD4) == 0x90033000)
-						{
-							PatchBL( FakeRSWStoreAddr, (FOffset + 0xD4) );
-							printpatchfound(FPatterns[j].Name, FOffset + 0xD4);
-							found = 1;
-						}
-						if(found == 0)
-							FPatterns[j].Found = 0;
-					} break;
-					case FCODE_OSGetResetButtonState:
-					{
-						if(read32(FOffset + 0x28) == 0x540003DF) /* Patch C */
-						{
-							PatchBL( FakeRSWLoadAddr, (FOffset + 0x28) );
-							printpatchfound(FPatterns[j].Name, FOffset + 0x28);
-						}
-						else if(read32(FOffset + 0x2C) == 0x540003DF) /* Patch A, B */
-						{
-							PatchBL( FakeRSWLoadAddr, (FOffset + 0x2C) );
-							printpatchfound(FPatterns[j].Name, FOffset + 0x2C);
-						}
-						else
-							FPatterns[j].Found = 0;
-					} break;
-					case FCODE_AIInitDMA:
-					{
-						if(read32(FOffset + 0x20) == 0x3C80CC00)
-						{
-							PatchBL( AIInitDMAAddr, (FOffset + 0x20) );
-							printpatchfound(FPatterns[j].Name, FOffset);
-							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:Saving Audio Locations\r\n");
-							#endif
-						}
-						else
-							FPatterns[j].Found = 0;
-					} break;
-					case FCODE___DSPHandler:
-					{
-						if(read32(FOffset + 0xF8) == 0x2C000000)
-						{
-							PatchBL( __DSPHandlerAddr, (FOffset + 0xF8) );
-							printpatchfound(FPatterns[j].Name, FOffset);
-							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:Added Audio Mixer\r\n");
-							#endif
-						}
-						else
-							FPatterns[j].Found = 0;
-					} break;
-					default:
-					{
-						if( FPatterns[j].Patch == (u8*)ARQPostRequest )
-						{
-							if (   (TITLE_ID) != 0x474D53  // Super Mario Sunshine
-								&& (TITLE_ID) != 0x474C4D  // Luigis Mansion
-								&& (TITLE_ID) != 0x474346  // Pokemon Colosseum
-								&& (TITLE_ID) != 0x475049  // Pikmin
-								&& (TITLE_ID) != 0x474146  // Animal Crossing
-								&& (TITLE_ID) != 0x474C56) // Chronicles of Narnia
+							//e.g. Mario Strikers
+							if (write32A(FOffset + 0x38, 0x5400007C, 0x5400003C, 0)) // clear  tc - rlwinm r0,r0,0,1,30
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x38);
+
+							//e.g. Billy Hatcher (func before CompleteTransfer does this)
+							if (write32A(FOffset - 0x18, 0x57FF007C, 0x57FF003C, 0)) // clear  tc - rlwinm r31,r31,0,1,30
+								printpatchfound(CurPatterns[j].Name, FOffset - 0x18);
+
+							u32 k = 0;
+							for(k = 0x10; k < 0x20; k+=4)
 							{
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:[ARQPostRequest] skipped (0x%08X)\r\n", FOffset);
-								#endif
+								if (write32A(FOffset + k, 0x3C000000, 0x3C008000, 0)) // clear  tc - lis r0,0
+								{
+									printpatchfound(CurPatterns[j].Name, FOffset + k);
+									break;
+								}
+							}
+						} break;
+						case FCODE_SIInterruptHandler:	//	SIInterruptHandler
+						{
+							u32 PatchOffset = 0x4;
+							while ((read32(FOffset + PatchOffset) != 0x90010004) && (PatchOffset < 0x20)) // MaxSearch=0x20
+								PatchOffset += 4;
+							if (read32(FOffset + PatchOffset) != 0x90010004) 	// stw r0, 0x0004(sp)
+							{
+								CurPatterns[j].Found = 0; // False hit
 								break;
 							}
-						}
-						if( FPatterns[j].Patch == (u8*)SIGetType )
-						{
-							if ((TITLE_ID) == 0x475853) // Sonic Adventure DX
-							{
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:[SIGetType] skipped (0x%08X)\r\n", FOffset);
-								#endif
-								break;
-							}
-						}
-						if( FPatterns[j].Patch == (u8*)SITransfer )
-						{
-							if( TRIGame == 0 )
-							{
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:[SITransfer] skipped (0x%08X)\r\n", FOffset);
-								#endif
-								break;
-							}
-						}
-						if( FPatterns[j].Patch == (u8*)DVDGetDriveStatus )
-						{
-							if( (TITLE_ID) != 0x474754 &&	// Chibi-Robo!
-								(TITLE_ID) != 0x475041 )	// Pok駑on Channel
-								break;
-						}
-						if( (FPatterns[j].Length >> 16) == (FCODES  >> 16) )
-						{
+							PatchBL( SIIntrruptHandlerAddr, (FOffset + PatchOffset) );
 							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:Unhandled dead case:%08X\r\n", FPatterns[j].Length );
+							dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", CurPatterns[j].Name, FOffset, PatchOffset);
 							#endif
-						}
-						else
+
+							if (CurPatterns[j].Length >= 0xB4)
+							{
+								//e.g. Billy Hatcher
+								if (write32A(FOffset + 0xB4, 0x7F7B0078, 0x7F7B0038, 0)) // clear  tc - andc r27,r27,r0
+									printpatchfound(CurPatterns[j].Name, FOffset + 0xB4);
+							}
+							if (CurPatterns[j].Length >= 0x134)
+							{
+								//e.g. Mario Strikers
+								if (write32A(FOffset + 0x134, 0x7CA50078, 0x7CA50038, 0)) // clear  tc - andc r5,r5,r0
+									printpatchfound(CurPatterns[j].Name, FOffset + 0x134);
+							}
+						} break;
+						case FCODE_SIInit:	//	SIInit
 						{
-							printpatchfound(FPatterns[j].Name, FOffset);
-							memcpy( (void*)(FOffset), FPatterns[j].Patch, FPatterns[j].PatchLength );
-						}
-					} break;
-				}
-				// If this is a patch group set all others of this group as found aswell
-				if( FPatterns[j].Group && FPatterns[j].Found )
-				{
-					for( k=0; k < sizeof(FPatterns)/sizeof(FuncPattern); ++k )
+							u32 k;
+							for(k = 0x40; k < CurPatterns[j].Length; k+=4)
+							{
+								if (write32A(FOffset + k, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
+								{
+									printpatchfound(CurPatterns[j].Name, FOffset + k);
+									break;
+								}
+							}
+						} break;
+						case FCODE_SIEnablePollingInterrupt:	//	SIEnablePollingInterrupt
+						{
+							//e.g. SSBM
+							if (write32A(FOffset + 0x68, 0x60000000, 0x54A50146, 0)) // leave rdstint alone - nop
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x68);
+							if (write32A(FOffset + 0x6C, 0x60000000, 0x54A5007C, 0)) // leave tcinit tcstart alone - nop
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x6C);
+
+							//e.g. Billy Hatcher
+							if (write32A(FOffset + 0x78, 0x60000000, 0x57FF0146, 0)) // leave rdstint alone - nop
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x78);
+							if (write32A(FOffset + 0x7C, 0x60000000, 0x57FF007C, 0)) // leave tcinit tcstart alone - nop
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x7C);
+						} break;
+						case FCODE_PADIsBarrel:
+						{
+							if(memcmp((void*)(FOffset), PADIsBarrelOri, sizeof(PADIsBarrelOri)) != 0)
+							{
+								CurPatterns[j].Found = 0; // False hit
+								break;
+							}
+							memcpy((void*)(FOffset), PADIsBarrel, sizeof(PADIsBarrel));
+							printpatchfound(CurPatterns[j].Name, FOffset);
+						} break;
+						case FCODE_PI_FIFO_WP_A:	//	PI_FIFO_WP A
+						{
+							//e.g. F-Zero
+							if (write32A(FOffset + 0x68, 0x54C600C2, 0x54C60188, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x68);
+							if (write32A(FOffset + 0xE4, 0x540000C2, 0x54000188, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0xE4);
+						} break;
+						case FCODE_PI_FIFO_WP_B:	//	PI_FIFO_WP B
+						{
+							//e.g. F-Zero
+							if (write32A(FOffset + 0x4C, 0x540300C2, 0x54030188, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x4C);
+						} break;
+						case FCODE_PI_FIFO_WP_C:	//	PI_FIFO_WP C
+						{
+							//e.g. F-Zero
+							if (write32A(FOffset + 0x14, 0x540600C2, 0x54060188, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x14);
+						} break;
+						case FCODE_PI_FIFO_WP_D:	//	PI_FIFO_WP D
+						{
+							//e.g. Paper Mario
+							if (write32A(FOffset + 0x40, 0x540400C2, 0x54040188, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x40);
+						} break;
+						case FCODE_PI_FIFO_WP_E:	//	PI_FIFO_WP E
+						{
+							//e.g. Paper Mario
+							if (write32A(FOffset + 0x34, 0x541E1FFE, 0x541E37FE, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x34);
+						} break;
+						case FCODE_PI_FIFO_WP_F:	//	PI_FIFO_WP F
+						{
+							//e.g. Pokemon XD
+							if (write32A(FOffset + 0x78, 0x540400C2, 0x54040188, 0))
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x78);
+						} break;
+						case FCODE_RADTimerRead:
+						{
+							u32 res = 0;
+							res += write32A(FOffset + 0x48, 0x6000142A, 0x60009E40, 0); // 0x8A15 << 1
+							res += write32A(FOffset + 0x58, 0x6084ED4E, 0x60849E34, 0); // TB_BUS_CLOCK / 4000
+							res += write32A(FOffset + 0x60, 0x3CC08A15, 0x3CC0CF20, 0);
+							res += write32A(FOffset + 0x68, 0x60C6866C, 0x60C649A1 ,0);
+							if(res == 0)
+								CurPatterns[j].Found = 0;
+							else
+								printpatchfound(CurPatterns[j].Name, FOffset);
+						} break;
+						case FCODE___OSResetSWInterruptHandler:
+						{
+							u32 found = 0;
+							if(read32(FOffset + 0x84) == 0x540003DF)
+							{
+								PatchBL( FakeRSWLoadAddr, (FOffset + 0x84) );
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x84);
+								found = 1;
+							}
+							if(read32(FOffset + 0x94) == 0x540003DF)
+							{
+								PatchBL( FakeRSWLoadAddr, (FOffset + 0x94) );
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x94);
+								found = 1;
+							}
+							if(read32(FOffset + 0xD4) == 0x90033000)
+							{
+								PatchBL( FakeRSWStoreAddr, (FOffset + 0xD4) );
+								printpatchfound(CurPatterns[j].Name, FOffset + 0xD4);
+								found = 1;
+							}
+							if(found == 0)
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_OSGetResetButtonState:
+						{
+							if(read32(FOffset + 0x28) == 0x540003DF) /* Patch C */
+							{
+								PatchBL( FakeRSWLoadAddr, (FOffset + 0x28) );
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x28);
+							}
+							else if(read32(FOffset + 0x2C) == 0x540003DF) /* Patch A, B */
+							{
+								PatchBL( FakeRSWLoadAddr, (FOffset + 0x2C) );
+								printpatchfound(CurPatterns[j].Name, FOffset + 0x2C);
+							}
+							else
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_AIInitDMA:
+						{
+							if(read32(FOffset + 0x20) == 0x3C80CC00)
+							{
+								PatchBL( AIInitDMAAddr, (FOffset + 0x20) );
+								printpatchfound(CurPatterns[j].Name, FOffset);
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:Saving Audio Locations\r\n");
+								#endif
+							}
+							else
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE___DSPHandler:
+						{
+							if(read32(FOffset + 0xF8) == 0x2C000000)
+							{
+								PatchBL( __DSPHandlerAddr, (FOffset + 0xF8) );
+								printpatchfound(CurPatterns[j].Name, FOffset);
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:Added Audio Mixer\r\n");
+								#endif
+							}
+							else
+								CurPatterns[j].Found = 0;
+						} break;
+						default:
+						{
+							if( CurPatterns[j].Patch == (u8*)ARQPostRequest )
+							{
+								if (   (TITLE_ID) != 0x474D53  // Super Mario Sunshine
+									&& (TITLE_ID) != 0x474C4D  // Luigis Mansion
+									&& (TITLE_ID) != 0x474346  // Pokemon Colosseum
+									&& (TITLE_ID) != 0x475049  // Pikmin
+									&& (TITLE_ID) != 0x474146  // Animal Crossing
+									&& (TITLE_ID) != 0x474C56) // Chronicles of Narnia
+								{
+									#ifdef DEBUG_PATCH
+									dbgprintf("Patch:[ARQPostRequest] skipped (0x%08X)\r\n", FOffset);
+									#endif
+									break;
+								}
+							}
+							if( CurPatterns[j].Patch == (u8*)SIGetType )
+							{
+								if ((TITLE_ID) == 0x475853) // Sonic Adventure DX
+								{
+									#ifdef DEBUG_PATCH
+									dbgprintf("Patch:[SIGetType] skipped (0x%08X)\r\n", FOffset);
+									#endif
+									break;
+								}
+							}
+							if( CurPatterns[j].Patch == (u8*)SITransfer )
+							{
+								if( TRIGame == 0 )
+								{
+									#ifdef DEBUG_PATCH
+									dbgprintf("Patch:[SITransfer] skipped (0x%08X)\r\n", FOffset);
+									#endif
+									break;
+								}
+							}
+							if( CurPatterns[j].Patch == (u8*)DVDGetDriveStatus )
+							{
+								if( (TITLE_ID) != 0x474754 &&	// Chibi-Robo!
+									(TITLE_ID) != 0x475041 )	// Pok駑on Channel
+									break;
+							}
+							if( (CurPatterns[j].Length >> 16) == (FCODES  >> 16) )
+							{
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:Unhandled dead case:%08X\r\n", CurPatterns[j].Length );
+								#endif
+							}
+							else
+							{
+								printpatchfound(CurPatterns[j].Name, FOffset);
+								memcpy( (void*)(FOffset), CurPatterns[j].Patch, CurPatterns[j].PatchLength );
+							}
+						} break;
+					}
+					// If this is a patch group set all others of this group as found aswell
+					if( CurPatterns[j].Group && CurPatterns[j].Found )
 					{
-						if( FPatterns[k].Group == FPatterns[j].Group )
+						for( k=0; k < CurPatternsLen; ++k )
 						{
-							if( !FPatterns[k].Found )		// Don't overwrite the offset!
-								FPatterns[k].Found = -1;	// Usually this holds the offset, to determinate it from a REALLY found pattern we set it -1 which still counts a logical TRUE
-							#ifdef DEBUG_PATCH
-							//dbgprintf("Setting [%s] to found!\r\n", FPatterns[k].Name );
-							#endif
+							if( CurPatterns[k].Group == CurPatterns[j].Group )
+							{
+								if( !CurPatterns[k].Found )		// Don't overwrite the offset!
+									CurPatterns[k].Found = -1;	// Usually this holds the offset, to determinate it from a REALLY found pattern we set it -1 which still counts a logical TRUE
+								#ifdef DEBUG_PATCH
+								//dbgprintf("Setting [%s] to found!\r\n", CurPatterns[k].Name );
+								#endif
+							}
 						}
 					}
+					// We dont need to compare this to more patterns
+					i += (CurPatterns[j].Length - 4);
+					patfound = true;
+					break;
 				}
-				// We dont need to compare this to more patterns
-				i+=(FPatterns[j].Length-4);
-				break;
 			}
+			if(patfound) break;
 		}
 	}
-	for( j=0; j < sizeof(FPatterns)/sizeof(FuncPattern); ++j )
+	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 	{
-		if( FPatterns[j].Found ) //Skip already found patches
+		if(AllFPatterns[patitr].patmode == PCODE_EXI && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false)
 			continue;
-		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:[%s] not found\r\n", FPatterns[j].Name );
+		#ifndef PATCHSI
+		if(AllFPatterns[patitr].patmode == PCODE_SI)
+			continue;
 		#endif
+		FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
+		u32 CurPatternsLen = AllFPatterns[patitr].patlen;
+		for( j=0; j < CurPatternsLen; ++j )
+		{
+			if(CurPatterns[j].Found) //Skip already found patches
+				continue;
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:[%s] not found\r\n", CurPatterns[j].Name );
+			#endif
+		}
 	}
 	#ifdef DEBUG_PATCH
 	dbgprintf("Patch:Finished Pattern Search\r\n");
