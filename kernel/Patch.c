@@ -2405,7 +2405,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							{
 								if (   (TITLE_ID) != 0x474D53  // Super Mario Sunshine
 									&& (TITLE_ID) != 0x474C4D  // Luigis Mansion
-									&& (TITLE_ID) != 0x474346  // Pokemon Colosseum
 									&& (TITLE_ID) != 0x475049  // Pikmin
 									&& (TITLE_ID) != 0x474146  // Animal Crossing
 									&& (TITLE_ID) != 0x474C56) // Chronicles of Narnia
@@ -2540,42 +2539,61 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		#endif
 	}
 
-	if( (GAME_ID & 0xFFFFFF00) == 0x475A4C00 )	// GZL=Wind Waker
+	if( (GAME_ID & 0xFFFFFF00) == 0x47433600 )	// Pokemon Colosseum
+	{
+		// Memory Card inserted hack
+		if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true )
+		{
+			if(write32A(0x000B30DC, 0x38600001, 0x4801C2ED, 0))
+			{
+				#ifdef DEBUG_PATCH
+				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-U\r\n");
+				#endif
+			}
+			else if(write32A(0x000B66DC, 0x38600001, 0x4801C2ED, 0))
+			{
+				#ifdef DEBUG_PATCH
+				dbgprintf("Patch:Patched Pokemon Colosseum PAL\r\n");
+				#endif
+			}
+		}
+	}
+	else if( (GAME_ID & 0xFFFFFF00) == 0x475A4C00 )	// GZL=Wind Waker
 	{
 		//Anti FrameDrop Panic
 		/* NTSC-U Final */
-		if(*(vu32*)(0x00221A28) == 0x40820034 && *(vu32*)(0x00256424) == 0x41820068)
+		if(read32(0x00221A28) == 0x40820034 && read32(0x00256424) == 0x41820068)
 		{
 			//	write32( 0x03945B0, 0x8039408C );	// Test menu
-			*(vu32*)(0x00221A28) = 0x48000034;
-			*(vu32*)(0x00256424) = 0x48000068;
+			write32(0x00221A28, 0x48000034);
+			write32(0x00256424, 0x48000068);
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched WW NTSC-U\r\n");
 			#endif
 		}
 		/* NTSC-U Demo */
-		if(*(vu32*)(0x0021D33C) == 0x40820034 && *(vu32*)(0x00251EF8) == 0x41820068)
+		if(read32(0x0021D33C) == 0x40820034 && read32(0x00251EF8) == 0x41820068)
 		{
-			*(vu32*)(0x0021D33C) = 0x48000034;
-			*(vu32*)(0x00251EF8) = 0x48000068;
+			write32(0x0021D33C, 0x48000034);
+			write32(0x00251EF8, 0x48000068);
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched WW NTSC-U Demo\r\n");
 			#endif
 		}
 		/* PAL Final */
-		if(*(vu32*)(0x001F1FE0) == 0x40820034 && *(vu32*)(0x0025B5C4) == 0x41820068)
+		if(read32(0x001F1FE0) == 0x40820034 && read32(0x0025B5C4) == 0x41820068)
 		{
-			*(vu32*)(0x001F1FE0) = 0x48000034;
-			*(vu32*)(0x0025B5C4) = 0x48000068;
+			write32(0x001F1FE0, 0x48000034);
+			write32(0x0025B5C4, 0x48000068);
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched WW PAL\r\n");
 			#endif
 		}
 		/* NTSC-J Final */
-		if(*(vu32*)(0x0021EDD4) == 0x40820034 && *(vu32*)(0x00253BCC) == 0x41820068)
+		if(read32(0x0021EDD4) == 0x40820034 && read32(0x00253BCC) == 0x41820068)
 		{
-			*(vu32*)(0x0021EDD4) = 0x48000034;
-			*(vu32*)(0x00253BCC) = 0x48000068;
+			write32(0x0021EDD4, 0x48000034);
+			write32(0x00253BCC, 0x48000068);
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched WW NTSC-J\r\n");
 			#endif
@@ -2586,13 +2604,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchB( 0x00006950, 0x003191BC );
 		}*/
 	}
-	/*else if( ((GAME_ID & 0xFFFFFF00) == 0x47414C00) || GAME_ID == 0x474C4D45 ) //Melee or NTSC Luigis Mansion
-	{
-		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:Skipping Wait for Handler\r\n");
-		#endif
-		SkipHandlerWait = true; //some patch doesnt get applied so without this it would freeze
-	}*/
 	sync_after_write( Buffer, Length );
 
 	return;
