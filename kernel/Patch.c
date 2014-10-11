@@ -1963,7 +1963,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						case FCODE_EXIDMA:	// EXIDMA
 						{
 							u32 off		= 0;
-							u32 reg		=-1;
+							s32 reg		=-1;
 							u32 valueB	= 0;
 
 							while(1)
@@ -1973,58 +1973,51 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								u32 op = read32( (u32)FOffset + off );
 
 								if( reg == -1 )
-								if( (op & 0xFC1F0000) == 0x3C000000 )	// lis rX, 0xCC00
 								{
-									reg = (op & 0x3E00000) >> 21;
-									if( reg == 3 )
+									if( (op & 0xFC1F0000) == 0x3C000000 )	// lis rX, 0xCC00
 									{
-										value  = read32( FOffset + off ) & 0x0000FFFF;
-										#ifdef DEBUG_PATCH
-										//dbgprintf("lis:%08X value:%04X\r\n", FOffset+off, value );
-										#endif
+										reg = (op & 0x3E00000) >> 21;
+										if( reg == 3 )
+										{
+											value = read32( FOffset + off ) & 0x0000FFFF;
+											#ifdef DEBUG_PATCH
+											//dbgprintf("lis:%08X value:%04X\r\n", FOffset+off, value );
+											#endif
+										}
 									}
 								}
-
 								if( reg != -1 )
-								if( (op & 0xFC000000) == 0x38000000 )	// addi rX, rY, z
 								{
-									u32 src = (op >> 16) & 0x1F;
-
-									if( src == reg )
+									if( (op & 0xFC000000) == 0x38000000 )	// addi rX, rY, z
 									{
-										valueB = read32( FOffset + off ) & 0x0000FFFF;
-										#ifdef DEBUG_PATCH
-										//dbgprintf("addi:%08X value:%04X\r\n", FOffset+off, valueB);
-										#endif
-										break;
+										u32 src = (op >> 16) & 0x1F;
+										if( src == reg )
+										{
+											u32 dst = (op >> 21) & 0x1F;
+											if(dst == 0)
+											{
+												valueB = read32( FOffset + off ) & 0x0000FFFF;
+												#ifdef DEBUG_PATCH
+												//dbgprintf("addi:%08X value:%04X\r\n", FOffset+off, valueB);
+												#endif
+												break;
+											}
+											else //false hit
+											{
+												value = 0;
+												reg = -1;
+											}
+										}
 									}
 								}
-
 								if( op == 0x4E800020 )	// blr
 									break;
 							}
-
-							if( valueB & 0x8000 )
-								value =  (( value << 16) - (((~valueB) & 0xFFFF)+1) );
-							else
-								value =  (value << 16) + valueB;
-							#ifdef DEBUG_PATCH
-							//dbgprintf("F:%08X\r\n", value );
-							#endif
-
 							printpatchfound(CurPatterns[j].Name, FOffset);
 							memcpy( (void*)(FOffset), EXIDMA, sizeof(EXIDMA) );
-
-							valueB = 0x90E80000 | (value&0xFFFF);
-							value  = 0x3D000000 | (value>>16);
-
-							if( valueB & 0x8000 )
-								value++;
-
-							valueB+=4;
-
-							write32( FOffset+0x10, value );
-							write32( FOffset+0x14, valueB );
+							/* Insert CB value into patched EXIDMA */
+							W16(FOffset + 2, value);
+							W16(FOffset + 6, valueB + 4);
 						} break;
 						case FCODE_EXIUnlock:
 						{
@@ -2544,7 +2537,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		// Memory Card inserted hack
 		if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true )
 		{
-			if(write32A(0x000B30DC, 0x38600001, 0x4801C2ED, 0))
+			if(write32A(0x000B0D88, 0x38600001, 0x4801C0B1, 0))
+			{
+				#ifdef DEBUG_PATCH
+				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-J\r\n");
+				#endif
+			}
+			else if(write32A(0x000B30DC, 0x38600001, 0x4801C2ED, 0))
 			{
 				#ifdef DEBUG_PATCH
 				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-U\r\n");
