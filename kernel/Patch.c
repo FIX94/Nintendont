@@ -3,6 +3,7 @@
 Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
 
 Copyright (C) 2013  crediar
+Copyright (C) 2014  FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -46,8 +47,6 @@ extern int dbgprintf( const char *fmt, ...);
 //osGetCount, double from 1.1574 to 0.7716
 #define DBL_1_1574		0x3ff284b5dcc63f14ull
 #define DBL_0_7716		0x3fe8b0f27bb2fec5ull
-
-const unsigned int cbForStateBusyOffsets[] = {0x4C, 0x44};
 
 unsigned char OSReportDM[] =
 {
@@ -500,7 +499,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dst = (op >> 21) & 0x1F;
 			if( dst == LISReg )
 				LISReg = -1;
-		} else if( (op & 0xFC00FF00) == 0x38006800 ) // addi rX, rY, 0x6C00 (exi)
+		} else if( (op & 0xFC00FF00) == 0x38006800 ) // addi rX, rY, 0x6800 (exi)
 		{
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
@@ -575,7 +574,71 @@ void PatchFuncInterface( char *dst, u32 Length )
 	dbgprintf("Patch:AI patched %u times\r\n", AIPatched);
 	#endif
 }
+void PatchDiscInterface( char *dst )
+{
+	int i;
 
+	u32 LISReg=-1;
+	u32 LISOff=-1;
+
+	for( i=0; ; i+=4 )
+	{
+		u32 op = read32( (u32)dst + i );
+
+		if( (op & 0xFC1FFFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
+		{
+			LISReg = (op & 0x3E00000) >> 21;
+			LISOff = (u32)dst + i;
+		}
+
+		if( (op & 0xFC000000) == 0x38000000 )	// li rX, x
+		{
+			u32 src = (op >> 16) & 0x1F;
+			u32 dst = (op >> 21) & 0x1F;
+			if ((src != LISReg) && (dst == LISReg))
+			{
+				LISReg = -1;
+				LISOff = (u32)dst + i;
+			}
+		}
+
+		if( (op & 0xFC00FF00) == 0x38006000 ) // addi rX, rY, 0x6000 (di)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if( src == LISReg )
+			{
+				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+				dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				LISReg = -1;
+			}
+			u32 dst = (op >> 21) & 0x1F;
+			if( dst == LISReg )
+				LISReg = -1;
+		}
+
+		if(    ( (op & 0xF8000000 ) == 0x80000000 )   // lwz and lwzu
+		    || ( (op & 0xF8000000 ) == 0x90000000 ) ) // stw and stwu
+		{
+			u32 src = (op >> 16) & 0x1F;
+			u32 dst = (op >> 21) & 0x1F;
+			u32 val = op & 0xFFFF;
+
+			if( src == LISReg )
+			{
+				if( (val & 0xFF00) == 0x6000 ) // case with 0x60XY(rZ) (di)
+				{
+					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+					dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					LISReg = -1;
+				}
+			}
+			if( dst == LISReg )
+				LISReg = -1;
+		}
+		if( op == 0x4E800020 )	// blr
+			break;
+	}
+}
 void PatchFunc( char *ptr )
 {
 	u32 i	= 0;
@@ -630,7 +693,24 @@ void PatchFunc( char *ptr )
 			}
 		}
 
-		if( (op & 0xFC000000 ) == 0x90000000 )
+		if( (op & 0xFC000000 ) == 0x80000000 )
+		{
+			u32 src = (op >> 16) & 0x1F;
+			u32 dst = (op >> 21) & 0x1F;
+			u32 val = op & 0xFFFF;
+			
+			if( src == reg )
+			{
+				if( (val & 0xFF00) == 0x6000 )	// case with 0x60XY(rZ)
+				{
+					write32( (u32)ptr + i,  (dst<<21) | (src<<16) | 0x2F00 | (val&0xFF) | 0x80000000 );	// Patch to: lwz rX, 0x2FXY(rZ)
+					#ifdef DEBUG_PATCH
+					dbgprintf("[%08X] %08X: lwz r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
+					#endif
+				}
+			}
+		}
+		else if( (op & 0xFC000000 ) == 0x90000000 )
 		{
 			u32 src = (op >> 16) & 0x1F;
 			u32 dst = (op >> 21) & 0x1F;
@@ -647,7 +727,6 @@ void PatchFunc( char *ptr )
 				}
 			}
 		}
-
 		i += 4;
 	}
 }
@@ -763,12 +842,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	int i, j, k;
 	u32 read;
 	u32 value = 0;
-	
-	if( (u32)Buffer >= 0x01800000 )
-	{
-		if((u32)Buffer != 0x13002EE0)
-			return;
-	}
 
 	// PSO 1&2
 	if( (TITLE_ID) == 0x47504F )
@@ -916,6 +989,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		dbgprintf("Patch:[Patch31A0]\r\n");
 		#endif
 		Patch31A0();
+	}
+
+	if( PatchState == PATCH_STATE_DONE && (u32)Buffer == 0x01300000 )
+	{	/* Make sure to force patch that area */
+		PatchState = PATCH_STATE_PATCH;
+		DOLSize = Length;
+		DOLMinOff = (u32)Buffer;
+		DOLMaxOff = DOLMinOff + Length;
 	}
 
 	if (!(PatchState & PATCH_STATE_PATCH))
@@ -1235,20 +1316,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 			#endif
-			PatchBL(DCInvalidateRangeAddr, (u32)HwOffset);
-			Offset += 92;
-
-			if( (read32(Offset-8) & 0xFFFF) == 0xCC00 )	// Loader
-			{
-				Offset -= 8;
-			}
-			printpatchfound("__DVDInterruptHandler", Offset);
-
-			value = *(vu32*)Offset;
-			value&= 0xFFFF0000;
-			value|= 0x0000CD80;
-			*(vu32*)Offset = value;
-
+			PatchDiscInterface( (char*)Offset );
+			PatchBL(DCInvalidateRangeAddr, HwOffset);
 			PatchCount |= 4;
 		}
 		
@@ -1265,39 +1334,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				value&= 0x03E00000;
 				value|= 0x38000000;
 				*(vu32*)(Offset+8) = value;
-				
-				// done below (+0x4C)
-				//if( TRIGame )
-				//{
-				//	write32A( Offset+0x218,	0x3C60C000, 0x3C60CC00, 0 );
-				//	write32A( Offset+0x21C,	0x80032F50, 0x80036020, 0 );
-				//
-				//	write32A( Offset+0x228,	0x3C60C000, 0x3C60CC00, 0 );
-				//	write32A( Offset+0x22C,	0x38632F30, 0x38636000, 0 );
 
-				//	write32A( Offset+0x284,	0x3C60C000, 0x3C60CC00, 0 );
-				//	write32A( Offset+0x288,	0x80032F50, 0x80036020, 0 );
-				//}
-
-				u32 SearchIndex = 0;
-				for (SearchIndex = 0; SearchIndex < 3; SearchIndex++)
-				{
-					if (write32A(Offset + 0x1CC, 0x3C60C000, 0x3C60CC00, 0))
-						printpatchfound("cbForStateBusy", Offset + 0x1CC);
-					if (write32A(Offset + 0x1D0, 0x80032f50, 0x80036020, 0))
-						printpatchfound("cbForStateBusy", Offset + 0x1D0);
-
-					if (write32A(Offset + 0x1DC, 0x3C60C000, 0x3C60CC00, 0))
-						printpatchfound("cbForStateBusy", Offset + 0x1DC);
-					if (write32A(Offset + 0x1E0, 0x38632f30, 0x38636000, 0))
-						printpatchfound("cbForStateBusy", Offset + 0x1E0);
-
-					if (write32A(Offset + 0x238, 0x3C60c000, 0x3C60CC00, 0))
-						printpatchfound("cbForStateBusy", Offset + 0x238);
-					if (write32A(Offset + 0x23C, 0x80032f50, 0x80036020, 0))
-						printpatchfound("cbForStateBusy", Offset + 0x23C);
-					Offset += cbForStateBusyOffsets[SearchIndex];
-				}
+				PatchFunc( Buffer + i + 12 );
 
 				PatchCount |= 8;
 
@@ -1308,23 +1346,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				u32 Offset = (u32)Buffer + i;
 				printpatchfound("cbForStateBusy", Offset);
-				write32( Offset, 0x3C60C000 );
-				write32( Offset+4, 0x80832F48 );
+				value = *(vu32*)(Offset+4);
+				value&= 0x03E00000;
+				value|= 0x38000000;
+				*(vu32*)(Offset+4) = value;
 
-				if (write32A(Offset + 0x19C, 0x3C60C000, 0x3C60CC00, 0))
-					printpatchfound("cbForStateBusy", Offset + 0x19C);
-				if (write32A(Offset + 0x1A0, 0x80032f50, 0x80036020, 0))
-					printpatchfound("cbForStateBusy", Offset + 0x1A0);
-
-				if (write32A(Offset + 0x1AC, 0x3C60C000, 0x3C60CC00, 0))
-					printpatchfound("cbForStateBusy", Offset + 0x1AC);
-				if (write32A(Offset + 0x1B0, 0x83632f50, 0x83636020, 0))
-					printpatchfound("cbForStateBusy", Offset + 0x1B0);
-
-				if (write32A(Offset + 0x20C, 0x3C60C000, 0x3C60CC00, 0))
-					printpatchfound("cbForStateBusy", Offset + 0x20C);
-				if (write32A(Offset + 0x210, 0x80032f50, 0x80036020, 0))
-					printpatchfound("cbForStateBusy", Offset + 0x210);
+				PatchFunc( Buffer + i + 8 );
 
 				PatchCount |= 8;
 			}
@@ -1598,24 +1625,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if( read32( (u32)Buffer + i ) == 0x3C00E300 )
 			{
-				u32 Offset = (u32)Buffer + i;
-				printpatchfound("DVDLowStopMotor", Offset);
-
-				value = *(vu32*)(Offset-12);
-				value&= 0xFFFF0000;
-				value|= 0x0000C000;
-				*(vu32*)(Offset-12) = value;
-
-				value = *(vu32*)(Offset-8);
-				value&= 0xFFFF0000;
-				value|= 0x00002F00;
-				*(vu32*)(Offset-8) = value;
-
-				value = *(vu32*)(Offset+4);
-				value&= 0xFFFF0000;
-				value|= 0x00002F08;
-				*(vu32*)(Offset+4) = value;		
-
+				printpatchfound("DVDLowStopMotor", (u32)Buffer + i);
+				PatchFunc( Buffer + i - 12 );
 				PatchCount |= 256;
 			}
 		}
@@ -1624,30 +1635,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if( (read32( (u32)Buffer + i ) & 0xFC00FFFF ) == 0x3C00A800 && (read32( (u32)Buffer + i + 4 ) & 0xFC00FFFF ) == 0x38000040 )
 			{
-				u32 Offset = (u32)Buffer + i;
-				printpatchfound("DVDLowReadDiskID", Offset);
-
-				value = *(vu32*)(Offset);
-				value&= 0xFFFF0000;
-				value|= 0x0000A700;
-				*(vu32*)(Offset) = value;
-
-				value = *(vu32*)(Offset+0x20);
-				value&= 0xFFFF0000;
-				value|= 0x0000C000;
-				*(vu32*)(Offset+0x20) = value;
-				
-				value = *(vu32*)(Offset+0x24);
-				value&= 0xFFFF0000;
-				value|= 0x00002F00;
-				*(vu32*)(Offset+0x24) = value;
-
-				value = *(vu32*)(Offset+0x2C);
-				value&= 0xFFFF0000;
-				value|= 0x00002F08;
-				*(vu32*)(Offset+0x2C) = value;
-
-				PatchCount |= 512;				
+				printpatchfound("DVDLowReadDiskID", (u32)Buffer + i);
+				PatchFunc( Buffer + i );
+				PatchCount |= 512;
 			}
 		}
 
@@ -1843,34 +1833,28 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0; // False hit
 						} break;
 						case FCODE___ARChecksize_A:		// __ARChecksize A
+						{
+							printpatchfound(CurPatterns[j].Name, FOffset + 0x57C);
+							write32(FOffset + 0x57C, 0x48000378); // b +0x0378, No Expansion
+						} break;
 						case FCODE___ARChecksize_B:		// __ARChecksize B
+						{
+							printpatchfound(CurPatterns[j].Name, FOffset + 0x370);
+							write32(FOffset + 0x370, 0x48001464); // b +0x1464, No Expansion
+						} break;
 						case FCODE___ARChecksize_C:		// __ARChecksize C
+						{
+							printpatchfound(CurPatterns[j].Name, FOffset + 0x484);
+							write32(FOffset + 0x484, 0x60000000); // nop, Memory Present
+							write32(FOffset + 0x768, 0x60000000); // nop, 16MB Internal
+							write32(FOffset + 0xB88, 0x48000324); // b +0x0324, No Expansion
+						} break;
 						case FCODE___ARChecksize_DBG:	// __ARChecksize DBG
 						{
-							if (CurPatterns[j].PatchLength == FCODE___ARChecksize_B)
-							{
-								u32 PatchVal = read32(FOffset + 0x370);
-								if ((PatchVal & 0xFFE0FFFF) == 0x40801464) // bne +0x1464
-								{
-									write32(FOffset + 0x370, 0x48001464); // b +0x1464
-									printpatchfound(CurPatterns[j].Name, FOffset + 0x370);
-									break;
-								}
-							}
-							printpatchfound(CurPatterns[j].Name, FOffset);
-							u32 EndOffset = FOffset + CurPatterns[j].Length;
-							u32 Register = (*(vu32*)(EndOffset-24) >> 21) & 0x1F;
-							*(vu32*)(FOffset) = 0x3C000100 | ( Register << 21 );
-							u32 k = 0;
-							if (CurPatterns[j].PatchLength == FCODE___ARChecksize_DBG)
-							{
-								*(vu32*)(FOffset+4)=*(vu32*)(EndOffset-32);
-								k = 4;
-							}
-							*(vu32*)(FOffset+4+k) = *(vu32*)(EndOffset-28);
-							*(vu32*)(FOffset+8+k) = *(vu32*)(EndOffset-24);
-							*(vu32*)(FOffset+12+k)= *(vu32*)(EndOffset-20);
-							*(vu32*)(FOffset+16+k)= 0x4E800020;
+							printpatchfound(CurPatterns[j].Name, FOffset + 0x160);
+							write32(FOffset + 0x160, 0x4800001C); // b +0x001C, Memory Present
+							write32(FOffset + 0x2BC, 0x60000000); // nop, 16MB Internal
+							write32(FOffset + 0x394, 0x4800017C); // b +0x017C, No Expansion
 						} break;
 	// Widescreen hack by Extrems
 						case FCODE_C_MTXPerspective:	//	C_MTXPerspective
