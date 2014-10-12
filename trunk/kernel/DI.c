@@ -345,7 +345,7 @@ void DIUpdateRegisters( void )
 					#ifdef DEBUG_GCAM
 					dbgprintf("GC-AM: 0x12\n");
 					#endif
-					write32( DI_SIMM, 0x21000000 );
+					write32( DI_IMM, 0x21000000 );
 
 					DIOK = 2;
 				} break;
@@ -478,7 +478,7 @@ void DIUpdateRegisters( void )
 					}
 
 					memset32( MediaBuffer + 0x20, 0, 0x20 );
-					write32( DI_SIMM, 0x66556677 );
+					write32( DI_IMM, 0x66556677 );
 
 					DIOK = 2;
 				} break;
@@ -518,14 +518,14 @@ void DIUpdateRegisters( void )
 							dbgprintf("DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, Buffer|0x80000000 );
 							Shutdown();
 						}
-						if( Buffer == 0x01300000 && DICheckTGC(Buffer,Length))
+						/*if( Buffer == 0x01300000 && DICheckTGC(Buffer,Length))
 						{
 							//copy in our own apploader
 							memcpy( (void*)Buffer, multidol_ldr, multidol_ldr_size );
 							sync_after_write( (void*)Buffer, multidol_ldr_size );
 							DIOK = 2;
-						}
-						else if( Buffer < 0x01800000 )
+						} else*/
+						if( Buffer < 0x01800000 )
 						{
 							DI_CallbackMsg.result = -1;
 							sync_after_write(&DI_CallbackMsg, 0x20);
