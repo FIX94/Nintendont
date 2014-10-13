@@ -393,14 +393,14 @@ void PatchB( u32 dst, u32 src )
 	u32 newval = (dst - src);
 	newval&= 0x03FFFFFC;
 	newval|= 0x48000000;
-	*(vu32*)src = newval;	
+	*(vu32*)src = newval;
 }
 void PatchBL( u32 dst, u32 src )
 {
 	u32 newval = (dst - src);
 	newval&= 0x03FFFFFC;
 	newval|= 0x48000001;
-	*(vu32*)src = newval;	
+	*(vu32*)src = newval;
 }
 /*
 	This offset gets randomly overwritten, this workaround fixes that problem.
@@ -567,13 +567,110 @@ void PatchFuncInterface( char *dst, u32 Length )
 		}
 	}
 #ifdef DEBUG_PATCH
-	dbgprintf("Patch:PatchFuncInterface Summary\r\n");
-	dbgprintf("Patch:SI patched %u times\r\n", SIPatched);
+	dbgprintf("Patch:[SI] applied %u times\r\n", SIPatched);
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
-		dbgprintf("Patch:EXI patched %u times\r\n", EXIPatched);
-	dbgprintf("Patch:AI patched %u times\r\n", AIPatched);
+		dbgprintf("Patch:[EXI] applied %u times\r\n", EXIPatched);
+	dbgprintf("Patch:[AI] applied %u times\r\n", AIPatched);
 	#endif
 }
+s32 piReg = -1;
+void PatchProcessorInterface( char *ptr )
+{
+	/* Pokemon XD - PI_FIFO_WP Direct */
+	if(*(u32*)(ptr) == 0x80033014 && (*(u32*)(ptr+12) & 0xFFF0FFFF) == 0x541037FE) //extrwi rZ, rY, 1,5
+	{
+		// Extract WRAPPED bit
+		u32 op = read32((u32)(ptr+12));
+		write32((u32)(ptr+12), (op & 0xFFFF0000) | 0x00001FFE);
+		#ifdef DEBUG_PATCH
+		u32 src = (op >> 21) & 0x1F; //rY
+		u32 dst = (op >> 16) & 0x1F; //rZ
+		dbgprintf( "Patch:[PI_FIFO_WP PKM] extrwi r%i,r%i,1,2 (0x%08X)\r\n", dst, src, ptr+12 );
+		#endif
+		return;
+	}
+	/* Dolphin SDK - GX __piReg */
+	if(piReg == -1)
+		return;
+	if((*(u32*)(ptr) & 0xFF0FFFFF) == (0x800D0000 | piReg)) // lwz rX, __piReg(r13)
+	{
+		u32 piRegBuf = (u32)ptr;
+		u32 dst = (read32(piRegBuf) >> 21) & 0x1F; //rX
+		u32 lPtr, sPtr;
+		s32 lReg = -1, sReg = -1;
+		for(lPtr = 0; lPtr < 0x20; lPtr += 4)
+		{
+			u32 op = read32(piRegBuf+lPtr);
+			if(lReg == -1)
+			{
+				if((op & 0xFF00FFFF) == 0x80000014) //lwz rY, 0x14(rX)
+				{
+					u32 src = (op >> 16) & 0x1F;
+					if(src == dst)
+						lReg = (op >> 21) & 0x1F; //rY
+				}
+			}
+			else
+			{
+				if((op & 0xFF00FFFF) == 0x54000188) //rlwinm rZ, rY, 0,6,4
+				{
+					u32 lSrc = (op >> 21) & 0x1F; //rY
+					if(lSrc == lReg)
+					{
+						// Keep WRAPPED bit
+						write32(piRegBuf+lPtr, (op & 0xFFFF0000) | 0x000000C2);
+						#ifdef DEBUG_PATCH
+						u32 lDst = (op >> 16) & 0x1F; //rZ
+						dbgprintf( "Patch:[PI_FIFO_WP] rlwinm r%i,r%i,0,3,1 (0x%08X)\r\n", lDst, lSrc, piRegBuf+lPtr );
+						#endif
+						break;
+					}
+				}
+				else if((op & 0xFF00FFFF) == 0x540037FE) //extrwi rZ, rY, 1,5
+				{
+					u32 lSrc = (op >> 21) & 0x1F; //rY
+					if(lSrc == lReg)
+					{
+						// Extract WRAPPED bit
+						write32(piRegBuf+lPtr, (op & 0xFFFF0000) | 0x00001FFE);
+						#ifdef DEBUG_PATCH
+						u32 lDst = (op >> 16) & 0x1F; //rZ
+						dbgprintf( "Patch:[PI_FIFO_WP] extrwi r%i,r%i,1,2 (0x%08X)\r\n", lDst, lSrc, piRegBuf+lPtr );
+						#endif
+						break;
+					}
+				}
+			}
+			if(sReg == -1)
+			{
+				if((op & 0xFF00FFFF) == 0x54000188) //rlwinm rY, rZ, 0,6,4
+				{
+					sPtr = lPtr;
+					sReg = (op >> 16) & 0x1F; //rY
+				}
+			}
+			else
+			{
+				if((op & 0xFF00FFFF) == 0x90000014) //stw rY, 0x14(rX)
+				{
+					u32 sDst = (op >> 16) & 0x1F; //rX
+					u32 sSrc = (op >> 21) & 0x1F; //rY
+					if(sSrc == sReg && dst == sDst)
+					{
+						// Keep WRAPPED bit
+						write32(piRegBuf+sPtr, (op & 0xFFFF0000) | 0x000000C2);
+						#ifdef DEBUG_PATCH
+						sSrc = (read32(piRegBuf+sPtr) >> 21) & 0x1F;
+						dbgprintf( "Patch:[PI_FIFO_WP] rlwinm r%i,r%i,0,3,1 (0x%08X)\r\n", sReg, sSrc, piRegBuf+sPtr );
+						#endif
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
 void PatchDiscInterface( char *dst )
 {
 	int i;
@@ -608,7 +705,7 @@ void PatchDiscInterface( char *dst )
 			if( src == LISReg )
 			{
 				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
-				dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				LISReg = -1;
 			}
 			u32 dst = (op >> 21) & 0x1F;
@@ -628,7 +725,7 @@ void PatchDiscInterface( char *dst )
 				if( (val & 0xFF00) == 0x6000 ) // case with 0x60XY(rZ) (di)
 				{
 					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
-					dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					//dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					LISReg = -1;
 				}
 			}
@@ -656,26 +753,26 @@ void PatchFunc( char *ptr )
 			reg = (op & 0x3E00000) >> 21;
 			
 			write32( (u32)ptr + i, (reg<<21) | 0x3C00C000 );	// Patch to: lis rX, 0xC000
-			#ifdef DEBUG_PATCH
-			dbgprintf("[%08X] %08X: lis r%u, 0xC000\r\n", (u32)ptr+i, read32( (u32)ptr+i), reg );
-			#endif
+			//#ifdef DEBUG_PATCH
+			//dbgprintf("[%08X] %08X: lis r%u, 0xC000\r\n", (u32)ptr+i, read32( (u32)ptr+i), reg );
+			//#endif
 		}
-		
+
 		if( (op & 0xFC00FFFF) == 0x3C00A800 )	// lis rX, 0xA800
-		{			
+		{
 			write32( (u32)ptr + i, (op & 0x3E00000) | 0x3C00A700 );		// Patch to: lis rX, 0xA700
-			#ifdef DEBUG_PATCH
-			dbgprintf("[%08X] %08X: lis rX, 0xA700\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
-			#endif
+			//#ifdef DEBUG_PATCH
+			//dbgprintf("[%08X] %08X: lis rX, 0xA700\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
+			//#endif
 		}
 
 		// Triforce
 		if( (op & 0xFC00FFFF) == 0x380000A8 )	// li rX, 0xA8
 		{
 			write32( (u32)ptr + i, (op & 0x3E00000) | 0x380000A7 );		// Patch to: li rX, 0xA7
-			#ifdef DEBUG
-			dbgprintf("[%08X] %08X: li rX, 0xA7\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
-			#endif
+			//#ifdef DEBUG
+			//dbgprintf("[%08X] %08X: li rX, 0xA7\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
+			//#endif
 		}
 
 		if( (op & 0xFC00FFFF) == 0x38006000 )	// addi rX, rY, 0x6000
@@ -686,10 +783,9 @@ void PatchFunc( char *ptr )
 			if( src == reg )
 			{
 				write32( (u32)ptr + i, (dst<<21) | (src<<16) | 0x38002F00 );	// Patch to: addi rX, rY, 0x2F00
-				#ifdef DEBUG_PATCH
-				dbgprintf("[%08X] %08X: addi r%u, r%u, 0x2F00\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, src );
-				#endif
-
+				//#ifdef DEBUG_PATCH
+				//dbgprintf("[%08X] %08X: addi r%u, r%u, 0x2F00\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, src );
+				//#endif
 			}
 		}
 
@@ -704,9 +800,9 @@ void PatchFunc( char *ptr )
 				if( (val & 0xFF00) == 0x6000 )	// case with 0x60XY(rZ)
 				{
 					write32( (u32)ptr + i,  (dst<<21) | (src<<16) | 0x2F00 | (val&0xFF) | 0x80000000 );	// Patch to: lwz rX, 0x2FXY(rZ)
-					#ifdef DEBUG_PATCH
-					dbgprintf("[%08X] %08X: lwz r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
-					#endif
+					//#ifdef DEBUG_PATCH
+					//dbgprintf("[%08X] %08X: lwz r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
+					//#endif
 				}
 			}
 		}
@@ -721,15 +817,16 @@ void PatchFunc( char *ptr )
 				if( (val & 0xFF00) == 0x6000 )	// case with 0x60XY(rZ)
 				{
 					write32( (u32)ptr + i,  (dst<<21) | (src<<16) | 0x2F00 | (val&0xFF) | 0x90000000 );	// Patch to: stw rX, 0x2FXY(rZ)
-					#ifdef DEBUG_PATCH
-					dbgprintf("[%08X] %08X: stw r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
-					#endif
+					//#ifdef DEBUG_PATCH
+					//dbgprintf("[%08X] %08X: stw r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
+					//#endif
 				}
 			}
 		}
 		i += 4;
 	}
 }
+
 void MPattern( u8 *Data, u32 Length, FuncPattern *FunctionPattern )
 {
 	u32 i;
@@ -739,34 +836,34 @@ void MPattern( u8 *Data, u32 Length, FuncPattern *FunctionPattern )
 	for( i = 0; i < Length; i+=4 )
 	{
 		u32 word = *(u32*)(Data + i);
-		
-		if( (word & 0xFC000003) ==  0x48000001 )
+
+		if( (word & 0xFC000003) == 0x48000001 )
 			FunctionPattern->FCalls++;
 
-		if( (word & 0xFC000003) ==  0x48000000 )
+		if( (word & 0xFC000003) == 0x48000000 )
 			FunctionPattern->Branch++;
-		if( (word & 0xFFFF0000) ==  0x40800000 )
+		if( (word & 0xFFFF0000) == 0x40800000 )
 			FunctionPattern->Branch++;
-		if( (word & 0xFFFF0000) ==  0x41800000 )
+		if( (word & 0xFFFF0000) == 0x41800000 )
 			FunctionPattern->Branch++;
-		if( (word & 0xFFFF0000) ==  0x40810000 )
+		if( (word & 0xFFFF0000) == 0x40810000 )
 			FunctionPattern->Branch++;
-		if( (word & 0xFFFF0000) ==  0x41820000 )
+		if( (word & 0xFFFF0000) == 0x41820000 )
 			FunctionPattern->Branch++;
-		
-		if( (word & 0xFC000000) ==  0x80000000 )
+
+		if( (word & 0xFC000000) == 0x80000000 )
 			FunctionPattern->Loads++;
-		if( (word & 0xFF000000) ==  0x38000000 )
+		if( (word & 0xFF000000) == 0x38000000 )
 			FunctionPattern->Loads++;
-		if( (word & 0xFF000000) ==  0x3C000000 )
+		if( (word & 0xFF000000) == 0x3C000000 )
 			FunctionPattern->Loads++;
 
-		if( (word & 0xFC000000) ==  0x90000000 )
+		if( (word & 0xFC000000) == 0x90000000 )
 			FunctionPattern->Stores++;
-		if( (word & 0xFC000000) ==  0x94000000 )
+		if( (word & 0xFC000000) == 0x94000000 )
 			FunctionPattern->Stores++;
 
-		if( (word & 0xFF000000) ==  0x7C000000 )
+		if( (word & 0xFF000000) == 0x7C000000 )
 			FunctionPattern->Moves++;
 
 		if( word == 0x4E800020 )
@@ -775,21 +872,24 @@ void MPattern( u8 *Data, u32 Length, FuncPattern *FunctionPattern )
 
 	FunctionPattern->Length = i;
 }
+
 int CPattern( FuncPattern *FPatA, FuncPattern *FPatB  )
 {
 	return ( memcmp( FPatA, FPatB, sizeof(u32) * 6 ) == 0 );
 }
+
 void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2) 
-{ 
-	u32 i; 
-    *c1 = 0; *c2 = 0; 
-    for (i = 0;i<4;++i) 
-    { 
-        *c1 += buf[0x06 + i]; 
-        *c2 += (buf[0x06 + i] ^ 0xFFFF); 
-    }
-	//dbzprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
+{
+	u32 i;
+	*c1 = 0; *c2 = 0;
+	for (i = 0;i<4;++i)
+	{
+		*c1 += buf[0x06 + i];
+		*c2 += (buf[0x06 + i] ^ 0xFFFF);
+	}
+	//dbgprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
 }
+
 char *getVidStr(u32 in)
 {
 	switch(in)
@@ -814,9 +914,10 @@ static inline void printvidpatch(u32 ori_v, u32 new_v, u32 addr)
 {
 	dbgprintf("Patch:Replaced %s with %s (0x%08X)\r\n", getVidStr(ori_v), getVidStr(new_v), addr );
 }
-static inline void printpatchfound(const char *name, u32 offset)
+static inline void printpatchfound(const char *name, const char *type, u32 offset)
 {
-	dbgprintf("Patch:[%s] applied (0x%08X)\r\n", name, offset);
+	if(type) dbgprintf("Patch:[%s %s] applied (0x%08X)\r\n", name, type, offset);
+	else dbgprintf("Patch:[%s] applied (0x%08X)\r\n", name, offset);
 }
 #else
 #define printvidpatch(...)
@@ -830,7 +931,7 @@ static inline void printpatchfound(const char *name, u32 offset)
 
 u32 PatchState = PATCH_STATE_NONE;
 u32 PSOHack    = 0;
-u32 DOLSize	   = 0;
+u32 DOLSize    = 0;
 u32 DOLReadSize= 0;
 u32 DOLMinOff  = 0;
 u32 DOLMaxOff  = 0;
@@ -1001,6 +1102,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	if (!(PatchState & PATCH_STATE_PATCH))
 		return;
+	piReg = -1;
 
 	sync_after_write(Buffer, Length);
 
@@ -1209,9 +1311,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	PatchFuncInterface( Buffer, Length );
 	sync_after_write( Buffer, Length );
 	sync_before_read( Buffer, Length );
-#ifdef DEBUG_PATCH
-	dbgprintf("Patch:Applying required patches\r\n");
-#endif
 
 #ifdef PATCHALL
 	u32 PatchCount = 1|64|128;
@@ -1236,7 +1335,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	u8 *SHA1i = (u8*)malloca( 0x60, 0x40 );
 	u8 *hash  = (u8*)malloca( 0x14, 0x40 );
-
+	u32 gxReg1 = 0, gxReg2 = 0;
 	for( i=0; i < Length; i+=4 )
 	{
 		if( (PatchCount & 2048) == 0  )	// __OSDispatchInterrupt
@@ -1245,7 +1344,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				read32((u32)Buffer + i + 4 ) == 0x83E33000  
 				)
 			{
-				printpatchfound("__OSDispatchInterrupt", (u32)Buffer + i);
+				printpatchfound("__OSDispatchInterrupt",NULL, (u32)Buffer + i);
 				PatchBL( FakeInterruptAddr, (u32)Buffer + i + 4 );
 				if(ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true)
 				{
@@ -1262,7 +1361,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			} else if( read32( (u32)Buffer + i + 0 ) == 0x3C60CC00 &&
 				read32( (u32)Buffer + i + 4 ) == 0x83A33000 && read32( (u32)Buffer + i + 8 ) == 0x57BD041C)
 			{
-				printpatchfound("__OSDispatchInterrupt", (u32)Buffer + i);
+				printpatchfound("__OSDispatchInterrupt",NULL, (u32)Buffer + i);
 				PatchBL( FakeInterrupt_DBGAddr, (u32)Buffer + i + 4 );
 				if(ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true)
 				{
@@ -1296,7 +1395,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			(read32( (u32)Buffer + i +12 )&0xFC00FFFF) == 0x60000004
 			) 
 		{
-			printpatchfound("SetInterruptMask", (u32)Buffer + i + 12);
+			printpatchfound("SetInterruptMask",NULL, (u32)Buffer + i + 12);
 
 			write32( (u32)Buffer + i + 12, (read32( (u32)Buffer + i + 12 ) & 0xFFFF0000) | 0x4004 );
 
@@ -1329,7 +1428,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				) 
 			{
 				u32 Offset = (u32)Buffer + i;
-				printpatchfound("cbForStateBusy", Offset);
+				printpatchfound("cbForStateBusy",NULL, Offset);
 				value = *(vu32*)(Offset+8);
 				value&= 0x03E00000;
 				value|= 0x38000000;
@@ -1345,7 +1444,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				)
 			{
 				u32 Offset = (u32)Buffer + i;
-				printpatchfound("cbForStateBusy", Offset);
+				printpatchfound("cbForStateBusy","DBG", Offset);
 				value = *(vu32*)(Offset+4);
 				value&= 0x03E00000;
 				value|= 0x38000000;
@@ -1363,29 +1462,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				if( ((read32( (u32)Buffer + i + 4 ) & 0xFC1FFFFF ) == 0x800300CC) && ((read32( (u32)Buffer + i + 8 ) >> 24) == 0x54 ) )
 				{
-					printpatchfound("VIConfigure", (u32)Buffer + i);
+					printpatchfound("VIConfigure",NULL, (u32)Buffer + i);
 					write32( (u32)Buffer + i + 4, 0x5400F0BE | ((read32( (u32)Buffer + i + 4 ) & 0x3E00000) >> 5	) );
 					PatchCount |= 16;
 				}
 			}
 		}
 
-		if( (PatchCount & 32) == 0 )
+		if( (PatchCount & 32) == 0 )	// GXInit __piReg
 		{
-			if( read32( (u32)Buffer + i + 0 ) == 0xA063501A )
+			if( read32( (u32)Buffer + i ) == 0x3C80CC00 )
+				gxReg1 = (u32)Buffer + i;
+			if( gxReg1 && read32( (u32)Buffer + i ) == 0x38A43000 )
+				gxReg2 = (u32)Buffer + i;
+			if( gxReg2 && R16( (u32)Buffer + i ) == 0x90AD )
 			{
-				if( read32( (u32)Buffer + i + 0x10 ) == 0x80010014  )
-				{
-					write32( (u32)Buffer + i + 0x10, 0x3800009C );
-					printpatchfound("ARInit", (u32)Buffer + i + 10);
-				}
-//				else
-//				{
-					#ifdef DEBUG_PATCH
-//					dbgprintf("Patch skipped:[ARInit] 0x%08X\r\n", (u32)(Buffer + i));
-					#endif
-//				}
-
+				piReg = R16( (u32)Buffer + i + 2 );
+				#ifdef DEBUG_PATCH
+				dbgprintf("Patch:[GXInit] stw r5,-0x%X(r13) (0x%08X)\r\n", 0x10000 - piReg, (u32)Buffer + i + 2);
+				#endif
 				PatchCount |= 32;
 			}
 		}
@@ -1404,7 +1499,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					j+=4;
 
 				u32 DebuggerHook = (u32)Buffer + i + j;
-				printpatchfound("Hook:OSSleepThread", DebuggerHook);
+				printpatchfound("Hook:OSSleepThread",NULL, DebuggerHook);
 
 				u32 DBGSize;
 
@@ -1625,7 +1720,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if( read32( (u32)Buffer + i ) == 0x3C00E300 )
 			{
-				printpatchfound("DVDLowStopMotor", (u32)Buffer + i);
+				printpatchfound("DVDLowStopMotor",NULL, (u32)Buffer + i);
 				PatchFunc( Buffer + i - 12 );
 				PatchCount |= 256;
 			}
@@ -1635,7 +1730,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if( (read32( (u32)Buffer + i ) & 0xFC00FFFF ) == 0x3C00A800 && (read32( (u32)Buffer + i + 4 ) & 0xFC00FFFF ) == 0x38000040 )
 			{
-				printpatchfound("DVDLowReadDiskID", (u32)Buffer + i);
+				printpatchfound("DVDLowReadDiskID",NULL, (u32)Buffer + i);
 				PatchFunc( Buffer + i );
 				PatchCount |= 512;
 			}
@@ -1712,14 +1807,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		#endif
 		Shutdown();
 	}
-	#ifdef DEBUG_PATCH
-	dbgprintf("Patch:Required patches applied\r\n");
-	#endif
 	sync_after_write( Buffer, Length );
 
-	#ifdef DEBUG_PATCH
-	dbgprintf("Patch:Starting Pattern Search\r\n");
-	#endif
 	u32 patitr;
 	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 	{
@@ -1735,18 +1824,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if(memcmp((u8*)(Buffer+i), XG3TimerReadOri, sizeof(XG3TimerReadOri)) == 0)
 		{
 			write32((u32)(Buffer+i+8), 0x60C6ED4E); // TB_BUS_CLOCK / 4000
-			printpatchfound("XG3 Timer", (u32)Buffer + i + 8);
+			printpatchfound("XG3 Timer",NULL, (u32)Buffer + i + 8);
 			i+=12;
 			continue;
 		}
-		/* Pokemon XD uses this check pattern in various locations */
-		if(*(u32*)(Buffer + i) == 0x80033014 && (*(u32*)(Buffer + i + 12) & 0xFFF0FFFF) == 0x541037FE)
-		{
-			write32((u32)(Buffer+i+12), (read32((u32)(Buffer+i+12)) & 0xFFFF0000) | 0x00001FFE); // Change WRAPPED bit
-			printpatchfound("PI_FIFO_WP", (u32)Buffer + i + 12);
-			i+=16;
-			continue;
-		}
+
+		PatchProcessorInterface(Buffer + i);
+
 		if( *(u32*)(Buffer + i) != 0x4E800020 )
 			continue;
 
@@ -1757,7 +1841,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			// TB_BUS_CLOCK / 4
 			write32((u32)(Buffer+i+0), 0x3C00039E);
 			write32((u32)(Buffer+i+4), 0x6000F8B0);
-			printpatchfound("Crash Bandicoot Timer", (u32)Buffer + i);
+			printpatchfound("Crash Bandicoot Timer",NULL, (u32)Buffer + i);
 			i+=16;
 			continue;
 		}
@@ -1768,6 +1852,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d\r\n", fp.Length, fp.Loads, fp.Stores, fp.FCalls, fp.Branch, fp.Moves);
 		for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 		{
+			if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == 0)
+				continue;
 			if(AllFPatterns[patitr].patmode == PCODE_EXI && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false)
 				continue;
 			#ifndef PATCHSI
@@ -1795,15 +1881,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					{
 						case FCODE_PatchFunc:	// DVDLowRead
 						{
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							PatchFunc( (char*)FOffset );
 						} break;
 						case FCODE_Return:	// __AI_set_stream_sample_rate
 						{
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							write32( FOffset, 0x4E800020 );
 						} break;
-						case FCODE_AIResetStreamSampleCount:	// Audiostreaming hack
+						case FCODE_AIResetStreamCount:	// Audiostreaming hack
 						{
 							switch( TITLE_ID )
 							{
@@ -1811,7 +1897,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								break;
 								default:
 								{
-									printpatchfound(CurPatterns[j].Name, FOffset);
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 									write32( FOffset + 0xB4, 0x60000000 );
 									write32( FOffset + 0xC0, 0x60000000 );
 								} break;
@@ -1821,12 +1907,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							if( read32( FOffset+0x34 ) == 0x5400023E )
 							{
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x34);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x34);
 								write32( FOffset+0x34, 0x5400033E );
 							}
 							else if( read32( FOffset+0x28 ) == 0x5004C00E )
 							{
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x28);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x28);
 								write32( FOffset+0x28, 0x5004C016 );
 							}
 							else
@@ -1834,24 +1920,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE___ARChecksize_A:		// __ARChecksize A
 						{
-							printpatchfound(CurPatterns[j].Name, FOffset + 0x57C);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x57C);
 							write32(FOffset + 0x57C, 0x48000378); // b +0x0378, No Expansion
 						} break;
 						case FCODE___ARChecksize_B:		// __ARChecksize B
 						{
-							printpatchfound(CurPatterns[j].Name, FOffset + 0x370);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x370);
 							write32(FOffset + 0x370, 0x48001464); // b +0x1464, No Expansion
 						} break;
 						case FCODE___ARChecksize_C:		// __ARChecksize C
 						{
-							printpatchfound(CurPatterns[j].Name, FOffset + 0x484);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x484);
 							write32(FOffset + 0x484, 0x60000000); // nop, Memory Present
 							write32(FOffset + 0x768, 0x60000000); // nop, 16MB Internal
 							write32(FOffset + 0xB88, 0x48000324); // b +0x0324, No Expansion
 						} break;
 						case FCODE___ARChecksize_DBG:	// __ARChecksize DBG
 						{
-							printpatchfound(CurPatterns[j].Name, FOffset + 0x160);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x160);
 							write32(FOffset + 0x160, 0x4800001C); // b +0x001C, Memory Present
 							write32(FOffset + 0x2BC, 0x60000000); // nop, 16MB Internal
 							write32(FOffset + 0x394, 0x4800017C); // b +0x017C, No Expansion
@@ -1862,7 +1948,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
 								break;
 
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							*(volatile float *)0x50 = 0.5625f;
 
 							memcpy((void*)(FOffset+ 28),(void*)(FOffset+ 36),44);
@@ -1878,7 +1964,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
 								break;
 
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							*(volatile float *)0x50 = 0.5625f;
 
 							*(u32*)(FOffset+36) = *(u32*)(FOffset+32);
@@ -1896,21 +1982,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
 								break;
 
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							write32( FOffset,   0x38600000 );
 							write32( FOffset+4, 0x4E800020 );
 						} break;
 						case FCODE___OSReadROM:	//	__OSReadROM
 						{
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							memcpy( (void*)FOffset, __OSReadROM, sizeof(__OSReadROM) );
 						} break;
-						case FCODE___OSInitAudioSystem:
+						case FCODE___OSInitAudioSystem_A:
 						{
-							if(write32A(FOffset + 0x94, 0x48000018, 0x40820018, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x94);
-							if(write32A(FOffset + 0xA8, 0x48000018, 0x40820018, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0xA8);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x4C);
+							write32( FOffset+0x4C, 0x48000060 ); // b +0x0060, Skip Checks
+						} break;
+						case FCODE___OSInitAudioSystem_B:
+						{
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x60);
+							write32( FOffset+0x60, 0x48000060 ); // b +0x0060, Skip Checks
 						} break;
 						case FCODE___GXSetVAT:	// Patch for __GXSetVAT, fixes the dungeon map freeze in Wind Waker
 						{
@@ -1923,7 +2012,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								{
 									write32(FOffset, (read32(FOffset) & 0xff00ffff) | 0x00220000);
 									memcpy( (void *)(FOffset + 4), __GXSetVAT_patch, sizeof(__GXSetVAT_patch) );
-									printpatchfound(CurPatterns[j].Name, FOffset);
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 								} break;
 								default:
 								break;
@@ -1940,9 +2029,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								break;
 							}
 							PatchBL( TCIntrruptHandlerAddr, (FOffset + PatchOffset) );
-							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", CurPatterns[j].Name, FOffset, PatchOffset);
-							#endif
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + PatchOffset);
 						} break;
 						case FCODE_EXIDMA:	// EXIDMA
 						{
@@ -1997,7 +2084,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								if( op == 0x4E800020 )	// blr
 									break;
 							}
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							memcpy( (void*)(FOffset), EXIDMA, sizeof(EXIDMA) );
 							/* Insert CB value into patched EXIDMA */
 							W16(FOffset + 2, value);
@@ -2011,7 +2098,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							{
 								if(read32(FOffset+k) == 0x54000734)
 								{
-									printpatchfound(CurPatterns[j].Name, FOffset + k);
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + k);
 									memcpy((void*)FOffset, EXILock, sizeof(EXILock));
 									found = 1;
 									break;
@@ -2024,25 +2111,42 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							write32( FOffset+0x124, 0x60000000 );
 							write32( FOffset+0x18C, 0x60000000 );
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
 						case FCODE___CARDStat_B:	// CARD timeout
 						{
 							write32( FOffset+0x118, 0x60000000 );
 							write32( FOffset+0x180, 0x60000000 );
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
 						case FCODE___CARDStat_C:	// CARD timeout
 						{
 							write32( FOffset+0x124, 0x60000000 );
 							write32( FOffset+0x194, 0x60000000 );
 							write32( FOffset+0x1FC, 0x60000000 );
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
 						case FCODE_ARInit:
 						{
-							if(write32A(FOffset + 0xD8, 0x48000018, 0x41820018, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0xD8);
+							/* Use GC Bus Clock Speed for Refresh Value */
+							if(read32(FOffset + 0x5C) == 0x3C608000)
+							{
+								write32(FOffset + 0x5C, 0x3C6009A8);
+								write32(FOffset + 0x64, 0x3803EC80);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x5C);
+							}
+							else if(read32(FOffset + 0x78) == 0x3C608000)
+							{
+								write32(FOffset + 0x78, 0x3C6009A8);
+								write32(FOffset + 0x7C, 0x3803EC80);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x78);
+							}
+							else if(read32(FOffset + 0x2C) == 0x38604000)
+							{
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:[ARInit] skipped (0x%08X)\r\n", FOffset);
+								#endif
+							}
 							else
 								CurPatterns[j].Found = 0;
 						} break;
@@ -2062,9 +2166,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									break;
 								}
 								PatchBL( PatchCopy(ARStartDMA_Hook, sizeof(ARStartDMA_Hook)), (FOffset + PatchOffset) );
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", CurPatterns[j].Name, FOffset, PatchOffset);
-								#endif
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + PatchOffset);
 								break;
 							}
 							else if( (TITLE_ID) == 0x47384D ||	// Paper Mario
@@ -2094,12 +2196,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									}
 								}
 							}
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
 						case FCODE_GCAMSendCommand:
 						{
-							if( TRIGame > 0 )
-								printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							if( TRIGame == 1 )
 							{
 								PatchB( PatchCopy(GCAMSendCommand2, sizeof(GCAMSendCommand2)), FOffset );
@@ -2142,7 +2243,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									break;
 								}
 							}
-							printpatchfound(CurPatterns[j].Name, FOffset);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							memcpy((void*)FOffset, patch_fwrite_Log, sizeof(patch_fwrite_Log));
 							if (CurPatterns[j].PatchLength == FCODE___fwrite_D)
 							{
@@ -2155,44 +2256,44 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							//e.g. Mario Strikers
 							if (write32A(FOffset + 0x60, 0x7CE70078, 0x7CE70038, 0)) // clear errors - andc r7,r7,r0
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x60);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x60);
 
 							//e.g. Billy Hatcher
 							if (write32A(FOffset + 0xF8, 0x7F390078, 0x7F390038, 0)) // clear errors - andc r7,r7,r0
-								printpatchfound(CurPatterns[j].Name, FOffset + 0xF8);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0xF8);
 
 							//e.g. Mario Strikers
 							if (write32A(FOffset + 0x148, 0x5400007E, 0x50803E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x148);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x148);
 
 							//e.g. Luigi's Mansion
 							if (write32A(FOffset + 0x140, 0x5400007E, 0x50A03E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x140);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x140);
 
 							//e.g. Billy Hatcher
 							if (write32A(FOffset + 0x168, 0x5400007E, 0x50603E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x168);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x168);
 
 							//e.g. Batman Vengeance
 							if (write32A(FOffset + 0x164, 0x5400007E, 0x50603E30, 0)) // clear tc - rlwinm r0,r0,0,1,31
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x164);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x164);
 						} break;
 						case FCODE_CompleteTransfer:	//	CompleteTransfer
 						{
 							//e.g. Mario Strikers
 							if (write32A(FOffset + 0x38, 0x5400007C, 0x5400003C, 0)) // clear  tc - rlwinm r0,r0,0,1,30
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x38);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x38);
 
 							//e.g. Billy Hatcher (func before CompleteTransfer does this)
 							if (write32A(FOffset - 0x18, 0x57FF007C, 0x57FF003C, 0)) // clear  tc - rlwinm r31,r31,0,1,30
-								printpatchfound(CurPatterns[j].Name, FOffset - 0x18);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset - 0x18);
 
 							u32 k = 0;
 							for(k = 0x10; k < 0x20; k+=4)
 							{
 								if (write32A(FOffset + k, 0x3C000000, 0x3C008000, 0)) // clear  tc - lis r0,0
 								{
-									printpatchfound(CurPatterns[j].Name, FOffset + k);
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + k);
 									break;
 								}
 							}
@@ -2208,21 +2309,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								break;
 							}
 							PatchBL( SIIntrruptHandlerAddr, (FOffset + PatchOffset) );
-							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:[%s] applied (0x%08X,PatchOffset=0x%X)\r\n", CurPatterns[j].Name, FOffset, PatchOffset);
-							#endif
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + PatchOffset);
 
 							if (CurPatterns[j].Length >= 0xB4)
 							{
 								//e.g. Billy Hatcher
 								if (write32A(FOffset + 0xB4, 0x7F7B0078, 0x7F7B0038, 0)) // clear  tc - andc r27,r27,r0
-									printpatchfound(CurPatterns[j].Name, FOffset + 0xB4);
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0xB4);
 							}
 							if (CurPatterns[j].Length >= 0x134)
 							{
 								//e.g. Mario Strikers
 								if (write32A(FOffset + 0x134, 0x7CA50078, 0x7CA50038, 0)) // clear  tc - andc r5,r5,r0
-									printpatchfound(CurPatterns[j].Name, FOffset + 0x134);
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x134);
 							}
 						} break;
 						case FCODE_SIInit:	//	SIInit
@@ -2232,24 +2331,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							{
 								if (write32A(FOffset + k, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
 								{
-									printpatchfound(CurPatterns[j].Name, FOffset + k);
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + k);
 									break;
 								}
 							}
 						} break;
-						case FCODE_SIEnablePollingInterrupt:	//	SIEnablePollingInterrupt
+						case FCODE_SIPollingInterrupt:	//	SIEnablePollingInterrupt
 						{
 							//e.g. SSBM
 							if (write32A(FOffset + 0x68, 0x60000000, 0x54A50146, 0)) // leave rdstint alone - nop
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x68);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x68);
 							if (write32A(FOffset + 0x6C, 0x60000000, 0x54A5007C, 0)) // leave tcinit tcstart alone - nop
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x6C);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x6C);
 
 							//e.g. Billy Hatcher
 							if (write32A(FOffset + 0x78, 0x60000000, 0x57FF0146, 0)) // leave rdstint alone - nop
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x78);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x78);
 							if (write32A(FOffset + 0x7C, 0x60000000, 0x57FF007C, 0)) // leave tcinit tcstart alone - nop
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x7C);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x7C);
 						} break;
 						case FCODE_PADIsBarrel:
 						{
@@ -2259,93 +2358,44 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								break;
 							}
 							memcpy((void*)(FOffset), PADIsBarrel, sizeof(PADIsBarrel));
-							printpatchfound(CurPatterns[j].Name, FOffset);
-						} break;
-						case FCODE_PI_FIFO_WP_A:	//	PI_FIFO_WP A
-						{
-							//e.g. F-Zero
-							if (write32A(FOffset + 0x68, 0x54C600C2, 0x54C60188, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x68);
-							if (write32A(FOffset + 0xE4, 0x540000C2, 0x54000188, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0xE4);
-						} break;
-						case FCODE_PI_FIFO_WP_B:	//	PI_FIFO_WP B
-						{
-							//e.g. F-Zero
-							if (write32A(FOffset + 0x4C, 0x540300C2, 0x54030188, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x4C);
-						} break;
-						case FCODE_PI_FIFO_WP_C:	//	PI_FIFO_WP C
-						{
-							//e.g. F-Zero
-							if (write32A(FOffset + 0x14, 0x540600C2, 0x54060188, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x14);
-						} break;
-						case FCODE_PI_FIFO_WP_D:	//	PI_FIFO_WP D
-						{
-							//e.g. Paper Mario
-							if (write32A(FOffset + 0x40, 0x540400C2, 0x54040188, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x40);
-						} break;
-						case FCODE_PI_FIFO_WP_E:	//	PI_FIFO_WP E
-						{
-							//e.g. Paper Mario
-							if (write32A(FOffset + 0x34, 0x541E1FFE, 0x541E37FE, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x34);
-						} break;
-						case FCODE_PI_FIFO_WP_F:	//	PI_FIFO_WP F
-						{
-							//e.g. Pokemon XD
-							if (write32A(FOffset + 0x78, 0x540400C2, 0x54040188, 0))
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x78);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
 						case FCODE_RADTimerRead:
 						{
-							u32 res = 0;
-							res += write32A(FOffset + 0x48, 0x6000142A, 0x60009E40, 0); // 0x8A15 << 1
-							res += write32A(FOffset + 0x58, 0x6084ED4E, 0x60849E34, 0); // TB_BUS_CLOCK / 4000
-							res += write32A(FOffset + 0x60, 0x3CC08A15, 0x3CC0CF20, 0);
-							res += write32A(FOffset + 0x68, 0x60C6866C, 0x60C649A1 ,0);
-							if(res == 0)
-								CurPatterns[j].Found = 0;
+							if(read32(FOffset + 0x48) == 0x60009E40)
+							{
+								write32(FOffset + 0x48, 0x6000142A); // 0x8A15 << 1
+								write32(FOffset + 0x58, 0x6084ED4E); // TB_BUS_CLOCK / 4000
+								write32(FOffset + 0x60, 0x3CC08A15);
+								write32(FOffset + 0x68, 0x60C6866C);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x48);
+							}
 							else
-								printpatchfound(CurPatterns[j].Name, FOffset);
+								CurPatterns[j].Found = 0;
 						} break;
-						case FCODE___OSResetSWInterruptHandler:
+						case FCODE___OSResetHandler:
 						{
-							u32 found = 0;
 							if(read32(FOffset + 0x84) == 0x540003DF)
 							{
 								PatchBL( FakeRSWLoadAddr, (FOffset + 0x84) );
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x84);
-								found = 1;
-							}
-							if(read32(FOffset + 0x94) == 0x540003DF)
-							{
 								PatchBL( FakeRSWLoadAddr, (FOffset + 0x94) );
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x94);
-								found = 1;
-							}
-							if(read32(FOffset + 0xD4) == 0x90033000)
-							{
 								PatchBL( FakeRSWStoreAddr, (FOffset + 0xD4) );
-								printpatchfound(CurPatterns[j].Name, FOffset + 0xD4);
-								found = 1;
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x84);
 							}
-							if(found == 0)
+							else
 								CurPatterns[j].Found = 0;
 						} break;
-						case FCODE_OSGetResetButtonState:
+						case FCODE_OSGetResetState:
 						{
 							if(read32(FOffset + 0x28) == 0x540003DF) /* Patch C */
 							{
 								PatchBL( FakeRSWLoadAddr, (FOffset + 0x28) );
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x28);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x28);
 							}
 							else if(read32(FOffset + 0x2C) == 0x540003DF) /* Patch A, B */
 							{
 								PatchBL( FakeRSWLoadAddr, (FOffset + 0x2C) );
-								printpatchfound(CurPatterns[j].Name, FOffset + 0x2C);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x2C);
 							}
 							else
 								CurPatterns[j].Found = 0;
@@ -2355,10 +2405,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							if(read32(FOffset + 0x20) == 0x3C80CC00)
 							{
 								PatchBL( AIInitDMAAddr, (FOffset + 0x20) );
-								printpatchfound(CurPatterns[j].Name, FOffset);
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:Saving Audio Locations\r\n");
-								#endif
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							}
 							else
 								CurPatterns[j].Found = 0;
@@ -2368,10 +2415,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							if(read32(FOffset + 0xF8) == 0x2C000000)
 							{
 								PatchBL( __DSPHandlerAddr, (FOffset + 0xF8) );
-								printpatchfound(CurPatterns[j].Name, FOffset);
-								#ifdef DEBUG_PATCH
-								dbgprintf("Patch:Added Audio Mixer\r\n");
-								#endif
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							}
 							else
 								CurPatterns[j].Found = 0;
@@ -2392,7 +2436,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									break;
 								}
 							}
-							if( CurPatterns[j].Patch == (u8*)SIGetType )
+							if( CurPatterns[j].Patch == SIGetType )
 							{
 								if ((TITLE_ID) == 0x475853) // Sonic Adventure DX
 								{
@@ -2402,17 +2446,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									break;
 								}
 							}
-							if( CurPatterns[j].Patch == (u8*)SITransfer )
-							{
-								if( TRIGame == 0 )
-								{
-									#ifdef DEBUG_PATCH
-									dbgprintf("Patch:[SITransfer] skipped (0x%08X)\r\n", FOffset);
-									#endif
-									break;
-								}
-							}
-							if( CurPatterns[j].Patch == (u8*)DVDGetDriveStatus )
+							if( CurPatterns[j].Patch == DVDGetDriveStatus )
 							{
 								if( (TITLE_ID) != 0x474754 &&	// Chibi-Robo!
 									(TITLE_ID) != 0x475041 )	// Pok駑on Channel
@@ -2426,7 +2460,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							}
 							else
 							{
-								printpatchfound(CurPatterns[j].Name, FOffset);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 								memcpy( (void*)(FOffset), CurPatterns[j].Patch, CurPatterns[j].PatchLength );
 							}
 						} break;
@@ -2455,8 +2489,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			if(patfound) break;
 		}
 	}
+	#ifdef DEBUG_PATCH
 	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 	{
+		if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == 0)
+			continue;
 		if(AllFPatterns[patitr].patmode == PCODE_EXI && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false)
 			continue;
 		#ifndef PATCHSI
@@ -2467,15 +2504,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		u32 CurPatternsLen = AllFPatterns[patitr].patlen;
 		for( j=0; j < CurPatternsLen; ++j )
 		{
-			if(CurPatterns[j].Found) //Skip already found patches
-				continue;
-			#ifdef DEBUG_PATCH
-			dbgprintf("Patch:[%s] not found\r\n", CurPatterns[j].Name );
-			#endif
+			if(!CurPatterns[j].Found)
+			{
+				dbgprintf("Patch:[%s] not found\r\n", CurPatterns[j].Name );
+				if(CurPatterns[j].Group)
+					for( k = j; j < CurPatternsLen && CurPatterns[j].Group == CurPatterns[k].Group; ++j ) ;
+			}
 		}
 	}
-	#ifdef DEBUG_PATCH
-	dbgprintf("Patch:Finished Pattern Search\r\n");
 	#endif
 	PatchState = PATCH_STATE_DONE;
 
