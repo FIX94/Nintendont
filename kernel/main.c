@@ -60,7 +60,6 @@ static u32 DI_ThreadStack[0x400] __attribute__((aligned(32)));
 
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
-extern s32 DI_Handle;
 extern struct ipcmessage DI_CallbackMsg;
 
 extern char __bss_start, __bss_end;

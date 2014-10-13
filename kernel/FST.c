@@ -43,8 +43,6 @@ u32 FCEntry=0;
 FileCache *FC;
 u32 FCState[FILECACHE_MAX];
 
-extern FIL GameFile;
-
 static u8 *DI_Read_Buffer = (u8*)(0x12E80000);
 #define DI_READ_BUFFER_LENGTH (0x80000)
 
@@ -468,7 +466,6 @@ void CacheFile( char *FileName, char *Table )
 	u32 LEntry[16];
 	u32 level=0;
 	u32 i=0;
-	u32 read;
 
 	for( i=1; i < Entries; ++i )
 	{
@@ -500,9 +497,7 @@ void CacheFile( char *FileName, char *Table )
 				if( (DataCacheOffset <= 0xD80000) && ((DataCacheOffset + fe[i].FileLength) >= 0xD80000) )
 					DataCacheOffset = 0xDA0000;
 
-				f_lseek( &GameFile, fe[i].FileOffset );
-				f_read( &GameFile, DCCache + DataCacheOffset, fe[i].FileLength, &read );
-				sync_after_write( DCCache + DataCacheOffset, fe[i].FileLength );
+				DIReadISO( DCCache + DataCacheOffset, fe[i].FileLength, fe[i].FileOffset );
 
 				DC[DataCacheCount].Data		= DCCache + DataCacheOffset;
 				DC[DataCacheCount].Size		= (fe[i].FileLength + 3) & (~3);
