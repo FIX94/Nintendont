@@ -10,6 +10,7 @@
 #include "asm/EXIProbe.h"
 #include "asm/EXIGetID.h"
 #include "asm/__CARDReadStatus.h"
+#include "asm/__CARDClearStatus.h"
 #include "asm/__CARDEraseSector.h"
 
 #include "asm/ARQPostRequest.h"
@@ -183,14 +184,14 @@ unsigned char SITransfer[312] =
     0x60, 0x85, 0x80, 0x00, 0x48, 0x00, 0x00, 0x08, 0x54, 0x85, 0x04, 0x5E, 0x7C, 0xA0, 0x01, 0x24, 
     0x54, 0x83, 0x8F, 0xFE, 0x4E, 0x80, 0x00, 0x20, 
 } ;
+
 const u32 DVDGetDriveStatus[] = {
         0x38600000,     //  li		r3, 0
-        0x4E800020
+        0x4E800020      //  blr
 };
 
-
 // Audio streaming replacement functions copied from Swiss r92
-const u32 __dvdLowAudioStatusNULL[17] = {
+const u32 DVDLowAudioStatusNULL[17] = {
         // execute function(1); passed in on r4
         0x9421FFC0,     //  stwu        sp, -0x0040 (sp)
         0x7C0802A6,     //  mflr        r0
@@ -211,7 +212,7 @@ const u32 __dvdLowAudioStatusNULL[17] = {
         0x4E800020      //  blr
 };
 
-const u32 __dvdLowAudioConfigNULL[10] = {
+const u32 DVDLowAudioConfigNULL[10] = {
         // execute callback(1); passed in on r5 without actually touching the drive!
         0x9421FFC0,     //  stwu        sp, -0x0040 (sp)
         0x7C0802A6,     //  mflr        r0
@@ -225,7 +226,7 @@ const u32 __dvdLowAudioConfigNULL[10] = {
         0x4E800020      //  blr
 };
 
-const u32 __dvdLowReadAudioNULL[] = {
+const u32 DVDLowReadAudioNULL[10] = {
         // execute callback(1); passed in on r6 without actually touching the drive!
         0x9421FFC0,     //  stwu        sp, -0x0040 (sp)
         0x7C0802A6,     //  mflr        r0

@@ -20,17 +20,6 @@
 #define GXPal528Prog		6
 #define GXEurgb60Hz480Prog	7
 
-typedef struct PatchInfo
-{
-	u8 *Signature;
-	u8 *Mask;
-	u32 Length;
-	u32 FunctionLength;
-	u8 *Patch;
-	u32 PatchLength;
-	char *Name;
-} PatchInfo;
-
 typedef struct FuncPattern
 {
 	u32 Length;
@@ -39,9 +28,10 @@ typedef struct FuncPattern
 	u32 FCalls;
 	u32 Branch;
 	u32 Moves;
-	const u8 *Patch;
+	const void *Patch;
 	u32 PatchLength;
 	const char *Name;
+	const char *Type;
 	u32 Group;
 	u32 Found;
 } FuncPattern;
