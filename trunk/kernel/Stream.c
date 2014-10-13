@@ -158,7 +158,6 @@ u32 StreamGetChunkSize()
 
 #define LOOP_ENABLED 0x13026580
 
-extern s32 DI_Handle;
 void StreamUpdateRegisters()
 {
 	sync_before_read( (void*)STREAM_BASE, 0x40 );

@@ -48,7 +48,7 @@ s32 DI_Handle = -1;
 
 u32 DiscChangeIRQ	= 0;
 
-FIL GameFile;
+static FIL GameFile;
 
 static char GamePath[256] ALIGNED(32);
 static char *FSTBuf = (char *)(0x13200000);
@@ -119,7 +119,7 @@ void DIinit( bool FirstTime )
 static char discstr[0x100] __attribute__((aligned(0x20)));
 void DIChangeDisc( u32 DiscNumber )
 {
-	u32 read, i;
+	u32 i;
 	char* DiscName = ConfigGetGamePath();
 
 	//search the string backwards for '/'
@@ -137,17 +137,10 @@ void DIChangeDisc( u32 DiscNumber )
 	DIinit(false); //closes previous file and opens the new one
 
 	memset32(discstr, 0, 0x100);
-	f_lseek( &GameFile, 0x0 );
-	f_read( &GameFile, (void*)discstr, 0x100, &read ); // Loading the full 0x400 causes problems.
+	DIReadISO( (void*)discstr, 0x100, 0 ); // Loading the full 0x400 causes problems.
 	discstr[0xFF] = '\0';
 
-	dbgprintf("DIP:Loading game %.6s: %s\r\n", discstr, (char *)(discstr+0x20) );
-
-	//f_lseek( &GameFile, 0x420 );
-	//f_read( &GameFile, str, 0x40, &read );
-
-	// str was not alloced.  Do not free.
-	//free(str);
+	dbgprintf("DIP:Loading game %.6s: %s\r\n", discstr, discstr + 0x20 );
 }
 
 u32 LastOffset = UINT_MAX, LastLength = 0;

@@ -60,6 +60,7 @@ enum GameRegion
 
 extern vu32 SDisInit;
 extern u32 DiscChangeIRQ;
+extern s32 DI_Handle;
 
 void DIinit( bool FirstTime );
 void DIInterrupt();

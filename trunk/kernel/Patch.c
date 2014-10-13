@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "global.h"
 #include "patches.c"
+#include "DI.h"
 #include "SI.h"
 
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
@@ -38,7 +39,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define PATCH_OFFSET_START (0x2F00 - (sizeof(u32) * 5))
 u32 POffset = PATCH_OFFSET_START;
 vu32 Region = 0;
-extern FIL GameFile;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
 
@@ -1048,16 +1048,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 			Elf32_Ehdr *ehdr = (Elf32_Ehdr*)Buffer;
 #ifdef DEBUG_DI
-			dbgprintf("DIP:ELF Programheader Entries:%u\r\n", ehdr->e_phnum );	
+			dbgprintf("DIP:ELF Programheader Entries:%u\r\n", ehdr->e_phnum );
 #endif
 			for( i=0; i < ehdr->e_phnum; ++i )
 			{
-				Elf32_Phdr phdr;
-
-				f_lseek( &GameFile, DOLOffset + ehdr->e_phoff + i * sizeof(Elf32_Phdr) );
-				f_read( &GameFile, &phdr, sizeof(Elf32_Phdr), &read );
-
-				DOLSize += (phdr.p_filesz+31) & (~31);	// align by 32byte
+				Elf32_Phdr *phdr = (Elf32_Phdr*)(Buffer + ehdr->e_phoff + (i * sizeof(Elf32_Phdr)));
+#ifdef DEBUG_DI
+				dbgprintf("DIP:ELF Programheader:0x%08X\r\n", phdr );
+#endif
+				DOLSize += (phdr->p_filesz+31) & (~31);	// align by 32byte
 			}
 #ifdef DEBUG_DI
 			dbgprintf("DIP:ELF size:%u\r\n", DOLSize );
@@ -2172,7 +2171,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							else if( (TITLE_ID) == 0x47384D ||	// Paper Mario
 									 (TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 									 (TITLE_ID) == 0x474154 ||	// ATV Quad Power Racing 2
-									 (TITLE_ID) == 0x47504E )	// P.N.03
+									 (TITLE_ID) == 0x47504E ||	// P.N.03
+									 (TITLE_ID) == 0x474D4F)	// Micro Machines
 							{
 								memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
 							}
