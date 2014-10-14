@@ -95,6 +95,7 @@ s32 __IOS_LoadStartupIOS(void)
 }
 
 u32 entrypoint = 0;
+char *launch_dir;
 extern void __exception_closeall();
 extern void udelay(u32 us);
 static u8 loader_stub[0x1800]; //save internally to prevent overwriting
@@ -104,6 +105,8 @@ int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
 	__exception_setreload(10);
+	launch_dir = (char*) malloc(strlen(argv[0])+1);
+	strcpy(launch_dir, argv[0]);
 	CheckForGecko();
 	DCInvalidateRange(loader_stub, 0x1800);
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);

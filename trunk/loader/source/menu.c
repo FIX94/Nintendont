@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "FPad.h"
 #include "Config.h"
+#include "update.h"
 #include <dirent.h>
 #include <sys/dir.h>
 #include <stdio.h>
@@ -40,6 +41,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern NIN_CFG* ncfg;
 
 u32 Shutdown = 0;
+extern char *launch_dir;
 
 inline u32 SettingY(u32 row)
 {
@@ -205,6 +207,7 @@ void SelectGame( void )
 		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*1, "Home: Exit");
 		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
 		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
+		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*4, "%s", MenuMode ? "X   : Update" : "            ");
 
 		FPAD_Update();
 
@@ -342,6 +345,13 @@ void SelectGame( void )
 			}
 
 		} else {	//settings menu		
+			
+			if(FPAD_X(0)) {
+				ClearScreen();
+				UpdateNintendont(launch_dir);
+				ClearScreen();
+				redraw = 1;
+			}
 			
 			if( FPAD_Down(0) )
 			{
