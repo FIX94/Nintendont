@@ -96,7 +96,6 @@ enum
 	FCODE___CARDStat_A,
 	FCODE___CARDStat_B,
 	FCODE___CARDStat_C,
-	FCODE_RADTimerRead,
 	FCODE___OSResetHandler,
 	FCODE_OSGetResetState,
 	FCODE___OSInitAudioSystem_A,
@@ -208,9 +207,6 @@ FuncPattern NormalFPatterns[] =
 	{   0x84,    8,    4,    2,    0,    5,	NULL,				FCODE_AIInitDMA,			"AIInitDMA",			NULL,		FGROUP_NONE,				0 },
 	{  0x420,  103,   23,   34,   32,    9,	NULL,				FCODE___DSPHandler,			"__DSPHandler",			NULL,		FGROUP_NONE,				0 },
 #endif
-
-	//not from nintendos sdk, used by Bink Video
-	{   0xA4,    9,    4,    1,    0,    6,	NULL,				FCODE_RADTimerRead,			"RADTimerRead",			NULL,		FGROUP_NONE,				0 },
 };
 
 FuncPattern TRIFPatterns[] =
