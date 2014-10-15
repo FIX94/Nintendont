@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dol.h"
 #include "elf.h"
 #include "PatchCodes.h"
+#include "PatchTimers.h"
 #include "Config.h"
 #include "global.h"
 #include "patches.c"
@@ -43,10 +44,6 @@ extern vu32 TRIGame;
 extern u32 SystemRegion;
 
 extern int dbgprintf( const char *fmt, ...);
-
-//osGetCount, double from 1.1574 to 0.7716
-#define DBL_1_1574		0x3ff284b5dcc63f14ull
-#define DBL_0_7716		0x3fe8b0f27bb2fec5ull
 
 unsigned char OSReportDM[] =
 {
@@ -380,14 +377,6 @@ static bool write32A( u32 Offset, u32 Value, u32 CurrentValue, u32 ShowAssert )
 	write32( Offset, Value );
 	return true;
 }
-static bool write64A( u32 Offset, u64 Value, u64 CurrentValue )
-{
-	if( read64(Offset) != CurrentValue )
-		return false;
-	write64( Offset, Value );
-	return true;
-}
-
 void PatchB( u32 dst, u32 src )
 {
 	u32 newval = (dst - src);
@@ -931,6 +920,7 @@ static inline void printpatchfound(const char *name, const char *type, u32 offse
 
 u32 PatchState = PATCH_STATE_NONE;
 u32 PSOHack    = 0;
+u32 ELFLoading = 0;
 u32 DOLSize    = 0;
 u32 DOLReadSize= 0;
 u32 DOLMinOff  = 0;
@@ -980,6 +970,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if( read32( (u32)Buffer ) == 0x100 )
 			{
+				ELFLoading = 0;
 				//quickly calc the size
 				DOLSize = sizeof(dolhdr);
 				dolhdr *dol = (dolhdr*)Buffer;
@@ -1032,8 +1023,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				PatchState |= PATCH_STATE_LOAD;
 			}
 			PSOHack = 0;
-		} else if( read32( (u32)Buffer ) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum )
+		}
+		else if( read32( (u32)Buffer ) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum )
 		{
+			ELFLoading = 1;
 #ifdef DEBUG_DI
 			dbgprintf("DIP:Game is loading an ELF 0x%08x (%u)\r\n", DiscOffset, Length );
 #endif
@@ -1075,9 +1068,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		#endif
 		if( DOLReadSize >= DOLSize )
 		{
-			DOLMaxOff = DOLMinOff + DOLSize;
+			if(ELFLoading) DOLMaxOff = DOLMinOff + DOLSize;
 			PatchState |= PATCH_STATE_PATCH;
 			PatchState &= ~PATCH_STATE_LOAD;
+			ELFLoading = 0;
 		}
 		if ((PatchState & PATCH_STATE_DONE) && (DOLMaxOff == DOLMinOff))
 			PatchState = PATCH_STATE_DONE;
@@ -1817,33 +1811,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			CurPatterns[j].Found = 0;
 	}
 	sync_before_read( Buffer, Length );
-	for( i=0; i < Length; i+=4 )
+	i = 0;
+	while(i < Length)
 	{
-		/* XG3 needs to be scanned at all times for this thing */
-		if(memcmp((u8*)(Buffer+i), XG3TimerReadOri, sizeof(XG3TimerReadOri)) == 0)
-		{
-			write32((u32)(Buffer+i+8), 0x60C6ED4E); // TB_BUS_CLOCK / 4000
-			printpatchfound("XG3 Timer",NULL, (u32)Buffer + i + 8);
-			i+=12;
-			continue;
-		}
-
+		PatchTimers((u32)Buffer + i);
 		PatchProcessorInterface(Buffer + i);
 
 		if( *(u32*)(Buffer + i) != 0x4E800020 )
-			continue;
-
-		i+=4;
-
-		if(memcmp((u8*)(Buffer+i), CrashTimerReadOri, sizeof(CrashTimerReadOri)) == 0)
 		{
-			// TB_BUS_CLOCK / 4
-			write32((u32)(Buffer+i+0), 0x3C00039E);
-			write32((u32)(Buffer+i+4), 0x6000F8B0);
-			printpatchfound("Crash Bandicoot Timer",NULL, (u32)Buffer + i);
-			i+=16;
+			i+=4;
 			continue;
 		}
+		i+=4;
 
 		FuncPattern fp;
 		MPattern( (u8*)(Buffer+i), Length, &fp );
@@ -2360,19 +2339,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							memcpy((void*)(FOffset), PADIsBarrel, sizeof(PADIsBarrel));
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
-						case FCODE_RADTimerRead:
-						{
-							if(read32(FOffset + 0x48) == 0x60009E40)
-							{
-								write32(FOffset + 0x48, 0x6000142A); // 0x8A15 << 1
-								write32(FOffset + 0x58, 0x6084ED4E); // TB_BUS_CLOCK / 4000
-								write32(FOffset + 0x60, 0x3CC08A15);
-								write32(FOffset + 0x68, 0x60C6866C);
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x48);
-							}
-							else
-								CurPatterns[j].Found = 0;
-						} break;
 						case FCODE___OSResetHandler:
 						{
 							if(read32(FOffset + 0x84) == 0x540003DF)
@@ -2532,26 +2498,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		memcpy((void*)0x2A65CC, OSReportDM, sizeof(OSReportDM));
 		sync_after_write((void*)0x2A65CC, sizeof(OSReportDM));
 	}*/
-
-	if(write64A(0x001463E0, DBL_0_7716, DBL_1_1574))
-	{
-		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:Patched Majoras Mask NTSC-J\r\n");
-		#endif
-	}
-	else if(write64A(0x00141C00, DBL_0_7716, DBL_1_1574))
-	{
-		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:Patched Majoras Mask NTSC-U\r\n");
-		#endif
-	}
-	else if(write64A(0x00130860, DBL_0_7716, DBL_1_1574))
-	{
-		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:Patched Majoras Mask PAL\r\n");
-		#endif
-	}
-
 	if( (GAME_ID & 0xFFFFFF00) == 0x47433600 )	// Pokemon Colosseum
 	{
 		// Memory Card inserted hack
@@ -2623,6 +2569,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchB( 0x00006950, 0x003191BC );
 		}*/
 	}
+	PatchStaticTimers();
+
 	sync_after_write( Buffer, Length );
 
 	return;
