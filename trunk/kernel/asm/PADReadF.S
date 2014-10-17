@@ -4,11 +4,21 @@
 .set		PadBuff,	0x93002800
 
 PADReadF:
+	cmplwi	%r4,	0
+	beq		PADUpdate
+
+	cmplwi	%r4,	1
+	beq		TriggerUpdate
+
+NoUpdate:
+	li		%r3,	0
+	blr
+
+PADUpdate:
 	stwu	%sp,	-0x20(%sp)
 	mflr	%r0
 	stw		%r0,	0x24(%sp)
 	stmw	%r27,	0xC(%sp)
-	mr		%r28,	%r4
 
 	#to stub instead of arm
 	lis		%r6,			PadStub@h
@@ -16,7 +26,6 @@ PADReadF:
 	mtctr	%r6
 	bctrl
 
-	mr		%r4,	%r28
 	lmw		%r27,	0xC(%sp)
 	lwz		%r0,	0x24(%sp)
 	mtlr	%r0
@@ -24,13 +33,6 @@ PADReadF:
 
 	li		%r3,	0
 	lis		%r6,	PadBuff@h
-
-	cmplwi	%r4,	1
-	beq		CheckLeftTrigger
-
-	cmplwi	%r4,	0xFF
-	beq		end
-
 	lhz		%r0,	PadBuff@l(%r6)
 
 CheckY:
@@ -44,10 +46,13 @@ CheckStart:
 	ori		%r3,	%r3,	0x80
 
 CheckDPAD:
-	rlwinm	%r5,	%r0,	4,		24,		27
-	or		%r3,	%r3,	%r5
-	b		end
+	rlwimi	%r3,	%r0,	4,		26,		27	#left,right
+	rlwimi	%r3,	%r0,	0,		28,		29	#down,up
+	blr
 
+TriggerUpdate:
+	li		%r3,	0
+	lis		%r6,	PadBuff@h
 CheckLeftTrigger:
 	lbz		%r5,	0x2806(%r6)
 	cmplwi	%r5,	0x44
@@ -57,7 +62,6 @@ CheckLeftTrigger:
 CheckRightTrigger:
 	lbz		%r5,	0x2807(%r6)
 	cmplwi	%r5,	0x44
-	ble		end
+	blelr
 	ori		%r3,	%r3,	0x10
-end:
 	blr
