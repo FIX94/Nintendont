@@ -36,6 +36,8 @@
 #include "asm/GCAMSendCommand2.h"
 #include "asm/PADReadB.h"
 #include "asm/PADReadSteer.h"
+#include "asm/PADReadF.h"
+#include "asm/PADReadSteerF.h"
 #include "asm/PADReadVSSimple.h"
 #include "asm/PADReadSteerVSSimple.h"
 #include "asm/patch_fwrite_Log.h"

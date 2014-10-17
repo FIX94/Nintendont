@@ -1085,7 +1085,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		Patch31A0();
 	}
 
-	if( PatchState == PATCH_STATE_DONE && (u32)Buffer == 0x01300000 )
+	if( PatchState == PATCH_STATE_DONE && (u32)Buffer == 0x01300000 && *(u8*)Buffer == 0x48 )
 	{	/* Make sure to force patch that area */
 		PatchState = PATCH_STATE_PATCH;
 		DOLSize = Length;
@@ -1221,7 +1221,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		dbgprintf("TRI:FZero AX\n");
 		TRIGame = 3;
 		SystemRegion = REGION_JAPAN;
-		
+
+		//Patch EXI ID check
+		write32( 0x01AD60C, 0x4800001C );
+
 		//Reset loop
 		write32( 0x01B5410, 0x60000000 );
 		//DBGRead fix
@@ -1234,6 +1237,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0175710, 0x60000000 );
 		write32( 0x0175714, 0x60000000 );
 		write32( 0x01756AC, 0x60000000 );
+
+		//patching system waiting stuff
+		write32( 0x0180DB8, 0x48000054 );
+		write32( 0x0180E1C, 0x48000054 );
+
+		//Network waiting
+		write32( 0x0180FD8, 0x4800004C );
 
 		//Goto Test menu
 		//write32( 0x00DF3D0, 0x60000000 );
@@ -1249,6 +1259,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PatchB( 0x01882C0, 0x0191B54 );
 		PatchB( 0x01882C0, 0x01C53CC );
 		PatchB( 0x01882C0, 0x01CC684 );
+
+		memcpy( (void*)0x001B3D10, PADReadSteerF, PADReadSteerF_size );
+		memcpy( (void*)0x001B4340, PADReadF, PADReadF_size );
 
 		//memcpy( (void*)0x01CAACC, patch_fwrite_GC, sizeof(patch_fwrite_GC) );
 		//memcpy( (void*)0x01882C0, OSReportDM, sizeof(OSReportDM) );
@@ -1832,7 +1845,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == 0)
 				continue;
-			if(AllFPatterns[patitr].patmode == PCODE_EXI && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false)
+			if(AllFPatterns[patitr].patmode == PCODE_EXI && (TRIGame == 3 || ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false))
 				continue;
 			#ifndef PATCHSI
 			if(AllFPatterns[patitr].patmode == PCODE_SI)
@@ -2462,7 +2475,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	{
 		if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == 0)
 			continue;
-		if(AllFPatterns[patitr].patmode == PCODE_EXI && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false)
+		if(AllFPatterns[patitr].patmode == PCODE_EXI && (TRIGame == 3 || ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false))
 			continue;
 		#ifndef PATCHSI
 		if(AllFPatterns[patitr].patmode == PCODE_SI)
