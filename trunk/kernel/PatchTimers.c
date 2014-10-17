@@ -29,6 +29,10 @@ static bool write64A( u32 Offset, u64 Value, u64 CurrentValue )
 	return true;
 }
 
+//Processor speed
+#define U32_TIMER_CLOCK_CPU_GC		0x1cf7c580
+#define U32_TIMER_CLOCK_CPU_WII		0x2b73a840
+
 //Ticks per second
 #define U32_TIMER_CLOCK_SECS_GC		0x0269fb20
 #define U32_TIMER_CLOCK_SECS_WII	0x039ef8b0
@@ -112,6 +116,13 @@ void PatchTimers(u32 Buffer)
 	}
 	/* Coded in values */
 	FirstVal &= 0xFC00FFFF;
+	if( FirstVal == 0x3C001CF7 && (read32(Buffer + 4) & 0xFC00FFFF) == 0x6000C580 )
+	{
+		W16(Buffer + 2, U32_TIMER_CLOCK_CPU_WII >> 16);
+		W16(Buffer + 6, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+		dbgprintf("Patch:[Timer Clock ori CPU] applied (0x%08X)\r\n", Buffer );
+		return;
+	}
 	if( FirstVal == 0x3C000269 && (read32(Buffer + 4) & 0xFC00FFFF) == 0x6000FB20 )
 	{
 		W16(Buffer + 2, U32_TIMER_CLOCK_SECS_WII >> 16);
