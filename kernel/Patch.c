@@ -2151,7 +2151,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									 (TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 									 (TITLE_ID) == 0x474154 ||	// ATV Quad Power Racing 2
 									 (TITLE_ID) == 0x47504E ||	// P.N.03
-									 (TITLE_ID) == 0x474D4F)	// Micro Machines
+									 (TITLE_ID) == 0x474D4F ||	// Micro Machines
+									 (TITLE_ID) == 0x473442 ||	// Resident Evil 4
+									 (TITLE_ID) == 0x473258 )	// Sonic Gems Collection
 							{
 								memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
 							}
