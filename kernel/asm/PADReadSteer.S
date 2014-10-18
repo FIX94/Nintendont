@@ -3,42 +3,33 @@
 .set		PadBuff,	0x93002800
 
 PADReadSteer:
-	lis		%r3,			PadBuff@h
-	ori		%r3,	%r3,	PadBuff@l
-	dcbi	0,		%r3 ; sync ; isync
+	lis		%r5,			PadBuff@h
 
 	cmpwi	%r0,	0
-	bne		SteerSkip
-	lbz		%r3,	2(%r3)
-	addi	%r3,	%r3,	0x80
-	slwi	%r3,	%r3,	8
-
-	b		end
-SteerSkip:
+	beq		CheckStickX
 
 	cmpwi	%r0,	1
-	bne		AccSkip
-	lwz		%r3,	4(%r3)
-	rlwinm	%r3,	%r3, 8, 16, 23
-	cmpwi	%r3,	0x2200
-	ble		SZ
-	subi	%r3,	%r3,	0x22
-	srwi	%r3,	%r3,	1
-	b		AccSkip
-SZ:
-	li		%r3,	0
-AccSkip:
+	beq		CheckRightTrigger
 
 	cmpwi	%r0,	2
-	bne		end
-	lwz		%r3,	4(%r3)
-	andi.	%r3,	%r3,	0xFF00
-	cmpwi	%r3,	0x2200
-	ble		AZ
-	subi	%r3,	%r3,	0x2200
-	b		end
-AZ:
-	li		%r3,	0
+	beq		CheckLeftTrigger
 
-end:
+NoUpdate:
+	li		%r3,	0
+	blr
+
+CheckStickX:
+	lbz		%r3,	0x2802(%r5)
+	addi	%r3,	%r3,	0x80
+	slwi	%r3,	%r3,	8
+	blr
+
+CheckRightTrigger:
+	lbz		%r3,	0x2807(%r5)
+	rlwinm	%r3,	%r3,	7,		17,		23 #reduce to 0x7F
+	blr
+
+CheckLeftTrigger:
+	lbz		%r3,	0x2806(%r5)
+	rlwinm	%r3,	%r3,	7,		17,		23 #reduce to 0x7F
 	blr

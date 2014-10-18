@@ -264,7 +264,7 @@ void DIUpdateRegisters( void )
 
 		if( read32(DI_SCONTROL) & 1 )
 		{
-			for( i=2; i < 9; ++i )
+			for( i=2; i < 8; ++i ) //keep IMM
 			{
 				if( DInterface[i] != 0xdeadbeef )
 				{
