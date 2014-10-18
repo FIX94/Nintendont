@@ -57,6 +57,7 @@ enum
 	FCODE_C_MTXLightPerspective,
 	FCODE_J3DUClipper_clip,
 	//FCODE_C_MTXOrtho,
+	FCODE_GCAMIdentify,
 	FCODE_GCAMSendCommand,
 	FCODE_PatchFunc,
 										//GCAMSendCMD,	
@@ -215,7 +216,7 @@ FuncPattern TRIFPatterns[] =
 	{   0xCC,   20,   16,    5,    0,    3,	NULL,				FCODE_PatchFunc,			"GCAMRead",				NULL,		FGROUP_NONE,				0 },
 	{   0x9C,   18,    9,    4,    0,    2,	NULL,				FCODE_PatchFunc,			"GCAMExecute",			NULL,		FGROUP_NONE,				0 },
 	{   0xB0,   19,   12,    4,    0,    2,	NULL,				FCODE_PatchFunc,			"GCAMWrite",			NULL,		FGROUP_NONE,				0 },
-	{   0x98,   19,    9,    4,    0,    2,	NULL,				FCODE_PatchFunc,			"GCAMIdentify",			NULL,		FGROUP_NONE,				0 },
+	{   0x98,   19,    9,    4,    0,    2,	NULL,				FCODE_GCAMIdentify,			"GCAMIdentify",			NULL,		FGROUP_NONE,				0 },
 	{   0x54,   10,    2,    2,    0,    2,	NULL,				FCODE_GCAMSendCommand,		"GCAMSendCommand",		NULL,		FGROUP_NONE,				0 },
 
 	{  0x168,   22,   10,    7,    6,   10,	SITransfer,			sizeof(SITransfer),			"SITransfer",			NULL,		FGROUP_NONE,				0 },

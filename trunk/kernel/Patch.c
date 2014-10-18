@@ -1180,32 +1180,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Disable Commentary (sets volume to 0 )
 		write32( 0x001B6510, 0x38800000 );
-		
+
 		//Patches the analog input count
 		write32( 0x000392F4, 0x38000003 );
 
-		//if( ConfigGetConfig(NIN_CFG_HID) )
-		//{
-		//	POffset -= sizeof(PADReadTriHID);
-		//	memcpy( (void*)POffset, PADReadTriHID, sizeof(PADReadTriHID) );
-		//	PatchB( POffset, 0x0038EF0 );
-
-		//	POffset -= sizeof(PADReadSteerTriHID);
-		//	memcpy( (void*)POffset, PADReadSteerTriHID, sizeof(PADReadSteerTriHID) );
-		//	PatchBL( POffset, 0x00392DC );
-		//
-		//} else {
-			PatchB( PatchCopy(PADReadB, sizeof(PADReadB)), 0x0038EF0 );
-			PatchBL( PatchCopy(PADReadSteer, sizeof(PADReadSteer)), 0x00392DC );
-		//}
+		PatchB( PatchCopy(PADReadB, PADReadB_size), 0x0038EF4 );
+		memcpy( (void*)0x028A128, PADReadSteer, PADReadSteer_size );
 
 		//memcpy( (void*)0x002CE3C, OSReportDM, sizeof(OSReportDM) );
 		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
 		//write32( 0x002CEF8, 0x60000000 );
 	}
-	
+
 	if( read32( 0x0210C08 ) == 0x386000A8 )	// Virtua Striker 4 Ver 2006 (EXPORT)
-	{ 
+	{
 		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (EXPORT)\n");
 		TRIGame = 2;
 		SystemRegion = REGION_USA;
@@ -1271,29 +1259,29 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		dbgprintf("TRI:Mario kart GP\n");
 		TRIGame = 4;
 		SystemRegion = REGION_JAPAN;
-		
+
 		//Reset skip
 		write32( 0x024F95C, 0x60000000 );
 
-		//Unlimited CARD uses		
-		write32( 0x01F5C44, 0x60000000 );	
-		
+		//Unlimited CARD uses
+		write32( 0x01F5C44, 0x60000000 );
+
 		//Disable cam
 		write32( 0x00790A0, 0x98650025 );
-		
+
 		//Disable CARD
 		write32( 0x00790B4, 0x98650023 );
 		write32( 0x00790CC, 0x98650023 );
 
 		//Disable wheel/handle
 		write32( 0x007909C, 0x98650022 );
-			
+
 		//VS wait
 		write32( 0x00BE10C, 0x4800002C );
 
 		//cam loop
 		write32( 0x009F1E0, 0x60000000 );
-		
+
 		//Skip device test
 		write32( 0x0031BF0, 0x60000000 );
 		write32( 0x0031BFC, 0x60000000 );
@@ -1301,8 +1289,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//GXProg patch
 		memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
 
-		PatchB( PatchCopy(PADReadB, sizeof(PADReadB)), 0x003C6EC );
-		PatchBL( PatchCopy(PADReadSteer, sizeof(PADReadSteer)), 0x003CAD4 );
+		PatchB( PatchCopy(PADReadB, PADReadB_size), 0x003C6F0 );
+		memcpy( (void*)0x024E4B0, PADReadSteer, PADReadSteer_size );
 
 		//some report check skip
 		//write32( 0x00307CC, 0x60000000 );
@@ -2191,6 +2179,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								}
 							}
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+						} break;
+						case FCODE_GCAMIdentify:
+						{
+							if(read32(FOffset + 0x38) == 0x9003601C)
+							{
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								PatchFunc( (char*)FOffset );
+							}
+							else
+								CurPatterns[j].Found = 0; // False hit
 						} break;
 						case FCODE_GCAMSendCommand:
 						{
