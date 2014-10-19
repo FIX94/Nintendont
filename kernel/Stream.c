@@ -167,6 +167,7 @@ void StreamUpdateRegisters()
 		{
 			StreamEnd = 0;
 			StreamCurrent = 0;
+			write32(STREAM_CURRENT, 0); //reset stream pos
 			write32(STREAM_BASE, 0); //clear status
 			write32(REAL_STREAMING, 0); //stop playing
 			write32(REALSTREAM_END, 1); //stream end
@@ -177,8 +178,9 @@ void StreamUpdateRegisters()
 			write32(STREAM_BASE, 0); //clear status
 			sync_after_write( (void*)STREAM_BASE, 0x20 );
 			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+			write32(STREAM_CURRENT, StreamCurrent); //update after it played to this position
+			sync_after_write( (void*)FAKE_STREAMING, 0x20 );
 			StreamCurrent += StreamGetChunkSize();
-			write32(STREAM_CURRENT, StreamCurrent);
 			if(StreamCurrent >= StreamEndOffset) //terrible loop but it works
 			{
 				u32 diff = StreamCurrent - StreamEndOffset;
@@ -216,12 +218,13 @@ void StreamUpdateRegisters()
 			StreamCurrent += StreamGetChunkSize();
 			cur_buf = buf1; //reset adp buffer
 			StreamUpdate();
+			write32(STREAM_CURRENT, StreamCurrent); //give first update
+			sync_after_write( (void*)FAKE_STREAMING, 0x20 );
 			/* Directly read in the second buffer */
 			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
 			StreamCurrent += StreamGetChunkSize();
 			StreamUpdate();
 			/* Send stream signal to PPC */
-			write32(STREAM_CURRENT, StreamCurrent);
 			write32(AI_ADP_LOC, 0); //reset adp read pos
 			write32(REAL_STREAMING, 0x20); //set stream flag
 			sync_after_write( (void*)STREAM_BASE, 0x20 );
