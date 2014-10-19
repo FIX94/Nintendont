@@ -51,7 +51,8 @@ enum
 	FCODE___ARChecksize_A,
 	FCODE___ARChecksize_B,
 	FCODE___ARChecksize_C,
-	FCODE___ARChecksize_DBG,
+	FCODE___ARChecksize_DBG_A,
+	FCODE___ARChecksize_DBG_B,
 	FCODE___OSReadROM,
 	FCODE_C_MTXPerspective,
 	FCODE_C_MTXLightPerspective,
@@ -86,11 +87,6 @@ enum
 										//EXIntrruptHandler_A,	
 										//EXIntrruptHandler_B,	
 										//EXIntrruptHandler_C,
-	FCODE_SIInterruptHandler,
-										//SIInterruptHandler_A,	
-										//SIInterruptHandler_B,
-										//SIInterruptHandler_C,
-										//SIInterruptHandler_D,
 	FCODE_PADIsBarrel,
 	FCODE_EXIDMA,
 	FCODE_EXIUnlock,
@@ -109,6 +105,7 @@ enum
 {
 	FGROUP_NONE				= 0x0,
 	FGROUP_DVDInquiryAsync,
+	FGROUP_GXInitTlutObj,
 	FGROUP_ARInit,
 	FGROUP_ARStartDMA,
 	FGROUP_SIGetType,
@@ -125,7 +122,6 @@ enum
 	FGROUP_PADControlMotor,
 	FGROUP_TCIntrruptHandler,
 	FGROUP_EXIntrruptHandler,
-	FGROUP_SIInterruptHandler,
 	FGROUP_EXILock,
 	FGROUP_EXIUnlock,
 	FGROUP_EXISelect,
@@ -150,8 +146,9 @@ FuncPattern NormalFPatterns[] =
 #ifndef AUDIOSTREAM
 	{   0xD4,   13,    8,   11,    2,    7,	NULL,				FCODE_AIResetStreamCount,"AIResetStreamSampleCount",NULL,		FGROUP_NONE,				0 },
 #endif
-	{   0x44,    4,    4,    0,    0,    2,	NULL,				FCODE_GXInitTlutObj,		"GXInitTlutObj",		"A",		FGROUP_NONE,				0 },	// Don't group them, false hit prevents finding real offset
-	{   0x34,    5,    4,    0,    0,    0,	NULL,				FCODE_GXInitTlutObj,		"GXInitTlutObj",		"B",		FGROUP_NONE,				0 },
+	{   0x44,    4,    4,    0,    0,    2,	NULL,				FCODE_GXInitTlutObj,		"GXInitTlutObj",		"A",		FGROUP_GXInitTlutObj,		0 },
+	{   0x34,    5,    4,    0,    0,    0,	NULL,				FCODE_GXInitTlutObj,		"GXInitTlutObj",		"B",		FGROUP_GXInitTlutObj,		0 },
+	{  0x13C,   28,    6,    6,    5,    4,	NULL,				FCODE_GXInitTlutObj,		"GXInitTlutObj",		"DBG",		FGROUP_GXInitTlutObj,		0 },
 
 	{   0xEC,    9,    6,    2,    0,    8,	NULL,				FCODE_ARStartDMA,			"ARStartDMA",			NULL,		FGROUP_ARStartDMA,			0 },
 	{  0x16C,   29,    3,    5,    3,    9,	NULL,				FCODE_ARStartDMA,			"ARStartDMA",			"DBG",		FGROUP_ARStartDMA,			0 },
@@ -159,12 +156,14 @@ FuncPattern NormalFPatterns[] =
 	{   0xB8,   17,   10,    5,    1,    2,	NULL,				FCODE_ARInit,				"ARInit",				"A",		FGROUP_ARInit,				0 },
 	{   0xC0,   18,   10,    6,    1,    2,	NULL,				FCODE_ARInit,				"ARInit",				"B",		FGROUP_ARInit,				0 },
 	{   0xF0,   21,   12,    5,    1,    2,	NULL,				FCODE_ARInit,				"ARInit",				"C",		FGROUP_ARInit,				0 },
-	{  0x168,   31,   13,   10,    2,    3,	NULL,				FCODE_ARInit,				"ARInit",				"DBG",		FGROUP_ARInit,				0 },
+	{  0x168,   31,   13,   10,    2,    3,	NULL,				FCODE_ARInit,				"ARInit",				"DBG A",	FGROUP_ARInit,				0 },
+	{  0x100,   23,   11,    6,    2,    3,	NULL,				FCODE_ARInit,				"ARInit",				"DBG B",	FGROUP_ARInit,				0 },
 
 	{  0x910,   87,   33,   18,    5,   63,	NULL,				FCODE___ARChecksize_A,		"__ARChecksize",		"A",		FGROUP___ARChecksize,		0 },
 	{ 0x17F0,  204,   51,   27,    5,  178,	NULL,				FCODE___ARChecksize_B,		"__ARChecksize",		"B",		FGROUP___ARChecksize,		0 },
 	{  0xEC8,  129,   29,   32,    9,   80,	NULL,				FCODE___ARChecksize_C,		"__ARChecksize",		"C",		FGROUP___ARChecksize,		0 },
-	{  0x530,  183,    4,   58,   13,   16,	NULL,				FCODE___ARChecksize_DBG,	"__ARChecksize",		"DBG",		FGROUP___ARChecksize,		0 },
+	{  0x530,  183,    4,   58,   13,   16,	NULL,				FCODE___ARChecksize_DBG_A,	"__ARChecksize",		"DBG A",	FGROUP___ARChecksize,		0 },
+	{  0x304,   97,   11,   31,    7,   10,	NULL,				FCODE___ARChecksize_DBG_B,	"__ARChecksize",		"DBG B",	FGROUP___ARChecksize,		0 },
 
 	{  0x158,   26,   22,    5,   13,    2,	ARQPostRequest,		ARQPostRequest_size,		"ARQPostRequest",		NULL,		FGROUP_NONE,				0 },
 //	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",						FGROUP_NONE,				0 },
@@ -229,12 +228,6 @@ FuncPattern SIFPatterns[] =
 	{  0x180,   29,    9,    3,    9,    9,	NULL,				FCODE_CompleteTransfer,		"CompleteTransfer",		"C",		FGROUP_CompleteTransfer,	0 },
 	{   0xE0,   18,    4,    0,    6,    3,	NULL,				FCODE_CompleteTransfer,		"CompleteTransfer",		"DBG",		FGROUP_CompleteTransfer,	0 },
 
-	{  0x340,   61,   10,    7,   26,   32,	NULL,				FCODE_SIInterruptHandler,	"SIInterruptHandler",	"A",		FGROUP_SIInterruptHandler,	0 },
-	{  0x114,   21,    4,    4,    5,   11,	NULL,				FCODE_SIInterruptHandler,	"SIInterruptHandler",	"B",		FGROUP_SIInterruptHandler,	0 },
-	{  0x2EC,   50,    7,    9,   14,   27,	NULL,				FCODE_SIInterruptHandler,	"SIInterruptHandler",	"C",		FGROUP_SIInterruptHandler,	0 },
-	{  0x258,   39,    6,    7,   15,   17,	NULL,				FCODE_SIInterruptHandler,	"SIInterruptHandler",	"D",		FGROUP_SIInterruptHandler,	0 },
-	{   0x8C,   13,    4,    3,    1,    3,	NULL,				FCODE_SIInterruptHandler,	"SIInterruptHandler",	"DBG",		FGROUP_SIInterruptHandler,	0 },
-
 	{   0x94,    8,   10,    2,    4,    2,	NULL,				FCODE_SIPollingInterrupt,	"SIEnablePollingInterrupt","A",		FGROUP_SIPollingInterrupt,	0 },
 	{   0xA4,    9,    5,    2,    6,    4,	NULL,				FCODE_SIPollingInterrupt,	"SIEnablePollingInterrupt","B",		FGROUP_SIPollingInterrupt,	0 },
 
@@ -244,7 +237,8 @@ FuncPattern SIFPatterns[] =
 	{   0xA0,   20,    8,    7,    0,    2,	NULL,				FCODE_SIInit,				"SIInit",				"D",		FGROUP_SIInit,				0 },
 	{   0xB0,   22,    9,    8,    0,    2,	NULL,				FCODE_SIInit,				"SIInit",				"E",		FGROUP_SIInit,				0 },
 	{   0x9C,   19,    9,    6,    0,    2,	NULL,				FCODE_SIInit,				"SIInit",				"F",		FGROUP_SIInit,				0 },
-	{   0x7C,   15,    9,    2,    0,    2,	NULL,				FCODE_SIInit,				"SIInit",				"DBG",		FGROUP_SIInit,				0 },
+	{   0xA8,   21,    9,    7,    0,    2,	NULL,				FCODE_SIInit,				"SIInit",				"DBG A",	FGROUP_SIInit,				0 },
+	{   0x7C,   15,    9,    2,    0,    2,	NULL,				FCODE_SIInit,				"SIInit",				"DBG B",	FGROUP_SIInit,				0 },
 
 	{  0x208,   38,   18,    3,   13,   10,	NULL,				FCODE__SITransfer,			"__SITransfer",			"A",		FGROUP__SITransfer,			0 },
 	{  0x204,   37,   18,    3,   13,   11,	NULL,				FCODE__SITransfer,			"__SITransfer",			"B",		FGROUP__SITransfer,			0 },
@@ -258,7 +252,8 @@ FuncPattern SIFPatterns[] =
 	{  0x2FC,   73,    8,   23,   16,   15,	PADRead,			PADRead_size,				"PADRead",				"B",		FGROUP_PADRead,				0 },
 	{  0x3B0,   87,   13,   27,   17,   25,	PADRead,			PADRead_size,				"PADRead",				"C",		FGROUP_PADRead,				0 },
 	{  0x334,   78,    7,   20,   17,   19,	PADRead,			PADRead_size,				"PADRead",				"D",		FGROUP_PADRead,				0 },
-	{  0x2A8,   66,    4,   20,   17,   14,	PADRead,			PADRead_size,				"PADRead",				"E",		FGROUP_PADRead,				0 },
+	{  0x2A8,   66,    4,   20,   17,   14,	PADRead,			PADRead_size,				"PADRead",				"DBG A",	FGROUP_PADRead,				0 },
+	{  0x2AC,   65,    3,   15,   16,   18,	PADRead,			PADRead_size,				"PADRead",				"DBG B",	FGROUP_PADRead,				0 },
 
 	{   0xB4,    8,    2,    5,    4,    5,	PADControlAllMotors,PADControlAllMotors_size,	"PADControlAllMotors",	"A",		FGROUP_PADControlAllMotors,	0 },
 	{   0xC8,    9,    2,    5,    5,    5,	PADControlAllMotors,PADControlAllMotors_size,	"PADControlAllMotors",	"B",		FGROUP_PADControlAllMotors,	0 },
@@ -266,6 +261,8 @@ FuncPattern SIFPatterns[] =
 	{   0xB4,   11,    5,    5,    3,    5,	PADControlMotor,	PADControlMotor_size,		"PADControlMotor",		"A",		FGROUP_PADControlMotor,		0 },
 	{   0xA0,   10,    5,    5,    2,    5,	PADControlMotor,	PADControlMotor_size,		"PADControlMotor",		"B",		FGROUP_PADControlMotor,		0 },
 	{   0xB8,   14,    5,    4,    2,    7,	PADControlMotor,	PADControlMotor_size,		"PADControlMotor",		"C",		FGROUP_PADControlMotor,		0 },
+	{   0xB0,   10,    2,    6,    3,    6,	PADControlMotor,	PADControlMotor_size,		"PADControlMotor",		"DBG A",	FGROUP_PADControlMotor,		0 },
+	{   0xC8,   14,    2,    5,    3,    8,	PADControlMotor,	PADControlMotor_size,		"PADControlMotor",		"DBG B",	FGROUP_PADControlMotor,		0 },
 
 	{   0x14,    1,    0,    0,    2,    0,	NULL,				FCODE_PADIsBarrel,			"PADIsBarrel",			NULL,		FGROUP_NONE,				0 },
 };
@@ -289,6 +286,7 @@ FuncPattern EXIFPatterns[] =
 	{  0x16C,   26,    3,    3,    9,    7,	EXILock,			EXILock_size,				"EXISync",				"PKM",		FGROUP_EXISync,				0 },
 	{  0x1A8,   34,    2,    7,    9,    8,	EXILock,			EXILock_size,				"EXISync",				"DBG A",	FGROUP_EXISync,				0 },
 	{  0x13C,   25,    2,    6,    7,    7,	EXILock,			EXILock_size,				"EXISync",				"DBG B",	FGROUP_EXISync,				0 },
+	{  0x13C,   24,    2,    6,    7,    6,	EXILock,			EXILock_size,				"EXISync",				"DBG C",	FGROUP_EXISync,				0 },
 
 	{  0x170,   30,    7,    5,    8,    9,	EXIProbe,			EXIProbe_size,				"__EXIProbe",			"A",		FGROUP___EXIProbe,			0 },
 	{  0x170,   30,    7,    5,    8,   10,	EXIProbe,			EXIProbe_size,				"__EXIProbe",			"B",		FGROUP___EXIProbe,			0 },
