@@ -26,6 +26,7 @@
 #include "asm/FakeInterrupt_DBG.h"
 #include "asm/TCIntrruptHandler.h"
 #include "asm/SIIntrruptHandler.h"
+#include "asm/SIInitStore.h"
 #include "asm/PADRead.h"
 #include "asm/PADControlAllMotors.h"
 #include "asm/PADControlMotor.h"
@@ -44,6 +45,7 @@
 #include "asm/patch_fwrite_GC.h"
 #include "asm/FakeRSWLoad.h"
 #include "asm/FakeRSWStore.h"
+#include "asm/FakeEntryLoad.h"
 
 #include "asm/AIInitDMA.h"
 #include "asm/__DSPHandler.h"

@@ -21,6 +21,7 @@ static vu32* PADBarrelPress = (u32*)0xD3002850;
 struct BTPadCont *BTPad = (struct BTPadCont*)0x932F0000;
 static vu32* BTMotor = (u32*)0x93002720;
 static vu32* BTPadFree = (u32*)0x93002730;
+static vu32* SIInited = (u32*)0x93002740;
 
 static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
@@ -579,11 +580,13 @@ u32 _start()
 		else /* for held status */
 			*reset = 0;
 	}
-	//some games need all pads without errors to work
-	for(chan = 0; chan < MaxPads; ++chan)
-		Pad[chan].err = (used & (1<<chan)) ? 0 : -1;
+	memInvalidate = (u32)SIInited;
+	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
-	*PadUsed = used;
+	for(chan = 0; chan < 4; ++chan)
+		Pad[chan].err = ((used & (1<<chan)) && *SIInited) ? 0 : -1;
+
+	*PadUsed = (*SIInited ? used : 0);
 	if(*(vu32*)0xC0000000 == 0x47434F45 || *(vu32*)0xC0000000 == 0x47544945) //Call of Duty, Tiger Woods 2003
 		*(vu32*)0xD3026438 = (*(vu32*)0xD3026438 == 0) ? 0x20202020 : 0; //switch between new data and no data
 
