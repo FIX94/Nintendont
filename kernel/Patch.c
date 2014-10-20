@@ -403,9 +403,19 @@ void Patch31A0( void )
 	for (i = 0; i < (4 * 0x04); i+=0x04)
 	{
 		u32 Orig = *(vu32*)(0x319C + i);
-		if ((Orig & 0xF4000002) == 0x40000000)
+		if ((Orig & 0xFC000002) == 0x40000000)
 		{
-			u32 NewAddr = (Orig & 0x3FFFFC) + 0x319C - PatchOffset;
+			u32 NewAddr = (((s16)(Orig & 0xFFFC)) + 0x319C - PatchOffset);
+			Orig = (Orig & 0xFC000003) | NewAddr;
+#ifdef DEBUG_PATCH
+			dbgprintf("Patch:[Patch31A0] applied (0x%08X), 0x%08X=0x%08X\r\n", 0x319C + i, PatchOffset + i, Orig);
+#endif
+		}
+		else if ((Orig & 0xFC000002) == 0x48000000)
+		{
+			u32 BaseAddr = (Orig & 0x3FFFFFC);
+			if(BaseAddr & 0x2000000) BaseAddr |= 0xFC000000;
+			u32 NewAddr = (((s32)BaseAddr) + 0x319C - PatchOffset) & 0x3FFFFFC;
 			Orig = (Orig & 0xFC000003) | NewAddr;
 #ifdef DEBUG_PATCH
 			dbgprintf("Patch:[Patch31A0] applied (0x%08X), 0x%08X=0x%08X\r\n", 0x319C + i, PatchOffset + i, Orig);
@@ -2349,8 +2359,21 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						case FCODE_PADRead:
 						{
 							memcpy((void*)FOffset, PADRead, PADRead_size);
-							PatchB(SIInitStoreAddr, FOffset - 4); //PADInit is always before PADRead
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							/* Search for PADInit over PADRead */
+							u32 k;
+							u32 lastEnd = 4;
+							for(k = 8; k < 0x400; k += 4)
+							{
+								if(read32(FOffset - k) == 0x4E800020)
+									lastEnd = k;
+								else if((read32(FOffset - k) & 0xFC00FFFF) == 0x3C00F000)
+								{
+									PatchB(SIInitStoreAddr, FOffset - lastEnd);
+									printpatchfound("PADInit", NULL, FOffset - lastEnd);
+									break;
+								}
+							}
 						} break;
 						case FCODE_PADIsBarrel:
 						{
