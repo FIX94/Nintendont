@@ -83,6 +83,9 @@ void PatchFuncInterface( char *dst, u32 Length );
 void DoCardPatches( char *ptr, u32 size );
 void DoPatches( char *Buffer, u32 Length, u32 Offset );
 
+void PatchInit();
+void PatchGame();
+
 void MPattern( u8 *Data, u32 Length, FuncPattern *FunctionPattern );
 int CPattern( FuncPattern *FPatA, FuncPattern *FPatB  );
 

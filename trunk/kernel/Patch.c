@@ -38,7 +38,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define TITLE_ID	(GAME_ID >> 8)
 
 #define PATCH_OFFSET_START (0x2F00 - (sizeof(u32) * 5))
-u32 POffset = PATCH_OFFSET_START;
+#define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
+u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
@@ -922,11 +923,10 @@ u32 PatchState = PATCH_STATE_NONE;
 u32 PSOHack    = 0;
 u32 ELFLoading = 0;
 u32 DOLSize    = 0;
-u32 DOLReadSize= 0;
 u32 DOLMinOff  = 0;
 u32 DOLMaxOff  = 0;
-u32 DOLOffset  = 0;
 vu32 TRIGame   = 0;
+vu32 GameEntry = 0;
 
 void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 {
@@ -945,11 +945,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				PatchState	= PATCH_STATE_PATCH;
 				DOLSize		= Length;
-				DOLOffset	= (u32)Buffer;
 				#ifdef DEBUG_PATCH
 				dbgprintf("Patch:PSO 1&2 loading AppSwitcher:0x%p %u\r\n", Buffer, Length );
 				#endif
-
 			} break;
 			case 0x5668FE20:	// psov3.dol [EUR]
 			case 0x56750660:	// [USA] v1.1
@@ -979,8 +977,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					DOLSize += dol->sizeText[i];
 				for( i=0; i < 11; ++i )
 					DOLSize += dol->sizeData[i];
-
-				DOLReadSize = Length;
 
 				DOLMinOff=0x81800000;
 				DOLMaxOff=0;
@@ -1018,8 +1014,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					DOLMaxOff = (u32)Buffer + DOLSize;
 				}
 #ifdef DEBUG_DI
-				dbgprintf("DIP:DOLSize:%d DOLMinOff:0x%08X DOLMaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
+				dbgprintf("DIP:DOL Size:%d MinOff:0x%08X MaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
 #endif
+				/* Hack Position */
+				GameEntry = dol->entrypoint;
+				dol->entrypoint = PATCH_OFFSET_ENTRY + 0x80000000;
 				PatchState |= PATCH_STATE_LOAD;
 			}
 			PSOHack = 0;
@@ -1030,59 +1029,38 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 #ifdef DEBUG_DI
 			dbgprintf("DIP:Game is loading an ELF 0x%08x (%u)\r\n", DiscOffset, Length );
 #endif
-			DOLMinOff = (u32)Buffer;
-			DOLOffset = DiscOffset;
-			DOLSize	  = 0;
-
-			if( Length > 0x1000 )
-				DOLReadSize = Length;
-			else
-				DOLReadSize = 0;
+			DOLSize = 0;
 
 			Elf32_Ehdr *ehdr = (Elf32_Ehdr*)Buffer;
 #ifdef DEBUG_DI
-			dbgprintf("DIP:ELF Programheader Entries:%u\r\n", ehdr->e_phnum );
+			dbgprintf("DIP:ELF Start:0x%08X Programheader Entries:%u\r\n", ehdr->e_entry, ehdr->e_phnum );
 #endif
+			DOLMinOff = 0x81800000;
+			DOLMaxOff = 0;
 			for( i=0; i < ehdr->e_phnum; ++i )
 			{
 				Elf32_Phdr *phdr = (Elf32_Phdr*)(Buffer + ehdr->e_phoff + (i * sizeof(Elf32_Phdr)));
 #ifdef DEBUG_DI
 				dbgprintf("DIP:ELF Programheader:0x%08X\r\n", phdr );
 #endif
+				if( DOLMinOff > phdr->p_vaddr)
+					DOLMinOff = phdr->p_vaddr;
+
+				if( DOLMaxOff < phdr->p_vaddr + phdr->p_filesz )
+					DOLMaxOff = phdr->p_vaddr + phdr->p_filesz;
+
 				DOLSize += (phdr->p_filesz+31) & (~31);	// align by 32byte
 			}
+			DOLMinOff -= 0x80000000;
+			DOLMaxOff -= 0x80000000;
 #ifdef DEBUG_DI
-			dbgprintf("DIP:ELF size:%u\r\n", DOLSize );
+			dbgprintf("DIP:ELF Size:%d MinOff:0x%08X MaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
 #endif
+			/* Hack Position */
+			GameEntry = ehdr->e_entry;
+			ehdr->e_entry = PATCH_OFFSET_ENTRY + 0x80000000;
 			PatchState |= PATCH_STATE_LOAD;
 		}
-	}
-	else if ( PatchState & PATCH_STATE_LOAD )
-	{
-		if( DOLReadSize == 0 )
-			DOLMinOff = (u32)Buffer;
-
-		DOLReadSize += Length;
-		#ifdef DEBUG_PATCH
-		dbgprintf("DIP:DOLsize:%d DOL read:%d\r\n", DOLSize, DOLReadSize );
-		#endif
-		if( DOLReadSize >= DOLSize )
-		{
-			if(ELFLoading) DOLMaxOff = DOLMinOff + DOLSize;
-			PatchState |= PATCH_STATE_PATCH;
-			PatchState &= ~PATCH_STATE_LOAD;
-			ELFLoading = 0;
-		}
-		if ((PatchState & PATCH_STATE_DONE) && (DOLMaxOff == DOLMinOff))
-			PatchState = PATCH_STATE_DONE;
-	}
-
-	if( ((u32)Buffer <= 0x31A0) && ((u32)Buffer + Length >= 0x31A0) )
-	{
-		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:[Patch31A0]\r\n");
-		#endif
-		Patch31A0();
 	}
 
 	if( PatchState == PATCH_STATE_DONE && (u32)Buffer == 0x01300000 && *(u8*)Buffer == 0x48 )
@@ -1110,7 +1088,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	sync_before_read(Buffer, Length);
 
 	/* Have gc patches loaded at the same place for reloading games */
-	POffset = PATCH_OFFSET_START;
+	POffset = PATCH_OFFSET_ENTRY;
 
 	u32 DCInvalidateRangeAddr = PatchCopy(DCInvalidateRange, DCInvalidateRange_size);
 
@@ -1119,6 +1097,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 TCIntrruptHandlerAddr = PatchCopy(TCIntrruptHandler, TCIntrruptHandler_size);
 	u32 SIIntrruptHandlerAddr = PatchCopy(SIIntrruptHandler, SIIntrruptHandler_size);
 
+	u32 SIInitStoreAddr = PatchCopy(SIInitStore, SIInitStore_size);
 	u32 FakeRSWLoadAddr = PatchCopy(FakeRSWLoad, FakeRSWLoad_size);
 	u32 FakeRSWStoreAddr = PatchCopy(FakeRSWStore, FakeRSWStore_size);
 
@@ -2367,6 +2346,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							if (write32A(FOffset + 0x7C, 0x60000000, 0x57FF007C, 0)) // leave tcinit tcstart alone - nop
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x7C);
 						} break;
+						case FCODE_PADRead:
+						{
+							memcpy((void*)FOffset, PADRead, PADRead_size);
+							PatchB(SIInitStoreAddr, FOffset - 4); //PADInit is always before PADRead
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+						} break;
 						case FCODE_PADIsBarrel:
 						{
 							if(memcmp((void*)(FOffset), PADIsBarrelOri, sizeof(PADIsBarrelOri)) != 0)
@@ -2626,6 +2611,26 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	PatchStaticTimers();
 
 	sync_after_write( Buffer, Length );
+}
 
-	return;
+void PatchInit()
+{
+	memcpy((void*)PATCH_OFFSET_ENTRY, FakeEntryLoad, FakeEntryLoad_size);
+	sync_after_write((void*)PATCH_OFFSET_ENTRY, FakeEntryLoad_size);
+}
+
+void PatchGame()
+{
+	write32(0x13002740, 0); //Clear SI Inited
+	sync_after_write((void*)0x13002740, 0x20);
+	if(DOLMinOff < 0x31A0)
+		Patch31A0();
+	PatchState = PATCH_STATE_PATCH;
+	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
+	DoPatches( (void*)DOLMinOff, FullLength, 0 );
+
+	write32( DIP_CMD_1, FullLength >> 5 );
+	write32( DIP_CMD_2, DOLMinOff );
+	dbgprintf("Jumping to 0x%08X\n", GameEntry);
+	write32( DIP_IMM, GameEntry );
 }

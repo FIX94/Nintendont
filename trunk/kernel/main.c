@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "EXI.h"
 #include "debug.h"
 #include "GCAM.h"
+#include "Patch.h"
 #ifdef NINTENDONT_USB
 #include "usb.h"
 #else
@@ -216,6 +217,8 @@ int _main( int argc, char *argv[] )
 #endif
 	StreamInit();
 
+	PatchInit();
+
 //This bit seems to be different on japanese consoles
 	u32 ori_ppcspeed = read32(HW_PPCSPEED);
 	if((ConfigGetGameID() & 0xFF) == 'J')
@@ -361,6 +364,8 @@ int _main( int argc, char *argv[] )
 			}
 		}
 		#endif
+		if(read32(DIP_IMM) == 0x4DEA)
+			PatchGame();
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
 		{
 			DIFinishAsync();
