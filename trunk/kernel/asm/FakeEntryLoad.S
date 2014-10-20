@@ -14,14 +14,19 @@ wait_loop:
 	beq		wait_loop
 	mtlr	%r4
 
+	li		%r0,	0
 	lwz		%r4,	DIP_CMD_1@l(%r3)
 	mtctr	%r4
+	stw		%r0,	DIP_CMD_1@l(%r3)
 
-	lwz		%r3,	DIP_CMD_2@l(%r3)
-	li		%r0,	0
+	lwz		%r4,	DIP_CMD_2@l(%r3)
+	stw		%r0,	DIP_CMD_2@l(%r3)
+
 InvalidateRange:
-	dcbi	%r0,	%r3
-	icbi	%r0,	%r3
-	addi	%r3,	%r3,	0x20
+	dcbi	%r0,	%r4
+	icbi	%r0,	%r4
+	addi	%r4,	%r4,	0x20
 	bdnz	InvalidateRange
+	sync
+	isync
 	blr

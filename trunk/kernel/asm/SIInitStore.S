@@ -3,9 +3,10 @@
 .set	SI_INITED,		0x93002740
 
 SIInitStore:
-	lis		%r3,	SI_INITED@h
-	li		%r0,	1
-	stwu	%r0,	SI_INITED@l(%r3)
-	li		%r0,	0
-	dcbst	%r0,	%r3
+	lis		%r5,	SI_INITED@h
+	li		%r4,	1
+	stwu	%r4,	SI_INITED@l(%r5)
+	li		%r4,	0
+	dcbf	%r4,	%r5
+	sync
 	blr
