@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "FPad.h"
 #include "Config.h"
 #include "update.h"
+#include "titles.h"
 #include <dirent.h>
 #include <sys/dir.h>
 #include <stdio.h>
@@ -126,10 +127,13 @@ void SelectGame( void )
 					if( *(vu32*)(buf+0x1C) == 0xC2339F3D )	// Must be GC game
 					{
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						strcpy( gamename, buf + 0x20 );
+						if(!SearchTitles(gi[gamecount].ID, gamename)) strcpy( gamename, buf + 0x20 );
 						if (DiscNumber)
 							strcat( gamename, " (2)" );
 						gi[gamecount].Name = strdup( gamename );
+						PrintFormat( 25,25, "%s", gi[gamecount].Name);
+						sleep(1);
+						PrintFormat( 25,25, "                                                           ");
 						gi[gamecount].Path = strdup( filename );
 
 						gamecount++;
@@ -155,6 +159,7 @@ void SelectGame( void )
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						gi[gamecount].Name = strdup( buf + 0x20 );
 						gi[gamecount].Path = strdup( filename );
+						
 
 						gamecount++;
 					}

@@ -56,6 +56,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "kernel_usb_bin.h"
 #include "PADReadGC_bin.h"
 #include "stub_bin.h"
+#include "titles.h"
 
 extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
@@ -124,6 +125,21 @@ int main(int argc, char **argv)
 	PrintInfo();
 	PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*1, "Home: Exit");
 	PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*2, "A   : Select");
+	
+	fatInitDefault();
+	
+	// Simple code to autoupdate the meta.xml in Nintendont's folder
+	FILE *meta = fopen("meta.xml", "w");
+	if(meta != NULL)
+	{
+		fprintf(meta, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
+		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);
+		fprintf(meta, "\t<release_date>20140430000000</release_date>\r\n");
+		fprintf(meta, "\t<short_description>%s</short_description>\r\n", META_SHORT);
+		fprintf(meta, "\t<long_description>%s\r\n\r\n%s</long_description>\r\n", META_LONG1, META_LONG2);
+		fprintf(meta, "\t<ahb_access/>\r\n</app>");
+		fclose(meta);
+	}
 
 	if( *(vu32*)(0xCd800064) != -1 )
 	{
@@ -164,25 +180,12 @@ int main(int argc, char **argv)
 		}
 	}
 
-	fatInitDefault();
+	LoadTitles();
 
 	gprintf("Nintendont Loader\r\n");
 	gprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
 	gprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
 	gprintf("Firmware: %d.%d.%d\r\n", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
-
-	// Simple code to autoupdate the meta.xml in Nintendont's folder
-	FILE *meta = fopen("meta.xml", "w");
-	if(meta != NULL)
-	{
-		fprintf(meta, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
-		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);
-		fprintf(meta, "\t<release_date>20140430000000</release_date>\r\n");
-		fprintf(meta, "\t<short_description>%s</short_description>\r\n", META_SHORT);
-		fprintf(meta, "\t<long_description>%s\r\n\r\n%s</long_description>\r\n", META_LONG1, META_LONG2);
-		fprintf(meta, "\t<ahb_access/>\r\n</app>");
-		fclose(meta);
-	}
 
 	memset((void*)ncfg, 0, sizeof(NIN_CFG));
 
