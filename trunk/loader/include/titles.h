@@ -19,11 +19,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 
-#ifndef __UPDATE_H__
-#define __UPDATE_H__
+#ifndef __TITLES_H__
+#define __TITLES_H__
 
-#define DEFAULT_DIR "sd:/apps/Nintendont/boot.dol"
-
-s32 UpdateNintendont(const char* directory);
+s32 LoadTitles(void);
+bool SearchTitles(const char *titleID, char *titleName);
 
 #endif
