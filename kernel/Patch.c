@@ -406,7 +406,7 @@ void Patch31A0( void )
 		if ((Orig & 0xFC000002) == 0x40000000)
 		{
 			u32 NewAddr = (((s16)(Orig & 0xFFFC)) + 0x319C - PatchOffset);
-			Orig = (Orig & 0xFC000003) | NewAddr;
+			Orig = (Orig & 0xFFFF0003) | NewAddr;
 #ifdef DEBUG_PATCH
 			dbgprintf("Patch:[Patch31A0] applied (0x%08X), 0x%08X=0x%08X\r\n", 0x319C + i, PatchOffset + i, Orig);
 #endif
@@ -1814,6 +1814,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		for( j=0; j < CurPatternsLen; ++j )
 			CurPatterns[j].Found = 0;
 	}
+	u32 PADInitOffset = 0, SIInitOffset = 0;
 	sync_before_read( Buffer, Length );
 	i = 0;
 	while(i < Length)
@@ -2312,6 +2313,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								if (write32A(FOffset + k, 0x3C000000, 0x3C008000, 0)) // clear tc - lis r0,0
 								{
 									found = 1;
+									SIInitOffset = FOffset + CurPatterns[j].Length;
 									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + k);
 									/* Found SIInit, also sets SIInterruptHandler */
 									u32 SIBase = 0;
@@ -2369,8 +2371,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									lastEnd = k;
 								else if((read32(FOffset - k) & 0xFC00FFFF) == 0x3C00F000)
 								{
-									PatchB(SIInitStoreAddr, FOffset - lastEnd);
-									printpatchfound("PADInit", NULL, FOffset - lastEnd);
+									PADInitOffset = FOffset - lastEnd;
 									break;
 								}
 							}
@@ -2501,6 +2502,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			if(patfound) break;
 		}
 	}
+
+	/* Check for PADInit, if not found use SIInit */
+	if(PADInitOffset != 0)
+	{
+		PatchB(SIInitStoreAddr, PADInitOffset);
+		printpatchfound("PADInit", NULL, PADInitOffset);
+	}
+	else if(SIInitOffset != 0)
+	{
+		PatchB(SIInitStoreAddr, SIInitOffset);
+		printpatchfound("SIInit", NULL, SIInitOffset);
+	}
+
 	#ifdef DEBUG_PATCH
 	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 	{
@@ -2646,7 +2660,7 @@ void PatchGame()
 {
 	write32(0x13002740, 0); //Clear SI Inited
 	sync_after_write((void*)0x13002740, 0x20);
-	if(DOLMinOff < 0x31A0)
+	if(GameEntry < 0x31A0)
 		Patch31A0();
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
