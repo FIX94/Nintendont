@@ -131,9 +131,6 @@ void SelectGame( void )
 						if (DiscNumber)
 							strcat( gamename, " (2)" );
 						gi[gamecount].Name = strdup( gamename );
-						PrintFormat( 25,25, "%s", gi[gamecount].Name);
-						sleep(1);
-						PrintFormat( 25,25, "                                                           ");
 						gi[gamecount].Path = strdup( filename );
 
 						gamecount++;
