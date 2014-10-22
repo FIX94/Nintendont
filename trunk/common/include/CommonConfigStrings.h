@@ -25,6 +25,7 @@ const char* OptionStrings[] =
 	"Videomode",
 	"Memcard Blocks",
 	"Memcard Multi",
+	"Native Control",
 };
 
 const char* LanguageStrings[] =

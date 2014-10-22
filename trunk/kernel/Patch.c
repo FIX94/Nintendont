@@ -486,13 +486,16 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				#ifdef PATCHSI
-				write32( (u32)LISOff, (LISReg<<21) | 0x3C00D302 );	// Patch to: lis rX, 0xD302
-				//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-				#else
-				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
-				//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-				#endif
+				if (ConfigGetConfig(NIN_CFG_NATIVE_SI))
+				{
+					write32((u32)LISOff, (LISReg << 21) | 0x3C00CD80);	// Patch to: lis rX, 0xCD80
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				}
+				else
+				{
+					write32((u32)LISOff, (LISReg << 21) | 0x3C00D302);	// Patch to: lis rX, 0xD302
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				}
 				SIPatched++;
 				LISReg = -1;
 			}
@@ -535,13 +538,16 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6400) // case with 0x64XY(rZ) (si)
 				{
-					#ifdef PATCHSI
-					write32( (u32)LISOff, (LISReg<<21) | 0x3C00D302 );	// Patch to: lis rX, 0xD302
-					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-					#else
-					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
-					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-					#endif
+					if (ConfigGetConfig(NIN_CFG_NATIVE_SI))
+					{
+						write32((u32)LISOff, (LISReg << 21) | 0x3C00CD80);	// Patch to: lis rX, 0xCD80
+						//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					}
+					else
+					{
+						write32((u32)LISOff, (LISReg << 21) | 0x3C00D302);	// Patch to: lis rX, 0xD302
+						//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					}
 					SIPatched++;
 					LISReg = -1;
 				}
@@ -1839,10 +1845,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				continue;
 			if(AllFPatterns[patitr].patmode == PCODE_EXI && (TRIGame == 3 || ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false))
 				continue;
-			#ifndef PATCHSI
-			if(AllFPatterns[patitr].patmode == PCODE_SI)
+			if ((ConfigGetConfig(NIN_CFG_NATIVE_SI)) && (AllFPatterns[patitr].patmode == PCODE_SI))
 				continue;
-			#endif
 			FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
 			u32 CurPatternsLen = AllFPatterns[patitr].patlen;
 			bool patfound = false;
@@ -2522,10 +2526,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			continue;
 		if(AllFPatterns[patitr].patmode == PCODE_EXI && (TRIGame == 3 || ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false))
 			continue;
-		#ifndef PATCHSI
-		if(AllFPatterns[patitr].patmode == PCODE_SI)
+		if ((ConfigGetConfig(NIN_CFG_NATIVE_SI)) && (AllFPatterns[patitr].patmode == PCODE_SI))
 			continue;
-		#endif
 		FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
 		u32 CurPatternsLen = AllFPatterns[patitr].patlen;
 		for( j=0; j < CurPatternsLen; ++j )

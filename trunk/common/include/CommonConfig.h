@@ -41,6 +41,7 @@ enum ninconfigbitpos
 	NIN_CFG_BIT_LAST		= (13),
 
 	NIN_CFG_BIT_MC_MULTI	= (13),
+	NIN_CFG_BIT_NATIVE_SI	= (14),
 };
 
 enum ninconfig
@@ -59,6 +60,7 @@ enum ninconfig
 	NIN_CFG_LED			= (1<<NIN_CFG_BIT_LED),
 	NIN_CFG_LOG			= (1<<NIN_CFG_BIT_LOG),
 	NIN_CFG_MC_MULTI	= (1<<NIN_CFG_BIT_MC_MULTI),
+	NIN_CFG_NATIVE_SI	= (1<<NIN_CFG_BIT_NATIVE_SI),
 };
 
 enum ninextrasettings
@@ -69,6 +71,7 @@ enum ninextrasettings
 	NIN_SETTINGS_VIDEOMODE,
 	NIN_SETTINGS_MEMCARDBLOCKS,
 	NIN_SETTINGS_MEMCARDMULTI,
+	NIN_SETTINGS_NATIVE_SI,
 	NIN_SETTINGS_LAST,
 };
 
