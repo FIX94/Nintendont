@@ -46,7 +46,7 @@ extern char *launch_dir;
 
 inline u32 SettingY(u32 row)
 {
-	return 148 + 16 * row;
+	return 140 + 16 * row;
 }
 void HandleWiiMoteEvent(s32 chan)
 {
@@ -441,6 +441,10 @@ void SelectGame( void )
 					{
 						ncfg->Config ^= (NIN_CFG_MC_MULTI);
 					} break;
+					case NIN_SETTINGS_NATIVE_SI:
+					{
+						ncfg->Config ^= (NIN_CFG_NATIVE_SI);
+					} break;
 				}
 				if (!(ncfg->Config & NIN_CFG_MEMCARDEMU))
 				{
@@ -499,6 +503,9 @@ void SelectGame( void )
 					PrintFormat(MENU_POS_X + 50, SettingY(ListLoopIndex+1), "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
 				}
 				ListLoopIndex+=2;
+
+				PrintFormat(MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
+				ListLoopIndex++;
 
 				PrintFormat(MENU_POS_X + 30, SettingY(PosX), ">");
 			}

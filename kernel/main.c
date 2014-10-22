@@ -212,9 +212,10 @@ int _main( int argc, char *argv[] )
 	EXIInit();
 
 	BootStatus(11, s_size, s_cnt);
-#ifdef PATCHSI
-	SIInit();
-#endif
+
+	bool PatchSI = ConfigGetConfig(NIN_CFG_NATIVE_SI);
+	if (PatchSI)
+		SIInit();
 	StreamInit();
 
 	PatchInit();
@@ -234,9 +235,7 @@ int _main( int argc, char *argv[] )
 	BootStatus(0xdeadbeef, s_size, s_cnt);
 
 	u32 Now = read32(HW_TIMER);
-	#ifdef PATCHSI
 	u32 PADTimer = Now;
-	#endif
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
 	u32 Reset = 0;
@@ -266,8 +265,7 @@ int _main( int argc, char *argv[] )
 				EXIInterrupt();
 		}
 		#endif
-		#ifdef PATCHSI
-		if(SI_IRQ != 0)
+		if ((PatchSI) && (SI_IRQ != 0))
 		{
 			if (((read32(HW_TIMER) - PADTimer) > 7910) || (SI_IRQ & 0x2))	// about 240 times a second
 			{
@@ -275,7 +273,6 @@ int _main( int argc, char *argv[] )
 				PADTimer = read32(HW_TIMER);
 			}
 		}
-		#endif
 		if(DI_IRQ == true)
 		{
 			if(DI_CallbackMsg.result == 0)
@@ -330,40 +327,41 @@ int _main( int argc, char *argv[] )
 			Now = read32(HW_TIMER);
 			SaveCard = true;
 		}
-		#ifdef PATCHSI
-		SIUpdateRegisters();
-		if(read32(DIP_IMM) == 0x1DEA)
+		if (PatchSI)
 		{
-			DIFinishAsync();
-			break;
-		}
-		if(read32(DIP_IMM) == 0x3DEA)
-		{
-			if(Reset == 0)
+			SIUpdateRegisters();
+			if (read32(DIP_IMM) == 0x1DEA)
 			{
-				dbgprintf("Fake Reset IRQ\n");
-				write32( EXI2DATA, 0x2 ); // Reset irq
-				write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-				Reset = 1;
+				DIFinishAsync();
+				break;
+			}
+			if (read32(DIP_IMM) == 0x3DEA)
+			{
+				if (Reset == 0)
+				{
+					dbgprintf("Fake Reset IRQ\n");
+					write32(EXI2DATA, 0x2); // Reset irq
+					write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+					Reset = 1;
+				}
+			}
+			else if (Reset == 1)
+			{
+				write32(EXI2DATA, 0x10000); // send pressed
+				ResetTimer = read32(HW_TIMER);
+				Reset = 2;
+			}
+			/* The cleanup is not connected to the button press */
+			if (Reset == 2)
+			{
+				if ((read32(HW_TIMER) - ResetTimer) / 949219 > 0) //free after half a second
+				{
+					write32(EXI2DATA, 0); // done, clear
+					write32(DIP_IMM, 0);
+					Reset = 0;
+				}
 			}
 		}
-		else if(Reset == 1)
-		{
-			write32( EXI2DATA, 0x10000 ); // send pressed
-			ResetTimer = read32(HW_TIMER);
-			Reset = 2;
-		}
-		/* The cleanup is not connected to the button press */
-		if(Reset == 2)
-		{
-			if((read32(HW_TIMER) - ResetTimer) / 949219 > 0) //free after half a second
-			{
-				write32( EXI2DATA, 0 ); // done, clear
-				write32(DIP_IMM, 0);
-				Reset = 0;
-			}
-		}
-		#endif
 		if(read32(DIP_IMM) == 0x4DEA)
 			PatchGame();
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
