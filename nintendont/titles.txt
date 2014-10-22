@@ -504,10 +504,8 @@ GQR-Hudson Selection Vol.1: Cubic Lode Runner
 GQS-Tales of Symphonia
 GQT-Meet the Robinsons
 GQW-Harry Potter: Quidditch World Cup
-GQW-Harry Potter World Cup
 GQX-Madden NFL 2004
 GR2-Lost Kingdoms 2
-GR2-Rune II: Koruten no Kagi no Himitsu
 GR3-Red Card 2003
 GR4-MC Groovz Dance Craze
 GR5-Robocop: Aratanaru Kiki
@@ -516,15 +514,12 @@ GR8-Medal of Honor: Rising Sun
 GR9-Reign of Fire
 GRA-Rally Championship
 GRB-Robotech: Battlecry
-GRB-Robotech : Battlecry
 GRD-RedCard
 GRE-Mega Man Network Transmission
 GRE-RockMan EXE Transmission
 GRF-Red Faction II
 GRH-Rayman 3: Hoodlum Havoc
-GRJ-R: Racing Evolution
 GRJ-R:Racing Evolution: Life in the Fast Lane
-GRJ-R: Racing
 GRK-Rocky
 GRL-Pro Rally
 GRM-Monopoly: Mezase!! Daifugou Jinsei!!
@@ -545,7 +540,6 @@ GS7-MLB SlugFest 2004
 GS8-Spyro: Enter the Dragonfly
 GS9-Shrek Extra Large
 GSA-Star Fox Adventures
-GSA-StarFox Adventures
 GSB-Sonic Adventure 2: Battle
 GSC-Jeremy McGrath SuperCross World
 GSD-Smashing Drive
@@ -553,8 +547,6 @@ GSE-Shaman King: Soul Fight
 GSG-MLB SlugFest 2003
 GSH-SpyHunter
 GSK-The Scorpion King: Rise of the Akkadian
-GSK-The Scorpion King : Rise of the Akkadian
-GSM-Spider-Man
 GSM-Spider-Man: The Movie
 GSN-Sonic Adventure 2: Battle
 GSO-Sonic Mega Collection
@@ -565,12 +557,8 @@ GSS-Sega Soccer Slam
 GST-SSX Tricky
 GSU-Superman: Shadow of Apokolips
 GSV-MX Superfly Featuring Ricky Carmichael
-GSV-MX Superfly featuring Ricky Carmichael
-GSW-Star Wars Rogue Leader: Rogue Squadron II
 GSW-Star Wars Rogue Squadron II: Rogue Leader
-GSW-Star Wars Rogue Leader: Rogue Squadron II 
 GSX-Star Wars: The Clone Wars
-GSX-Star Wars: Clone Sensou
 GSY-Shrek: Super Party
 GSZ-Speed Challenge: Jacques Villeneuve Racing Vision
 GT3-Tony Hawk's Pro Skater 3
@@ -700,9 +688,8 @@ GZM-Butt-Ugly Martians Zoom or Doom
 GZO-Zoids vs.
 GZP-Zapper: One Wicked Cricket!
 GZQ-Robots
-GZS-Zoids Battle Legends
 GZS-Zoids VS. II
-GZV-Zoids vs. III
+GZV-Zoids VS. III
 GZW-Wario Ware Inc.: Mega Party Game$!
 P2M-Metroid Prime 2: Echoes (Bonus Disc)
 PC6-Pokemon Colosseum Bonus Disc
