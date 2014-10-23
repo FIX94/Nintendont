@@ -136,8 +136,8 @@ s32 HIDInit( void )
 //Load controller config
 	FIL f;
 	u32 read;
-	char directory[22];
-	_sprintf(directory, "/controllers/%04X.ini", *(vu16*)(HIDHeap+0x12));
+	char directory[28];
+	_sprintf(directory, "/controllers/%04X_%04X.ini", *(vu16*)(HIDHeap+0x10), *(vu16*)(HIDHeap+0x12));
 	dbgprintf("Preferred controller.ini file: %s\r\n", directory);
 	
 	ret = f_open( &f, directory, FA_OPEN_EXISTING|FA_READ);
