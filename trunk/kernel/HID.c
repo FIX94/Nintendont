@@ -136,11 +136,18 @@ s32 HIDInit( void )
 //Load controller config
 	FIL f;
 	u32 read;
-
-	ret = f_open( &f, "/controller.ini", FA_OPEN_EXISTING|FA_READ);
-	if( ret != FR_OK )
+	char directory[22];
+	_sprintf(directory, "/controllers/%04X.ini", *(vu16*)(HIDHeap+0x12));
+	dbgprintf("Preferred controller.ini file: %s\r\n", directory);
+	
+	ret = f_open( &f, directory, FA_OPEN_EXISTING|FA_READ);
+	if(ret != FR_OK)
+		ret = f_open( &f, "/controller.ini", FA_OPEN_EXISTING|FA_READ);
+	else
+		dbgprintf("%s was used\r\n", directory);
+	if(ret != FR_OK)
 		ret = f_open(&f, "/controller.ini.ini", FA_OPEN_EXISTING | FA_READ); // too many people don't read the instructions for windows
-	if (ret != FR_OK)
+	if(ret != FR_OK)
 	{
 		dbgprintf("HID:Failed to open config file:%u\r\n", ret );
 		free(HIDHeap);
