@@ -213,7 +213,7 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(11, s_size, s_cnt);
 
-	bool PatchSI = ConfigGetConfig(NIN_CFG_NATIVE_SI);
+	bool PatchSI = !ConfigGetConfig(NIN_CFG_NATIVE_SI);
 	if (PatchSI)
 		SIInit();
 	StreamInit();
