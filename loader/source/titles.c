@@ -33,7 +33,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define MAX_TITLES		740		// That should cover every GC game
 #define LINE_LENGTH 	61
-#define SPECIAL_COUNT 	9
+#define SPECIAL_COUNT 	12
 
 typedef struct {
 	char titleID[6];
@@ -49,7 +49,10 @@ static const SpecialTitles_t TriforceTitles[SPECIAL_COUNT] = {
 	{"GGPP02", "Mario Kart Arcade GP 2"},
 	{"GFZE8P", "F-Zero AX"},
 	{"GFZP8P", "F-Zero AX"},
-	{"GFZJ8P", "F-Zero AX"}
+	{"GFZJ8P", "F-Zero AX"},
+	{"GVSJ9P", "Virtua Striker 4 Ver.2006"},
+	{"GVS46J", "Virtua Striker 4 Ver.2006"},
+	{"GVS46E", "Virtua Striker 4 Ver.2006"}
 };
 	
 
