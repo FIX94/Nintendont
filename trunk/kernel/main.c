@@ -364,6 +364,7 @@ int _main( int argc, char *argv[] )
 		}
 		if(read32(DIP_IMM) == 0x4DEA)
 			PatchGame();
+		CheckPatchPrs();
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
 		{
 			DIFinishAsync();

@@ -43,6 +43,8 @@ u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
+#define PRS_DOL     0x131C0000
+#define PRS_EXTRACT 0x131C0020
 
 extern int dbgprintf( const char *fmt, ...);
 
@@ -833,7 +835,54 @@ void PatchFunc( char *ptr )
 	}
 }
 
-void MPattern( u8 *Data, u32 Length, FuncPattern *FunctionPattern )
+// HACK: PSO 0x80001800 move to 0x931C1800
+void PatchPatchBuffer(char *dst)
+{
+	int i;
+
+	u32 LISReg = -1;
+	u32 LISOff = -1;
+
+	for (i = 0;; i += 4)
+	{
+		u32 op = read32((u32)dst + i);
+
+		if ((op & 0xFC1FFFFF) == 0x3C008000)	// lis rX, 0x8000
+		{
+			LISReg = (op & 0x3E00000) >> 21;
+			LISOff = (u32)dst + i;
+		}
+
+		if ((op & 0xFC000000) == 0x38000000)	// li rX, x
+		{
+			u32 src = (op >> 16) & 0x1F;
+			u32 dst = (op >> 21) & 0x1F;
+			if ((src != LISReg) && (dst == LISReg))
+			{
+				LISReg = -1;
+				LISOff = (u32)dst + i;
+			}
+		}
+
+		if ((op & 0xFC00FFFF) == 0x38001800) // addi rX, rY, 0x1800 (patch buffer)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if (src == LISReg)
+			{
+				write32((u32)LISOff, (LISReg << 21) | 0x3C00931C);	// Patch to: lis rX, 0x931C
+				dbgprintf("Patch:[%08X] %08X: lis r%u, 0x931C\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				LISReg = -1;
+			}
+			u32 dst = (op >> 21) & 0x1F;
+			if (dst == LISReg)
+				LISReg = -1;
+		}
+		if (op == 0x4E800020)	// blr
+			break;
+	}
+}
+
+void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
 {
 	u32 i;
 
@@ -935,8 +984,13 @@ static inline void printpatchfound(const char *name, const char *type, u32 offse
 #define PATCH_STATE_PATCH 2
 #define PATCH_STATE_DONE  4
 
+#define PSO_STATE_NONE    0
+#define PSO_STATE_LOAD    1
+#define PSO_STATE_PSR     2
+#define PSO_STATE_NOENTRY 4
+
 u32 PatchState = PATCH_STATE_NONE;
-u32 PSOHack    = 0;
+u32 PSOHack    = PSO_STATE_NONE;
 u32 ELFLoading = 0;
 u32 DOLSize    = 0;
 u32 DOLMinOff  = 0;
@@ -956,6 +1010,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		switch( DiscOffset )
 		{
 			case 0x56B8E7E0:	// AppSwitcher	[EUR]
+//?			case 0x56C49020:	// [USA] v1.2 switcher.dol
+//?			case 0x56C7AEE0:	// [USA] v1.2 switcherD.dol
 			case 0x56C49600:	// [USA] v1.1
 			case 0x56C4C980:	// [USA] v1.0
 			{
@@ -966,6 +1022,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				#endif
 			} break;
 			case 0x5668FE20:	// psov3.dol [EUR]
+			case 0x5674B660:	// [USA] v1.2
 			case 0x56750660:	// [USA] v1.1
 			case 0x56753EC0:	// [USA] v1.0
 			{
@@ -973,14 +1030,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				dbgprintf("Patch:PSO 1&2 loading psov3.dol:0x%p %u\r\n", Buffer, Length );
 				#endif
 
-				PSOHack = 1;
+				PSOHack = PSO_STATE_LOAD;
+				if (DiscOffset == 0x5674B660)
+					PSOHack |= PSO_STATE_NOENTRY;
+			} break;
+			case 0x41FA5570:	// [USA] v1.2 switcher.prs
+			{
+				#ifdef DEBUG_PATCH
+				dbgprintf("Patch:PSO 1&2 loading switcher.prs:0x%p %u\r\n", Buffer, Length );
+				#endif
+				
+				PSOHack = PSO_STATE_PSR;
 			} break;
 		}
 	}
 
-	if( (PatchState & 0x3) == PATCH_STATE_NONE )
+	if ((PatchState & 0x3) == PATCH_STATE_NONE)
 	{
-		if( Length == 0x100 || PSOHack )
+		if (Length == 0x100 || (PSOHack & PSO_STATE_LOAD))
 		{
 			if( read32( (u32)Buffer ) == 0x100 )
 			{
@@ -1024,22 +1091,31 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				DOLMinOff -= 0x80000000;
 				DOLMaxOff -= 0x80000000;
 
-				if( PSOHack )
-				{
-					DOLMinOff = (u32)Buffer;
-					DOLMaxOff = (u32)Buffer + DOLSize;
-				}
+				//if (PSOHack == PSO_STATE_LOAD)
+				//{
+				//	DOLMinOff = (u32)Buffer;
+				//	DOLMaxOff = (u32)Buffer + DOLSize;
+				//}
 #ifdef DEBUG_DI
 				dbgprintf("DIP:DOL Size:%d MinOff:0x%08X MaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
 #endif
 				/* Hack Position */
 				GameEntry = dol->entrypoint;
-				dol->entrypoint = PATCH_OFFSET_ENTRY + 0x80000000;
+				if (!(PSOHack & PSO_STATE_NOENTRY))
+				{
+					dol->entrypoint = PATCH_OFFSET_ENTRY + 0x80000000;
+					sync_after_write((void*)&(dol->entrypoint), 0x4);
+				}
+				dbgprintf("DIP:DOL EntryPoint::0x%08X\r\n", &(dol->entrypoint));
 				PatchState |= PATCH_STATE_LOAD;
 			}
-			PSOHack = 0;
+			PSOHack = PSO_STATE_NONE;
 		}
-		else if( read32( (u32)Buffer ) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum )
+		else if (PSOHack == PSO_STATE_PSR)
+		{
+			PSOHack |= PSO_STATE_LOAD;
+		}
+		else if (read32((u32)Buffer) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum)
 		{
 			ELFLoading = 1;
 #ifdef DEBUG_DI
@@ -1119,6 +1195,38 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	u32 AIInitDMAAddr = PatchCopy(AIInitDMA, AIInitDMA_size);
 	u32 __DSPHandlerAddr = PatchCopy(__DSPHandler, __DSPHandler_size);
+
+	// HACK: PSO
+	if ((TITLE_ID) == 0x47504F)  // Make these FuncPatterns?
+	{
+		// HACK: PSO patch prs after dol conversion
+		u32 SwitcherPrsAddr = PatchCopy(SwitcherPrs, SwitcherPrs_size);
+
+		u32 OrigAddr = 0x0000F484;
+		u32 Orig = read32(OrigAddr);
+		if (Orig == 0x480000CD)
+		{
+			u32 BaseAddr = (Orig & 0x3FFFFFC);
+			if (BaseAddr & 0x2000000) BaseAddr |= 0xFC000000;
+			u32 NewAddr = (((s32)BaseAddr) + OrigAddr) | 0x80000000;
+			write32(PRS_EXTRACT, NewAddr);
+			sync_after_write((void*)PRS_EXTRACT, 0x4);
+#ifdef DEBUG_PATCH
+			printpatchfound("SwitcherPrs", NULL, OrigAddr);
+#endif
+			PatchBL(SwitcherPrsAddr, OrigAddr);
+		}
+
+		// HACK: PSO patch To Fake Entry
+		OrigAddr = 0x006c7904;
+		if ((read32(OrigAddr - 8) == 0x4C00012C) && (read32(OrigAddr) == 0x4E800021))  // isync and blrl
+		{
+#ifdef DEBUG_PATCH
+			printpatchfound("PSO", "FakeEntry", OrigAddr);
+#endif
+			PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
+		}
+	}
 
 	// HACK: PokemonXD and Pokemon Colosseum low memory clear patch
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
@@ -2437,6 +2545,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							else
 								CurPatterns[j].Found = 0;
 						} break;
+						case FCODE_PatchPatchBuffer:
+						{
+							PatchPatchBuffer( (char*)FOffset );
+						} break;
 						default:
 						{
 							if( CurPatterns[j].Patch == (u8*)ARQPostRequest )
@@ -2656,13 +2768,31 @@ void PatchInit()
 {
 	memcpy((void*)PATCH_OFFSET_ENTRY, FakeEntryLoad, FakeEntryLoad_size);
 	sync_after_write((void*)PATCH_OFFSET_ENTRY, FakeEntryLoad_size);
+	write32(PRS_DOL, 0);
+	sync_after_write((void*)PRS_DOL, 0x4);
+}
+
+void CheckPatchPrs()
+{
+	if ((TITLE_ID) == 0x47504F)
+	{
+		sync_before_read((void*)PRS_DOL, 0x4);
+		u32 PrsAddr = read32(PRS_DOL);
+		if (PrsAddr != 0)
+		{
+			PrsAddr = PrsAddr & 0x7FFFFFFF;
+			DoPatches((char *)PrsAddr, 0, 0);
+			write32(PRS_DOL, 0);
+			sync_after_write((void*)PRS_DOL, 0x4);
+		}
+	}
 }
 
 void PatchGame()
 {
 	write32(0x13002740, 0); //Clear SI Inited
 	sync_after_write((void*)0x13002740, 0x20);
-	if(GameEntry < 0x31A0)
+	if ((GameEntry /*& 0x7FFFFFFF??*/) < 0x31A0)
 		Patch31A0();
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);

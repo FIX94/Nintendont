@@ -100,6 +100,7 @@ enum
 	FCODE___OSInitAudioSystem_B,
 	FCODE_AIInitDMA,
 	FCODE___DSPHandler,
+	FCODE_PatchPatchBuffer,
 } FPatternCodes;
 
 enum
@@ -208,6 +209,10 @@ FuncPattern NormalFPatterns[] =
 	{   0x84,    8,    4,    2,    0,    5,	NULL,				FCODE_AIInitDMA,			"AIInitDMA",			NULL,		FGROUP_NONE,				0 },
 	{  0x420,  103,   23,   34,   32,    9,	NULL,				FCODE___DSPHandler,			"__DSPHandler",			NULL,		FGROUP_NONE,				0 },
 #endif
+	{  0x23C,   66,   24,   35,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"A",		FGROUP_NONE,			    0 },
+	{  0x274,   51,   24,    7,   17,   16,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"B",		FGROUP_NONE,			    0 },
+	{  0x1B0,   11,   10,   15,   11,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"C",		FGROUP_NONE,			    0 },
+	{   0x2C,    6,    2,    1,    0,    2,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"D",		FGROUP_NONE,			    0 },
 };
 
 FuncPattern TRIFPatterns[] =
