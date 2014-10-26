@@ -46,6 +46,7 @@
 #include "asm/FakeRSWLoad.h"
 #include "asm/FakeRSWStore.h"
 #include "asm/FakeEntryLoad.h"
+#include "asm/SwitcherPrs.h"
 
 #include "asm/AIInitDMA.h"
 #include "asm/__DSPHandler.h"
