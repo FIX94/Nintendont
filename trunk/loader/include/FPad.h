@@ -35,7 +35,7 @@ bool FPAD_Right( bool ILock );
 bool FPAD_OK( bool ILock );
 bool FPAD_Cancel( bool ILock );
 bool FPAD_Start( bool ILock );
-
 bool FPAD_X( bool ILock );
+bool FPAD_Y( bool ILock );
 
 #endif
