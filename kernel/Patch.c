@@ -1004,8 +1004,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 read;
 	u32 value = 0;
 
-	// PSO 1&2
-	if( (TITLE_ID) == 0x47504F )
+	// PSO 1&2 / III
+	if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
 	{
 		switch( DiscOffset )
 		{
@@ -1025,16 +1025,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			case 0x5674B660:	// [USA] v1.2
 			case 0x56750660:	// [USA] v1.1
 			case 0x56753EC0:	// [USA] v1.0
+			case 0x56713C80:	// [USA] III
 			{
 				#ifdef DEBUG_PATCH
 				dbgprintf("Patch:PSO 1&2 loading psov3.dol:0x%p %u\r\n", Buffer, Length );
 				#endif
 
 				PSOHack = PSO_STATE_LOAD;
-				if (DiscOffset == 0x5674B660)
+				if ((DiscOffset == 0x5674B660) || (DiscOffset == 0x56713C80))
 					PSOHack |= PSO_STATE_NOENTRY;
 			} break;
 			case 0x41FA5570:	// [USA] v1.2 switcher.prs
+			case 0x26B7B5F8:	// [USA] III switcher.prs
 			{
 				#ifdef DEBUG_PATCH
 				dbgprintf("Patch:PSO 1&2 loading switcher.prs:0x%p %u\r\n", Buffer, Length );
@@ -1106,7 +1108,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					dol->entrypoint = PATCH_OFFSET_ENTRY + 0x80000000;
 					sync_after_write((void*)&(dol->entrypoint), 0x4);
 				}
-				dbgprintf("DIP:DOL EntryPoint::0x%08X\r\n", &(dol->entrypoint));
+				dbgprintf("DIP:DOL EntryPoint::0x%08X, GameEntry::0x%08X\r\n", &(dol->entrypoint), GameEntry);
 				PatchState |= PATCH_STATE_LOAD;
 			}
 			PSOHack = PSO_STATE_NONE;
@@ -1196,37 +1198,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 AIInitDMAAddr = PatchCopy(AIInitDMA, AIInitDMA_size);
 	u32 __DSPHandlerAddr = PatchCopy(__DSPHandler, __DSPHandler_size);
 
-	// HACK: PSO
-	if ((TITLE_ID) == 0x47504F)  // Make these FuncPatterns?
-	{
-		// HACK: PSO patch prs after dol conversion
-		u32 SwitcherPrsAddr = PatchCopy(SwitcherPrs, SwitcherPrs_size);
-
-		u32 OrigAddr = 0x0000F484;
-		u32 Orig = read32(OrigAddr);
-		if (Orig == 0x480000CD)
-		{
-			u32 BaseAddr = (Orig & 0x3FFFFFC);
-			if (BaseAddr & 0x2000000) BaseAddr |= 0xFC000000;
-			u32 NewAddr = (((s32)BaseAddr) + OrigAddr) | 0x80000000;
-			write32(PRS_EXTRACT, NewAddr);
-			sync_after_write((void*)PRS_EXTRACT, 0x4);
-#ifdef DEBUG_PATCH
-			printpatchfound("SwitcherPrs", NULL, OrigAddr);
-#endif
-			PatchBL(SwitcherPrsAddr, OrigAddr);
-		}
-
-		// HACK: PSO patch To Fake Entry
-		OrigAddr = 0x006c7904;
-		if ((read32(OrigAddr - 8) == 0x4C00012C) && (read32(OrigAddr) == 0x4E800021))  // isync and blrl
-		{
-#ifdef DEBUG_PATCH
-			printpatchfound("PSO", "FakeEntry", OrigAddr);
-#endif
-			PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
-		}
-	}
+	//if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))  // Make these FuncPatterns?
+	u32 SwitcherPrsAddr = PatchCopy(SwitcherPrs, SwitcherPrs_size);
 
 	// HACK: PokemonXD and Pokemon Colosseum low memory clear patch
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
@@ -2549,6 +2522,36 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							PatchPatchBuffer( (char*)FOffset );
 						} break;
+						case FCODE_PsrLoad:
+						{
+							// HACK: PSO patch prs after dol conversion
+							u32 OrigAddr = FOffset + 0x1A0;
+							u32 Orig = read32(OrigAddr);
+							if (Orig == 0x480000CD)
+							{
+								u32 BaseAddr = (Orig & 0x3FFFFFC);
+								if (BaseAddr & 0x2000000) BaseAddr |= 0xFC000000;
+								u32 NewAddr = (((s32)BaseAddr) + OrigAddr) | 0x80000000;
+								write32(PRS_EXTRACT, NewAddr);
+								sync_after_write((void*)PRS_EXTRACT, 0x4);
+#ifdef DEBUG_PATCH
+								printpatchfound("SwitcherPrs", NULL, OrigAddr);
+#endif
+								PatchBL(SwitcherPrsAddr, OrigAddr);
+							}
+						} break;
+						case FCODE_DolEntryMod:
+						{
+							// HACK: PSO patch To Fake Entry
+							u32 OrigAddr = FOffset + 0xAC;
+							if ((read32(OrigAddr - 8) == 0x4C00012C) && (read32(OrigAddr) == 0x4E800021))  // isync and blrl
+							{
+#ifdef DEBUG_PATCH
+								printpatchfound("PSO", "FakeEntry", OrigAddr);
+#endif
+								PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
+							}
+						} break;
 						default:
 						{
 							if( CurPatterns[j].Patch == (u8*)ARQPostRequest )
@@ -2774,7 +2777,7 @@ void PatchInit()
 
 void CheckPatchPrs()
 {
-	if ((TITLE_ID) == 0x47504F)
+	if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
 	{
 		sync_before_read((void*)PRS_DOL, 0x4);
 		u32 PrsAddr = read32(PRS_DOL);

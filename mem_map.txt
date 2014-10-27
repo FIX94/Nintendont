@@ -56,7 +56,7 @@ MEM2
 0x93100000-0x93150000=ipl fonts buffer (0x1aff00-0x1fff00)
 0x93160000-0x93160008=OSReport (patch_fwrite)
 0x931C0000=PSO PRS dol location
-0x931C0004=PSO PRS extract function location
+0x931C0020=PSO PRS extract function location
 0x931C1800-0x931C3000=replacement memory for 0x80001800-0x80003000
 0x93200000=Cache FST Buffer
 0x93280000-0x932B3000=audio stream buffers

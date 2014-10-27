@@ -101,6 +101,8 @@ enum
 	FCODE_AIInitDMA,
 	FCODE___DSPHandler,
 	FCODE_PatchPatchBuffer,
+	FCODE_PsrLoad,
+	FCODE_DolEntryMod,
 } FPatternCodes;
 
 enum
@@ -213,6 +215,9 @@ FuncPattern NormalFPatterns[] =
 	{  0x274,   51,   24,    7,   17,   16,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"B",		FGROUP_NONE,			    0 },
 	{  0x1B0,   11,   10,   15,   11,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"C",		FGROUP_NONE,			    0 },
 	{   0x2C,    6,    2,    1,    0,    2,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"D",		FGROUP_NONE,			    0 },
+	{  0x378,  110,   26,   52,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"E",		FGROUP_NONE,			    0 },
+	{  0x268,   52,    9,   39,    8,    7,	NULL,				FCODE_PsrLoad,				"PrsLoad",				NULL,		FGROUP_NONE,			    0 },
+	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			NULL,		FGROUP_NONE,			    0 },
 };
 
 FuncPattern TRIFPatterns[] =
