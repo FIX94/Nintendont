@@ -22,8 +22,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef __UPDATE_H__
 #define __UPDATE_H__
 
-#define DEFAULT_DIR "sd:/apps/Nintendont/boot.dol"
-
-s32 UpdateNintendont(const char* directory);
+void UpdateNintendont(void);
 
 #endif

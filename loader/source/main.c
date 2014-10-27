@@ -106,8 +106,7 @@ int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
 	__exception_setreload(10);
-	launch_dir = (char*) malloc(strlen(argv[0])+1);
-	strcpy(launch_dir, argv[0]);
+	
 	CheckForGecko();
 	DCInvalidateRange(loader_stub, 0x1800);
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
@@ -119,7 +118,9 @@ int main(int argc, char **argv)
 	STM_RegisterEventHandler(HandleSTMEvent);
 
 	Initialise();
-
+	launch_dir = (char*) calloc(strlen(argv[0])+1, 0);
+	char* first_slash = strrchr(argv[0], '/');
+	if (first_slash != NULL) memcpy(launch_dir, argv[0], strrchr(argv[0], '/')-argv[0]+1);
 	FPAD_Init();
 
 	PrintInfo();

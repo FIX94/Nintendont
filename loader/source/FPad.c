@@ -183,6 +183,19 @@ bool FPAD_X( bool ILock )
 	return false;
 }
 
+bool FPAD_Y( bool ILock )
+{
+	if( !ILock && SLock ) return false;
+
+	if( (WPAD_Pressed & (WPAD_BUTTON_2|WPAD_CLASSIC_BUTTON_Y)) || ( PAD_Pressed & PAD_BUTTON_Y ))
+	{
+		Repeat = 0;
+		SLock = true;
+		return true;
+	}
+	return false;
+}
+
 bool FPAD_Cancel( bool ILock )
 {
 	if( !ILock && SLock ) return false;

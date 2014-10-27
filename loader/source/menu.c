@@ -349,9 +349,7 @@ void SelectGame( void )
 		} else {	//settings menu		
 			
 			if(FPAD_X(0)) {
-				ClearScreen();
-				UpdateNintendont(launch_dir);
-				ClearScreen();
+				UpdateNintendont();				
 				redraw = 1;
 			}
 			
