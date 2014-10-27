@@ -2793,9 +2793,15 @@ void CheckPatchPrs()
 
 void PatchGame()
 {
-	write32(0x13002740, 0); //Clear SI Inited
+	u32 SiInitSet = 0;
+	// Didn't look for why PMW2 requires this.  ToDo
+	if ((TITLE_ID) == 0x475032)  // PacMan World 2 hack
+		SiInitSet = 1;
+	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
 	sync_after_write((void*)0x13002740, 0x20);
-	if ((GameEntry /*& 0x7FFFFFFF??*/) < 0x31A0)
+	// Is Patch31A0 needed any more?
+	// I don't think this does anything unless the & below is used.
+	if ((GameEntry /*& 0x7FFFFFFF*/) < 0x31A0)
 		Patch31A0();
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
