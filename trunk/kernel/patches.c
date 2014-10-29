@@ -48,6 +48,7 @@ enum
 	FCODE_SIPollingInterrupt,
 										//SIEnablePollingInterrupt_A,
 										//SIEnablePollingInterrupt_B,
+	FCODE___ARHandler,
 	FCODE___ARChecksize_A,
 	FCODE___ARChecksize_B,
 	FCODE___ARChecksize_C,
@@ -168,6 +169,8 @@ FuncPattern NormalFPatterns[] =
 	{  0xEC8,  129,   29,   32,    9,   80,	NULL,				FCODE___ARChecksize_C,		"__ARChecksize",		"C",		FGROUP___ARChecksize,		0 },
 	{  0x530,  183,    4,   58,   13,   16,	NULL,				FCODE___ARChecksize_DBG_A,	"__ARChecksize",		"DBG A",	FGROUP___ARChecksize,		0 },
 	{  0x304,   97,   11,   31,    7,   10,	NULL,				FCODE___ARChecksize_DBG_B,	"__ARChecksize",		"DBG B",	FGROUP___ARChecksize,		0 },
+
+	{   0x74,   10,    3,    4,    1,    3,	NULL,				FCODE___ARHandler,			"__ARHandler",			NULL,		FGROUP_NONE,				0 },
 
 	{  0x158,   26,   22,    5,   13,    2,	ARQPostRequest,		ARQPostRequest_size,		"ARQPostRequest",		NULL,		FGROUP_NONE,				0 },
 //	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",						FGROUP_NONE,				0 },

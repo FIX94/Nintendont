@@ -882,6 +882,17 @@ void PatchPatchBuffer(char *dst)
 	}
 }
 
+bool GameNeedsHook()
+{
+	return( (TITLE_ID) == 0x474234 ||	// Burnout 2
+			(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
+			(TITLE_ID) == 0x474146 ||	// Animal Crossing
+			(TITLE_ID) == 0x475852 ||	// Mega Man X Command Mission
+			(TITLE_ID) == 0x474832 ||	// NFS: HP2
+			(TITLE_ID) == 0x474156 ||	// Avatar Last Airbender
+			(TITLE_ID) == 0x473442 );	// Resident Evil 4
+}
+
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
 {
 	u32 i;
@@ -1197,6 +1208,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	u32 AIInitDMAAddr = PatchCopy(AIInitDMA, AIInitDMA_size);
 	u32 __DSPHandlerAddr = PatchCopy(__DSPHandler, __DSPHandler_size);
+	u32 __ARHandlerAddr = PatchCopy(__ARHandler, __ARHandler_size);
 
 	//if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))  // Make these FuncPatterns?
 	u32 SwitcherPrsAddr = PatchCopy(SwitcherPrs, SwitcherPrs_size);
@@ -1991,6 +2003,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							else
 								CurPatterns[j].Found = 0; // False hit
 						} break;
+						case FCODE___ARHandler:
+						{
+							if(read32(FOffset + 0x44) == 0x280C0000)
+							{
+								if(GameNeedsHook())
+								{
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x44);
+									PatchBL(__ARHandlerAddr, FOffset + 0x44);
+								}
+								else
+								{
+									#ifdef DEBUG_PATCH
+									dbgprintf("Patch:[__ARHandler] skipped (0x%08X)\r\n", FOffset);
+									#endif
+								}
+							}
+							else
+								CurPatterns[j].Found = 0; // False hit
+						} break;
 						case FCODE___ARChecksize_A:
 						{
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x57C);
@@ -2230,10 +2261,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_ARStartDMA:	//	ARStartDMA
 						{
-							if( (TITLE_ID) == 0x474234 ||	// Burnout 2
-								(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
-								(TITLE_ID) == 0x474146 ||	// Animal Crossing
-								(TITLE_ID) == 0x475852 )	// Mega Man X Command Mission
+							if(GameNeedsHook())
 							{
 								u32 PatchOffset = 0x20;
 								while ((read32(FOffset + PatchOffset) != 0x3CC0CC00) && (PatchOffset < 0x40)) // MaxSearch=0x40
@@ -2252,30 +2280,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									 (TITLE_ID) == 0x474154 ||	// ATV Quad Power Racing 2
 									 (TITLE_ID) == 0x47504E ||	// P.N.03
 									 (TITLE_ID) == 0x474D4F ||	// Micro Machines
-									 (TITLE_ID) == 0x473442 ||	// Resident Evil 4
-									 (TITLE_ID) == 0x473258 )	// Sonic Gems Collection
+									 (TITLE_ID) == 0x473258 ||	// Sonic Gems Collection
+									 (TITLE_ID) == 0x475355 )	// Superman: Shadow of Apokolips
 							{
 								memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
-							}
-							else if((TITLE_ID) == 0x474832) // NFS: HP2
-							{
-								memcpy( (void*)FOffset, ARStartDMA_NFS, sizeof(ARStartDMA_NFS) );
 							}
 							else
 							{
 								memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
-								if( (TITLE_ID) != 0x474156 )	// Avatar Last Airbender
-								{
-									u32 PatchOffset = 0;
-									for (PatchOffset = 0; PatchOffset < sizeof(ARStartDMA); PatchOffset += 4)
-									{
-										if (*(u32*)(ARStartDMA + PatchOffset) == 0x90C35028)	// 	stw		%r6,	AR_DMA_CNT@l(%r3)
-										{
-											write32(FOffset + PatchOffset, 0x90E35028);			// 	stw		%r7,	AR_DMA_CNT@l(%r3)
-											break;
-										}
-									}
-								}
 							}
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
@@ -2559,7 +2571,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								if (   (TITLE_ID) != 0x474D53  // Super Mario Sunshine
 									&& (TITLE_ID) != 0x474C4D  // Luigis Mansion
 									&& (TITLE_ID) != 0x475049  // Pikmin
-									&& (TITLE_ID) != 0x474146  // Animal Crossing
 									&& (TITLE_ID) != 0x474C56) // Chronicles of Narnia
 								{
 									#ifdef DEBUG_PATCH
@@ -2806,6 +2817,10 @@ void PatchGame()
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
+
+	/* Clear AR positions */
+	memset32((void*)0x131C0040, 0, 0x20);
+	sync_after_write((void*)0x131C0040, 0x20);
 
 	write32( DIP_CMD_1, FullLength >> 5 );
 	write32( DIP_CMD_2, DOLMinOff );
