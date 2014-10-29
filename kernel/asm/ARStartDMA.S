@@ -62,9 +62,8 @@ DCFlushRange:
 	bdnz	DCFlushRange
 	sync
 
+	li		%r6,	0
 FakeTransfer:
-	li		%r7,	0 #for games which need length 0
-
 	lis		%r3,	AR_DMA_CNT@h
 	stw		%r6,	AR_DMA_CNT@l(%r3)
 
