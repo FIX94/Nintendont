@@ -346,10 +346,10 @@ void SelectGame( void )
 				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, "<" );
 			}
 
-		} else {	//settings menu		
+		} else {	//settings menu
 			
 			if(FPAD_X(0)) {
-				UpdateNintendont();				
+				UpdateNintendont();
 				redraw = 1;
 			}
 			
@@ -359,7 +359,7 @@ void SelectGame( void )
 				
 				PosX++;
 
-				if (((ncfg->VideoMode & NIN_VID_FORCE) != NIN_VID_FORCE) && (PosX == NIN_SETTINGS_VIDEOMODE))
+				if (((ncfg->VideoMode & (NIN_VID_FORCE|NIN_VID_FORCE_DF)) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
 					PosX++;
 				if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
 					PosX++;
@@ -385,7 +385,7 @@ void SelectGame( void )
 					PosX--;
 				if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
 					PosX--;
-				if (((ncfg->VideoMode & NIN_VID_FORCE) != NIN_VID_FORCE) && (PosX == NIN_SETTINGS_VIDEOMODE))
+				if (((ncfg->VideoMode & (NIN_VID_FORCE|NIN_VID_FORCE_DF)) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
 					PosX--;
 
 				redraw=1;
@@ -413,11 +413,11 @@ void SelectGame( void )
 					case NIN_SETTINGS_VIDEO:
 					{
 						u32 Video = (ncfg->VideoMode & NIN_VID_MASK) >> 16;
-						Video = (Video + 1) % 3;
+						Video = (Video + 1) % 4;
 						Video <<= 16;
 						ncfg->VideoMode &= ~NIN_VID_MASK;
 						ncfg->VideoMode |= Video;
-						if (Video != NIN_VID_FORCE)
+						if ((Video & (NIN_VID_FORCE|NIN_VID_FORCE_DF)) == 0)
 							PrintFormat( MENU_POS_X+50, SettingY(NIN_SETTINGS_VIDEOMODE), "%29s", "" );
 					} break;
 					case NIN_SETTINGS_VIDEOMODE:
@@ -472,7 +472,7 @@ void SelectGame( void )
 					ncfg->VideoMode |= NIN_VID_AUTO;
 					VideoIndex = NIN_VID_INDEX_AUTO; //Auto
 				}
-				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoStrings[VideoIndex] );
+				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoIndex] );
 				ListLoopIndex++;
 
 				if( (ncfg->VideoMode & NIN_VID_FORCE) == NIN_VID_FORCE )

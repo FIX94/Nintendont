@@ -1412,7 +1412,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchCount &= ~64;
 	}
 #endif
-	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) )
+	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & (NIN_VID_FORCE|NIN_VID_FORCE_DF)) )
 		PatchCount &= ~128;
 
 	u8 *SHA1i = (u8*)malloca( 0x60, 0x40 );
@@ -1705,6 +1705,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				&& (read32((u32)Buffer+i+12) & 0xFF00FF00) == 0x00000200 && read32((u32)Buffer+i+24) == 0x00000606
 				&& read32((u32)Buffer+i+32) == 0x06060606 && read32((u32)Buffer+i+44) == 0x06060606)
 			{
+				if((ConfigGetVideoMode() & NIN_VID_FORCE_DF) && memcmp(Buffer+i+0x32, GXDeflickerOff, sizeof(GXDeflickerOff)) == 0)
+					memcpy(Buffer+i+0x32, GXDeflickerOn, sizeof(GXDeflickerOn));
+				else if((ConfigGetVideoMode() & NIN_VID_FORCE) && memcmp(Buffer+i+0x32, GXDeflickerOn, sizeof(GXDeflickerOn)) == 0)
+					memcpy(Buffer+i+0x32, GXDeflickerOff, sizeof(GXDeflickerOff));
 				if( ConfigGetConfig(NIN_CFG_FORCE_PROG) )
 				{
 					switch(read32((u32)Buffer+i))
@@ -1713,14 +1717,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							printvidpatch(VI_NTSC, VI_480P, (u32)Buffer+i);
 							write32( (u32)Buffer+i, 0x02 );
 							write32( (u32)Buffer+i+0x14, 0); //mode sf
-							memcpy( Buffer+i+0x30, GXProgAt30, sizeof(GXProgAt30) );
 							break;
 						case 0x04: //PAL50
 							printvidpatch(VI_PAL, VI_480P, (u32)Buffer+i);
 							write32( (u32)Buffer+i, 0x02 );
 							//write32( (u32)Buffer+i, 0x06 );
 							write32( (u32)Buffer+i+0x14, 0); //mode sf
-							memcpy( Buffer+i+0x30, GXProgAt30, sizeof(GXProgAt30) );
 							//memcpy(Buffer+i, GXNtsc480Prog, sizeof(GXNtsc480Prog));
 							break;
 						case 0x08: //MPAL
@@ -1729,7 +1731,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							write32( (u32)Buffer+i, 0x02 );
 							//write32( (u32)Buffer+i, 0x16 );
 							write32( (u32)Buffer+i+0x14, 0); //mode sf
-							memcpy( Buffer+i+0x30, GXProgAt30, sizeof(GXProgAt30) );
 							break;
 						default:
 							break;
@@ -1754,7 +1755,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								write32( (u32)Buffer+i, 0x14 );
 							}
 							write32( (u32)Buffer+i+0x14, 1); //mode df
-							memcpy( Buffer+i+0x30, GXIntDfAt30, sizeof(GXIntDfAt30) );
 							break;
 						case 0x08: //MPAL
 							if(NinForceMode == NIN_VID_FORCE_MPAL)
@@ -1770,7 +1770,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								write32( (u32)Buffer+i, 0x14 );
 							}
 							write32( (u32)Buffer+i+0x14, 1); //mode df
-							memcpy( Buffer+i+0x30, GXIntDfAt30, sizeof(GXIntDfAt30) );
 						case 0x04: //PAL50
 							if(NinForceMode == NIN_VID_FORCE_PAL50 || NinForceMode == NIN_VID_FORCE_PAL60)
 								break;
@@ -1786,7 +1785,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							}
 							memcpy( Buffer+i+0x04, GXIntDfAt04, sizeof(GXIntDfAt04) ); //terrible workaround I know
 							write32( (u32)Buffer+i+0x14, 1); //mode df
-							memcpy( Buffer+i+0x30, GXIntDfAt30, sizeof(GXIntDfAt30) );
 							break;
 						case 0x14: //PAL60
 							if(NinForceMode == NIN_VID_FORCE_PAL50 || NinForceMode == NIN_VID_FORCE_PAL60)
@@ -1802,7 +1800,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								write32( (u32)Buffer+i, 0x00 );
 							}
 							write32( (u32)Buffer+i+0x14, 1); //mode df
-							memcpy( Buffer+i+0x30, GXIntDfAt30, sizeof(GXIntDfAt30) );
 							break;
 						default:
 							break;
