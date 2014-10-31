@@ -44,6 +44,7 @@ const char* VideoStrings[] =
 {
 	"Auto",
 	"Force",
+	"Force (Deflicker)",
 	"None",
 };
 
