@@ -475,7 +475,7 @@ void SelectGame( void )
 				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoIndex] );
 				ListLoopIndex++;
 
-				if( (ncfg->VideoMode & NIN_VID_FORCE) == NIN_VID_FORCE )
+				if( ncfg->VideoMode & (NIN_VID_FORCE|NIN_VID_FORCE) )
 				{
 					u32 VideoModeVal = ncfg->VideoMode & NIN_VID_FORCE_MASK;
 					u32 VideoModeIndex;
