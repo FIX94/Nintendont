@@ -96,7 +96,7 @@ s32 __IOS_LoadStartupIOS(void)
 }
 
 u32 entrypoint = 0;
-char *launch_dir;
+char launch_dir[MAXPATHLEN] = {0};
 extern void __exception_closeall();
 extern void udelay(u32 us);
 static u8 loader_stub[0x1800]; //save internally to prevent overwriting
@@ -118,9 +118,11 @@ int main(int argc, char **argv)
 	STM_RegisterEventHandler(HandleSTMEvent);
 
 	Initialise();
-	launch_dir = (char*) calloc(strlen(argv[0])+1, 0);
+
 	char* first_slash = strrchr(argv[0], '/');
-	if (first_slash != NULL) memcpy(launch_dir, argv[0], strrchr(argv[0], '/')-argv[0]+1);
+	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
+	gprintf("launch_dir = %s\r\n", launch_dir);
+	
 	FPAD_Init();
 
 	PrintInfo();
