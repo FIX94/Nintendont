@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "update.h"
 #include "../../common/include/NintendontVersion.h"
 
-extern char *launch_dir;
+extern char launch_dir[MAXPATHLEN];
 
 // Please don't delete any commented code, it's for later
 
@@ -110,7 +110,7 @@ static s32 Download(DOWNLOADS download_number)  {
 		ret = LatestVersion(&major, &minor, line);
 		line++;
 		if (ret && (major <= NIN_MAJOR_VERSION) && (minor <= NIN_MINOR_VERSION)) {
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "You already have the lastest version");
+			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "You already have the latest version");
 			if (outbuf != NULL) free(outbuf);
 			net_deinit();
 			sleep(4);
