@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef _PATCHTIMERS_H_
 #define _PATCHTIMERS_H_
 
-void PatchTimers(u32 Buffer);
+bool PatchTimers(u32 FirstVal, u32 Buffer);
 void PatchStaticTimers();
 
 #endif

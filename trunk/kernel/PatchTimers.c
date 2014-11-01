@@ -63,33 +63,32 @@ static bool write64A( u32 Offset, u64 Value, u64 CurrentValue )
 #define DBL_1_1574		0x3ff284b5dcc63f14ull
 #define DBL_0_7716		0x3fe8b0f27bb2fec5ull
 
-void PatchTimers(u32 Buffer)
+bool PatchTimers(u32 FirstVal, u32 Buffer)
 {
-	u32 FirstVal = read32(Buffer);
 	/* The floats in the data sections */
 	if( FirstVal == FLT_TIMER_CLOCK_SECS_GC )
 	{
 		write32(Buffer, FLT_TIMER_CLOCK_SECS_WII);
 		dbgprintf("Patch:[Timer Clock float s] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	if( FirstVal == FLT_TIMER_CLOCK_MSECS_GC )
 	{
 		write32(Buffer, FLT_TIMER_CLOCK_MSECS_WII);
 		dbgprintf("Patch:[Timer Clock float ms] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	if( FirstVal == FLT_ONE_DIV_CLOCK_SECS_GC )
 	{
 		write32(Buffer, FLT_ONE_DIV_CLOCK_SECS_WII);
 		dbgprintf("Patch:[Timer Clock float 1/s] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	if( FirstVal == FLT_ONE_DIV_CLOCK_MSECS_GC )
 	{
 		write32(Buffer, FLT_ONE_DIV_CLOCK_MSECS_WII);
 		dbgprintf("Patch:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	/* RADTimerRead split into subparts */
 	if( FirstVal == 0x3C000001 && read32(Buffer + 4) == 0x60009E40 )
@@ -98,21 +97,21 @@ void PatchTimers(u32 Buffer)
 		W16(Buffer + 2, smallTimer >> 16);
 		W16(Buffer + 6, smallTimer & 0xFFFF);
 		dbgprintf("Patch:[RADTimerRead A] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	if( FirstVal == 0x38800000 && read32(Buffer + 12) == 0x60849E34 )
 	{
 		W16(Buffer + 2, U32_TIMER_CLOCK_MSECS_WII >> 16);
 		W16(Buffer + 14, U32_TIMER_CLOCK_MSECS_WII & 0xFFFF);
 		dbgprintf("Patch:[RADTimerRead B] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	if( FirstVal == 0x3CC0CF20 && read32(Buffer + 8) == 0x60C649A1 )
 	{
 		W16(Buffer + 2, U32_TIMER_CLOCK_RAD_WII >> 16);
 		W16(Buffer + 10, U32_TIMER_CLOCK_RAD_WII & 0xFFFF);
 		dbgprintf("Patch:[RADTimerRead C] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	/* Coded in values */
 	FirstVal &= 0xFC00FFFF;
@@ -121,29 +120,30 @@ void PatchTimers(u32 Buffer)
 		W16(Buffer + 2, U32_TIMER_CLOCK_CPU_WII >> 16);
 		W16(Buffer + 6, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
 		dbgprintf("Patch:[Timer Clock ori CPU] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	if( FirstVal == 0x3C000269 && (read32(Buffer + 4) & 0xFC00FFFF) == 0x6000FB20 )
 	{
 		W16(Buffer + 2, U32_TIMER_CLOCK_SECS_WII >> 16);
 		W16(Buffer + 6, U32_TIMER_CLOCK_SECS_WII & 0xFFFF);
 		dbgprintf("Patch:[Timer Clock ori s] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	if( FirstVal == 0x3C00026A && (read32(Buffer + 4) & 0xFC00FFFF) == 0x3800FB20 )
 	{
 		W16(Buffer + 2, (U32_TIMER_CLOCK_SECS_WII >> 16) + 1);
 		W16(Buffer + 6, U32_TIMER_CLOCK_SECS_WII & 0xFFFF);
 		dbgprintf("Patch:[Timer Clock addi s] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
 	if( FirstVal == 0x38000000 && (read32(Buffer + 4) & 0xFC00FFFF) == 0x60009E34 )
 	{
 		W16(Buffer + 2, U32_TIMER_CLOCK_MSECS_WII >> 16);
 		W16(Buffer + 6, U32_TIMER_CLOCK_MSECS_WII & 0xFFFF);
 		dbgprintf("Patch:[Timer Clock ori ms] applied (0x%08X)\r\n", Buffer );
-		return;
+		return true;
 	}
+	return false;
 }
 
 void PatchStaticTimers()
