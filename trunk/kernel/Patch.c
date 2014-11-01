@@ -2531,7 +2531,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							PatchPatchBuffer( (char*)FOffset );
 						} break;
-						case FCODE_PsrLoad:
+						case FCODE_PrsLoad:
 						{
 							// HACK: PSO patch prs after dol conversion
 							u32 OrigAddr = FOffset + 0x1A0;
@@ -2558,7 +2558,26 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 #ifdef DEBUG_PATCH
 								printpatchfound("PSO", "FakeEntry", OrigAddr);
 #endif
+								// ToDo: What does the function at -0xC do?
+								// This is currently being skipped because it hangs for MemCardEmu
+								// Further investigation needed.
+								if (ConfigGetConfig(NIN_CFG_MEMCARDEMU))
+									OrigAddr -= 0xC;
 								PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
+							}
+						} break;
+						case FCODE_PsoSramLoad:
+						{
+							// HACK: PSO hack.  Why is this necessary??
+							// It should be calling the exact same patched function,
+							// it's just in a different location. Hangs for MCEmu. ToDo
+							u32 OrigAddr = FOffset + 0x94;
+							if ((read32(OrigAddr - 0x20) == 0x3C602000) && (read32(OrigAddr - 0x1C) == 0x38030100))  // lis r3, 0x2000 and addi r0, r3, 0x100
+							{
+#ifdef DEBUG_PATCH
+								printpatchfound("PSO", "SRAM Load", OrigAddr);
+#endif
+								PatchBL(PatchCopy(EXIImm, EXIImm_size), OrigAddr);
 							}
 						} break;
 						default:

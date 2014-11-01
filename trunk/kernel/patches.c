@@ -102,8 +102,9 @@ enum
 	FCODE_AIInitDMA,
 	FCODE___DSPHandler,
 	FCODE_PatchPatchBuffer,
-	FCODE_PsrLoad,
+	FCODE_PrsLoad,
 	FCODE_DolEntryMod,
+	FCODE_PsoSramLoad,
 } FPatternCodes;
 
 enum
@@ -219,7 +220,7 @@ FuncPattern NormalFPatterns[] =
 	{  0x1B0,   11,   10,   15,   11,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"C",		FGROUP_NONE,			    0 },
 	{   0x2C,    6,    2,    1,    0,    2,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"D",		FGROUP_NONE,			    0 },
 	{  0x378,  110,   26,   52,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"E",		FGROUP_NONE,			    0 },
-	{  0x268,   52,    9,   39,    8,    7,	NULL,				FCODE_PsrLoad,				"PrsLoad",				NULL,		FGROUP_NONE,			    0 },
+	{  0x268,   52,    9,   39,    8,    7,	NULL,				FCODE_PrsLoad,				"PrsLoad",				NULL,		FGROUP_NONE,			    0 },
 	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			NULL,		FGROUP_NONE,			    0 },
 };
 
@@ -358,6 +359,7 @@ FuncPattern EXIFPatterns[] =
 //	{  0x130,   33,    8,    6,    5,    2,	__CARDReadSegment,	sizeof(__CARDReadSegment),	"__CARDReadSegment",				FGROUP_NONE,				0 },
 //	{   0x60,    7,    6,    1,    1,    3,	__CARDRead,			sizeof(__CARDRead),			"__CARDRead",						FGROUP_NONE,				0 },
 //	{   0xDC,   17,    9,    4,    3,    2,	__CARDEraseSector,	sizeof(__CARDEraseSector),	"__CARDEraseSector",				FGROUP_NONE,				0 },
+	{  0x130,   31,    9,   10,    2,    7,	NULL,				FCODE_PsoSramLoad,			"PsoSramLoad",			NULL,		FGROUP_NONE,			    0 },
 };
 
 enum
