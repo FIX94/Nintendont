@@ -889,7 +889,8 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x475852 ||	// Mega Man X Command Mission
 			(TITLE_ID) == 0x474832 ||	// NFS: HP2
 			(TITLE_ID) == 0x474156 ||	// Avatar Last Airbender
-			(TITLE_ID) == 0x473442 );	// Resident Evil 4
+			(TITLE_ID) == 0x473442 ||	// Resident Evil 4
+			(TITLE_ID) == 0x474856 );	// Disneys Hide and Sneak
 }
 
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
@@ -1017,6 +1018,12 @@ int GotoFuncEnd(int i, u32 Buffer)
 }
 void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 {
+	if( (u32)Buffer == 0x01200000 && *(u8*)Buffer == 0x7C )
+	{	/* Game can reset at any time */
+		PatchState = PATCH_STATE_NONE;
+		return;
+	}
+
 	int i, j, k;
 	u32 read;
 	u32 value = 0;
@@ -1434,8 +1441,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	/* DSP Patches */
 	u8 *SHA1i = (u8*)malloca( 0x60, 0x40 );
 	u8 *hash  = (u8*)malloca( 0x14, 0x40 );
-	/* GXInit */
-	u32 gxReg1 = 0, gxReg2 = 0, gxReg1DBG = 0, gxReg2DBG = 0;
 
 	i = 0;
 	while(i < Length)
@@ -1574,35 +1579,47 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 			if( (PatchCount & 32) == 0 )	// GXInit __piReg
 			{
-				/* Release SDK */
-				if( BufAt0 == 0x3C80CC00 )
-					gxReg1 = (u32)Buffer + i;
-				if( gxReg1 && BufAt0 == 0x38A43000 )
-					gxReg2 = (u32)Buffer + i;
-				if( gxReg2 && BufHighAt0 == 0x90AD )
+				if( BufAt0 == 0x3C80CC00 ) /* Release SDK */
 				{
-					piReg = R16( (u32)Buffer + i + 2 );
-					#ifdef DEBUG_PATCH
-					dbgprintf("Patch:[GXInit] stw r5,-0x%X(r13) (0x%08X)\r\n", 0x10000 - piReg, (u32)Buffer + i + 2);
-					#endif
-					PatchCount |= 32;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
+					u32 p1 = 0;
+					int j = i + 4;
+					while(read32((u32)Buffer+j) != 0x4E800020)
+					{
+						if( !p1 && read32((u32)Buffer+j) == 0x38A43000 )
+							p1 = 1;
+						else if( p1 && R16((u32)Buffer+j) == 0x90AD )
+						{
+							piReg = R16( (u32)Buffer + j + 2 );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[GXInit] stw r5,-0x%X(r13) (0x%08X)\r\n", 0x10000 - piReg, (u32)Buffer + j + 2);
+							#endif
+							PatchCount |= 32;
+							i = GotoFuncEnd(j, (u32)Buffer);
+							break;
+						}
+						j += 4;
+					}
 				}
-				/* Debug SDK */
-				if( BufAt0 == 0x3C600C00 )
-					gxReg1DBG = (u32)Buffer + i;
-				if( gxReg1DBG && BufAt0 == 0x38633000 )
-					gxReg2DBG = (u32)Buffer + i;
-				if( gxReg2DBG && BufHighAt0 == 0x906D )
+				else if( BufAt0 == 0x3C600C00 ) /* Debug SDK */
 				{
-					piReg = R16( (u32)Buffer + i + 2 );
-					#ifdef DEBUG_PATCH
-					dbgprintf("Patch:[GXInit DBG] stw r5,-0x%X(r13) (0x%08X)\r\n", 0x10000 - piReg, (u32)Buffer + i + 2);
-					#endif
-					PatchCount |= 32;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
+					u32 p1 = 0;
+					int j = i + 4;
+					while(read32((u32)Buffer+j) != 0x4E800020)
+					{
+						if( !p1 && read32((u32)Buffer+j) == 0x38633000 )
+							p1 = 1;
+						else if( p1 && R16((u32)Buffer+j) == 0x906D )
+						{
+							piReg = R16( (u32)Buffer + j + 2 );
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:[GXInit DBG] stw r3,-0x%X(r13) (0x%08X)\r\n", 0x10000 - piReg, (u32)Buffer + j + 2);
+							#endif
+							PatchCount |= 32;
+							i = GotoFuncEnd(j, (u32)Buffer);
+							break;
+						}
+						j += 4;
+					}
 				}
 			}
 	#ifdef CHEATS
