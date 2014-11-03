@@ -10,19 +10,13 @@ OBJCOPY = $(PREFIX)objcopy
 RANLIB = $(PREFIX)ranlib
 STRIP = $(PREFIX)strip
 
-ifeq ($(windows), 1)
-	BIN2H =	../kernel/bin2h/bin2h.exe
-else
-	BIN2H =	../kernel/bin2h/bin2h
-endif
-
 MACHDEP = -mcpu=750 -meabi -mhard-float
 CFLAGS = $(MACHDEP) -O1 -s -Werror -Wall -fdata-sections -ffunction-sections
 LDFLAGS = $(MACHDEP) -n -nostartfiles -nostdlib -Wl,--gc-sections,-T,openstub.ld -L.
 ASFLAGS = -D_LANGUAGE_ASSEMBLY -DHW_RVL
 
 TARGET_LINKED = multidol_ldr.elf
-TARGET = ../kernel/asm/multidol_ldr.bin
+TARGET = ../loader/data/multidol_ldr.bin
 
 CFILES = cache.c main.c global.c apploader.c dip.c utils.c
 OBJS = crt0.o cache.o main.o global.o apploader.o dip.o utils.o
@@ -52,8 +46,6 @@ $(TARGET_LINKED): $(OBJS)
 $(TARGET): $(TARGET_LINKED)
 	@echo " OBJCOPY     $@"
 	@$(OBJCOPY) -O binary -S $< $@
-	@echo " BIN2H       $@"
-	@$(BIN2H) $(TARGET)
 
 clean:
 	rm -rf $(TARGET_LINKED) $(TARGET) $(OBJS) $(DEPDIR)

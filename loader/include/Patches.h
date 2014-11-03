@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdio.h>
 #include "global.h"
 
-void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, char *NKernel, u32 *NKernelSize );
-s32 LoadKernel( char *Kernel, u32 *KernelSize );
+void InsertModule(char *Module, u32 ModuleSize);
+s32 LoadKernel();
 
 #endif
