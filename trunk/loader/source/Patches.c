@@ -79,12 +79,14 @@ const unsigned char HWAccess_ES[] =
 
 static char Entry[0x1C] ALIGNED(32);
 
-void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, char *NKernel, u32 *NKernelSize )
+static char *Kernel = (char*)0x90100000;
+u32 KernelSize = 0;
+
+void InsertModule( char *Module, u32 ModuleSize )
 {
 	u32 loadersize = *(vu32*)(Kernel) + *(vu32*)(Kernel+4);
-	int i=0,j=0;
-
-	*NKernelSize = 0;
+	u32 PatchCount = 0;
+	int i = 0, j = 0;
 
 #ifdef DEBUG_MODULE_PATCH
 	gprintf("LoaderSize:%08X\r\n", loadersize );
@@ -209,40 +211,35 @@ void InsertModule( char *Kernel, u32 KernelSize, char *Module, u32 ModuleSize, c
 
 done:
 
-	memcpy( NKernel, buf, size );
-	*NKernelSize = size;
-
-	u32 PatchCount = 0;
-
 	for( i=0; i < size; i+=4 )
 	{
 		if( !IsWiiU() )
 		{
-			if( memcmp( NKernel+i, UnusedSWI, sizeof(UnusedSWI) ) == 0 )
+			if( memcmp( buf+i, UnusedSWI, sizeof(UnusedSWI) ) == 0 )
 			{
 #ifdef DEBUG_MODULE_PATCH
 				gprintf("Found Unused SWI at %08X\r\n", i );
 #endif
-				memcpy( NKernel+i, EXISendBuffer, sizeof( EXISendBuffer ) );
+				memcpy( buf+i, EXISendBuffer, sizeof( EXISendBuffer ) );
 				PatchCount |= 1;
 			}
 
-			if( memcmp( NKernel+i, swi_v80, sizeof(swi_v80) ) == 0 )
+			if( memcmp( buf+i, swi_v80, sizeof(swi_v80) ) == 0 )
 			{
 #ifdef DEBUG_MODULE_PATCH
 				gprintf("Found SWI at %08X\r\n", i );
 #endif
-				memcpy( NKernel+i, swipatch_v80, sizeof( swipatch_v80 ) );
+				memcpy( buf+i, swipatch_v80, sizeof( swipatch_v80 ) );
 				PatchCount |= 2;
 			}
 		}
 
-		if( memcmp( NKernel+i, HWAccess_ES, sizeof(HWAccess_ES) ) == 0 )
+		if( memcmp( buf+i, HWAccess_ES, sizeof(HWAccess_ES) ) == 0 )
 		{
 #ifdef DEBUG_MODULE_PATCH
 			gprintf("Found HWAccess_ES at %08X\r\n", i );
 #endif
-			memcpy( NKernel+i, HWAccess_ESPatch, sizeof( HWAccess_ESPatch ) );
+			memcpy( buf+i, HWAccess_ESPatch, sizeof( HWAccess_ESPatch ) );
 
 			PatchCount |= 4;
 		}
@@ -256,8 +253,10 @@ done:
 				break;
 		}
 	}
+	DCFlushRange(Kernel, KernelSize);
 }
-s32 LoadKernel( char *Kernel, u32 *KernelSize )
+
+s32 LoadKernel()
 {
 	u32 TMDSize;
 	u32 i,u;
@@ -334,12 +333,12 @@ s32 LoadKernel( char *Kernel, u32 *KernelSize )
 		return kfd;
 	}
 
-	*KernelSize = IOS_Seek( kfd, 0, SEEK_END );
+	KernelSize = IOS_Seek( kfd, 0, SEEK_END );
 	IOS_Seek( kfd, 0, 0);
 
-	gprintf("KernelSize:%u\r\n", *KernelSize );
+	gprintf("KernelSize:%u\r\n", KernelSize );
 
-	if( IOS_Read( kfd, Kernel, *KernelSize ) != *KernelSize )
+	if( IOS_Read( kfd, Kernel, KernelSize ) != KernelSize )
 	{
 		gprintf("IOS_Read() failed\r\n");
 

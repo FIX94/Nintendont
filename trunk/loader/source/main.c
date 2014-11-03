@@ -50,11 +50,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "FPad.h"
 #include "menu.h"
-#include "loader.h"
 #include "Patches.h"
 #include "kernel_bin.h"
 #include "kernel_usb_bin.h"
 #include "PADReadGC_bin.h"
+#include "multidol_ldr_bin.h"
 #include "stub_bin.h"
 #include "titles.h"
 
@@ -279,11 +279,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	u32 KernelSize = 0;
-	u32 NKernelSize = 0;
-	char *Kernel = (char*)0x80100000;
-
-	if( LoadKernel( Kernel, &KernelSize ) < 0 )
+	if(LoadKernel() < 0)
 	{
 		ClearScreen();
 		gprintf("Failed to load kernel from NAND!\r\n");
@@ -292,11 +288,9 @@ int main(int argc, char **argv)
 	}
 
 	if (UseSD)
-		InsertModule( Kernel, KernelSize, (char*)kernel_bin, kernel_bin_size, (char*)0x90100000, &NKernelSize );
+		InsertModule((char*)kernel_bin, kernel_bin_size);
 	else
-		InsertModule(Kernel, KernelSize, (char*)kernel_usb_bin, kernel_usb_bin_size, (char*)0x90100000, &NKernelSize);
-
-	DCFlushRange( (void*)0x90100000, NKernelSize );
+		InsertModule((char*)kernel_usb_bin, kernel_usb_bin_size);
 
 	memset( (void*)0x92f00000, 0, 0x100000 );
 	DCFlushRange( (void*)0x92f00000, 0x100000 );
@@ -554,7 +548,7 @@ int main(int argc, char **argv)
 
 	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*17, "Nintendont kernel looping, loading game...");
 //	memcpy( (void*)0x80000000, (void*)0x90140000, 0x1200000 );
-	entrypoint = LoadGame();
+	DVDStartCache();
 
 	gprintf("GameRegion:");
 
@@ -677,12 +671,10 @@ int main(int argc, char **argv)
 		cur_time += bias;
 	settime(secs_to_ticks(cur_time));
 
-	ICFlashInvalidate();
-
 	DCInvalidateRange((void*)0x93000000, 0x3000);
 	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
-	memset((void*)0x93002700, 0, 0x80); //set controller structs to 0
-	memset((void*)0x93002830, 0, 0x80); // clear PADIsBarrel
+	memset((void*)0x93002700, 0, 0x200); //clears alot of pad stuff
+	memset((void*)0x93002C00, 0, 0x400); //clears alot of multidol stuff
 	//strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
 	DCFlushRange((void*)0x93000000, 0x3000);
 
@@ -712,12 +704,12 @@ int main(int argc, char **argv)
 	__exception_closeall();
 	__lwp_thread_closeall();
 
-	gprintf("entrypoint(0x%08X)\r\n", entrypoint );
+	memcpy((void*)0x81300000, multidol_ldr_bin, multidol_ldr_bin_size);
+	DCFlushRange((void*)0x81300000, multidol_ldr_bin_size);
+	ICInvalidateRange((void*)0x81300000, multidol_ldr_bin_size);
 
 	asm volatile (
-		"lis %r3, entrypoint@h\n"
-		"ori %r3, %r3, entrypoint@l\n"
-		"lwz %r3, 0(%r3)\n"
+		"lis %r3, 0x8130\n"
 		"mtlr %r3\n"
 		"blr\n"
 	);

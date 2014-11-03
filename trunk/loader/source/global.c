@@ -70,7 +70,7 @@ void RAMInit(void)
 
 	memset( (void*)0x80000000, 0, 0x100 );
 	memset( (void*)0x80003000, 0, 0x100 );
-	memset( (void*)0x80003F00, 0, 0x11FC100 );
+	//memset( (void*)0x80003F00, 0, 0x11FC100 );
 	memset( (void*)0x81340000, 0, 0x3C );
 
 	__asm("	isync\n\
