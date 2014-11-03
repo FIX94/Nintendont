@@ -19,6 +19,7 @@ include $(DEVKITPPC)/wii_rules
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source
+SOURCES		+=	source/unzip
 DATA		:=	data
 INCLUDES	:=	include
 
@@ -34,7 +35,7 @@ LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lwiiuse -lwupc -lbte -lfat -logc -lm
+LIBS	:= -lwiiuse -lwupc -lbte -lfat -logc -lm -lz
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
