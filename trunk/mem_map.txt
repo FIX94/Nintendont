@@ -19,6 +19,7 @@ MEM2
 0x93002704=padread game setting
 0x93002720-0x93002730=padread bt motor
 0x93002730-0x93002740=padread bt channel free
+0x93002740-0x93002744=SIInited
 0x93002800-0x93002830=PadBuff
 
 0x93002830-0x93002890=pad barrel stuff
@@ -60,6 +61,7 @@ MEM2
 0x931C1800-0x931C3000=replacement memory for 0x80001800-0x80003000
 0x93200000=Cache FST Buffer
 0x93280000-0x932B3000=audio stream buffers
+0x932C0000-0x932C0482=conf_pads
 0x932F0000-0x932F008F=BTPad
 
 Hardware Registers

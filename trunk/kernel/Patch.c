@@ -1425,7 +1425,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchCount &= ~64;
 	}
 #endif
-	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & (NIN_VID_FORCE|NIN_VID_FORCE_DF)) )
+	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) )
 		PatchCount &= ~128;
 
 	u32 patitr;
@@ -1748,10 +1748,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					&& (read32((u32)Buffer+i+12) & 0xFF00FF00) == 0x00000200 && read32((u32)Buffer+i+24) == 0x00000606
 					&& read32((u32)Buffer+i+32) == 0x06060606 && read32((u32)Buffer+i+44) == 0x06060606)
 				{
-					if((ConfigGetVideoMode() & NIN_VID_FORCE_DF) && memcmp(Buffer+i+0x32, GXDeflickerOff, sizeof(GXDeflickerOff)) == 0)
-						memcpy(Buffer+i+0x32, GXDeflickerOn, sizeof(GXDeflickerOn));
-					else if((ConfigGetVideoMode() & NIN_VID_FORCE) && memcmp(Buffer+i+0x32, GXDeflickerOn, sizeof(GXDeflickerOn)) == 0)
-						memcpy(Buffer+i+0x32, GXDeflickerOff, sizeof(GXDeflickerOff));
+					if(ConfigGetVideoMode() & NIN_VID_FORCE)
+					{
+						if(ConfigGetVideoMode() & NIN_VID_FORCE_DF)
+						{
+							if(memcmp(Buffer+i+0x32, GXDeflickerOff, sizeof(GXDeflickerOff)) == 0)
+								memcpy(Buffer+i+0x32, GXDeflickerOn, sizeof(GXDeflickerOn));
+						}
+						else
+						{
+							if(memcmp(Buffer+i+0x32, GXDeflickerOn, sizeof(GXDeflickerOn)) == 0)
+								memcpy(Buffer+i+0x32, GXDeflickerOff, sizeof(GXDeflickerOff));
+						}
+					}
 					if( ConfigGetConfig(NIN_CFG_FORCE_PROG) )
 					{
 						switch(read32((u32)Buffer+i))

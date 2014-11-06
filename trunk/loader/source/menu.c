@@ -359,7 +359,7 @@ void SelectGame( void )
 				
 				PosX++;
 
-				if ((((ncfg->VideoMode & NIN_VID_FORCE) ^ (ncfg->VideoMode & NIN_VID_FORCE_DF)) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
+				if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
 					PosX++;
 				if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
 					PosX++;
@@ -385,7 +385,7 @@ void SelectGame( void )
 					PosX--;
 				if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
 					PosX--;
-				if ((((ncfg->VideoMode & NIN_VID_FORCE) ^ (ncfg->VideoMode & NIN_VID_FORCE_DF)) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
+				if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
 					PosX--;
 
 				redraw=1;
@@ -413,12 +413,25 @@ void SelectGame( void )
 					case NIN_SETTINGS_VIDEO:
 					{
 						u32 Video = (ncfg->VideoMode & NIN_VID_MASK);
-						Video = Video << 1;
-						if(Video > NIN_VID_NONE)
-							Video = NIN_VID_AUTO;
+						switch (Video)
+						{
+							case NIN_VID_AUTO:
+								Video = NIN_VID_FORCE;
+								break;
+							case NIN_VID_FORCE:
+								Video = NIN_VID_FORCE | NIN_VID_FORCE_DF;
+								break;
+							case NIN_VID_FORCE | NIN_VID_FORCE_DF:
+								Video = NIN_VID_NONE;
+								break;
+							default:
+							case NIN_VID_NONE:
+								Video = NIN_VID_AUTO;
+								break;
+						}
 						ncfg->VideoMode &= ~NIN_VID_MASK;
 						ncfg->VideoMode |= Video;
-						if (((Video & NIN_VID_FORCE) ^ (Video & NIN_VID_FORCE_DF)) == 0)
+						if ((Video & NIN_VID_FORCE) == 0)
 							PrintFormat( MENU_POS_X+50, SettingY(NIN_SETTINGS_VIDEOMODE), "%29s", "" );
 					} break;
 					case NIN_SETTINGS_VIDEOMODE:
@@ -468,22 +481,32 @@ void SelectGame( void )
 
 				u32 VideoModeIndex;
 				u32 VideoModeVal = ncfg->VideoMode & NIN_VID_MASK;
-				u32 VideoTestVal = NIN_VID_AUTO;
-				for (VideoModeIndex = 0; (VideoTestVal <= NIN_VID_NONE) && (VideoModeVal != VideoTestVal); VideoModeIndex++)
-					VideoTestVal <<= 1;
-				if ( VideoModeVal < VideoTestVal )
+				switch (VideoModeVal)
 				{
-					ncfg->VideoMode &= ~NIN_VID_MASK;
-					ncfg->VideoMode |= NIN_VID_AUTO;
-					VideoModeIndex = NIN_VID_INDEX_AUTO;
+					case NIN_VID_AUTO:
+						VideoModeIndex = NIN_VID_INDEX_AUTO;
+						break;
+					case NIN_VID_FORCE:
+						VideoModeIndex = NIN_VID_INDEX_FORCE;
+						break;
+					case NIN_VID_FORCE | NIN_VID_FORCE_DF:
+						VideoModeIndex = NIN_VID_INDEX_FORCE_DF;
+						break;
+					case NIN_VID_NONE:
+						VideoModeIndex = NIN_VID_INDEX_NONE;
+						break;
+					default:
+						ncfg->VideoMode &= ~NIN_VID_MASK;
+						ncfg->VideoMode |= NIN_VID_AUTO;
+						VideoModeIndex = NIN_VID_INDEX_AUTO;
 				}
 				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoModeIndex] );
 				ListLoopIndex++;
 
-				if( (ncfg->VideoMode & NIN_VID_FORCE) ^ (ncfg->VideoMode & NIN_VID_FORCE_DF) )
+				if( ncfg->VideoMode & NIN_VID_FORCE )
 				{
 					VideoModeVal = ncfg->VideoMode & NIN_VID_FORCE_MASK;
-					VideoTestVal = NIN_VID_FORCE_PAL50;
+					u32 VideoTestVal = NIN_VID_FORCE_PAL50;
 					for (VideoModeIndex = 0; (VideoTestVal <= NIN_VID_FORCE_MPAL) && (VideoModeVal != VideoTestVal); VideoModeIndex++)
 						VideoTestVal <<= 1;
 					if ( VideoModeVal < VideoTestVal )
