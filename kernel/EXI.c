@@ -144,7 +144,7 @@ void EXIInit( void )
 
 	sram->Language = ConfigGetLanguage();
 
-	if( ConfigGetVideoMode() & (NIN_VID_FORCE|NIN_VID_FORCE_DF) )
+	if( ConfigGetVideoMode() & NIN_VID_FORCE )
 	{
 		switch( ConfigGetVideoMode() & NIN_VID_FORCE_MASK )
 		{

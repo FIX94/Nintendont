@@ -552,7 +552,7 @@ int main(int argc, char **argv)
 
 	gprintf("GameRegion:");
 
-	if( (ncfg->VideoMode & NIN_VID_FORCE) ^ (ncfg->VideoMode & NIN_VID_FORCE_DF) )
+	if( ncfg->VideoMode & NIN_VID_FORCE )
 	{
 		gprintf("Force:%02X\r\n", ncfg->VideoMode & NIN_VID_FORCE_MASK );
 
