@@ -582,7 +582,7 @@ int main(int argc, char **argv)
 	}
 	
 	gprintf("Region:%u\r\n", Region );
-
+	progressive = ncfg->Config & NIN_CFG_FORCE_PROG;
 	switch(Region)
 	{
 		default:
