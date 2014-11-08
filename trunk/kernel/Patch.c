@@ -1886,6 +1886,29 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				}
 			}
 
+			if((PatchCount & 4096) == 0)	//__CARDUnlock
+			{
+				if(BufAt0 == 0x38C00008 && read32((u32)Buffer+i+16) == 0x38800008 && read32((u32)Buffer+i+28) == 0x90DD0004)
+				{
+					printpatchfound("__CARDUnlock", NULL, (u32)Buffer+i);
+					write32( (u32)Buffer+i, 0x3CC01000 ); //lis r6, 0x1000
+					write32( (u32)Buffer+i+28, 0x909D0004 ); //stw r4, 4(r29)
+					write32( (u32)Buffer+i+36, 0x90DD0008 ); //stw r6, 8(r29)
+					PatchCount |= 4096;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+				else if(BufAt0 == 0x38000008 && BufAt4 == 0x90180004 && 
+					read32((u32)Buffer+i+16) == 0x38000000 && read32((u32)Buffer+i+20) == 0x90180008)
+				{
+					printpatchfound("__CARDUnlock", "DBG", (u32)Buffer+i);
+					write32( (u32)Buffer+i+16, 0x3C001000 ); //lis r0, 0x1000
+					PatchCount |= 4096;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+			}
+
 			if( (PatchCount & 1024) == 0 && ( BufHighAt0 == 0x29F || (BufAt4 >> 16) == 0x29F) )	// DSP patch
 			{
 				u32 l;

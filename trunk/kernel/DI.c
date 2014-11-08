@@ -31,7 +31,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Patch.h"
 #include "FST.h"
 #include "BT.h"
-#include "asm/multidol_ldr.h"
 
 #ifndef DEBUG_DI
 #define dbgprintf(...)
