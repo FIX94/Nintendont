@@ -35,7 +35,8 @@ LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lwiiuse -lwupc -lbte -lfat -logc -lm -lz
+LIBS	:= -lfreetype -lpngu -lpng -lz -lfat
+LIBS	+= -lwiiuse -lwupc -lbte -lfat -logc -lm -lz
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -126,6 +127,16 @@ $(OUTPUT).elf: $(OFILES)
 # This rule links in binary data with the .jpg extension
 #---------------------------------------------------------------------------------
 %.bin.o	:	%.bin
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(bin2o)
+	
+%.ttf.o	:	%.ttf
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(bin2o)
+	
+%.png.o	:	%.png
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)
