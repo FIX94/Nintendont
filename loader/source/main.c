@@ -580,6 +580,32 @@ int main(int argc, char **argv)
 			} break;
 		}
 	}
+	else
+	{
+		switch (ncfg->GameID & 0x000000FF)
+		{
+			// EUR
+			case 'D':
+			case 'F':
+			case 'G':
+			case 'H':
+			case 'M':
+			case 'P':
+			case 'S':
+			case 'U':
+			case 'X':
+			case 'Y':
+			case 'Z':
+				Region = 2;
+				break;
+			// JP and US
+			case 'J':
+			case 'E':
+			default:
+				Region = 0;
+				break;
+		}
+	}
 	
 	gprintf("Region:%u\r\n", Region );
 	progressive = ncfg->Config & NIN_CFG_FORCE_PROG;
