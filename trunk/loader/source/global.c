@@ -18,31 +18,25 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
-
-#include <fat.h>
+#include "global.h"
+#include "exi.h"
+#include "Config.h"
 #include <gccore.h>
-#include <ogc/audio.h>
-#include <ogc/consol.h>
-#include <ogc/dsp.h>
-#include <ogc/es.h>
-#include <ogc/gx_struct.h>
 #include <ogc/ipc.h>
-#include <ogc/lwp_threads.h>
-#include <ogc/system.h>
+#include <ogc/es.h>
 #include <ogc/video.h>
+#include <ogc/gx_struct.h>
+#include <ogc/lwp_threads.h>
+#include <ogc/consol.h>
+#include <ogc/system.h>
+#include <ogc/audio.h>
+#include <ogc/dsp.h>
 #include <ogc/wiilaunch.h>
 #include <stdio.h>
 #include <unistd.h>
-
-#include "Config.h"
-#include "exi.h"
-#include "global.h"
-#include "font_ttf.h"
-
-
-GRRLIB_ttfFont *myFont;
-GRRLIB_texImg *background;
-GRRLIB_texImg *screen_buffer;
+#include <fat.h>
+static GXRModeObj *rmode = NULL;
+static void *framebuffer = NULL;
 
 u32 Region;
 u32 POffset;
@@ -147,42 +141,126 @@ void RAMInit(void)
 	
 	*(vu32*)0x8000315C = 0x81;
 }
-void Initialise()
+void *Initialise()
 {
-	int i;
-	AUDIO_Init(NULL);
-	DSP_Init();
+	AUDIO_Init (NULL);
+	DSP_Init ();
 	AUDIO_StopDMA();
 	AUDIO_RegisterDMACallback(NULL);
+
+	VIDEO_Init();
+	
 	CheckForGecko();
-	gprintf("GRRLIB_Init = %i\r\n", GRRLIB_Init());
-	myFont = GRRLIB_LoadTTF(font_ttf, font_ttf_size);
-	background = GRRLIB_LoadTexturePNG(background_png);
-	screen_buffer = GRRLIB_CreateEmptyTexture(rmode->fbWidth, rmode->efbHeight);
-	for (i=0; i<255; i +=5) // Fade background image in from black screen
+
+	rmode = VIDEO_GetPreferredMode(NULL);
+	
+#ifdef DEBUG
+	if( !IsWiiU() )
 	{
-		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, RGBA(255, 255, 255, i)); // Opacity increases as i does
-		GRRLIB_Render();
+		if( rmode == &TVNtsc480Int )
+			gprintf("VI:TVNtsc480Int\r\n");
+		else if( rmode == &TVNtsc480IntDf )
+			gprintf("VI:TVNtsc480IntDf\r\n");
+		else if( rmode == &TVNtsc480IntAa )
+			gprintf("VI:TVNtsc480IntAa\r\n");
+		else if( rmode == &TVNtsc480Prog )
+			gprintf("VI:TVNtsc480Prog\r\n");
+		else if( rmode == &TVNtsc480ProgSoft )
+			gprintf("VI:TVNtsc480ProgSoft\r\n");
+		else if( rmode == &TVNtsc480ProgAa )
+			gprintf("VI:TVNtsc480ProgAa\r\n");
+
+		else if( rmode == &TVPal524IntAa )
+			gprintf("VI:TVPal524IntAa\r\n");
+		else if( rmode == &TVPal528Int )
+			gprintf("VI:TVPal528Int\r\n");
+		else if( rmode == &TVPal528IntDf )
+			gprintf("VI:TVPal528IntDf\r\n");
+		else if( rmode == &TVPal528IntDf )
+			gprintf("VI:TVPal528IntDf\r\n");
+		else if( rmode == &TVPal528IntDf )
+			gprintf("VI:TVPal528IntDf\r\n");
+	
+		else if( rmode == &TVEurgb60Hz480Int )
+			gprintf("VI:TVEurgb60Hz480Int\r\n");
+		else if( rmode == &TVEurgb60Hz480IntDf )
+			gprintf("VI:TVEurgb60Hz480IntDf\r\n");
+		else if( rmode == &TVEurgb60Hz480IntAa )
+			gprintf("VI:TVEurgb60Hz480IntAa\r\n");
+		else if( rmode == &TVEurgb60Hz480Prog )
+			gprintf("VI:TVEurgb60Hz480Prog\r\n");
+		else if( rmode == &TVEurgb60Hz480ProgSoft )
+			gprintf("VI:TVEurgb60Hz480ProgSoft\r\n");
+		else if( rmode == &TVEurgb60Hz480ProgAa )
+			gprintf("VI:TVEurgb60Hz480ProgAa\r\n");
 	}
-	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, RGBA(255, 255, 255, 255));
-	gprintf("Initialize Finished\r\n");
+#endif
+
+	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
+	switch( *(vu32*)0x800000CC )
+	{
+		default:
+		case 0:
+		{
+			if(progressive)
+				rmode = &TVNtsc480Prog;
+			else
+				rmode = &TVNtsc480IntDf;
+		} break;
+		case 1:
+		{
+			if(progressive)
+				rmode = &TVEurgb60Hz480Prog;
+			else
+				rmode = &TVPal528IntDf;
+		} break;
+		case 2:
+		{
+			rmode = &TVMpal480IntDf;
+		} break;
+		case 5:
+		{
+			if(progressive)
+				rmode = &TVEurgb60Hz480Prog;
+			else
+				rmode = &TVEurgb60Hz480IntDf;
+		} 
+	}
+
+	framebuffer = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+//	console_init( framebuffer, 20, 20, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth*VI_DISPLAY_PIX_SZ );
+	
+	VIDEO_Configure(rmode);
+	VIDEO_SetNextFramebuffer(framebuffer);
+	VIDEO_SetBlack(FALSE);
+	VIDEO_Flush();
+	VIDEO_WaitVSync();
+
+	if(rmode->viTVMode&VI_NON_INTERLACE)
+		VIDEO_WaitVSync();
+	
+//	gprintf("X:%u Y:%u M:%u\r\n", rmode->viWidth, rmode->viHeight, rmode->viTVMode );
+
+	while( VIDEO_GetCurrentFramebuffer() == NULL )
+		VIDEO_WaitVSync();
+
+	 unsigned long* fb = (unsigned long*)VIDEO_GetCurrentFramebuffer();
+	
+	int x,y;
+
+	for( x=0; x < rmode->viWidth / 2; ++x)
+	for( y=0; y<rmode->viHeight; ++y)
+		fb[ x + y*(rmode->viWidth / 2) ] = 0x00800080;
+		
+	return framebuffer;
 }
 static void (*stub)() = (void*)0x80001800;
-inline void UpdateScreen(void) {
-	GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE);
-	GRRLIB_Render();
-	GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF);
-}
 void ExitToLoader(int ret)
 {
-	GRRLIB_Render();
 	sleep(3);
-	GRRLIB_FreeTexture(background);
-	GRRLIB_FreeTexture(screen_buffer);
-	GRRLIB_FreeTTF(myFont);
 	CloseDevices();
 	ClearScreen();
-	GRRLIB_Exit();
+
 	if(*(vu32*)0x80001804 == 0x53545542 && *(vu32*)0x80001808 == 0x48415858) //stubhaxx
 	{
 		VIDEO_SetBlack(TRUE);
@@ -244,7 +322,9 @@ bool LoadNinCFG()
 }
 void ClearScreen()
 {
-	GRRLIB_FillScreen(0x00000000);
+	VIDEO_ClearFrameBuffer(rmode, framebuffer, COLOR_BLACK);
+	VIDEO_Flush();
+	VIDEO_WaitVSync();
 }
 void CloseDevices()
 {

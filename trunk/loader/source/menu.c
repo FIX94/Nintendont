@@ -89,7 +89,7 @@ void SelectGame( void )
 	{
 		ClearScreen();
 		gprintf("No FAT device found, or missing %s dir!\n", filename);
-		PrintFormat(DEFAULT_SIZE, RED, 25, 232, "No FAT device found, or missing %s dir!", filename );
+		PrintFormat( 25, 232, "No FAT device found, or missing %s dir!", filename );
 		ExitToLoader(1);
 	}
 
@@ -171,7 +171,7 @@ void SelectGame( void )
 	{
 		ClearScreen();
 		gprintf("No games found in %s:/games !\n", GetRootDevice());
-		PrintFormat(DEFAULT_SIZE, RED, 25, 232, "No games found in %s:/games !", GetRootDevice() );
+		PrintFormat( 25, 232, "No games found in %s:/games !", GetRootDevice() );
 		ExitToLoader(1);
 	}
 	qsort(gi, gamecount, sizeof(gameinfo), compare_names);
@@ -206,18 +206,17 @@ void SelectGame( void )
 	while(1)
 	{
 		PrintInfo();
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*4, "%s", MenuMode ? "X   : Update" : "            ");
+		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*1, "Home: Exit");
+		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
+		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
+		PrintFormat( MENU_POS_X + 44 * 5, MENU_POS_Y + 20*4, "%s", MenuMode ? "X   : Update" : "            ");
 
 		FPAD_Update();
 
 		if( FPAD_Start(1) )
 		{
 			ClearScreen();
-			GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
-			PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader..." );
+			PrintFormat( 90, 232, "Returning to loader..." );
 			ExitToLoader(0);
 		}
 
@@ -254,7 +253,7 @@ void SelectGame( void )
 		{
 			if( FPAD_Down(0) )
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
 				if( PosX + 1 >= ListMax )
 				{
@@ -273,7 +272,7 @@ void SelectGame( void )
 			}
 			else if( FPAD_Right(0) )
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
 				if( PosX == ListMax - 1 )
 				{
@@ -295,7 +294,7 @@ void SelectGame( void )
 			}
 			else if( FPAD_Up(0) )
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
 				if( PosX <= 0 )
 				{
@@ -314,7 +313,7 @@ void SelectGame( void )
 			}
 			else if( FPAD_Left(0) )
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
 				if( PosX == 0 )
 				{
@@ -342,10 +341,9 @@ void SelectGame( void )
 			if( redraw )
 			{
 				for( i=0; i < ListMax; ++i )
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6 + i * 20, "%50.50s [%.6s]%s", gi[i+ScrollX].Name, gi[i+ScrollX].ID, i == PosX ? "<" : " " );
-				Screenshot();
-				GRRLIB_Render();
-				GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+					PrintFormat( MENU_POS_X-8, MENU_POS_Y + 20*6 + i * 20, "%42.42s [%.6s]", gi[i+ScrollX].Name, gi[i+ScrollX].ID );
+					
+				PrintFormat( MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, "<" );
 			}
 
 		} else {	//settings menu
@@ -357,7 +355,7 @@ void SelectGame( void )
 			
 			if( FPAD_Down(0) )
 			{
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(PosX), " " );
+				PrintFormat( MENU_POS_X+30, SettingY(PosX), " " );
 				
 				PosX++;
 
@@ -377,7 +375,7 @@ void SelectGame( void )
 
 			} else if( FPAD_Up(0) )
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+30, SettingY(PosX), " " );
+				PrintFormat( MENU_POS_X+30, SettingY(PosX), " " );
 
 				PosX--;
 
@@ -434,7 +432,7 @@ void SelectGame( void )
 						ncfg->VideoMode &= ~NIN_VID_MASK;
 						ncfg->VideoMode |= Video;
 						if ((Video & NIN_VID_FORCE) == 0)
-							PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(NIN_SETTINGS_VIDEOMODE), "%29s", "" );
+							PrintFormat( MENU_POS_X+50, SettingY(NIN_SETTINGS_VIDEOMODE), "%29s", "" );
 					} break;
 					case NIN_SETTINGS_VIDEOMODE:
 					{
@@ -462,8 +460,8 @@ void SelectGame( void )
 				}
 				if (!(ncfg->Config & NIN_CFG_MEMCARDEMU))
 				{
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDBLOCKS), "%29s", "");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDMULTI), "%29s", "");
+					PrintFormat(MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDBLOCKS), "%29s", "");
+					PrintFormat(MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDMULTI), "%29s", "");
 				}
 			}
 
@@ -471,14 +469,14 @@ void SelectGame( void )
 			{
 				u32 ListLoopIndex = 0;
 				for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
+					PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
+				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
 				ListLoopIndex++;
 
 				u32 LanIndex = ncfg->Language;
 				if (( LanIndex >= NIN_LAN_LAST ) ||  ( LanIndex < NIN_LAN_FIRST ))
 					LanIndex = NIN_LAN_LAST; //Auto
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-4s", OptionStrings[ListLoopIndex], LanguageStrings[LanIndex] );
+				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-4s", OptionStrings[ListLoopIndex], LanguageStrings[LanIndex] );
 				ListLoopIndex++;
 
 				u32 VideoModeIndex;
@@ -502,7 +500,7 @@ void SelectGame( void )
 						ncfg->VideoMode |= NIN_VID_AUTO;
 						VideoModeIndex = NIN_VID_INDEX_AUTO;
 				}
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoModeIndex] );
+				PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoModeIndex] );
 				ListLoopIndex++;
 
 				if( ncfg->VideoMode & NIN_VID_FORCE )
@@ -517,7 +515,7 @@ void SelectGame( void )
 						ncfg->VideoMode |= NIN_VID_FORCE_NTSC;
 						VideoModeIndex = NIN_VID_INDEX_FORCE_NTSC;
 					}
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoModeStrings[VideoModeIndex] );
+					PrintFormat( MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoModeStrings[VideoModeIndex] );
 				}
 				ListLoopIndex++;
 
@@ -526,21 +524,19 @@ void SelectGame( void )
 					u32 MemCardBlocksVal = ncfg->MemCardBlocks;
 					if (MemCardBlocksVal > MEM_CARD_MAX)
 						MemCardBlocksVal = 0;
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal));
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex+1), "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
+					PrintFormat(MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal));
+					PrintFormat(MENU_POS_X + 50, SettingY(ListLoopIndex+1), "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
 				}
 				ListLoopIndex+=2;
 
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
+				PrintFormat(MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
 				ListLoopIndex++;
 
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ">");
-				Screenshot();
-				GRRLIB_Render();
-				GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
-				
+				PrintFormat(MENU_POS_X + 30, SettingY(PosX), ">");
 			}
 		}
+		
+		VIDEO_WaitVSync();
 	}
 	u32 SelectedGame = PosX + ScrollX;
 	char* StartChar = gi[SelectedGame].Path + 3;
@@ -580,7 +576,7 @@ void SelectGame( void )
 
 void PrintInfo()
 {
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Nintendont Loader v%d.%d (%s)", NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Built   : %s %s", __DATE__, __TIME__ );
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*3, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*1, "Nintendont Loader v%d.%d (%s)", NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*2, "Built   : %s %s", __DATE__, __TIME__ );
+	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*3, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
 }
