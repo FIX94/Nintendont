@@ -588,11 +588,7 @@ bool PatchProcessorInterface( u32 BufAt0, u32 Buffer )
 	if(BufAt0 == 0x80033014 && (read32(Buffer+12) & 0xFC00FFFF) == 0x540037FE) //extrwi rZ, rY, 1,5
 	{
 		// Extract WRAPPED bit
-		#ifdef DEBUG_PATCH
 		u32 op = read32(Buffer+12);
-		#else
-		read32(Buffer+12);
-		#endif
 		W16(Buffer+14, 0x1FFE);
 		#ifdef DEBUG_PATCH
 		u32 src = (op >> 21) & 0x1F; //rY

@@ -23,9 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <gctypes.h>
 #include <stdio.h>
-#include "background_png.h"
 #include "Config.h"
-#include "grrlib.h"
 
 #ifndef HW_RVL
 #define HW_RVL
@@ -38,30 +36,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //#define DEBUG_PATCHES
 //#define DEBUG_MODULE_PATCH 1
 //#define EXIPATCH
-//#define SCREENSHOT
 
-#define MENU_POS_X			25
+#define MENU_POS_X			10
 #define MENU_POS_Y			34
-#define DEFAULT_SIZE		16
-#define MENU_SIZE			16 // If we run out of screen space this should be made smaller
-
-// RGBA Colors
-#define AQUA				0x00FFFFFF
-#define BLACK				0x000000FF
-#define BLUE				0x0000FFFF
-#define FUCHSIA				0xFF00FFFF
-#define GRAY				0x808080FF
-#define GREEN				0x00C108FF
-#define LIME				0x00FF00FF
-#define MAROON				0x800000FF
-#define NAVY				0x000080FF
-#define OLIVE				0x808000FF
-#define PURPLE				0x800080FF
-#define RED					0xFF0000FF
-#define SILVER				0xC0C0C0FF
-#define TEAL				0x008080FF
-#define WHITE				0xFFFFFFFF
-#define YELLOW				0xFFFF00FF
 
 #define		HW_REG_BASE		0xCD800000
 #define		HW_RESETS		(HW_REG_BASE + 0x194)
@@ -73,9 +50,6 @@ extern u32 Region;
 extern u32 POffset;
 extern NIN_CFG *ncfg;
 extern FILE *cfg;
-extern GRRLIB_ttfFont *myFont;
-extern GRRLIB_texImg *background;
-extern GRRLIB_texImg *screen_buffer;
 
 enum ContentType
 {
@@ -124,15 +98,13 @@ typedef struct
 bool IsWiiU( void );
 const char* const GetRootDevice();
 void RAMInit(void);
-void Initialise();
+void *Initialise();
 bool LoadNinCFG();
 void ExitToLoader(int ret);
 void ClearScreen();
 void CloseDevices();
 void hexdump(void *d, int len);
 void *memalign( u32 Align, u32 Size );
-void UpdateScreen(void);
-void Screenshot(void);
 
 #endif
 

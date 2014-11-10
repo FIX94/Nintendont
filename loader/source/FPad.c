@@ -18,13 +18,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
-
 #include "FPad.h"
-#include "global.h"
-#include "exi.h"
-
 #include <wupc/wupc.h>
-
 static u32 WPAD_Pressed;
 static u32 PAD_Pressed;
 static s8  PAD_Stick_Y;
@@ -35,7 +30,6 @@ static u32 Repeat;
 #define DELAY_START	900
 #define DELAY_STEP	100
 #define DELAY_STOP	100
-
 
 #define LEFT_STICK (status->exp.classic.ljs.mag > 0.15)
 #define LEFT_STICK_UP ((status->exp.classic.ljs.ang >= 300 && status->exp.classic.ljs.ang <= 360) \
@@ -119,7 +113,7 @@ bool FPAD_Up( bool ILock )
 
 	if((WPAD_Pressed & (WPAD_BUTTON_UP|WPAD_CLASSIC_BUTTON_UP)) || (PAD_Pressed & PAD_BUTTON_UP) || (PAD_Stick_Y > 30))
 	{
-		Repeat = 2;
+		Repeat = 10;
 		SLock = true;
 		return true;
 	}
@@ -132,7 +126,7 @@ bool FPAD_Down( bool ILock )
 
 	if( (WPAD_Pressed & (WPAD_BUTTON_DOWN|WPAD_CLASSIC_BUTTON_DOWN)) || (PAD_Pressed & PAD_BUTTON_DOWN) || (PAD_Stick_Y < -30))
 	{
-		Repeat = 2;
+		Repeat = 10;
 		SLock = true;
 		return true;
 	}
@@ -145,7 +139,7 @@ bool FPAD_Left( bool ILock )
 
 	if((WPAD_Pressed & (WPAD_BUTTON_LEFT|WPAD_CLASSIC_BUTTON_LEFT)) || (PAD_Pressed & PAD_BUTTON_LEFT) || (PAD_Stick_X < -30))
 	{
-		Repeat = 1;
+		Repeat = 5;
 		SLock = true;
 		return true;
 	}
@@ -157,7 +151,7 @@ bool FPAD_Right( bool ILock )
 
 	if( (WPAD_Pressed & (WPAD_BUTTON_RIGHT|WPAD_CLASSIC_BUTTON_RIGHT)) || (PAD_Pressed & PAD_BUTTON_RIGHT) || ( PAD_Stick_X > 30 ))
 	{
-		Repeat = 1;
+		Repeat = 5;
 		SLock = true;
 		return true;
 	}
@@ -226,14 +220,4 @@ bool FPAD_Start( bool ILock )
 		return true;
 	}
 	return false;
-}
-
-inline void Screenshot(void) {
-	if (WPAD_Pressed == (WPAD_BUTTON_PLUS|WPAD_BUTTON_MINUS)) {
-		#ifdef SCREENSHOT
-		gprintf("Screenshot %s\r\n", GRRLIB_ScrShot("Screenshot.png") ? "taken" : "failed");
-		#else
-		gprintf("Screenshot function disabled\r\n");
-		#endif
-	}
 }
