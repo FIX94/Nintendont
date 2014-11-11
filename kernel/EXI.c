@@ -199,7 +199,7 @@ void EXIInit( void )
 }
 bool EXICheckTimer(void)
 {
-	return (read32(HW_TIMER) - IRQ_Timer) >= 3800;	// about 500 times a second
+	return (read32(HW_TIMER) - IRQ_Timer) > 1900;	// about 1000 times a second
 }
 void EXIInterrupt(void)
 {
