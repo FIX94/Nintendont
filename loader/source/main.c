@@ -587,8 +587,8 @@ int main(int argc, char **argv)
 			// EUR
 			case 'D':
 			case 'F':
-			case 'G':
 			case 'H':
+			case 'I':
 			case 'M':
 			case 'P':
 			case 'S':
