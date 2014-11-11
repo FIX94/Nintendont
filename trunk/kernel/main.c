@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Patch.h"
 #ifdef NINTENDONT_USB
 #include "usb.h"
+#include "ehci.h"
 #else
 #include "SDI.h"
 #endif
@@ -58,7 +59,9 @@ FATFS *fatfs;
 
 static u32 HID_ThreadStack[0x400] __attribute__((aligned(32)));
 static u32 DI_ThreadStack[0x400] __attribute__((aligned(32)));
-
+#ifdef NINTENDONT_USB
+static u8 DummyBuffer[0x1000] __attribute__((aligned(32)));
+#endif
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
 extern struct ipcmessage DI_CallbackMsg;
@@ -238,6 +241,9 @@ int _main( int argc, char *argv[] )
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
+#ifdef NINTENDONT_USB
+	u32 USBReadTimer = Now;
+#endif
 	u32 Reset = 0;
 	bool SaveCard = false;
 	if( ConfigGetConfig(NIN_CFG_LED) )
@@ -286,6 +292,13 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
+		#ifdef NINTENDONT_USB
+		else if((read32(HW_TIMER) - USBReadTimer) / 1898437 > 9) /* Read random sector after about 10 seconds */
+		{
+			USBStorage_Read_Sectors(USBReadTimer % s_cnt, 1, DummyBuffer);
+			USBReadTimer = read32(HW_TIMER);
+		}
+		#endif
 		udelay(10); //wait for other threads
 
 		//Baten Kaitos save hax
