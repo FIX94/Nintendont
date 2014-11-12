@@ -1501,6 +1501,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					read32( (u32)Buffer + i + 8 ) == 0x40820008 &&
 					(read32( (u32)Buffer + i + 12 ) & 0xFC00FFFF) == 0x60000004 )
 				{
+					if(write32A((u32)Buffer + i - 0x30, 0x60000000, 0x93E50028, 0)) // EXI Channel 2 Status Register
+						printpatchfound("SetInterruptMask", "DBG", (u32)Buffer + i - 0x30);
 					printpatchfound("SetInterruptMask",NULL, (u32)Buffer + i + 12);
 
 					write32( (u32)Buffer + i + 12, (read32( (u32)Buffer + i + 12 ) & 0xFFFF0000) | 0x4004 );
