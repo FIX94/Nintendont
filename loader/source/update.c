@@ -41,8 +41,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 extern char launch_dir[MAXPATHLEN];
 
-// Please don't delete any commented code, it's for later
-
 typedef struct {
 	const char url[85];
 	const char text[30];
@@ -60,7 +58,7 @@ typedef enum {
 static const downloads_t Downloads[] = {
 	{"http://nintendon-t.googlecode.com/svn/trunk/loader/loader.dol", "Updating Nintendont", "boot.dol", 1 << 21}, // 4MB
 	{"http://nintendon-t.googlecode.com/svn/trunk/nintendont/titles.txt", "Updating titles.txt", "titles.txt", 1 << 19}, // 512KB
-	{"http://nintendon-t.googlecode.com/svn/trunk/controllerconfigs/controllers.zip", "Updating controllers.zip", "controllers.zip", 1 << 14}, // 16KB
+	{"http://nintendon-t.googlecode.com/svn/trunk/controllerconfigs/controllers.zip", "Updating controllers.zip", "controllers.zip", 1 << 15}, // 32KB
 	{"http://nintendon-t.googlecode.com/svn/trunk/common/include/NintendontVersion.h", "Checking Latest Version", "", 1 << 10} // 1KB
 };
 
@@ -93,7 +91,8 @@ static inline bool LatestVersion(int *major, int *minor, int line) {
 	u32 http_status = 0;
 	u8* outbuf = NULL;
 	u32 filesize;
-	PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, Downloads[DOWNLOAD_VERSION].text);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, Downloads[DOWNLOAD_VERSION].text);
+	UpdateScreen();
 	http_request(Downloads[DOWNLOAD_VERSION].url, Downloads[DOWNLOAD_VERSION].max_size);
 	
 	http_get_result(&http_status, &outbuf, &filesize);
@@ -112,7 +111,7 @@ static inline bool LatestVersion(int *major, int *minor, int line) {
 
 static s32 Download(DOWNLOADS download_number)  {
 	ClearScreen();
-
+	
 	int line = 1;
 	int ret, major = 0, minor = 0;
 	u32 http_status = 0;
@@ -122,7 +121,9 @@ static s32 Download(DOWNLOADS download_number)  {
 	FILE *file;
 	bool dir_argument_exists = strlen(launch_dir);
 	snprintf(filepath, sizeof(filepath), "%s%s", dir_argument_exists ? launch_dir : "/apps/Nintendont/", Downloads[download_number].filename);
-	PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, Downloads[download_number].text);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, Downloads[download_number].text);
+	UpdateScreen();
+	
 	line++;
 	gprintf("Downloading %s to %s\r\n", Downloads[download_number].url, filepath);
 	ret = net_init();
@@ -131,19 +132,23 @@ static s32 Download(DOWNLOADS download_number)  {
 		goto end;
 	}
 	gprintf("Network Initialized\r\n");
-	PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "Network Initialized");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Network Initialized");
+	UpdateScreen();
+	
 	line++;
 	if (download_number == DOWNLOAD_NINTENDONT) {
 		ret = LatestVersion(&major, &minor, line);
 		line++;
 		if (ret && (major <= NIN_MAJOR_VERSION) && (minor <= NIN_MINOR_VERSION)) {
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "You already have the latest version");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "You already have the latest version");
+			UpdateScreen();
 			if (outbuf != NULL) free(outbuf);
 			net_deinit();
 			sleep(4);
 			return 0;
 		} else {
-			PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "Downloading Nintendont v%i.%i", major, minor);
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Downloading Nintendont v%i.%i", major, minor);
+			UpdateScreen();
 		}
 		line++;
 	}
@@ -164,7 +169,8 @@ static s32 Download(DOWNLOADS download_number)  {
 		ret = -2;
 		goto end;
 	}
-	PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "Download Complete");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Download Complete");
+	UpdateScreen();
 	line++;
 	if (!dir_argument_exists) {
 		gprintf("Creating new directory\r\n");
@@ -180,14 +186,19 @@ static s32 Download(DOWNLOADS download_number)  {
 		fwrite(outbuf, filesize, 1, file);
 		fclose(file);
 		if (download_number == DOWNLOAD_CONTROLLERS) ret = UnzipControllers(filepath);
-		if (ret == 1) PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "Update Complete");
+		if (ret == 1) {
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Update Complete");
+			UpdateScreen();
+			line++;
+		}
 	}
 
 end:
 	if (ret != 1)
-		PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "Update Error: %i", ret);
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*line, "Update Error: %i", ret);
 	else
-		PrintFormat(MENU_POS_X, MENU_POS_Y + 20*line, "Restart Nintendont to complete update");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Restart Nintendont to complete update");
+	GRRLIB_Render();
 	if (outbuf != NULL) free(outbuf);
 	net_deinit();
 	sleep(4);
@@ -196,12 +207,12 @@ end:
 
 void UpdateNintendont(void)  {
 	ClearScreen();
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "A: Download Nintendont");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "X: Download titles.txt");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*3, "Y: Download controllers.zip");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5, "B: Return to Settings");
+	GRRLIB_Render();
 
-	PrintFormat(MENU_POS_X, MENU_POS_Y + 20*1, "A: Download Nintendont");
-	PrintFormat(MENU_POS_X, MENU_POS_Y + 20*2, "X: Download titles.txt");
-	PrintFormat(MENU_POS_X, MENU_POS_Y + 20*3, "Y: Download controllers.zip");
-	PrintFormat(MENU_POS_X, MENU_POS_Y + 20*5, "B: Return to Settings");
-	
 	while(true) {
 		FPAD_Update();
 		

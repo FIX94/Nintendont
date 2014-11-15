@@ -45,14 +45,14 @@ u32 LoadGame( void )
 	s32 ret = DVDLowRead( (void*)0x80000000, 0x20, 0 );
 	if( !ret )
 	{
-		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
 		ExitToLoader(0);
 	}
 
 	ret = DVDLowRead( (void*)AppInfo, 32, 0x2440 );
 	if( !ret )
 	{
-		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
 		ExitToLoader(0);
 	}
 
@@ -61,7 +61,7 @@ u32 LoadGame( void )
 	ret = DVDLowRead( (void*)0x81200000, *(vu32*)(AppInfo+0x14) + *(vu32*)(AppInfo+0x18), 0x2460 );
 	if( !ret )
 	{
-		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
 		ExitToLoader(0);
 	}
 
@@ -75,11 +75,11 @@ u32 LoadGame( void )
 	
 	if( (u32)app_entry < 0x81200000 || (u32)app_entry > 0x81300000 )
 	{
-		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal error app_entry is not within the apploader area!");
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*6, "Fatal error app_entry is not within the apploader area!");
 		ExitToLoader(0);
 	}
 
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*18, "Apploader OK");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*18, "Apploader OK");
 
 	app_entry( &app_init, &app_main, &app_final );
 
@@ -92,7 +92,7 @@ u32 LoadGame( void )
 	else
 		app_init(gprintf);
 	
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*19, "Loading main.dol");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*19, "Loading main.dol");
 
 	u32 counter = 13;
 
@@ -102,7 +102,7 @@ u32 LoadGame( void )
 		u32 Length = 0;
 		u32 Offset = 0;
 		
-		PrintFormat( MENU_POS_X + counter * 8, MENU_POS_Y + 20*19, ".");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + counter * 8, MENU_POS_Y + 20*19, ".");
 
 		if( app_main( &Data, &Length, &Offset ) != 1 )
 			break;
@@ -110,7 +110,7 @@ u32 LoadGame( void )
 		if( (u32)Data < 0x80000000 || (u32)Data >= 0x81800000 )
 		{
 			gprintf("app_main(dst:%p)\r\n", Data );
-			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal error app_main:Data not in MEM1!");
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*6, "Fatal error app_main:Data not in MEM1!");
 			ExitToLoader(0);
 		}
 
@@ -120,7 +120,7 @@ u32 LoadGame( void )
 		ret = DVDLowRead( Data, Length, Offset );
 		if( !ret )
 		{
-			PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Fatal DVDLowRead() failed");
 			ExitToLoader(0);
 		}
 
@@ -138,11 +138,12 @@ u32 LoadGame( void )
 	
 	if( (u32)entrypoint < 0x80000000 || (u32)app_entry >= 0x81800000 )
 	{
-		PrintFormat( MENU_POS_X, MENU_POS_Y + 20*6, "Fatal error entrypoint is not within MEM1!");
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*6, "Fatal error entrypoint is not within MEM1!");
 		ExitToLoader(0);
 	}
 
-	PrintFormat( MENU_POS_X, MENU_POS_Y + 20*20, "Loading complete, caching...\r\n");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*20, "Loading complete, caching...\r\n");
+	GRRLIB_Render();
 	DVDStartCache();
 
 	return (u32)entrypoint;

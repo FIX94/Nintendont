@@ -33,14 +33,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define MAX_TITLES		740		// That should cover every GC game
 #define LINE_LENGTH 	61
-#define SPECIAL_COUNT 	12
+#define MAX_ELEMENTS(x) ((sizeof((x))) / (sizeof((x)[0])))
 
 typedef struct {
-	char titleID[6];
-	char titleName[LINE_LENGTH - 4];
+	const char titleID[6];
+	const char titleName[LINE_LENGTH - 4];
 } SpecialTitles_t;
 
-static const SpecialTitles_t TriforceTitles[SPECIAL_COUNT] = {
+static const SpecialTitles_t TriforceTitles[] = {
 	{"GGPE01", "Mario Kart Arcade GP"},
 	{"GGPJ01", "Mario Kart Arcade GP"},
 	{"GGPP01", "Mario Kart Arcade GP"},
@@ -68,7 +68,7 @@ s32 LoadTitles(void) {
 	if (titles_txt == NULL) return 0;
 	loaded = true;
 	do {
-		c = fgetc (titles_txt);
+		c = fgetc(titles_txt);
 		if (c == '\r') continue;
 		buffer[line_char] = c;
 		
@@ -88,7 +88,7 @@ s32 LoadTitles(void) {
 inline bool SearchTitles(const char *titleID, char *titleName) {
 	if (!loaded) return false;
 	int i;
-	for(i=0; i < SPECIAL_COUNT; i++) { // Check for Triforce arcade games first
+	for(i=0; i < MAX_ELEMENTS(TriforceTitles); i++) { // Check for Triforce arcade games first
 		if (!strncmp(titleID, TriforceTitles[i].titleID, 6)) {
 			strcpy(titleName, TriforceTitles[i].titleName);
 			gprintf("Found special title %s, replacing name with %s\r\n", titleID, TriforceTitles[i].titleName);
