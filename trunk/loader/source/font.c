@@ -28,40 +28,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <unistd.h>
 
 #include "font.h"
-#include "wii-font.h"
+#include "global.h"
 
-static void PrintChar( int xx, int yy, char c )
+void PrintFormat(u8 size, const u32 color, int x, int y, const char *str, ... )
 {
-	unsigned long* fb = (unsigned long*)VIDEO_GetCurrentFramebuffer();
-
-	if( fb == NULL )
-		return;
-
-	if( c >= 0x7F || c < 0x20)
-		c = ' ';
-	int x,y;
-	for(  x=1; x <7; ++x)
-	{
-		for(  y=0; y<16; ++y)
-		{
-			fb[(x+xx)+(y+yy)*320] = WiiFont[x+(y+(c-' ')*16)*8];
-		}
-	}
-}
-
-static inline void PrintString( int x, int y, char *str )
-{
-	int i=0;
-	while(str[i]!='\0')
-	{
-		PrintChar( x+i*6, y, str[i] );
-		i++;
-	}
-}
-
-void PrintFormat( int x, int y, const char *str, ... )
-{
-	char astr[2048] = {0};
+	char astr[2048];
 
 	va_list ap;
 	va_start( ap, str );
@@ -69,6 +40,5 @@ void PrintFormat( int x, int y, const char *str, ... )
 	vsnprintf(astr, sizeof(astr), str, ap);
 
 	va_end( ap );
-
-	PrintString( x, y, astr );
+	GRRLIB_PrintfTTF(x, y, myFont, astr, size, color);	
 }
