@@ -176,7 +176,10 @@ inline void UpdateScreen(void) {
 }
 void ExitToLoader(int ret)
 {
+	UpdateScreen();
+	UpdateScreen(); // Triple render to ensure it gets seen
 	GRRLIB_Render();
+	gprintf("Exiting Nintendont...\r\n");
 	sleep(3);
 	GRRLIB_FreeTexture(background);
 	GRRLIB_FreeTexture(screen_buffer);

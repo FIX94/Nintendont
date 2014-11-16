@@ -206,14 +206,14 @@ end:
 }
 
 void UpdateNintendont(void)  {
-	ClearScreen();
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "A: Download Nintendont");
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "X: Download titles.txt");
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*3, "Y: Download controllers.zip");
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5, "B: Return to Settings");
-	GRRLIB_Render();
-
 	while(true) {
+		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "A: Download Nintendont");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "X: Download titles.txt");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*3, "Y: Download controllers.zip");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5, "B: Return to Settings");
+		GRRLIB_Render();
+		
 		FPAD_Update();
 		
 		if (FPAD_OK(0)) {
