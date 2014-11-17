@@ -37,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Patch.h"
 #ifdef NINTENDONT_USB
 #include "usb.h"
-#include "ehci.h"
 #else
 #include "SDI.h"
 #endif
@@ -59,12 +58,10 @@ FATFS *fatfs;
 
 static u32 HID_ThreadStack[0x400] __attribute__((aligned(32)));
 static u32 DI_ThreadStack[0x400] __attribute__((aligned(32)));
-#ifdef NINTENDONT_USB
-static u8 DummyBuffer[0x1000] __attribute__((aligned(32)));
-#endif
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
 extern struct ipcmessage DI_CallbackMsg;
+extern u32 DI_MessageQueue;
 
 extern char __bss_start, __bss_end;
 int _main( int argc, char *argv[] )
@@ -295,7 +292,14 @@ int _main( int argc, char *argv[] )
 		#ifdef NINTENDONT_USB
 		else if((read32(HW_TIMER) - USBReadTimer) / 1898437 > 9) /* Read random sector after about 10 seconds */
 		{
-			USBStorage_Read_Sectors(USBReadTimer % s_cnt, 1, DummyBuffer);
+			DI_CallbackMsg.result = -1;
+			sync_after_write(&DI_CallbackMsg, 0x20);
+			IOS_IoctlAsync( DI_Handle, 2, NULL, 0, NULL, 0, DI_MessageQueue, &DI_CallbackMsg );
+			while(DI_CallbackMsg.result)
+			{
+				udelay(10); //wait for other threads
+				BTUpdateRegisters();
+			}
 			USBReadTimer = read32(HW_TIMER);
 		}
 		#endif
