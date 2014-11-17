@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dol.h"
 #include "elf.h"
 #include "PatchCodes.h"
+#include "PatchWidescreen.h"
 #include "PatchTimers.h"
 #include "Config.h"
 #include "global.h"
@@ -1406,7 +1407,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//memcpy( (void*)0x020CBCC, OSReportDM, sizeof(OSReportDM) );	// UNkReport
 		//memcpy( (void*)0x02281B8, OSReportDM, sizeof(OSReportDM) );	// UNkReport4
 	}
-
+	bool PatchWide = ConfigGetConfig(NIN_CFG_FORCE_WIDE);
+	if(PatchWide && PatchStaticWidescreen(TITLE_ID, GAME_ID & 0xFF))
+	{
+		dbgprintf("Patch:Applied Game-Specific Widescreen Hack\r\n");
+		PatchWide = false;
+	}
 	PatchFuncInterface( Buffer, Length );
 	sync_after_write( Buffer, Length );
 	sync_before_read( Buffer, Length );
@@ -2099,41 +2105,31 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	// Widescreen hack by Extrems
 						case FCODE_C_MTXPerspective:	//	C_MTXPerspective
 						{
-							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
+							if( !PatchWide )
 								break;
-
+							if(read32(FOffset+0x20) != 0xFFA01090)
+							{
+								CurPatterns[j].Found = 0;
+								break;
+							}
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-							*(volatile float *)0x50 = 0.5625f;
-
-							memcpy((void*)(FOffset+ 28),(void*)(FOffset+ 36),44);
-							memcpy((void*)(FOffset+188),(void*)(FOffset+192),16);
-
-							*(unsigned int*)(FOffset+52) = 0x48000001 | ((*(unsigned int*)(FOffset+52) & 0x3FFFFFC) + 8);
-							*(unsigned int*)(FOffset+72) = 0x3C600000 | (0x80000050 >> 16);		// lis		3, 0x8180
-							*(unsigned int*)(FOffset+76) = 0xC0230000 | (0x80000050 & 0xFFFF);	// lfs		1, -0x1C (3)
-							*(unsigned int*)(FOffset+80) = 0xEC240072;							// fmuls	1, 4, 1
+							PatchWideMulti(FOffset+0x20, 29);
 						} break;
 						case FCODE_C_MTXLightPerspective:	//	C_MTXLightPerspective
 						{
-							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
+							if( !PatchWide )
 								break;
-
+							if(read32(FOffset+0x24) != 0xFF601090)
+							{
+								CurPatterns[j].Found = 0;
+								break;
+							}
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-							*(volatile float *)0x50 = 0.5625f;
-
-							*(u32*)(FOffset+36) = *(u32*)(FOffset+32);
-
-							memcpy((void*)(FOffset+ 28),(void*)(FOffset+ 36),60);
-							memcpy((void*)(FOffset+184),(void*)(FOffset+188),16);
-
-							*(u32*)(FOffset+68) += 8;
-							*(u32*)(FOffset+88) = 0x3C600000 | (0x80000050 >> 16); 		// lis		3, 0x8180
-							*(u32*)(FOffset+92) = 0xC0230000 | (0x80000050 & 0xFFFF);	// lfs		1, -0x90 (3)
-							*(u32*)(FOffset+96) = 0xEC240072;							// fmuls	1, 4, 1
+							PatchWideMulti(FOffset+0x24, 27);
 						} break;
 						case FCODE_J3DUClipper_clip:	//	clip
 						{
-							if( !ConfigGetConfig(NIN_CFG_FORCE_WIDE) )
+							if( !PatchWide )
 								break;
 
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);

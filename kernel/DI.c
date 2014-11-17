@@ -32,6 +32,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "FST.h"
 #include "BT.h"
 
+#ifdef NINTENDONT_USB
+#include "ehci.h"
+static u8 DummyBuffer[0x1000] __attribute__((aligned(32)));
+extern u32 s_cnt;
+#endif
+
 #ifndef DEBUG_DI
 #define dbgprintf(...)
 #else
@@ -623,6 +629,14 @@ u32 DIReadThread(void *arg)
 				break;
 
 			case IOS_IOCTL:
+				#ifdef NINTENDONT_USB
+				if(di_msg->ioctl.command == 2)
+				{
+					USBStorage_Read_Sectors(read32(HW_TIMER) % s_cnt, 1, DummyBuffer);
+					mqueue_ack( di_msg, 0 );
+					break;
+				}
+				#endif
 				di_src = 0;
 				di_dest = (char*)di_msg->ioctl.buffer_io;
 				di_length = di_msg->ioctl.length_io;
