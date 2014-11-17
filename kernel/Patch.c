@@ -1408,11 +1408,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//memcpy( (void*)0x02281B8, OSReportDM, sizeof(OSReportDM) );	// UNkReport4
 	}
 	bool PatchWide = ConfigGetConfig(NIN_CFG_FORCE_WIDE);
-	if(PatchWide && PatchStaticWidescreen(TITLE_ID, GAME_ID & 0xFF))
-	{
-		dbgprintf("Patch:Applied Game-Specific Widescreen Hack\r\n");
+	if(PatchWide && PatchStaticWidescreen(TITLE_ID, GAME_ID & 0xFF)) //if further patching is needed
 		PatchWide = false;
-	}
+
 	PatchFuncInterface( Buffer, Length );
 	sync_after_write( Buffer, Length );
 	sync_before_read( Buffer, Length );
@@ -1451,6 +1449,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	/* DSP Patches */
 	u8 *SHA1i = (u8*)malloca( 0x60, 0x40 );
 	u8 *hash  = (u8*)malloca( 0x14, 0x40 );
+	/* Widescreen Hacks */
+	u32 MTXPerspectiveOffset = 0, MTXLightPerspectiveOffset = 0;
 
 	i = 0;
 	while(i < Length)
@@ -1460,6 +1460,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if(PatchProcessorInterface(BufAt0, (u32)Buffer + i) || PatchTimers(BufAt0, (u32)Buffer + i))
 			{
+				i += 4;
+				continue;
+			}
+			if(PatchWide && PatchWidescreen(BufAt0, (u32)Buffer+i))
+			{
+				PatchWide = false;
 				i += 4;
 				continue;
 			}
@@ -2112,8 +2118,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0;
 								break;
 							}
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-							PatchWideMulti(FOffset+0x20, 29);
+							MTXPerspectiveOffset = FOffset;
 						} break;
 						case FCODE_C_MTXLightPerspective:	//	C_MTXLightPerspective
 						{
@@ -2124,8 +2129,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0;
 								break;
 							}
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-							PatchWideMulti(FOffset+0x24, 27);
+							MTXLightPerspectiveOffset = FOffset;
 						} break;
 						case FCODE_J3DUClipper_clip:	//	clip
 						{
@@ -2704,7 +2708,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PatchB(SIInitStoreAddr, SIInitOffset);
 		printpatchfound("SIInit", NULL, SIInitOffset);
 	}
-
+	if(PatchWide)
+	{
+		if(MTXPerspectiveOffset != 0)
+		{
+			printpatchfound("C_MTXPerspective", NULL, MTXPerspectiveOffset);
+			PatchWideMulti(MTXPerspectiveOffset + 0x20, 29);
+		}
+		if(MTXLightPerspectiveOffset != 0)
+		{
+			printpatchfound("C_MTXLightPerspective", NULL, MTXLightPerspectiveOffset);
+			PatchWideMulti(MTXLightPerspectiveOffset + 0x24, 27);
+		}
+	}
 	free(hash);
 	free(SHA1i);
 
