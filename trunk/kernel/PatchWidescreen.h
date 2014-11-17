@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef _PATCHWIDESCREEN_H_
 #define _PATCHWIDESCREEN_H_
 
+bool PatchWidescreen(u32 FirstVal, u32 Buffer);
 void PatchWideMulti(u32 BufferPos, u32 dstReg);
 bool PatchStaticWidescreen(u32 TitleID, u32 Region);
 

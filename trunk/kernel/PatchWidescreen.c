@@ -36,16 +36,68 @@ void PatchWideMulti(u32 BufferPos, u32 dstReg)
 	PatchB(BufferPos+4, wide+CalcWidescreen_size-4);
 }
 
+//Credits to Ralf from gc-forever for the original Ocarina Codes
+
+#define FLT_ASPECT_0_913 0x3f69d89c
+#define FLT_ASPECT_1_218 0x3f9be5bd
+
+#define FLT_ASPECT_1_266 0x3fa22222
+#define FLT_ASPECT_1_688 0x3fd82d83
+
+#define FLT_ASPECT_1_333 0x3faaaaab
+#define FLT_ASPECT_1_777 0x3fe38e39
+
+#define FLT_ASPECT_1_357 0x3fadb6db
+#define FLT_ASPECT_1_809 0x3fe79e7a
+
+#define FLT_ASPECT_1_428 0x3fb6db6e
+#define FLT_ASPECT_1_905 0x3ff3cf3d
+
+bool PatchWidescreen(u32 FirstVal, u32 Buffer)
+{
+	if(FirstVal == FLT_ASPECT_0_913 && read32(Buffer+4) == 0x2e736200)
+	{
+		write32(Buffer, FLT_ASPECT_1_218);
+		dbgprintf("Patch:[Aspect Ratio 1.218] applied (0x%08X)\r\n", Buffer );
+		return true;
+	}
+	else if(FirstVal == FLT_ASPECT_1_266 && read32(Buffer+4) == 0x44180000)
+	{
+		write32(Buffer, FLT_ASPECT_1_688);
+		dbgprintf("Patch:[Aspect Ratio 1.688] applied (0x%08X)\r\n", Buffer );
+		return true;
+	}
+	else if(FirstVal == FLT_ASPECT_1_333 && read32(Buffer+4) == 0x481c4000)
+	{
+		write32(Buffer, FLT_ASPECT_1_777);
+		dbgprintf("Patch:[Aspect Ratio 1.777] applied (0x%08X)\r\n", Buffer );
+		return true;
+	}
+	else if(FirstVal == FLT_ASPECT_1_357 && read32(Buffer+4) == 0x481c4000)
+	{
+		write32(Buffer, FLT_ASPECT_1_809);
+		dbgprintf("Patch:[Aspect Ratio 1.809] applied (0x%08X)\r\n", Buffer );
+		return true;
+	}
+	else if(FirstVal == FLT_ASPECT_1_428 && read32(Buffer+4) == 0x3e99999a)
+	{
+		write32(Buffer, FLT_ASPECT_1_905);
+		dbgprintf("Patch:[Aspect Ratio 1.905] applied (0x%08X)\r\n", Buffer );
+		return true;
+	}
+	return false;
+}
+
 #define REGION_USA 0x45
 #define REGION_JAP 0x4A
 #define REGION_EUR 0x50
 
-//Credits to Ralf from gc-forever for the original Ocarina Codes
 bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
 	switch(TitleID)
 	{
 		case 0x474D34: //Mario Kart Double Dash
+			dbgprintf("Patch:Patched MKDD Widescreen\r\n");
 			if(Region == REGION_USA || Region == REGION_JAP)
 			{
 				PatchWideMulti(0x1D65A4, 3);
@@ -57,30 +109,26 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				PatchWideMulti(0x1D65B0, 2);
 			}
 			return true;
-		case 0x475A4C: //Wind Waker
+		case 0x474832: //Need for Speed Hot Pursuit 2
+			dbgprintf("Patch:Patched NFS:HP2 Widescreen\r\n");
 			if(Region == REGION_USA)
-				write32(0x3FA998, 0x3FE38E39);
+			{
+				write32(0x14382C, 0xC0429AE8);
+				write32(0x143D58, 0xC0029AE8);
+			}
 			else if(Region == REGION_EUR)
-				write32(0x4021C0, 0x3FE38E39);
-			else if(Region == REGION_JAP)
-				write32(0x3EDE50, 0x3FE38E39);
+			{
+				write32(0x1439AC, 0xC0429AE8);
+				write32(0x143ED8, 0xC0029AE8);
+			}
 			return true;
-		case 0x475A32: //Twilight Princess
+		case 0x474342: //Crash Bandicoot
+			dbgprintf("Patch:Patched Crash Bandicoot Clipping\r\n");
 			if(Region == REGION_USA)
-				write32(0x45391C, 0x3FE79E7A);
+				write32(0xAC768, 0xD01E0040);
 			else if(Region == REGION_EUR)
-				write32(0x4558DC, 0x3FE79E7A);
-			else if(Region == REGION_JAP)
-				write32(0x44DA64, 0x3FE79E7A);
-			return true;
-		case 0x474D53: //Super Mario Sunshine
-			if(Region == REGION_USA)
-				write32(0x416B74, 0x3F9BE5BD);
-			else if(Region == REGION_EUR)
-				write32(0x40E0D4, 0x3F9BE5BD);
-			else
-				return false;
-			return true;
+				write32(0xAC9A4, 0xD01E0040);
+			return false; //aspect ratio gets patched later
 		default:
 			return false;
 	}
