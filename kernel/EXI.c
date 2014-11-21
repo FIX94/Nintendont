@@ -46,13 +46,14 @@ u32 CARDWriteCount = 0;
 u32 IPLReadOffset;
 FIL MemCard;
 bool EXI_IRQ = false;
+bool First_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
 static TCHAR MemCardName[0x20];
 
 static u32 TRIBackupOffset= 0;
-static u32 EXI2IRQ				= 0;
+static u32 EXI2IRQ			= 0;
 static u32 EXI2IRQStatus	= 0;
 
 void EXIInit( void )
@@ -199,7 +200,7 @@ void EXIInit( void )
 }
 bool EXICheckTimer(void)
 {
-	return (read32(HW_TIMER) - IRQ_Timer) > 1900;	// about 1000 times a second
+	return (read32(HW_TIMER) - IRQ_Timer) > (First_IRQ ? 190000 : 1900);	// about 1000 times a second, for the first 10
 }
 void EXIInterrupt(void)
 {
@@ -215,6 +216,7 @@ void EXIInterrupt(void)
 	}
 
 	EXI_IRQ = false;
+	First_IRQ = false;
 	IRQ_Timer = 0;
 	IRQ_Cause = 0;
 }
@@ -330,6 +332,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 					case 0x8101:
 					{
 						dbgprintf("EXI: CARDIRQEnable()\r\n");
+						First_IRQ = true;
 					} break;
 					case 0x8100:
 					{
