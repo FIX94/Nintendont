@@ -144,6 +144,11 @@ int _main( int argc, char *argv[] )
 				mdelay(5);
 			} break;
 		}
+		if(STATUS_ERROR == -7) { // FS check timed out on PPC side
+			dbgprintf("FS check timed out\r\n");
+			mdelay(3000);
+			Shutdown();
+		}
 	}
 #ifndef NINTENDONT_USB
 	s_size = 512;

@@ -5,6 +5,13 @@
 #define SEEK_END    2
 #define SEEK_SET    0
 
+#define STATUS			((void*)0x10004100)
+#define STATUS_LOADING	(*(vu32*)(0x10004100))
+#define STATUS_SECTOR	(*(vu32*)(0x10004100 + 8))
+#define STATUS_DRIVE	(*(float*)(0x1000410C))
+#define STATUS_GB_MB	(*(vu32*)(0x10004100 + 16))
+#define STATUS_ERROR	(*(vu32*)(0x10004100 + 20))
+
 extern void *memset8( void *dst, int x, size_t len );
 extern void *memset16( void *dst, int x, size_t len );
 extern void *memset32( void *dst, int x, size_t len );

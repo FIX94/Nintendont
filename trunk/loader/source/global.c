@@ -186,7 +186,8 @@ void ExitToLoader(int ret)
 	GRRLIB_FreeTTF(myFont);
 	GRRLIB_Exit();
 	CloseDevices();
-	
+	memset( (void*)0x92f00000, 0, 0x100000 );
+	DCFlushRange( (void*)0x92f00000, 0x100000 );
 	if(*(vu32*)0x80001804 == 0x53545542 && *(vu32*)0x80001808 == 0x48415858) //stubhaxx
 	{
 		VIDEO_SetBlack(TRUE);

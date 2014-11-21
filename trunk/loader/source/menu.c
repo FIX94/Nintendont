@@ -46,7 +46,7 @@ extern char *launch_dir;
 
 inline u32 SettingY(u32 row)
 {
-	return 140 + 16 * row;
+	return 127 + 16 * row;
 }
 void HandleWiiMoteEvent(s32 chan)
 {
@@ -206,10 +206,6 @@ void SelectGame( void )
 	while(1)
 	{
 		PrintInfo();
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*4, "%s", MenuMode ? "X   : Update" : "            ");
 
 		FPAD_Update();
 
@@ -244,6 +240,11 @@ void SelectGame( void )
 
 			redraw = 1;
 		}
+		
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*4, MenuMode ? "X   : Update" : "            ");
 
 	//	gprintf("\rS:%u P:%u G:%u M:%u    ", ScrollX, PosX, gamecount, ListMax );
 
@@ -523,7 +524,7 @@ void SelectGame( void )
 					u32 MemCardBlocksVal = ncfg->MemCardBlocks;
 					if (MemCardBlocksVal > MEM_CARD_MAX)
 						MemCardBlocksVal = 0;
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal));
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d%s", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal), MemCardBlocksVal == 2 ? "(Recommended)" : "             ");
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex+1), "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
 				}
 				ListLoopIndex+=2;

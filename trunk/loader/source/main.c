@@ -62,6 +62,7 @@ extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
 extern u32 __SYS_GetRTC(u32 *gctime);
 
+#define STATUS			((void*)0x90004100)
 #define STATUS_LOADING	(*(vu32*)(0x90004100))
 #define STATUS_SECTOR	(*(vu32*)(0x90004100 + 8))
 #define STATUS_DRIVE	(*(float*)(0x9000410C))
@@ -106,7 +107,7 @@ int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
 	__exception_setreload(10);
-	
+	u64 timeout = 0;
 	CheckForGecko();
 	DCInvalidateRange(loader_stub, 0x1800);
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
@@ -412,8 +413,8 @@ int main(int argc, char **argv)
 
 	s32 fd = IOS_Open( "/dev/es", 0 );
 
-	memset( (void*)0x90004100, 0xFFFFFFFF, 0x20  );
-	DCFlushRange( (void*)0x90004100, 0x20 );
+	memset( STATUS, 0xFFFFFFFF, 0x20  );
+	DCFlushRange( STATUS, 0x20 );
 
 	memset( (void*)0x91000000, 0xFFFFFFFF, 0x20  );
 	DCFlushRange( (void*)0x91000000, 0x20 );
@@ -452,9 +453,10 @@ int main(int argc, char **argv)
 
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel ...\r\n");
 	UpdateScreen();
+	
 	while(1)
 	{
-		DCInvalidateRange( (void*)0x90004100, 0x20 );
+		DCInvalidateRange( STATUS, 0x20 );
 		if( STATUS_LOADING == 0xdeadbeef )
 			break;
 
@@ -471,29 +473,48 @@ int main(int argc, char **argv)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device...");
 		if(STATUS_LOADING > 2 && STATUS_LOADING < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device... Done!");
-		if(STATUS_LOADING == -2)
+		if(STATUS_LOADING == -2) {
+			GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF); // Draw all status messages
 			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device... Error! %d  Shutting down", STATUS_ERROR);
+		}
 		if(STATUS_LOADING == 3)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...");
 		if(STATUS_LOADING > 3 && STATUS_LOADING < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Done!");
-		if(STATUS_LOADING == -3)
+		if(STATUS_LOADING == -3) {
+			GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF); // Draw all status messages
 			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Error! %d  Shutting down", STATUS_ERROR);
-		if(STATUS_LOADING == 5)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS...");
+		}
+		if(STATUS_LOADING == 5) {
+			if (timeout == 0)
+				timeout = ticks_to_secs(gettime()) + 20; // Set timer for 20 seconds
+			else if (timeout <= ticks_to_secs(gettime())) {
+				STATUS_ERROR = -7;
+				DCFlushRange(STATUS, 0x20);
+				usleep(100);
+				//memset( (void*)0x92f00000, 0, 0x100000 );
+				//DCFlushRange( (void*)0x92f00000, 0x100000 );
+				//ExitToLoader(1);
+			}
+			PrintFormat(DEFAULT_SIZE, (STATUS_ERROR == -7) ? MAROON:BLACK, MENU_POS_X, MENU_POS_Y + 20*10, (STATUS_ERROR == -7) ? "Checking FS... Timeout!" : "Checking FS...");
+		}
 		if(STATUS_LOADING > 5 && STATUS_LOADING < 20)
 		{
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Done!");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %.02f%s Sector size: %d", STATUS_DRIVE, STATUS_GB_MB ? "GB" : "MB", STATUS_SECTOR);
 		}
-		if(STATUS_LOADING == -5)
+		if(STATUS_LOADING == -5) {
+			GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF); // Draw all status messages
 			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Error! %d Shutting down", STATUS_ERROR);
+		}
 		if(STATUS_LOADING == 6)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules...");
 		if(STATUS_LOADING > 6 && STATUS_LOADING < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Done!");
-		if(STATUS_LOADING == -6)
+		if(STATUS_LOADING == -6) {
+			GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF); // Draw all status messages
 			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Error! %d Shutting down", STATUS_ERROR);
+		}
 		if(STATUS_LOADING == 7)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config...");
 		if(STATUS_LOADING > 7 && STATUS_LOADING < 20)
@@ -523,6 +544,7 @@ int main(int argc, char **argv)
 		}
 		if(STATUS_LOADING == -8)
 		{
+			GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF); // Draw all status messages
 			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Failed! Shutting down");
 			switch (STATUS_ERROR)
 			{
@@ -557,7 +579,6 @@ int main(int argc, char **argv)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD...");
 		if(STATUS_LOADING > 10 && STATUS_LOADING < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD... Done!");
-		Screenshot();
 		GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE); // Copy all status messages
 		GRRLIB_Render();
 		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
