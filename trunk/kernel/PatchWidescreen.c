@@ -41,6 +41,9 @@ void PatchWideMulti(u32 BufferPos, u32 dstReg)
 #define FLT_ASPECT_0_913 0x3f69d89c
 #define FLT_ASPECT_1_218 0x3f9be5bd
 
+#define FLT_ASPECT_1_200 0x3f99999a
+#define FLT_ASPECT_1_600 0x3fcccccd
+
 #define FLT_ASPECT_1_266 0x3fa22222
 #define FLT_ASPECT_1_688 0x3fd82d83
 
@@ -59,6 +62,13 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 	{
 		write32(Buffer, FLT_ASPECT_1_218);
 		dbgprintf("Patch:[Aspect Ratio 1.218] applied (0x%08X)\r\n", Buffer );
+		return true;
+	}
+	else if(FirstVal == FLT_ASPECT_1_200 && (read32(Buffer+4) == 0x43F00000 || 
+			(read32(Buffer+4) == 0 && read32(Buffer+8) == 0x43F00000)))
+	{	//All Mario Party games share this value
+		write32(Buffer, FLT_ASPECT_1_600);
+		dbgprintf("Patch:[Aspect Ratio 1.600] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	else if(FirstVal == FLT_ASPECT_1_266 && read32(Buffer+4) == 0x44180000)
@@ -94,6 +104,7 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 
 bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
+	u32 Buffer;
 	switch(TitleID)
 	{
 		case 0x474D34: //Mario Kart Double Dash
@@ -109,6 +120,18 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				PatchWideMulti(0x1D65B0, 2);
 			}
 			return true;
+		case 0x474145: //Doubutsu no Mori e+
+		case 0x474146: //Animal Crossing
+			for(Buffer = 0x5E460; Buffer < 0x61EC0; Buffer+=4)
+			{	//Every language has its own function location making 7 different locations
+				if(read32(Buffer) == 0xFF801090 && read32(Buffer+4) == 0x7C9F2378)
+				{
+					dbgprintf("Patch:Patched Animal Crossing Widescreen (0x%08X)\r\n", Buffer);
+					PatchWideMulti(Buffer, 28);
+					return true;
+				}
+			}
+			return false;
 		case 0x474832: //Need for Speed Hot Pursuit 2
 			dbgprintf("Patch:Patched NFS:HP2 Widescreen\r\n");
 			if(Region == REGION_USA)
@@ -128,6 +151,8 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				write32(0xAC768, 0xD01E0040);
 			else if(Region == REGION_EUR)
 				write32(0xAC9A4, 0xD01E0040);
+			else if(Region == REGION_JAP)
+				write32(0xADF1C, 0xD01E0040);
 			return false; //aspect ratio gets patched later
 		default:
 			return false;
