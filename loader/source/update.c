@@ -42,7 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern char launch_dir[MAXPATHLEN];
 
 typedef struct {
-	const char url[85];
+	const char url[96];
 	const char text[30];
 	const char filename[30];
 	const u32 max_size;
@@ -153,7 +153,7 @@ static s32 Download(DOWNLOADS download_number)  {
 		line++;
 	}
 	int i;
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i <= 10; i++) {
 		ret = http_request(Downloads[download_number].url, Downloads[download_number].max_size);
 		if (ret) break;
 		if (i == 10) {
