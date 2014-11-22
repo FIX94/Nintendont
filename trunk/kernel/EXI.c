@@ -30,6 +30,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "debug.h"
 
+#define EXI_IRQ_INSTANT		0		// as soon as possible
+#define EXI_IRQ_DEFAULT		1900	// about 1000 times a second
+#define EXI_IRQ_SLOW		3800	// about 500 times a second
+static u32 CurrentTiming = EXI_IRQ_DEFAULT;
+
 extern u8 SRAM[64];
 extern u32 Region;
 
@@ -46,7 +51,6 @@ u32 CARDWriteCount = 0;
 u32 IPLReadOffset;
 FIL MemCard;
 bool EXI_IRQ = false;
-bool First_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
@@ -198,9 +202,23 @@ void EXIInit( void )
 
 	SRAM_Checksum( (unsigned short *)SRAM, (unsigned short *)SRAM, (unsigned short *)( ((u8*)SRAM) + 2 ) );
 }
+
+void EXISetTimings(u32 TitleID, u32 Region)
+{
+	if(TitleID == 0x474637 && Region == REGION_ID_USA) //Starfox Assault NTSC
+		CurrentTiming = EXI_IRQ_INSTANT;
+	else if(TitleID == 0x474C4D) //Luigis Mansion
+		CurrentTiming = EXI_IRQ_SLOW;
+	else
+		CurrentTiming = EXI_IRQ_DEFAULT;
+#ifdef DEBUG_PATCH
+	dbgprintf("Patch:Using a EXI Timing of %i\n", CurrentTiming);
+#endif
+}
+
 bool EXICheckTimer(void)
 {
-	return (read32(HW_TIMER) - IRQ_Timer) > (First_IRQ ? 190000 : 1900);	// about 1000 times a second, for the first 10
+	return (read32(HW_TIMER) - IRQ_Timer) > CurrentTiming;
 }
 void EXIInterrupt(void)
 {
@@ -216,7 +234,6 @@ void EXIInterrupt(void)
 	}
 
 	EXI_IRQ = false;
-	First_IRQ = false;
 	IRQ_Timer = 0;
 	IRQ_Cause = 0;
 }
@@ -332,7 +349,6 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 					case 0x8101:
 					{
 						dbgprintf("EXI: CARDIRQEnable()\r\n");
-						First_IRQ = true;
 					} break;
 					case 0x8100:
 					{
@@ -479,13 +495,8 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 
 	if( EXIOK == 2 )
 	{
-		if(read32(0) == 0x47463745) //Starfox Assault NTSC
-			EXIInterrupt();
-		else
-		{
-			EXI_IRQ = true;
-			IRQ_Timer = read32(HW_TIMER);
-		}
+		EXI_IRQ = true;
+		IRQ_Timer = read32(HW_TIMER);
 	}
 	return 1;
 }

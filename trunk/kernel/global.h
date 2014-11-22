@@ -24,6 +24,9 @@
 //#define DEBUG_FST	1
 #define DEBUG_PATCH	1
 
+#define REGION_ID_USA	0x45
+#define REGION_ID_JAP	0x4A
+#define REGION_ID_EUR	0x50
 
 #define UINT_MAX ((unsigned int)0xffffffff)
 #define MEM2_BSS __attribute__ ((section (".bss.mem2")))
