@@ -98,10 +98,6 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 	return false;
 }
 
-#define REGION_USA 0x45
-#define REGION_JAP 0x4A
-#define REGION_EUR 0x50
-
 bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
 	u32 Buffer;
@@ -109,12 +105,12 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 	{
 		case 0x474D34: //Mario Kart Double Dash
 			dbgprintf("Patch:Patched MKDD Widescreen\r\n");
-			if(Region == REGION_USA || Region == REGION_JAP)
+			if(Region == REGION_ID_USA || Region == REGION_ID_JAP)
 			{
 				PatchWideMulti(0x1D65A4, 3);
 				PatchWideMulti(0x1D65FC, 2);
 			}
-			else if(Region == REGION_EUR)
+			else if(Region == REGION_ID_EUR)
 			{
 				PatchWideMulti(0x1D6558, 3);
 				PatchWideMulti(0x1D65B0, 2);
@@ -134,12 +130,12 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			return false;
 		case 0x474832: //Need for Speed Hot Pursuit 2
 			dbgprintf("Patch:Patched NFS:HP2 Widescreen\r\n");
-			if(Region == REGION_USA)
+			if(Region == REGION_ID_USA)
 			{
 				write32(0x14382C, 0xC0429AE8);
 				write32(0x143D58, 0xC0029AE8);
 			}
-			else if(Region == REGION_EUR)
+			else if(Region == REGION_ID_EUR)
 			{
 				write32(0x1439AC, 0xC0429AE8);
 				write32(0x143ED8, 0xC0029AE8);
@@ -147,11 +143,11 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			return true;
 		case 0x474342: //Crash Bandicoot
 			dbgprintf("Patch:Patched Crash Bandicoot Clipping\r\n");
-			if(Region == REGION_USA)
+			if(Region == REGION_ID_USA)
 				write32(0xAC768, 0xD01E0040);
-			else if(Region == REGION_EUR)
+			else if(Region == REGION_ID_EUR)
 				write32(0xAC9A4, 0xD01E0040);
-			else if(Region == REGION_JAP)
+			else if(Region == REGION_ID_JAP)
 				write32(0xADF1C, 0xD01E0040);
 			return false; //aspect ratio gets patched later
 		default:

@@ -75,6 +75,7 @@ enum EXICommands {
 #define EXI_READWRITE	2 
 
 void EXIInit();
+void EXISetTimings(u32 TitleID, u32 Region);
 bool EXICheckTimer();
 void EXIInterrupt();
 void EXIUpdateRegistersNEW( void );

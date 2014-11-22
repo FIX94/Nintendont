@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "patches.c"
 #include "DI.h"
 #include "SI.h"
+#include "EXI.h"
 
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
@@ -2777,7 +2778,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		memcpy((void*)0x2A65CC, OSReportDM, sizeof(OSReportDM));
 		sync_after_write((void*)0x2A65CC, sizeof(OSReportDM));
 	}*/
-	if( (GAME_ID & 0xFFFFFF00) == 0x47425600 )	// Batman Vengeance
+	if( TITLE_ID == 0x474256 )	// Batman Vengeance
 	{
 		// Skip Usage of EXI Channel 2
 		if(write32A(0x0018B5DC, 0x60000000, 0x4801D6E1, 0))
@@ -2793,7 +2794,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			#endif
 		}
 	}
-	else if( (GAME_ID & 0xFFFFFF00) == 0x47433600 )	// Pokemon Colosseum
+	else if( TITLE_ID == 0x474336 )	// Pokemon Colosseum
 	{
 		// Memory Card inserted hack
 		if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true )
@@ -2818,7 +2819,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 		}
 	}
-	else if( (GAME_ID & 0xFFFFFF00) == 0x475A4C00 )	// GZL=Wind Waker
+	else if( TITLE_ID == 0x475A4C )	// GZL=Wind Waker
 	{
 		//Anti FrameDrop Panic
 		/* NTSC-U Final */
@@ -2901,13 +2902,14 @@ void PatchGame()
 		SiInitSet = 1;
 	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
 	sync_after_write((void*)0x13002740, 0x20);
-	// Is Patch31A0 needed any more?
-	// I don't think this does anything unless the & below is used.
-	if ((GameEntry /*& 0x7FFFFFFF*/) < 0x31A0)
+	// Yea that & is needed, I'm not sure if the patch is needed at all
+	if ((GameEntry & 0x7FFFFFFF) < 0x31A0)
 		Patch31A0();
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
+	// Some games need special timings
+	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
 
 	/* Clear AR positions */
 	memset32((void*)0x131C0040, 0, 0x20);

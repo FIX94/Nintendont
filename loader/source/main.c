@@ -270,18 +270,12 @@ int main(int argc, char **argv)
 			FPAD_Update();
 
 			if (FPAD_OK(0))
-			{
-				int pos = UseSD ? 6 : 7;
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 51 * 6 - 8, MENU_POS_Y + 20 * pos, " ");
-				GRRLIB_Render();
-				GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 				break;
-			}
+
 			if (FPAD_Start(1))
 			{
 				ClearScreen();
 				PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader...");
-				
 				ExitToLoader(0);
 			}
 			if (FPAD_Down(0))
@@ -293,6 +287,10 @@ int main(int argc, char **argv)
 			GRRLIB_Render();
 			GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 		}
+		ClearScreen();
+		PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
+		GRRLIB_Render();
+		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 	}
 
 	if(LoadKernel() < 0)
