@@ -388,8 +388,6 @@ int main(int argc, char **argv)
 	}
 //sync changes
 	CloseDevices();
-	ClearScreen();
-	PrintInfo();
 
 	WPAD_Disconnect(0);
 	WPAD_Disconnect(1);
@@ -449,9 +447,6 @@ int main(int argc, char **argv)
 	__UnmaskIrq(IRQ_PI_ACR);
 	__IPC_Reinitialize();
 
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel ...\r\n");
-	UpdateScreen();
-	
 	while(1)
 	{
 		DCInvalidateRange( STATUS, 0x20 );

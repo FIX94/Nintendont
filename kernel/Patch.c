@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "patches.c"
 #include "DI.h"
+#include "ISO.h"
 #include "SI.h"
 #include "EXI.h"
 
@@ -2910,6 +2911,8 @@ void PatchGame()
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
 	// Some games need special timings
 	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
+	// Init Cache if its a new ISO
+	ISOSetupCache();
 
 	/* Clear AR positions */
 	memset32((void*)0x131C0040, 0, 0x20);

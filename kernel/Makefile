@@ -12,7 +12,7 @@ ASFLAGS	=	-mbig-endian -mcpu=arm926ej-s
 LDFLAGS	=	-nostartfiles -nodefaultlibs -mbig-endian -Wl,--gc-sections,-T,kernel.ld,-Map,kernel.map -n
 
 TARGET	=	kernel.elf
-OBJECTS	=	start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Patch.o PatchTimers.o PatchWidescreen.o \
+OBJECTS	=	start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Patch.o PatchTimers.o PatchWidescreen.o ISO.o \
 		Stream.o adp.o EXI.o SI.o ff.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o main.o syscalls.o vsprintf.o string.o
 ifeq ($(usb), 1)
 	OBJECTS	+= tiny_ehci_glue.o usb_os.o

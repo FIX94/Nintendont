@@ -46,7 +46,6 @@ typedef struct
 } DataCache;
 
 #define FILECACHE_MAX	2
-#define DATACACHE_MAX	220
 
 u32		FSTInit	( char *GamePath );
 void	FSTCleanup ( void );

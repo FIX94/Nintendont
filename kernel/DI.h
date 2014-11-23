@@ -58,6 +58,9 @@ enum GameRegion
 	ALL,
 };
 
+extern u8 *DI_READ_BUFFER;
+extern u32 DI_READ_BUFFER_LENGTH;
+
 extern vu32 SDisInit;
 extern u32 DiscChangeIRQ;
 extern s32 DI_Handle;
@@ -70,7 +73,6 @@ void DIFinishAsync(void);
 u32 DIReadThread(void *arg);
 void DIChangeDisc( u32 DiscNumber );
 void DIUpdateRegisters( void );
-void DIReadISO(void *Buffer, u32 Length, u32 Offset);
 void DIReload(void);
 bool DICheckTGC(u32 Buffer, u32 Length);
 #endif

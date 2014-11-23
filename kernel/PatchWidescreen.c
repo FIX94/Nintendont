@@ -128,6 +128,17 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				}
 			}
 			return false;
+		case 0x47414C: //Super Smash Bros Melee
+			for(Buffer = 0x368500; Buffer < 0x36A500; Buffer+=4)
+			{
+				if(read32(Buffer) == 0x281E0000 && read32(Buffer+4) == 0xC03F0034)
+				{
+					dbgprintf("Patch:Patched SSBM Widescreen (0x%08X)\r\n", Buffer+4);
+					PatchWideMulti(Buffer+4, 1);
+					return true;
+				}
+			}
+			return false;
 		case 0x474832: //Need for Speed Hot Pursuit 2
 			dbgprintf("Patch:Patched NFS:HP2 Widescreen\r\n");
 			if(Region == REGION_ID_USA)

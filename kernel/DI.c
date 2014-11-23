@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dol.h"
 #include "Config.h"
 #include "Patch.h"
+#include "ISO.h"
 #include "FST.h"
 #include "BT.h"
 
@@ -53,12 +54,12 @@ s32 DI_Handle = -1;
 
 u32 DiscChangeIRQ	= 0;
 
-static FIL GameFile;
-
 static char GamePath[256] ALIGNED(32);
-static char *FSTBuf = (char *)(0x13200000);
 extern u32 Region;
 extern u32 FSTMode;
+
+u8 *DI_READ_BUFFER = (u8*)0x12E80000;
+u32 DI_READ_BUFFER_LENGTH = 0x80000;
 
 // Triforce
 extern u32 TRIGame;
@@ -116,12 +117,7 @@ void DIinit( bool FirstTime )
 		write32( DIP_STATUS, 0x2E );
 		write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
 	}
-	else
-	{
-		CacheInit(FSTBuf, true);
-	}
 }
-static char discstr[0x100] __attribute__((aligned(0x20)));
 void DIChangeDisc( u32 DiscNumber )
 {
 	u32 i;
@@ -139,41 +135,9 @@ void DIChangeDisc( u32 DiscNumber )
 		_sprintf( DiscName+i, "disc2.iso" );
 
 	dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
-	DIinit(false); //closes previous file and opens the new one
-
-	memset32(discstr, 0, 0x100);
-	DIReadISO( (void*)discstr, 0x100, 0 ); // Loading the full 0x400 causes problems.
-	discstr[0xFF] = '\0';
-
-	dbgprintf("DIP:Loading game %.6s: %s\r\n", discstr, discstr + 0x20 );
+	DIinit(false);
 }
 
-u32 LastOffset = UINT_MAX, LastLength = 0;
-static u32 readptr;
-void DIReadISO(void *Buffer, u32 Length, u32 Offset)
-{
-	if(LastOffset != Offset)
-		f_lseek( &GameFile, Offset );
-
-	f_read( &GameFile, Buffer, Length, &readptr );
-	sync_after_write( Buffer, Length );
-
-	LastOffset = Offset + Length;
-	LastLength = Length;
-}
-
-static void DIReadISO_Header()
-{
-	/* Set Low Mem */
-	DIReadISO((void*)0x0, 0x20, 0x0);
-	/* Prepare Cache Files */
-	u32 FSTOffset, FSTSize;
-	DIReadISO( &FSTOffset, sizeof(u32), 0x424 );
-	DIReadISO( &FSTSize, sizeof(u32), 0x428 );
-	DIReadISO( FSTBuf, FSTSize, FSTOffset );
-	/* Get Region */
-	DIReadISO( &Region, sizeof(u32), 0x458 );
-}
 void DIInterrupt()
 {
 	DI_IRQ = false;
@@ -545,7 +509,6 @@ void DIUpdateRegisters( void )
 				} break;
 				case 0xF9:
 				{
-					CacheInit(FSTBuf, false);
 					#ifdef PATCHALL
 					BTInit();
 					#endif
@@ -589,9 +552,8 @@ u32 DIReadThread(void *arg)
 					mqueue_ack( di_msg, -6 );
 					break;
 				}
-				f_close( &GameFile );
-				s32 ret = f_open( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
-				if( ret != FR_OK )
+				ISOClose();
+				if( ISOInit() == false )
 				{
 					_sprintf( GamePath, "%s", ConfigGetGamePath() );
 					//Try to switch to FST mode
@@ -601,16 +563,6 @@ u32 DIReadThread(void *arg)
 						Shutdown();
 					}
 				}
-				else
-				{
-					DWORD tmp = 1; //size 1 to get the real size
-					GameFile.cltbl = &tmp;
-					f_lseek(&GameFile, CREATE_LINKMAP);
-					GameFile.cltbl = malloc(tmp * sizeof(DWORD));
-					GameFile.cltbl[0] = tmp; //fatfs automatically sets real size into tmp
-					f_lseek(&GameFile, CREATE_LINKMAP); //actually create it
-					DIReadISO_Header();
-				}
 				mqueue_ack( di_msg, 24 );
 				break;
 
@@ -618,13 +570,7 @@ u32 DIReadThread(void *arg)
 				if( FSTMode )
 					FSTCleanup();
 				else
-				{
-					f_close( &GameFile );
-					free(GameFile.cltbl);
-					GameFile.cltbl = NULL;
-					LastOffset = UINT_MAX;
-					LastLength = 0;
-				}
+					ISOClose();
 				mqueue_ack( di_msg, 0 );
 				break;
 
@@ -650,8 +596,8 @@ u32 DIReadThread(void *arg)
 					if( FSTMode )
 						di_src = FSTRead(GamePath, &Length, di_offset + Offset);
 					else
-						di_src = CacheRead( &Length, di_offset + Offset );
-
+						di_src = ISORead(&Length, di_offset + Offset);
+					// Copy data at a later point to prevent MEM1 issues
 					memcpy( di_dest + Offset, di_src, Length > di_length ? di_length : Length );
 				}
 				if(di_msg->ioctl.command == 0)

@@ -43,20 +43,7 @@ u32 FCEntry=0;
 FileCache *FC;
 u32 FCState[FILECACHE_MAX];
 
-static u8 *DI_Read_Buffer = (u8*)(0x12E80000);
-#define DI_READ_BUFFER_LENGTH (0x80000)
-
-u32 CacheIsInit = 0;
-u32 DataCacheCount	= 0;
-u32 TempCacheCount	= 0;
-u32 DataCacheOffset = 0;
-u8 *DCCache = (u8*)0x11000000;
-u32 DCacheLimit = 0x1E80000;
-u32 StartOffset = 0x1E80000, StartPos = 0;
-DataCache DC[DATACACHE_MAX];
-
 extern u32 Region;
-extern u32 TRIGame;
 
 u32 FSTInit( char *GamePath )
 {
@@ -151,8 +138,8 @@ u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
 				{
 					//dbgprintf("DIP:[Cache:%02d][%08X:%05X]\r\n", i, (u32)(nOffset>>2), Length );
 					f_lseek( &(FC[i].File), nOffset );
-					f_read( &(FC[i].File), DI_Read_Buffer, ((*Length)+31)&(~31), &read );
-					return DI_Read_Buffer;
+					f_read( &(FC[i].File), DI_READ_BUFFER, ((*Length)+31)&(~31), &read );
+					return DI_READ_BUFFER;
 				}
 			}
 		}
@@ -231,7 +218,7 @@ u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
 						FCState[FCEntry]	= 0x23;
 
 						f_lseek( &(FC[FCEntry].File), nOffset );
-						f_read( &(FC[FCEntry].File), DI_Read_Buffer, *Length, &read );
+						f_read( &(FC[FCEntry].File), DI_READ_BUFFER, *Length, &read );
 
 						FCEntry++;
 					}
@@ -247,15 +234,15 @@ u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
 		if( f_open( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		} else {
 			//dbgprintf( "DIP:[fst.bin] Offset:%08X Size:%08X\r\n", Offset, *Length );
 			
 			f_lseek( &fd, Offset );
-			f_read( &fd, DI_Read_Buffer, *Length, &read );
+			f_read( &fd, DI_READ_BUFFER, *Length, &read );
 			f_close( &fd );
 
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		}
 
 	} else if ( Offset >= dolOffset ) {
@@ -266,15 +253,15 @@ u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
 		if( f_open( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		} else {
 			//dbgprintf( "DIP:[main.dol] Offset:%08X Size:%08X\r\n", Offset, *Length );
 			
 			f_lseek( &fd, Offset );
-			f_read( &fd, DI_Read_Buffer, *Length, &read );
+			f_read( &fd, DI_READ_BUFFER, *Length, &read );
 			f_close( &fd );
 
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		}
 
 	} else if ( Offset >= 0x2440 ) {
@@ -285,15 +272,15 @@ u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
 		if( f_open( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		} else {
 			//dbgprintf( "DIP:[apploader.img] Offset:%08X Size:%08X\r\n", Offset, *Length );
 			
 			f_lseek( &fd, Offset );
-			f_read( &fd, DI_Read_Buffer, *Length, &read );
+			f_read( &fd, DI_READ_BUFFER, *Length, &read );
 			f_close( &fd );
 
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		}
 
 	} else if ( Offset >= 0x440 ) {
@@ -304,18 +291,18 @@ u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
 		if( f_open( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		} else {
 			//dbgprintf( "DIP:[bi2.bin] Offset:%08X Size:%08X\r\n", Offset, *Length );
 			
 			f_lseek( &fd, Offset );
-			f_read( &fd, DI_Read_Buffer, *Length, &read );
+			f_read( &fd, DI_READ_BUFFER, *Length, &read );
 
 			f_close( &fd );
 
-			Region = *(vu32*)(DI_Read_Buffer+0x18);
+			Region = *(vu32*)(DI_READ_BUFFER+0x18);
 
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		}
 
 	} else {
@@ -323,297 +310,17 @@ u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
 		if( f_open( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		} else {
 			//dbgprintf( "DIP:[boot.bin] Offset:%08X Size:%08X\r\n", Offset, *Length );
 			
 			f_lseek( &fd, Offset );
-			f_read( &fd, DI_Read_Buffer, *Length, &read );
+			f_read( &fd, DI_READ_BUFFER, *Length, &read );
 
 			f_close( &fd );
 
-			return DI_Read_Buffer;
+			return DI_READ_BUFFER;
 		}
 	}
-	return DI_Read_Buffer;
-}
-void CacheInit( char *Table, bool ForceReinit )
-{
-	if (ForceReinit)
-	{
-		DataCacheCount = 0;
-		TempCacheCount = 0;
-		DataCacheOffset = 0;
-		CacheIsInit = false;
-	}
-
-	if(CacheIsInit)
-		return;
-
-	// DIMM Memory (3MB)
-	if(TRIGame)
-	{
-		DCacheLimit -= 0x300000;
-		StartOffset -= 0x300000;
-	}
-
-	u32 MemCardSize = ConfigGetMemcardSize();
-	if (!ConfigGetConfig(NIN_CFG_MEMCARDEMU))
-		MemCardSize = 0;
-	DCCache += MemCardSize;
-	DCacheLimit -= MemCardSize;
-	StartOffset -= MemCardSize;
-
-	memset32(DC, 0, sizeof(DataCache)* DATACACHE_MAX);
-	sync_after_write(DC, sizeof(DataCache) * DATACACHE_MAX);
-
-	FIL file;
-	u32 read;
-	u32 offset = 0;
-	char *path = (char*)malloc( 128 );
-
-	_sprintf( path, "%s", ConfigGetGamePath() );
-
-	offset = strlen(path);
-
-	//Clear ISO name
-	while(offset > 1)
-	{
-		if( path[offset] == '/' )
-			break;
-
-		path[offset] = 0;
-		offset--; 
-	}
-
-	memcpy( path + strlen(path), "cache.txt", 11 );
-	
-	dbgprintf("DIP:opening:\"%s\"\r\n", path );
-
-	if( f_open( &file, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
-	{
-		char *data = (char*)malloc( file.fsize );
-		if( data == NULL )
-		{
-			dbgprintf("DIP:Failed to alloc %u bytes\r\n", file.fsize );
-		} else {
-
-			f_read( &file, data, file.fsize, &read );
-			f_close( &file );
-
-			offset		= 0;
-			u32 len		= strlen( data );
-			u32 elen	= 0;
-			char *str	= data;
-
-			while(offset <= len)
-			{
-				elen = 0;
-				//find \0xa or \0xd
-				while(1)
-				{
-					if( str[offset+elen] == 0x0A || str[offset+elen] == 0x0D )
-						break;
-					if( offset+elen >= len )
-						break;
-
-					elen++;
-				}
-
-				if( offset+elen >= len )
-					break;
-
-				memset( path, 0, 128 );
-				memcpy( path, str + offset, elen );
-				CacheFile( path, Table );
-
-				offset += elen;
-
-				while(offset <= len)
-				{
-					if( str[offset] == 0x0A || str[offset] == 0x0D )
-					{
-						offset++;
-						continue;
-					}
-					break;
-				}
-			}
-
-			free(data);
-		}
-	} else {
-		dbgprintf("DIP:Couldn't open:\"%s\"\r\n", path );
-	}
-
-	free(path);
-
-	CacheIsInit++;
-}
-
-void CacheFile( char *FileName, char *Table )
-{
-	if( DataCacheCount >= DATACACHE_MAX )
-		return;
-	if( DataCacheOffset >= 0x1C80000 )
-		return;
-
-	u32 Entries		= *(u32*)(Table + 0x08);
-	char *NameOff	= (char*)(Table + Entries * 0x0C);
-	FEntry *fe		= (FEntry*)(Table);
-
-	//u32 Entry[16];
-	u32 LEntry[16];
-	u32 level=0;
-	u32 i=0;
-
-	for( i=1; i < Entries; ++i )
-	{
-		if( level )
-		{
-			while( LEntry[level-1] == i )
-			{
-				//printf("[%03X]leaving :\"%s\" Level:%d\n", i, buffer + NameOff + swap24( fe[Entry[level-1]].NameOffset ), level );
-				level--;
-			}
-		}
-
-		if( fe[i].Type )
-		{
-			//Skip empty folders
-			if( fe[i].NextOffset == i+1 )
-				continue;
-
-			//printf("[%03X]Entering:\"%s\" Level:%d leave:%04X\n", i, buffer + NameOff + swap24( fe[i].NameOffset ), level, swap32( fe[i].NextOffset ) );
-			//Entry[level] = i;
-			LEntry[level++] = fe[i].NextOffset;
-			if( level > 15 )  // something is wrong!
-				break;
-		} else {
-			if( strcmp( FileName, NameOff + fe[i].NameOffset ) == 0 )
-			{
-				dbgprintf("[%s] Offset:%08X Size:%u\r\n", NameOff + fe[i].NameOffset, fe[i].FileOffset, fe[i].FileLength );
-
-				if( (DataCacheOffset <= 0xD80000) && ((DataCacheOffset + fe[i].FileLength) >= 0xD80000) )
-					DataCacheOffset = 0xDA0000;
-
-				DIReadISO( DCCache + DataCacheOffset, fe[i].FileLength, fe[i].FileOffset );
-
-				DC[DataCacheCount].Data		= DCCache + DataCacheOffset;
-				DC[DataCacheCount].Size		= (fe[i].FileLength + 3) & (~3);
-				DC[DataCacheCount].Offset	= fe[i].FileOffset;
-
-				DataCacheOffset += (fe[i].FileLength + 31) & (~31);
-
-				dbgprintf("DI: Cached Offset:%08X Size:%08X Buffer:%p\r\n", fe[i].FileOffset, fe[i].FileLength, DC[DataCacheCount].Data );
-
-				DataCacheCount++;
-				return;
-			}
-		}
-	}
-}
-extern u32 LastLength;
-u8* CacheRead( u32* Length, u32 Offset )
-{
-	u32 i;
-
-	// nintendont loader asking, just return
-	if(CacheIsInit == 0)
-	{
-		if (*Length > DI_READ_BUFFER_LENGTH)
-			*Length = DI_READ_BUFFER_LENGTH;
-		DIReadISO(DI_Read_Buffer, *Length, Offset);
-		return DI_Read_Buffer;
-	}
-
-	// try cache.txt first
-	if(DataCacheCount > 0)
-	{
-		for( i=0; i < DataCacheCount; ++i )
-		{
-			if( Offset >= DC[i].Offset )
-			{
-				u64 nOffset = Offset - DC[i].Offset;
-				if( nOffset < DC[i].Size )
-				{
-					//dbgprintf("DI: Cached Read Offset:%08X Size:%08X Buffer:%p\r\n", DC[i].Offset, DC[i].Size, DC[i].Data );
-					return DC[i].Data + nOffset;
-				}
-			}
-		}
-		if (*Length > DI_READ_BUFFER_LENGTH)
-			*Length = DI_READ_BUFFER_LENGTH;
-		DIReadISO(DI_Read_Buffer, *Length, Offset);
-		return DI_Read_Buffer;
-	}
-
-
-	// else
-	for( i = 0; i < DATACACHE_MAX; ++i )
-	{
-		if( Offset >= DC[i].Offset && Offset + *Length <= DC[i].Offset + DC[i].Size )
-		{
-			//dbgprintf("DI: Cached Read Offset:%08X Size:%08X Buffer:%p\r\n", DC[i].Offset, DC[i].Size, DC[i].Data );
-			return DC[i].Data + (Offset - DC[i].Offset);
-		}
-	}
-
-	if( (*Length == LastLength) && (*Length < 0x8000) )
-		*Length = 0x10000; //pre-load data, guessing
-
-	if (*Length > DI_READ_BUFFER_LENGTH)
-		*Length = DI_READ_BUFFER_LENGTH;
-
-	// case we ran out of positions
-	if( TempCacheCount >= DATACACHE_MAX )
-		TempCacheCount = 0;
-
-	// case we just filled up the cache
-	if( (DataCacheOffset + *Length) >= DCacheLimit )
-	{
-		for( i = TempCacheCount; i < TempCacheCount + DATACACHE_MAX; ++i )
-		{
-			u32 c = i % DATACACHE_MAX;
-			if(DC[c].Size == 0)
-				continue;
-			// found the point to restart cycle
-			DataCacheOffset = 0;
-			// set next point in reference
-			StartPos = c % DATACACHE_MAX;
-			StartOffset = DC[StartPos].Data - DCCache;
-			break;
-		}
-	}
-
-	// case we overwrite the start
-	if( (DataCacheOffset + *Length) >= StartOffset )
-	{
-		for( i = StartPos; i < StartPos + DATACACHE_MAX; ++i )
-		{
-			u32 c = i % DATACACHE_MAX;
-			if( (DataCacheOffset + *Length) < (DC[c].Data - DCCache) ) // new pos wouldnt overwrite it
-			{
-				StartPos = c;
-				StartOffset = DC[StartPos].Data - DCCache;
-				break;
-			}
-			// basically makes sure we wont overwrite it
-			memset32(&DC[c], 0, sizeof(DataCache));
-			sync_after_write(&DC[c], sizeof(DataCache));
-		}
-	}
-
-	u32 pos = TempCacheCount;
-	TempCacheCount++;
-
-	DC[pos].Data = DCCache + DataCacheOffset;
-	DC[pos].Offset = Offset;
-	DC[pos].Size = *Length;
-	sync_after_write(&DC[pos], sizeof(DataCache));
-
-	DIReadISO(DC[pos].Data, *Length, Offset);
-
-	DataCacheOffset += *Length;
-	return DC[pos].Data;
+	return DI_READ_BUFFER;
 }
