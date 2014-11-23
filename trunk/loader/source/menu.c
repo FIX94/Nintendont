@@ -532,7 +532,14 @@ void SelectGame( void )
 					u32 MemCardBlocksVal = ncfg->MemCardBlocks;
 					if (MemCardBlocksVal > MEM_CARD_MAX)
 						MemCardBlocksVal = 0;
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d%s", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal), MemCardBlocksVal == 2 ? "(Recommended)" : "             ");
+					char *MemcardState;
+					if(MemCardBlocksVal == 2)
+						MemcardState = "(Recommended)";
+					else if(MemCardBlocksVal == 5)
+						MemcardState = "(Unstable)   ";
+					else
+						MemcardState = "             ";
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d%s", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal), MemcardState);
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex+1), "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
 				}
 				ListLoopIndex+=2;
@@ -544,10 +551,14 @@ void SelectGame( void )
 				Screenshot();
 				GRRLIB_Render();
 				GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
-				
 			}
 		}
 	}
+	ClearScreen();
+	PrintInfo();
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel ...");
+	UpdateScreen();
+
 	u32 SelectedGame = PosX + ScrollX;
 	char* StartChar = gi[SelectedGame].Path + 3;
 	if (StartChar[0] == ':')
