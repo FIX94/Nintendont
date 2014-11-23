@@ -6,11 +6,10 @@ STRIP =	$(PREFIX)strip
 
 CFLAGS	=	-mbig-endian -fno-unwind-tables -fomit-frame-pointer -O1 -Wall -I. -mcpu=arm926ej-s -mthumb \
 	-fno-builtin-toupper -fno-builtin-memcpy -fno-builtin-memset  -fno-builtin-memcmp -fno-builtin-malloc -fno-builtin-free \
-	-fdata-sections -ffunction-sections
+	-fdata-sections -ffunction-sections -msoft-float -mfloat-abi=soft
 
 ASFLAGS	=	-mbig-endian -mcpu=arm926ej-s
 LDFLAGS	=	-nostartfiles -nodefaultlibs -mbig-endian -Wl,--gc-sections,-T,kernel.ld,-Map,kernel.map -n
-LIBS	=	-lgcc
 
 TARGET	=	kernel.elf
 OBJECTS	=	start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Patch.o PatchTimers.o PatchWidescreen.o \
@@ -32,7 +31,7 @@ all: $(TARGET)
 
 $(TARGET) : kernel.ld $(OBJECTS)
 	@echo  "LD	$@"
-	@$(LD) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $@
+	@$(LD) $(LDFLAGS) $(OBJECTS) be/libgcc.a -o $@
 	@cp kernel.elf $(BINFILE)
 
 %.o : %.s
