@@ -577,6 +577,30 @@ int main(int argc, char **argv)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD...");
 		if(STATUS_LOADING > 10 && STATUS_LOADING < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD... Done!");
+		if(STATUS_LOADING == -10)
+		{
+			GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF); // Draw all status messages
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD... Failed! Shutting down");
+			switch (STATUS_ERROR)
+			{
+				case -1:
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/sneek/kenobiwii.bin", GetRootDevice());
+					break;	
+				case -2:
+					if (ncfg->Config & NIN_CFG_CHEAT_PATH)
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/%s", GetRootDevice(), ncfg->CheatPath);
+					else
+//						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/games/%.6s/%.6s.gct", GetRootDevice(), ncfg->GameID, ncfg->GameID);
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/games/GAMEID/GAMEID.gct", GetRootDevice());
+					break;	
+				case -3:
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Cheat file to large", GetRootDevice());
+					break;	
+				default:
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Unknown error %d %35s", STATUS_ERROR, " ");
+					break;	
+			}
+		}
 		GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE); // Copy all status messages
 		GRRLIB_Render();
 		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);

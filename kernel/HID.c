@@ -261,14 +261,14 @@ s32 HIDInit( void )
 		HID_CTRL->Left.Offset == HID_CTRL->DownRight.Offset &&
 		HID_CTRL->Left.Offset == HID_CTRL->DownLeft.Offset &&
 		HID_CTRL->Left.Offset == HID_CTRL->UpLeft.Offset )
-		{
+	{
 		HID_CTRL->DPADMask = HID_CTRL->Left.Mask | HID_CTRL->Down.Mask | HID_CTRL->Right.Mask | HID_CTRL->Up.Mask
 			| HID_CTRL->RightUp.Mask | HID_CTRL->DownRight.Mask | HID_CTRL->DownLeft.Mask | HID_CTRL->UpLeft.Mask;	//mask is all the used bits ored togather
 		if ((HID_CTRL->DPADMask & 0xF0) == 0)	//if hi nibble isnt used
 			HID_CTRL->DPADMask = 0x0F;			//use all bits in low nibble
 		if ((HID_CTRL->DPADMask & 0x0F) == 0)	//if low nibble isnt used
 			HID_CTRL->DPADMask = 0xF0;			//use all bits in hi nibble
-		}
+	}
 	else
 		HID_CTRL->DPADMask = 0xFFFF;	//check all the bits
 
@@ -492,12 +492,13 @@ retry:
 	{
 		default:
 		case 0:	// MultiIn disabled
+		case 3: // multiple controllers from a single adapter all controllers in 1 message
 			break;
-		case 1:	// match single controller
+		case 1:	// match single controller filter on the first byte
 			if (Packet[0] != HID_CTRL->MultiInValue)
 				goto retry;
 			break;
-		case 2: // multiple controllers fron a single adapter
+		case 2: // multiple controllers from a single adapter first byte contains controller number
 			if ((Packet[0] < HID_CTRL->MultiInValue) || (Packet[0] > NIN_CFG_MAXPAD))
 				goto retry;
 			break;

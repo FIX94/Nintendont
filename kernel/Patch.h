@@ -81,6 +81,7 @@ void PatchFunc( char *ptr );
 void PatchFuncInterface( char *dst, u32 Length );
 void PatchPatchBuffer(char *dst);
 void CheckPatchPrs();
+s32 Check_Cheats();
 
 void DoCardPatches( char *ptr, u32 size );
 void DoPatches( char *Buffer, u32 Length, u32 Offset );

@@ -266,6 +266,8 @@ void SelectGame( void )
 					PosX++;
 				}
 			
+				if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
+					ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
 				redraw=1;
 				SaveSettings = true;
 			}
@@ -288,6 +290,8 @@ void SelectGame( void )
 					PosX = ListMax - 1;
 				}
 			
+				if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
+					ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
 				redraw=1;
 				SaveSettings = true;
 			}
@@ -307,6 +311,8 @@ void SelectGame( void )
 					PosX--;
 				}
 
+				if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
+					ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
 				redraw=1;
 				SaveSettings = true;
 			}
@@ -328,6 +334,8 @@ void SelectGame( void )
 					PosX = 0;
 				}
 
+				if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
+					ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
 				redraw=1;
 				SaveSettings = true;
 			}

@@ -216,6 +216,15 @@ int _main( int argc, char *argv[] )
 
 	EXIInit();
 
+	ret = Check_Cheats();
+	if(ret < 0 )
+	{
+		dbgprintf("Check_Cheats failed\r\n" );
+		BootStatusError(-10, ret);
+		mdelay(4000);
+		Shutdown();
+	}
+	
 	BootStatus(11, s_size, s_cnt);
 
 	bool PatchSI = !ConfigGetConfig(NIN_CFG_NATIVE_SI);
