@@ -2920,3 +2920,62 @@ void PatchGame()
 	dbgprintf("Jumping to 0x%08X\n", GameEntry);
 	write32( DIP_IMM, GameEntry );
 }
+
+s32 Check_Cheats()
+{
+#ifdef CHEATS
+	if((ConfigGetConfig(NIN_CFG_CHEATS)) ||
+	  ((!(IsWiiU)) && ConfigGetConfig(NIN_CFG_DEBUGGER) ))
+	{
+		u32 DBGSize;
+		FIL fs;
+		
+		if( f_open( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
+			#endif
+			return -1;
+		}
+		DBGSize = fs.fsize;
+		f_close( &fs );
+		
+		if( ConfigGetConfig( NIN_CFG_CHEATS ) )
+		{
+			char path[128];
+
+			if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
+			{
+				_sprintf( path, "%s", ConfigGetCheatPath() );
+			} else {
+				return 0;	//todo: temp until fixed
+//				_sprintf( path, "/games/%.6s/%.6s.gct", (char*)0x1800, (char*)0x1800 );
+//				_sprintf( path, "/games/%c%c%c%c%c%c/%c%c%c%c%c%c.gct", (char*)0, (char*)1, (char*)2, (char*)3, (char*)4, (char*)5, (char*)0, (char*)1, (char*)2, (char*)3, (char*)4, (char*)5 );
+			}
+
+			FIL CodeFD;
+
+			if( f_open( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+			{
+				if( CodeFD.fsize >= 0x2E60 - (0x1800+DBGSize-8) )
+				{
+					f_close( &CodeFD );
+					#ifdef DEBUG_PATCH
+					dbgprintf("Patch:Cheatfile is too large, it must not be large than %d bytes!\r\n", 0x2E60 - (0x1800+DBGSize-8));
+					#endif
+					return -3;
+				}
+				f_close( &CodeFD );
+			}
+			else
+			{
+				#ifdef DEBUG_PATCH
+				dbgprintf("Patch:Failed to read cheat file:\"%s\"\r\n", path );
+				#endif
+				return -2;
+			}
+		}
+	}
+#endif
+	return 0;
+}

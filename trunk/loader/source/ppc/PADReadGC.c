@@ -173,7 +173,7 @@ u32 _start()
 
 	if (HIDPad == HID_PAD_NOT_SET)
 		HIDPad = MaxPads;
-	for (chan = HIDPad; (chan < HID_PAD_NONE); chan = HID_PAD_NONE) // Run once for now
+	for (chan = HIDPad; (chan < HID_PAD_NONE); chan = (HID_CTRL->MultiIn == 3)? ++chan : HID_PAD_NONE) // Run once unless MultiIn == 3
 	{
 		if (HID_CTRL->MultiIn == 2)		//multiple controllers connected to a single usb port
 		{
@@ -186,8 +186,24 @@ u32 _start()
 			PrevAdapterChannel3 = PrevAdapterChannel4;
 			PrevAdapterChannel4 = HID_Packet[0] - 1;
 		}
+
+		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
+			HID_Packet = (u8*)0x930050F0;	//reset back to default offset
+
 		memInvalidate = (u32)HID_Packet;
 		asm volatile("dcbi 0,%0; sync; isync" : : "b"(memInvalidate) : "memory");
+
+		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
+		{
+			HID_Packet = (u8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
+			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo wiiu Gamecube Adapter
+			{
+				// 0x04=port powered 0x10=normal controller 0x26=wavebird communicating
+				if (((HID_Packet[1] & 0x10) == 0)	//normal controller not connected
+				 && ((HID_Packet[1] & 0x26) != 0x26))	//wavebird not connected
+					continue;	//try next controller
+			}
+		}
 
 		if(HID_CTRL->Power.Mask &&	//shutdown if power configured and all power buttons pressed
 		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
@@ -329,6 +345,14 @@ u32 _start()
 			stickY		= 127 - ((((HID_Packet[HID_CTRL->StickY.Offset] & 0x0F) << 2) | ((HID_Packet[3] & 0xC0) >> 6)) << 2);	//raw 06 07 ... 1F 20 21 ... 38 39 (up, center, down)
 			substickX	= ((HID_Packet[HID_CTRL->CStickX.Offset] & 0x1F) << 3) - 128;	//raw 03 04 ... 0E 0F 10 ... 1B 1C (left ... center ... right)
 			substickY	= 127 - ((((HID_Packet[HID_CTRL->CStickY.Offset] & 0x03) << 3) | ((HID_Packet[5] & 0xE0) >> 5)) << 3);	//raw 03 04 ... 1F 10 11 ... 1C 1D (up, center, down)
+		}
+		else
+		if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo wiiu Gamecube Adapter
+		{
+			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1D 1E 1F ... 7F 80 81 ... E7 E8 E9 (left ... center ... right)
+			stickY		= HID_Packet[HID_CTRL->StickY.Offset] - 128;	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
+			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
+			substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
 		}
 		else	//standard sticks
 		{
