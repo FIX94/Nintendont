@@ -104,7 +104,6 @@ enum
 	FCODE_PatchPatchBuffer,
 	FCODE_PrsLoad,
 	FCODE_DolEntryMod,
-	FCODE_PsoSramLoad,
 } FPatternCodes;
 
 enum
@@ -359,7 +358,6 @@ FuncPattern EXIFPatterns[] =
 //	{  0x130,   33,    8,    6,    5,    2,	__CARDReadSegment,	sizeof(__CARDReadSegment),	"__CARDReadSegment",				FGROUP_NONE,				0 },
 //	{   0x60,    7,    6,    1,    1,    3,	__CARDRead,			sizeof(__CARDRead),			"__CARDRead",						FGROUP_NONE,				0 },
 //	{   0xDC,   17,    9,    4,    3,    2,	__CARDEraseSector,	sizeof(__CARDEraseSector),	"__CARDEraseSector",				FGROUP_NONE,				0 },
-	{  0x130,   31,    9,   10,    2,    7,	NULL,				FCODE_PsoSramLoad,			"PsoSramLoad",			NULL,		FGROUP_NONE,			    0 },
 };
 
 enum
