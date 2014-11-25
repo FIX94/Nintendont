@@ -2616,20 +2616,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
 							}
 						} break;
-						case FCODE_PsoSramLoad:
-						{
-							// HACK: PSO hack.  Why is this necessary??
-							// It should be calling the exact same patched function,
-							// it's just in a different location. Hangs for MCEmu. ToDo
-							u32 OrigAddr = FOffset + 0x94;
-							if ((read32(OrigAddr - 0x20) == 0x3C602000) && (read32(OrigAddr - 0x1C) == 0x38030100))  // lis r3, 0x2000 and addi r0, r3, 0x100
-							{
-#ifdef DEBUG_PATCH
-								printpatchfound("PSO", "SRAM Load", OrigAddr);
-#endif
-								PatchBL(PatchCopy(EXIImm, EXIImm_size), OrigAddr);
-							}
-						} break;
 						default:
 						{
 							if( CurPatterns[j].Patch == (u8*)ARQPostRequest )
@@ -2904,8 +2890,9 @@ void PatchGame()
 	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
 	sync_after_write((void*)0x13002740, 0x20);
 	// Yea that & is needed, I'm not sure if the patch is needed at all
-	if ((GameEntry & 0x7FFFFFFF) < 0x31A0)
-		Patch31A0();
+	// Commenting out until case where needed found
+	//if ((GameEntry & 0x7FFFFFFF) < 0x31A0)
+	//	Patch31A0();
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
@@ -2919,7 +2906,7 @@ void PatchGame()
 	sync_after_write((void*)0x131C0040, 0x20);
 
 	write32( DIP_CMD_1, FullLength >> 5 );
-	write32( DIP_CMD_2, DOLMinOff );
+	write32( DIP_CMD_2, DOLMinOff | 0x80000000 );
 	dbgprintf("Jumping to 0x%08X\n", GameEntry);
 	write32( DIP_IMM, GameEntry );
 }
