@@ -64,6 +64,7 @@ unsigned char rawData[] =
 req_args *readreq = (req_args *)NULL;
 req_args *writereq = (req_args *)NULL;
 char *ps3buf = (char*)NULL;
+char *gcbuf = (char*)NULL;
 s32 HIDInit( void )
 {
 	s32 ret;
@@ -78,6 +79,10 @@ s32 HIDInit( void )
 	ps3buf = (char*)malloca( 64, 32 );
 	memset32(ps3buf, 0, 64);
 	memcpy(ps3buf, rawData, sizeof(rawData));
+
+	gcbuf = (char*)malloca(32,32);
+	memset32(gcbuf, 0, 32);
+	gcbuf[0] = 0x13;
 
 	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
 
@@ -132,6 +137,8 @@ s32 HIDInit( void )
 		RumbleEnabled = 1;
 		HIDPS3SetRumble( 0, 0, 0, 0 );
 	}
+	if( *(vu16*)(HIDHeap+0x10) == 0x057e && *(vu16*)(HIDHeap+0x12) == 0x0337 )
+		HIDGCInit();
 
 //Load controller config
 	FIL f;
@@ -347,6 +354,23 @@ s32 HIDInit( void )
 
 	return 0;
 }
+
+void HIDGCInit()
+{
+	writereq->device_no				= DeviceID;
+	writereq->interrupt.dLength		= 1;
+	writereq->interrupt.endpoint	= bEndpointAddressOut;
+	writereq->data					= gcbuf;
+
+	s32 ret = IOS_Ioctl( HIDHandle, InterruptMessageOUT, writereq, 32, 0, 0 );
+	if( ret < 0 )
+	{
+		dbgprintf("HID:HIDGCInit:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\r\n", HIDHandle, 2, writereq, 32, 0, 0, ret );
+		BootStatusError(-8, -6);
+		mdelay(2000);
+		Shutdown();
+	}
+}
 void HIDPS3Init()
 {
 	memset32( readreq, 0, sizeof( req_args ) );
@@ -435,6 +459,22 @@ void HIDPS3Read()
 	sync_after_write(HID_Packet, SS_DATA_LEN);
 	return;
 }
+void HIDGCRumble(u32 input)
+{
+	writereq->device_no				= DeviceID;
+	writereq->interrupt.dLength		= 5;
+	writereq->interrupt.endpoint	= bEndpointAddressOut;
+	writereq->data					= gcbuf;
+
+	gcbuf[0] = 0x11;
+	gcbuf[1] = input & 1;
+	gcbuf[2] = (input >> 1) & 1;
+	gcbuf[3] = (input >> 2) & 1;
+	gcbuf[4] = (input >> 3) & 1;
+
+	IOS_Ioctl( HIDHandle, InterruptMessageOUT, writereq, 32, 0, 0 );
+}
+
 void HIDIRQRumble(u32 Enable)
 {
 	writereq->device_no				= DeviceID;
@@ -670,7 +710,12 @@ u32 HID_Run(void *arg)
 {
 	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
 	bool Polltype = HID_CTRL->Polltype;
-	if(RumbleEnabled)
+	if((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))
+	{
+		HIDRumble = HIDGCRumble;
+		RumbleEnabled = true;
+	}
+	else if(RumbleEnabled)
 	{
 		if(Polltype)
 		{

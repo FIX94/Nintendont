@@ -138,7 +138,8 @@ typedef struct {
 } req_args; // 32 bytes
 
 s32 HIDInit();
-void HIDPS3Init( void  );
+void HIDGCInit( void );
+void HIDPS3Init( void );
 void HIDPS3Read( void );
 void HIDIRQRead( void );
 void HIDPS3SetLED( u8 led );

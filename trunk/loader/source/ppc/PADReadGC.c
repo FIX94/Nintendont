@@ -201,7 +201,14 @@ u32 _start()
 				// 0x04=port powered 0x10=normal controller 0x26=wavebird communicating
 				if (((HID_Packet[1] & 0x10) == 0)	//normal controller not connected
 				 && ((HID_Packet[1] & 0x26) != 0x26))	//wavebird not connected
+				{
+					*HIDMotor &= ~(1 << chan); //make sure to disable rumble just in case
 					continue;	//try next controller
+				}
+				if((MotorCommand[chan]&3) == 1)
+					*HIDMotor |= (1 << chan);
+				else
+					*HIDMotor &= ~(1 << chan);
 			}
 		}
 
