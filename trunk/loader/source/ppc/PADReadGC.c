@@ -198,14 +198,14 @@ u32 _start()
 			HID_Packet = (u8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
 			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo wiiu Gamecube Adapter
 			{
-				// 0x04=port powered 0x10=normal controller 0x26=wavebird communicating
+				// 0x04=port powered 0x10=normal controller 0x22=wavebird communicating
 				if (((HID_Packet[1] & 0x10) == 0)	//normal controller not connected
-				 && ((HID_Packet[1] & 0x26) != 0x26))	//wavebird not connected
+				 && ((HID_Packet[1] & 0x22) != 0x22))	//wavebird not connected
 				{
 					*HIDMotor &= ~(1 << chan); //make sure to disable rumble just in case
 					continue;	//try next controller
 				}
-				if((MotorCommand[chan]&3) == 1)
+				if(((MotorCommand[chan]&3) == 1) && (HID_Packet[1] & 0x04))	//game wants rumbe and controller has power for rumble.
 					*HIDMotor |= (1 << chan);
 				else
 					*HIDMotor &= ~(1 << chan);

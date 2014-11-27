@@ -46,7 +46,7 @@ MEM2
 0x93003420-0x93005000=old hid thread stack
 
 0x93005000-0x930050E8=hid controller positions
-0x930050F0=hid packet
+0x930050F0-0x93005170=hid packet (may be bigger device dependent)
 
 0x93007420-0x93009000=old di thread stack
 0x93010000=old memory card buffer,old EXI Interrupt Handler Status
