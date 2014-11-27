@@ -95,7 +95,7 @@ int _main( int argc, char *argv[] )
 	{
 		dbgprintf("SD:SDHCInit() failed:%d\r\n", ret );
 		BootStatusError(-2, ret);
-		mdelay(2000);
+		mdelay(4000);
 		Shutdown();
 	}
 #endif
@@ -107,7 +107,7 @@ int _main( int argc, char *argv[] )
 	{
 		dbgprintf("ES:f_mount() failed:%d\r\n", res );
 		BootStatusError(-3, res);
-		mdelay(2000);
+		mdelay(4000);
 		Shutdown();
 	}
 	
@@ -138,17 +138,19 @@ int _main( int argc, char *argv[] )
 				if(MountFail == 10)
 				{
 					BootStatusError(-5, fres);
-					mdelay(2000);
+					mdelay(4000);
 					Shutdown();
 				}
 				mdelay(5);
 			} break;
 		}
+/*	//will nenver get here when timeout occures this loop is what is hung
 		if(STATUS_ERROR == -7) { // FS check timed out on PPC side
 			dbgprintf("FS check timed out\r\n");
 			mdelay(3000);
 			Shutdown();
 		}
+*/
 	}
 #ifndef NINTENDONT_USB
 	s_size = 512;
@@ -163,7 +165,7 @@ int _main( int argc, char *argv[] )
 	if( r < 0 )
 	{
 		BootStatusError(-6, r);
-		mdelay(2000);
+		mdelay(4000);
 		Shutdown();
 	}
 #endif
@@ -193,7 +195,7 @@ int _main( int argc, char *argv[] )
 		{
 			dbgprintf("ES:HIDInit() failed\r\n" );
 			BootStatusError(-8, ret);
-			mdelay(2000);
+			mdelay(4000);
 			Shutdown();
 		}
 		write32(0x13003004, 0);

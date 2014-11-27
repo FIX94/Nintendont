@@ -366,8 +366,8 @@ void HIDGCInit()
 	if( ret < 0 )
 	{
 		dbgprintf("HID:HIDGCInit:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\r\n", HIDHandle, 2, writereq, 32, 0, 0, ret );
-		BootStatusError(-8, -6);
-		mdelay(2000);
+		BootStatusError(-8, -7);
+		mdelay(4000);
 		Shutdown();
 	}
 }
@@ -391,7 +391,7 @@ void HIDPS3Init()
 	{
 		dbgprintf("HID:HIDPS3Init:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\r\n", HIDHandle, 2, readreq, 32, 0, 0, ret );
 		BootStatusError(-8, -6);
-		mdelay(2000);
+		mdelay(4000);
 		Shutdown();
 	}
 	free(buf);
