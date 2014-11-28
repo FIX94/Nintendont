@@ -1,6 +1,6 @@
 .global _start
 .type   _start STT_FUNC
-.extern __stack_addr
+.extern __phy_stack_addr
 .extern __bss_start
 .extern __bss_end
 .extern _main
@@ -12,7 +12,7 @@
 
 _start:
 	@ setup stack
-	ldr sp,		=__stack_addr
+	ldr sp,		=__phy_stack_addr
 
 	mov	r5,	r0
 	mov	r6,	lr

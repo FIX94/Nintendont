@@ -7,7 +7,8 @@
 #include "SDI.h"
 #include "syscalls.h"
 #else
-#include "ehci.h"
+#include "usb.h"
+#include "usbstorage.h"
 #include "alloc.h"
 #include "common.h"
 #endif
@@ -21,11 +22,11 @@ u8 *buffer = (u8*)NULL;
 
 DSTATUS disk_initialize( BYTE drv, WORD *ss )
 {
-	return 0;
+	return RES_OK;
 }
 DSTATUS disk_status( BYTE drv )
 {
-	return 0;
+	return RES_OK;
 }
 DRESULT disk_read( BYTE drv, BYTE *buff, DWORD sector, BYTE count )
 {
@@ -44,7 +45,7 @@ DRESULT disk_read( BYTE drv, BYTE *buff, DWORD sector, BYTE count )
 		{
 			if (ConfigGetConfig(NIN_CFG_LED))
 				clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
-			return RES_ERROR;		
+			return RES_ERROR;
 		}
 	}
 
@@ -74,43 +75,18 @@ DRESULT disk_write( BYTE drv, const BYTE *buff, DWORD sector, BYTE count )
 
 #else
 
-
-int tiny_ehci_init(void);
-
 DSTATUS disk_initialize(BYTE drv, WORD *ss)
 {
-	s32 r = 1;	
-	
-	udelay(50000);
-	tiny_ehci_init();
-	
-	while(1)
-	{
-		dbgprintf("USB:Discovering EHCI devices...\r\n");
-		while(ehci_discover() == -ENODEV)
-			udelay(4000);
-	
-		r = USBStorage_Init();
-		
-		if(r == 0)
-			break;
-	}		
-	
-	s_cnt = USBStorage_Get_Capacity(&s_size);
-
 	*ss = s_size;
-
-	buffer = (u8*)malloca(max_sec * s_size, 32);
-
-	dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
-
-	return r;
+	max_sec = 0x10000 / s_size; //64kb security buffer
+	buffer = (u8*)malloca(0x10000, 32);
+	return RES_OK;
 }
 
 DSTATUS disk_status(BYTE drv)
 {
 	(void)drv;
-	return 0;
+	return RES_OK;
 }
 
 DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
@@ -127,7 +103,7 @@ DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 		if(r_sec > max_sec)
 			r_sec = max_sec;
 
-		if(USBStorage_Read_Sectors(sector+t_read, r_sec, buffer) != 1)
+		if(__usbstorage_ReadSectors(sector+t_read, r_sec, buffer) != 1)
 		{
 			if (ConfigGetConfig(NIN_CFG_LED))
 				clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
@@ -158,7 +134,7 @@ DRESULT disk_write(BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
 
 		memcpy(buffer, (void*)buff + (t_write * s_size), w_sec * s_size);
 
-		if(USBStorage_Write_Sectors(sector + t_write, w_sec, buffer) != 1)
+		if(__usbstorage_WriteSectors(sector + t_write, w_sec, buffer) != 1)
 		{
 			dbgprintf("USB: Failed to write to USB device... Sector: %d Count: %d dst: %p\r\n", sector, count, buff);
 			return RES_ERROR;

@@ -100,7 +100,7 @@ s32 ES_BootSystem( void )
 	char *path	= (char*)malloca( 0x40, 32 );
 	u32 *size	= (u32*)malloca( sizeof(u32), 32 );
 
-	u32 IOSVersion = 55;
+	u32 IOSVersion = 58;
 
 	dbgprintf("ES:Loading IOS%d ...\r\n", IOSVersion );
 
@@ -124,7 +124,6 @@ s32 ES_BootSystem( void )
 	dbgprintf("ES:KernelVersion:%08X, %d\r\n", version, (version<<8)>>0x18 );
 #endif
 	free( TMD );
-#ifndef NINTENDONT_USB
 
 	s32 r = LoadModules( IOSVersion );
 	dbgprintf("ES:ES_LoadModules(%d):%d\r\n", IOSVersion, r );
@@ -133,17 +132,12 @@ s32 ES_BootSystem( void )
 		Shutdown();
 	}
 
-#endif
 	free( path );
 	free( size );
 
-#ifndef NINTENDONT_USB
 	return r;
-#else
-	return IOSVersion;
-#endif
-
 }
+
 s32 LoadModules( u32 IOSVersion )
 {
 	//used later for decrypted
@@ -182,40 +176,18 @@ s32 LoadModules( u32 IOSVersion )
 			continue;
 		
 
+		if( TMD->Contents[i].Index != 3 &&	// OH1
+			TMD->Contents[i].Index != 4 &&	// OHCI0
+			TMD->Contents[i].Index != 13&&	// USB
+			TMD->Contents[i].Index != 14&&	// HID
+			TMD->Contents[i].Index != 15&&	// HUB
 #ifdef NINTENDONT_USB
-		if( TMD->Contents[i].Index == 4 )	// SDI
-			continue;
+			TMD->Contents[i].Index != 1 &&	// EHCI
+			TMD->Contents[i].Index != 16)	// VEN
+#else
+			TMD->Contents[i].Index != 5)	// SDI
 #endif
-/*
-1 di
-2 oh0
-3 oh1
-4 sdi
-5 SO
-6 KD
-7 WD
-8 WL
-9 NCD
-10 ETH
-11 STM
-12 nothing? hid?
-13 SSL
-*/
-		if( TMD->Contents[i].Index == 1 )	// DI
 			continue;
-		if( TMD->Contents[i].Index == 5 )	// SO
-			continue;
-		if( TMD->Contents[i].Index == 6 )	// KD
-			continue;
-		if( TMD->Contents[i].Index == 7 )	// WD
-			continue;
-		if( TMD->Contents[i].Index == 8 )	// WL
-			continue;
-		if( TMD->Contents[i].Index == 10 )	// ETH
-			continue;
-		if( TMD->Contents[i].Index == 13 )	// SSL
-			continue;
-
 		//check if shared!
 		if( TMD->Contents[i].Type & CONTENT_SHARED )
 		{

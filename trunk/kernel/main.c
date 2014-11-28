@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Patch.h"
 #ifdef NINTENDONT_USB
 #include "usb.h"
+#include "usbstorage.h"
 #else
 #include "SDI.h"
 #endif
@@ -56,8 +57,6 @@ extern u32 s_cnt;
 
 FATFS *fatfs;
 
-static u32 HID_ThreadStack[0x400] __attribute__((aligned(32)));
-static u32 DI_ThreadStack[0x400] __attribute__((aligned(32)));
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
 extern struct ipcmessage DI_CallbackMsg;
@@ -72,7 +71,7 @@ int _main( int argc, char *argv[] )
 	sync_after_write(&__bss_start, &__bss_end - &__bss_start);
 
 	s32 ret = 0;
-	u32 HID_Thread = 0, DI_Thread = 0;
+	u32 DI_Thread = 0;
 	
 	u8 MessageHeap[0x10];
 	//u32 MessageQueue=0xFFFFFFFF;
@@ -88,8 +87,8 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(1, 0, 0);
 
-#ifndef NINTENDONT_USB
 	BootStatus(2, 0, 0);
+#ifndef NINTENDONT_USB
 	ret = SDHCInit();
 	if(!ret)
 	{
@@ -98,6 +97,10 @@ int _main( int argc, char *argv[] )
 		mdelay(4000);
 		Shutdown();
 	}
+#else
+	__usbstorage_Startup();
+	__usbstorage_IsInserted(); //sets s_size and s_cnt
+	dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
 #endif
 	BootStatus(3, 0, 0);
 	fatfs = (FATFS*)malloca( sizeof(FATFS), 32 );
@@ -159,17 +162,6 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(6, s_size, s_cnt);
 
-#ifdef NINTENDONT_USB
-	s32 r = LoadModules(55);
-	//dbgprintf("ES:ES_LoadModules(%d):%d\r\n", 55, r );
-	if( r < 0 )
-	{
-		BootStatusError(-6, r);
-		mdelay(4000);
-		Shutdown();
-	}
-#endif
-
 	BootStatus(7, s_size, s_cnt);
 	ConfigInit();
 	
@@ -198,16 +190,12 @@ int _main( int argc, char *argv[] )
 			mdelay(4000);
 			Shutdown();
 		}
-		write32(0x13003004, 0);
-		sync_after_write((void*)0x13003004, 0x20);
-
-		HID_Thread = thread_create(HID_Run, NULL, HID_ThreadStack, 0x400, 0x78, 1);
-		thread_continue(HID_Thread);
 	}
 	BootStatus(9, s_size, s_cnt);
 
 	DIRegister();
-	DI_Thread = thread_create(DIReadThread, NULL, DI_ThreadStack, 0x400, 0x78, 1);
+	u8 *theDIStack = (u8*)malloca(0x400, 32);
+	DI_Thread = thread_create(DIReadThread, NULL, (u32*)theDIStack, 0x400, 0x78, 1);
 	thread_continue(DI_Thread);
 
 	DIinit(true);
@@ -257,6 +245,7 @@ int _main( int argc, char *argv[] )
 #ifdef NINTENDONT_USB
 	u32 USBReadTimer = Now;
 #endif
+	u32 HIDReadTimer = Now;
 	u32 Reset = 0;
 	bool SaveCard = false;
 	if( ConfigGetConfig(NIN_CFG_LED) )
@@ -294,6 +283,7 @@ int _main( int argc, char *argv[] )
 		}
 		if(DI_IRQ == true)
 		{
+			udelay(500); //let the driver load data
 			if(DI_CallbackMsg.result == 0)
 				DIInterrupt();
 		}
@@ -313,7 +303,7 @@ int _main( int argc, char *argv[] )
 			IOS_IoctlAsync( DI_Handle, 2, NULL, 0, NULL, 0, DI_MessageQueue, &DI_CallbackMsg );
 			while(DI_CallbackMsg.result)
 			{
-				udelay(10); //wait for other threads
+				udelay(500); //wait for EHCI
 				BTUpdateRegisters();
 			}
 			USBReadTimer = read32(HW_TIMER);
@@ -345,6 +335,11 @@ int _main( int argc, char *argv[] )
 				DIInterrupt();
 				DiscChangeIRQ = 0;
 			}
+		}
+		if((read32(HW_TIMER) - HIDReadTimer) > 31600) //about 60 times a second
+		{
+			HIDUpdateRegisters();
+			HIDReadTimer = read32(HW_TIMER);
 		}
 		_ahbMemFlush(1);
 		DIUpdateRegisters();
@@ -425,11 +420,7 @@ int _main( int argc, char *argv[] )
 		cc_ahbMemFlush(1);
 	}
 	if( UseHID )
-	{
-		/* we're done reading inputs */
-		thread_cancel(HID_Thread, 0);
-	}
-
+		HIDClose();
 	IOS_Close(DI_Handle); //close game
 	thread_cancel(DI_Thread, 0);
 	DIUnregister();
