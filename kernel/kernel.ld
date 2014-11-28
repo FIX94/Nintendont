@@ -4,7 +4,7 @@ EXTERN(_start)
 ENTRY(_start)
 
 __stack_size = 0x2000;
-
+__phy_stack_addr = 0x12F86000 + __stack_size;
 MEMORY {
 
 	code		: ORIGIN = 0x20F00000,	LENGTH = 0x20000

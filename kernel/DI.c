@@ -31,10 +31,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Patch.h"
 #include "ISO.h"
 #include "FST.h"
+#include "HID.h"
 #include "BT.h"
 
 #ifdef NINTENDONT_USB
-#include "ehci.h"
+#include "usbstorage.h"
 static u8 DummyBuffer[0x1000] __attribute__((aligned(32)));
 extern u32 s_cnt;
 #endif
@@ -511,6 +512,8 @@ void DIUpdateRegisters( void )
 				{
 					#ifdef PATCHALL
 					BTInit();
+					if(ConfigGetConfig(NIN_CFG_HID))
+						HIDEnable();
 					#endif
 					DIOK = 1;
 				} break;
@@ -578,7 +581,7 @@ u32 DIReadThread(void *arg)
 				#ifdef NINTENDONT_USB
 				if(di_msg->ioctl.command == 2)
 				{
-					USBStorage_Read_Sectors(read32(HW_TIMER) % s_cnt, 1, DummyBuffer);
+					__usbstorage_ReadSectors(read32(HW_TIMER) % s_cnt, 1, DummyBuffer);
 					mqueue_ack( di_msg, 0 );
 					break;
 				}

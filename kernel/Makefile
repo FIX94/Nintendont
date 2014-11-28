@@ -15,7 +15,7 @@ TARGET	=	kernel.elf
 OBJECTS	=	start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Patch.o PatchTimers.o PatchWidescreen.o ISO.o \
 		Stream.o adp.o EXI.o SI.o ff.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o main.o syscalls.o vsprintf.o string.o
 ifeq ($(usb), 1)
-	OBJECTS	+= tiny_ehci_glue.o usb_os.o
+	OBJECTS	+= usb.o usbstorage.o
 	CFLAGS	+= -DNINTENDONT_USB
 	BINFILE = ../loader/data/kernel_usb.bin
 else

@@ -1,7 +1,21 @@
 #ifndef __IPC_H__
 #define __IPC_H__	1
 
-#define IPC_EINVAL -1
+#define IPC_HEAP			 -1
+
+#define IPC_OPEN_NONE		  0
+#define IPC_OPEN_READ		  1
+#define IPC_OPEN_WRITE		  2
+#define IPC_OPEN_RW			  (IPC_OPEN_READ|IPC_OPEN_WRITE)
+
+#define IPC_MAXPATH_LEN		 64
+
+#define IPC_OK				  0
+#define IPC_EINVAL			 -4
+#define IPC_ENOHEAP			 -5
+#define IPC_ENOENT			 -6
+#define IPC_EQUEUEFULL		 -8
+#define IPC_ENOMEM			-22
 
 struct ioctl_vector 
 {
