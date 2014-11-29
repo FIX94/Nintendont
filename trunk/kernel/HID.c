@@ -76,7 +76,7 @@ RumbleFunc HIDRumble;
 
 s32 HIDInit( void )
 {
-	s32 ret;
+	s32 ret = -1;
 	dbgprintf("HIDInit()\r\n");
 
 	readreq = (struct _usb_msg*)malloca( sizeof(struct _usb_msg), 32 );
@@ -100,8 +100,14 @@ s32 HIDInit( void )
 	struct _usbv5_host *hid_host = (struct _usbv5_host*)malloca(sizeof(*hid_host),32);
 	memset(hid_host, 0, sizeof(*hid_host));
 	hid_host->fd = HIDHandle;
-	ret = IOS_Ioctl( HIDHandle, GetDeviceChange, NULL, 0, hid_host->attached_devices, 0x180 );
-
+	u32 tmp = read32(HW_TIMER);
+	while((read32(HW_TIMER) - tmp) / 1898437 < 5) //5 seconds timeout
+	{
+		ret = IOS_Ioctl( HIDHandle, GetDeviceChange, NULL, 0, hid_host->attached_devices, 0x180 );
+		if(hid_host->attached_devices[0].device_id > 0) //HID found
+			break;
+		mdelay(50);
+	}
 	DeviceID	= hid_host->attached_devices[0].device_id;
 	u32 DeviceVID = hid_host->attached_devices[0].vid;
 	u32 DevicePID = hid_host->attached_devices[0].pid;
