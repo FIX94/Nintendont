@@ -98,9 +98,16 @@ int _main( int argc, char *argv[] )
 		Shutdown();
 	}
 #else
-	__usbstorage_Startup();
-	__usbstorage_IsInserted(); //sets s_size and s_cnt
-	dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
+	u32 tmp = read32(HW_TIMER);
+	while((read32(HW_TIMER) - tmp) / 1898437 < 20) //20 seconds timeout
+	{
+		if(__usbstorage_Startup() && __usbstorage_IsInserted()) //sets s_size and s_cnt
+		{
+			dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
+			break;
+		}
+		mdelay(50);
+	}
 #endif
 	BootStatus(3, 0, 0);
 	fatfs = (FATFS*)malloca( sizeof(FATFS), 32 );

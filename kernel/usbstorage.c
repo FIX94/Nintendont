@@ -27,6 +27,7 @@ must not be misrepresented as being the original software.
 distribution.
 
 -------------------------------------------------------------*/
+/* Stripped down nintendont port by FIX94 */
 #include "Config.h"
 #include "debug.h"
 #include "usbstorage.h"

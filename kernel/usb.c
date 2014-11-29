@@ -27,7 +27,7 @@ must not be misrepresented as being the original software.
 distribution.
 
 -------------------------------------------------------------*/
-
+/* Stripped down nintendont port by FIX94 */
 
 /*  Note: There are 3 types of USB interfaces here, the early ones
  *  (V0: /dev/usb/oh0 and /dev/usb/oh1) and two later ones (V5: /dev/usb/ven
@@ -215,9 +215,8 @@ s32 USB_Initialize()
 
 			u32 *ven_ver = (u32*)malloca(0x20,32);
 			if (ven_ver==NULL) goto mem_error;
-			if (IOS_Ioctl(ven_fd, USBV5_IOCTL_GETVERSION, NULL, 0, ven_ver, 0x20)==0 && ven_ver[0]==0x50001)
-				IOS_Ioctl(ven_fd, USBV5_IOCTL_GETDEVICECHANGE, NULL, 0, ven_host->attached_devices, 0x180);
-			else {
+			if (IOS_Ioctl(ven_fd, USBV5_IOCTL_GETVERSION, NULL, 0, ven_ver, 0x20) != 0 || ven_ver[0] != 0x50001)
+			{
 				// wrong ven version
 				IOS_Close(ven_fd);
 				free(ven_host);
@@ -484,6 +483,8 @@ s32 USB_GetDeviceList(usb_device_entry *descr_buffer,u8 num_descr,u8 interface_c
 
 	// for ven_host, we can only exclude usb_hid class devices
 	if (interface_class != USB_CLASS_HID && ven_host) {
+		//this call is normally async, we can do it just over and over again
+		IOS_Ioctl(ven_host->fd, USBV5_IOCTL_GETDEVICECHANGE, NULL, 0, ven_host->attached_devices, 0x180);
 		i=0;
 		while (cntdevs<num_descr && ven_host->attached_devices[i].device_id) {
 			descr_buffer[cntdevs++] = ven_host->attached_devices[i++];
