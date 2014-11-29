@@ -223,7 +223,7 @@ s32 LoadModules( u32 IOSVersion )
 	free( path );
 
 	thread_set_priority( 0, 0x7F );
-	mdelay(500); //devices finish init
+	mdelay(1000); //devices finish init
 	thread_set_priority( 0, 0x50 );
 	return ES_SUCCESS;
 }
