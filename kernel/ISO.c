@@ -50,7 +50,6 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 		f_lseek( &GameFile, Offset );
 
 	f_read( &GameFile, Buffer, Length, &readptr );
-	sync_after_write( Buffer, Length );
 
 	LastOffset = Offset + Length;
 	LastLength = Length;
@@ -77,6 +76,7 @@ bool ISOInit()
 
 	/* Set Low Mem */
 	ISOReadDirect((void*)0x0, 0x20, 0x0);
+	sync_after_write((void*)0x0, 0x20); //used by game so sync it
 	/* Get Region */
 	ISOReadDirect(&Region, sizeof(u32), 0x458);
 	/* Reset Cache */
@@ -147,8 +147,6 @@ u8 *ISORead(u32* Length, u32 Offset)
 		u32 OriLength = *Length;
 		while((*Length += OriLength) < 0x10000) ;
 	}
-	if (*Length > DI_READ_BUFFER_LENGTH)
-		*Length = DI_READ_BUFFER_LENGTH;
 
 	// case we ran out of positions
 	if( TempCacheCount >= CACHE_MAX )

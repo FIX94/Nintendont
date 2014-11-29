@@ -562,7 +562,7 @@ u32 DIReadThread(void *arg)
 					//Try to switch to FST mode
 					if( !FSTInit(GamePath) )
 					{
-						dbgprintf("Failed to open:%s Error:%u\r\n", ConfigGetGamePath(), ret );	
+						//dbgprintf("Failed to open:%s Error:%u\r\n", ConfigGetGamePath(), ret );	
 						Shutdown();
 					}
 				}
