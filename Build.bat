@@ -23,13 +23,7 @@ make
 
 cd ..\kernel
 echo.
-echo Building Nintendont Kernel (USB)
-echo.
-make usb=1 clean
-make usb=1
-
-echo.
-echo Building Nintendont Kernel (SD)
+echo Building Nintendont Kernel
 echo.
 make clean
 make

@@ -51,20 +51,10 @@ typedef struct {
    size_t          data_length;
 } raw_device_command;
 
-s32 USBStorage_Initialize();
-
-s32 USBStorage_Open(usbstorage_handle *dev, s32 device_id, u16 vid, u16 pid);
-s32 USBStorage_Close(usbstorage_handle *dev);
-s32 USBStorage_Reset(usbstorage_handle *dev);
-
-s32 USBStorage_GetMaxLUN(usbstorage_handle *dev);
-s32 USBStorage_MountLUN(usbstorage_handle *dev, u8 lun);
-s32 USBStorage_Suspend(usbstorage_handle *dev);
-
-s32 USBStorage_ReadCapacity(usbstorage_handle *dev, u8 lun, u32 *sector_size, u32 *n_sectors);
-bool __usbstorage_Startup(void);
-bool __usbstorage_IsInserted(void);
-bool __usbstorage_ReadSectors(u32 sector, u32 numSectors, void *buffer);
-bool __usbstorage_WriteSectors(u32 sector, u32 numSectors, const void *buffer);
+bool USBStorage_Startup(void);
+bool USBStorage_IsInserted(void);
+bool USBStorage_ReadSectors(u32 sector, u32 numSectors, void *buffer);
+bool USBStorage_WriteSectors(u32 sector, u32 numSectors, const void *buffer);
+void USBStorage_Shutdown(void);
 
 #endif /* __USBSTORAGE_H__ */
