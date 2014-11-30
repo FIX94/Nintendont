@@ -101,7 +101,7 @@ s32 HIDInit( void )
 	memset(hid_host, 0, sizeof(*hid_host));
 	hid_host->fd = HIDHandle;
 	u32 tmp = read32(HW_TIMER);
-	while((read32(HW_TIMER) - tmp) / 1898437 < 5) //5 seconds timeout
+	while(TimerDiffSeconds(tmp) < 5) //5 seconds timeout
 	{
 		ret = IOS_Ioctl( HIDHandle, GetDeviceChange, NULL, 0, hid_host->attached_devices, 0x180 );
 		if(hid_host->attached_devices[0].device_id > 0) //HID found
@@ -753,9 +753,6 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 
 void HIDUpdateRegisters()
 {
-	if(HIDEnabled == 0)
-		return;
-
 	HIDRead();
 	if(RumbleEnabled)
 	{

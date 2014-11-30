@@ -99,25 +99,10 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 	type *name = (type*)(((u32)(_al__##name)) + ((alignment) - (( \
 	(u32)(_al__##name))&((alignment)-1))))
 
-#define swab64(x) ((u64)( \
-				(((u64)(x) & 0xff00000000000000ull) >> 56) | \
-				(((u64)(x) & 0x00ff000000000000ull) >> 40) | \
-				(((u64)(x) & 0x0000ff0000000000ull) >> 24) | \
-				(((u64)(x) & 0x000000ff00000000ull) >>  8) | \
-				(((u64)(x) & 0x00000000ff000000ull) <<  8) | \
-				(((u64)(x) & 0x0000000000ff0000ull) << 24) | \
-				(((u64)(x) & 0x000000000000ff00ull) << 40) | \
-				(((u64)(x) & 0x00000000000000ffull) << 56)))
-#define swab32(x) ((u32)( \
-				(((u32)(x) & (u32)0x000000ffUL) << 24) | \
-				(((u32)(x) & (u32)0x0000ff00UL) <<  8) | \
-				(((u32)(x) & (u32)0x00ff0000UL) >>  8) | \
-				(((u32)(x) & (u32)0xff000000UL) >> 24)))
-#define swab16(x) ((u16)( \
-				(((u16)(x) & (u16)0x00ffU) << 8) | \
-				(((u16)(x) & (u16)0xff00U) >> 8)))
-
-
+//the builtins in ARM mode are very efficient
+#define bswap16 __builtin_bswap16
+#define bswap32 __builtin_bswap32
+#define bswap64 __builtin_bswap64
 
 #define		HW_REG_BASE			0xd800000
 #define		HW_PPCIRQFLAG		(HW_REG_BASE + 0x030)
@@ -286,6 +271,21 @@ static inline u32 clear32(u32 addr, u32 clear)
 	return data;
 }
 
+static inline u32 TimerDiffTicks(u32 time)
+{
+	u32 curtime = read32(HW_TIMER);
+	if(time > curtime) return UINT_MAX; //wrapped, return UINT_MAX to reset
+	return curtime - time;
+}
+
+static inline u32 TimerDiffSeconds(u32 time)
+{
+	u32 curtime = read32(HW_TIMER);
+	if(time > curtime) return UINT_MAX; //wrapped, return UINT_MAX to reset
+	//pretty accurate, it reports the first second is over about 3.2ms early and
+	//with a full 37.7 minutes difference its off by only about 8.6 seconds
+	return (((curtime - time) >> 13)*71)>>14;
+}
 
 #define IsWiiU ( (*(u32*)0x0d8005A0 >> 16 ) == 0xCAFE )
 

@@ -4,7 +4,7 @@
 /*                                                                         */
 /*    User-selectable configuration macros (specification only).           */
 /*                                                                         */
-/*  Copyright 1996-2012 by                                                 */
+/*  Copyright 1996-2013 by                                                 */
 /*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
 /*                                                                         */
 /*  This file is part of the FreeType project, and may only be used,       */
@@ -555,7 +555,29 @@ FT_BEGIN_HEADER
   /*   Do not #undef this macro here, since the build system might         */
   /*   define it for certain configurations only.                          */
   /*                                                                       */
-#define TT_CONFIG_OPTION_BYTECODE_INTERPRETER
+/* #define TT_CONFIG_OPTION_BYTECODE_INTERPRETER */
+
+
+  /*************************************************************************/
+  /*                                                                       */
+  /* Define TT_CONFIG_OPTION_SUBPIXEL_HINTING if you want to compile       */
+  /* EXPERIMENTAL subpixel hinting support into the TrueType driver.  This */
+  /* replaces the native TrueType hinting mechanism when anything but      */
+  /* FT_RENDER_MODE_MONO is requested.                                     */
+  /*                                                                       */
+  /* Enabling this causes the TrueType driver to ignore instructions under */
+  /* certain conditions.  This is done in accordance with the guide here,  */
+  /* with some minor differences:                                          */
+  /*                                                                       */
+  /*  http://www.microsoft.com/typography/cleartype/truetypecleartype.aspx */
+  /*                                                                       */
+  /* By undefining this, you only compile the code necessary to hint       */
+  /* TrueType glyphs with native TT hinting.                               */
+  /*                                                                       */
+  /*   This option requires TT_CONFIG_OPTION_BYTECODE_INTERPRETER to be    */
+  /*   defined.                                                            */
+  /*                                                                       */
+/* #define TT_CONFIG_OPTION_SUBPIXEL_HINTING */
 
 
   /*************************************************************************/
@@ -605,7 +627,7 @@ FT_BEGIN_HEADER
   /*     ...                                                               */
   /*   }                                                                   */
   /*                                                                       */
-/* #define TT_CONFIG_OPTION_UNPATENTED_HINTING */
+#define TT_CONFIG_OPTION_UNPATENTED_HINTING
 
 
   /*************************************************************************/
@@ -761,7 +783,7 @@ FT_BEGIN_HEADER
    * is recommended to disable the macro since it reduces the library's code
    * size and activates a few memory-saving optimizations as well.
    */
-#define FT_CONFIG_OPTION_OLD_INTERNALS
+/* #define FT_CONFIG_OPTION_OLD_INTERNALS */
 
 
   /*

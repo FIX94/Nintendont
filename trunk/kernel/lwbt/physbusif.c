@@ -67,13 +67,13 @@ static inline s32 __usb_control_message(s32 fd,u8 bmRequestType,u8 bmRequest,u16
 	*pRq = bmRequest;
 
 	pValue = (u16*)malloca(32,32);
-	*pValue = swab16(wValue);
+	*pValue = bswap16(wValue);
 
 	pIndex = (u16*)malloca(32,32);
-	*pIndex = swab16(wIndex);
+	*pIndex = bswap16(wIndex);
 
 	pLength = (u16*)malloca(32,32);
-	*pLength = swab16(wLength);
+	*pLength = bswap16(wLength);
 
 	pNull = (u8*)malloca(32,32);
 	*pNull = 0;

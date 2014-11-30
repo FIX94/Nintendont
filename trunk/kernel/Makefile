@@ -4,9 +4,8 @@ AS	=	$(PREFIX)as
 LD	=	$(PREFIX)gcc
 STRIP =	$(PREFIX)strip
 
-CFLAGS	=	-mbig-endian -fno-unwind-tables -fomit-frame-pointer -O1 -g -Wall -I. -mcpu=arm926ej-s -mthumb \
-	-fno-builtin-toupper -fno-builtin-memcpy -fno-builtin-memset  -fno-builtin-memcmp -fno-builtin-malloc -fno-builtin-free \
-	-fdata-sections -ffunction-sections -msoft-float -mfloat-abi=soft
+CFLAGS	=	-mbig-endian -O2 -g -I. -Wall -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft -fdata-sections -ffunction-sections \
+	-fno-builtin-toupper -fno-builtin-memcpy -fno-builtin-memset -fno-builtin-memcmp -fno-builtin-malloc -fno-builtin-free
 
 ASFLAGS	=	-mbig-endian -mcpu=arm926ej-s
 LDFLAGS	=	-nostartfiles -nodefaultlibs -mbig-endian -Wl,--gc-sections,-T,kernel.ld,-Map,kernel.map -n

@@ -29,7 +29,9 @@ THE SOFTWARE.
 #include <ft2build.h>
 #include <pngu.h>
 #include <stdio.h>
+#ifdef ENABLE_JPEG
 #include <jpeglib.h>
+#endif
 #include <string.h>
 
 
