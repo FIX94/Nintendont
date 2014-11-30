@@ -52,7 +52,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "menu.h"
 #include "Patches.h"
 #include "kernel_bin.h"
-#include "kernel_usb_bin.h"
 #include "PADReadGC_bin.h"
 #include "multidol_ldr_bin.h"
 #include "stub_bin.h"
@@ -300,11 +299,7 @@ int main(int argc, char **argv)
 		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "Failed to load kernel from NAND!" );
 		ExitToLoader(1);
 	}
-
-	if (UseSD)
-		InsertModule((char*)kernel_bin, kernel_bin_size);
-	else
-		InsertModule((char*)kernel_usb_bin, kernel_usb_bin_size);
+	InsertModule((char*)kernel_bin, kernel_bin_size);
 
 	memset( (void*)0x92f00000, 0, 0x100000 );
 	DCFlushRange( (void*)0x92f00000, 0x100000 );
@@ -465,11 +460,11 @@ int main(int argc, char **argv)
 		if((STATUS_LOADING > 0 || abs(STATUS_LOADING) > 1) && STATUS_LOADING < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init... Done!");
 		if(STATUS_LOADING == 2)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device...");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Init USB/SD device...");
 		if(abs(STATUS_LOADING) > 2 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device... Done!");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Init USB/SD device... Done!");
 		if(STATUS_LOADING == -2)
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Init SD device... Error! %d  Shutting down", STATUS_ERROR);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Init USB/SD device... Error! %d  Shutting down", STATUS_ERROR);
 		if(STATUS_LOADING == 3)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...");
 		if(abs(STATUS_LOADING) > 3 && abs(STATUS_LOADING) < 20)
@@ -512,7 +507,7 @@ int main(int argc, char **argv)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... ");
 			if ( STATUS_ERROR == 1)
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "          Plug Controller in %s usb port", IsWiiU() ? "BOTTOM REAR" : "TOP");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "          Make sure the Controller is plugged in");
 			}
 			else
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "%50s", " ");
@@ -538,7 +533,7 @@ int main(int argc, char **argv)
 			switch (STATUS_ERROR)
 			{
 				case -1:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "No Controller plugged in %s usb port %10s", IsWiiU() ? "BOTTOM REAR" : "TOP", " ");
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "No Controller plugged in! %25s", " ");
 					break;	
 				case -2:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Missing %s:/controller.ini %20s", GetRootDevice(), " ");

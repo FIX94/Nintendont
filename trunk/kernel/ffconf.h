@@ -129,11 +129,8 @@
 /* Number of volumes (logical drives) to be used. */
 
 
-#ifdef NINTENDONT_USB
+
 #define	_MAX_SS		4096		/* 512, 1024, 2048 or 4096 */
-#else
-#define	_MAX_SS		512		/* 512, 1024, 2048 or 4096 */
-#endif
 /* Maximum sector size to be handled.
 /  Always set 512 for memory card and hard disk but a larger value may be
 /  required for on-board flash memory, floppy disk and optical disk.

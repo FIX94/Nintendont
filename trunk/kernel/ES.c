@@ -181,12 +181,11 @@ s32 LoadModules( u32 IOSVersion )
 			TMD->Contents[i].Index != 13&&	// USB
 			TMD->Contents[i].Index != 14&&	// HID
 			TMD->Contents[i].Index != 15&&	// HUB
-#ifdef NINTENDONT_USB
+			( ( ConfigGetConfig(NIN_CFG_USB) &&
 			TMD->Contents[i].Index != 1 &&	// EHCI
-			TMD->Contents[i].Index != 16)	// VEN
-#else
-			TMD->Contents[i].Index != 5)	// SDI
-#endif
+			TMD->Contents[i].Index != 16 )	// VEN
+			|| ( !ConfigGetConfig(NIN_CFG_USB) &&
+			TMD->Contents[i].Index != 5)))	// SDI
 			continue;
 		//check if shared!
 		if( TMD->Contents[i].Type & CONTENT_SHARED )

@@ -101,17 +101,6 @@ s32 USBStorage_Inquiry(usbstorage_handle *dev, u8 lun);
 
 static u8 *cbw_buffer=NULL;
 
-s32 USBStorage_Initialize()
-{
-	if(__inited)
-		return IPC_OK;
-
-	cbw_buffer=(u8*)malloca(32,32);
-	__inited = true;
-
-	return IPC_OK;
-}
-
 static s32 __send_cbw(usbstorage_handle *dev, u8 lun, u32 len, u8 flags, const u8 *cb, u8 cbLen)
 {
 	s32 retval = USBSTORAGE_OK;
@@ -270,6 +259,37 @@ static s32 __usbstorage_reset(usbstorage_handle *dev)
 	return retval;
 }
 
+
+s32 USBStorage_Close(usbstorage_handle *dev)
+{
+	__mounted = false;
+	__lun = 0;
+	__vid = 0;
+	__pid = 0;
+
+	if (dev->usb_fd != -1)
+		USB_CloseDevice(&dev->usb_fd);
+
+	if(dev->sector_size)
+		free(dev->sector_size);
+
+	if (dev->buffer)
+		free(dev->buffer);
+
+	memset(dev, 0, sizeof(*dev));
+	dev->usb_fd = -1;
+	return 0;
+}
+
+s32 USBStorage_Reset(usbstorage_handle *dev)
+{
+	s32 retval;
+
+	retval = __usbstorage_reset(dev);
+
+	return retval;
+}
+
 s32 USBStorage_Open(usbstorage_handle *dev, s32 device_id, u16 vid, u16 pid)
 {
 	s32 retval = -1;
@@ -416,34 +436,29 @@ free_and_return:
 	return 0;
 }
 
-s32 USBStorage_Close(usbstorage_handle *dev)
-{
-	__mounted = false;
-	__lun = 0;
-	__vid = 0;
-	__pid = 0;
-
-	if (dev->usb_fd != -1)
-		USB_CloseDevice(&dev->usb_fd);
-
-	if(dev->sector_size)
-		free(dev->sector_size);
-
-	if (dev->buffer)
-		free(dev->buffer);
-
-	memset(dev, 0, sizeof(*dev));
-	dev->usb_fd = -1;
-	return 0;
-}
-
-s32 USBStorage_Reset(usbstorage_handle *dev)
+static bool firstusbread = true;
+extern u32 s_size, s_cnt;
+s32 USBStorage_ReadCapacity(usbstorage_handle *dev, u8 lun, u32 *sector_size, u32 *n_sectors)
 {
 	s32 retval;
+	u8 cmd[10] = {SCSI_READ_CAPACITY, lun<<5};
+	u8 response[8];
 
-	
-	retval = __usbstorage_reset(dev);
-	
+	retval = __cycle(dev, lun, response, sizeof(response), cmd, sizeof(cmd), 0, NULL, NULL);
+	if(retval >= 0)
+	{
+		if(n_sectors != NULL)
+			memcpy(n_sectors, response, 4);
+		if(sector_size != NULL)
+			memcpy(sector_size, response + 4, 4);
+		if(firstusbread)
+		{
+			firstusbread = false;
+			s_cnt = *n_sectors;
+			s_size = *sector_size;
+		}
+		retval = USBSTORAGE_OK;
+	}
 
 	return retval;
 }
@@ -512,32 +527,6 @@ s32 USBStorage_Inquiry(usbstorage_handle *dev, u8 lun)
 	*/
 	return retval;
 }
-static bool firstusbread = true;
-extern u32 s_size, s_cnt;
-s32 USBStorage_ReadCapacity(usbstorage_handle *dev, u8 lun, u32 *sector_size, u32 *n_sectors)
-{
-	s32 retval;
-	u8 cmd[10] = {SCSI_READ_CAPACITY, lun<<5};
-	u8 response[8];
-
-	retval = __cycle(dev, lun, response, sizeof(response), cmd, sizeof(cmd), 0, NULL, NULL);
-	if(retval >= 0)
-	{
-		if(n_sectors != NULL)
-			memcpy(n_sectors, response, 4);
-		if(sector_size != NULL)
-			memcpy(sector_size, response + 4, 4);
-		if(firstusbread)
-		{
-			firstusbread = false;
-			s_cnt = *n_sectors;
-			s_size = *sector_size;
-		}
-		retval = USBSTORAGE_OK;
-	}
-
-	return retval;
-}
 
 s32 USBStorage_Read(usbstorage_handle *dev, u8 lun, u32 sector, u16 n_sectors, u8 *buffer)
 {
@@ -604,15 +593,22 @@ s32 USBStorage_Suspend(usbstorage_handle *dev)
 	return USBSTORAGE_OK;
 }
 
-bool __usbstorage_Startup(void)
+bool USBStorage_Startup(void)
 {
-	if(USB_Initialize() < 0 || USBStorage_Initialize() < 0)
+	if(__inited)
+		return true;
+
+	if(USB_Initialize() < 0)
 		return false;
 
-	return true;
+	if(cbw_buffer == NULL)
+		cbw_buffer = (u8*)malloca(32,32);
+
+	__inited = true;
+	return __inited;
 }
 
-bool __usbstorage_IsInserted(void)
+bool USBStorage_IsInserted(void)
 {
 	usb_device_entry *buffer;
 	u8 device_count;
@@ -715,7 +711,7 @@ bool __usbstorage_IsInserted(void)
 	return __mounted;
 }
 
-bool __usbstorage_ReadSectors(u32 sector, u32 numSectors, void *buffer)
+bool USBStorage_ReadSectors(u32 sector, u32 numSectors, void *buffer)
 {
 	s32 retval;
 
@@ -727,7 +723,7 @@ bool __usbstorage_ReadSectors(u32 sector, u32 numSectors, void *buffer)
 	return retval >= 0;
 }
 
-bool __usbstorage_WriteSectors(u32 sector, u32 numSectors, const void *buffer)
+bool USBStorage_WriteSectors(u32 sector, u32 numSectors, const void *buffer)
 {
 	s32 retval;
 
@@ -739,21 +735,14 @@ bool __usbstorage_WriteSectors(u32 sector, u32 numSectors, const void *buffer)
 	return retval >= 0;
 }
 
-bool __usbstorage_ClearStatus(void)
+void USBStorage_Shutdown(void)
 {
-	return true;
-}
+	if(__inited == false)
+		return;
 
-bool __usbstorage_Shutdown(void)
-{
 	if (__vid != 0 || __pid != 0)
 		USBStorage_Close(&__usbfd);
+	USB_Deinitialize();
 
-	return true;
-}
-
-void USBStorage_Deinitialize()
-{
-	__usbstorage_Shutdown();
 	__inited = false;
 }

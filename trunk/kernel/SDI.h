@@ -2,9 +2,8 @@
 #define __SDI_H__
 
 #include "global.h"
+#include "ipc.h"
 
-#define SDIO_HEAPSIZE				(5*1024)
- 
 #define PAGE_SIZE512				512
 
 #define	SDIOHCR_RESPONSE			0x10
@@ -88,6 +87,14 @@ struct _sdiorequest
 	void *dma_addr;
 	u32 isdma;
 	u32 pad0;
+};
+
+struct _sdiomsg //just there for easy alignment
+{
+	struct _sdiorequest request;
+	ioctlv iovec[3];
+	u32 pad0;
+	struct _sdioresponse response;
 };
 
 s32 SDHCInit( void );

@@ -35,10 +35,17 @@ typedef enum {
 /*---------------------------------------*/
 /* Prototypes for disk control functions */
 
-DSTATUS disk_initialize (BYTE, WORD*);
-DSTATUS disk_status (BYTE);
-DRESULT disk_read (BYTE, BYTE*, DWORD, BYTE);
-DRESULT disk_write (BYTE, const BYTE*, DWORD, BYTE);
+void SetDiskFunctions(DWORD);
+
+typedef DSTATUS (*DiskInitFunc)(BYTE, WORD*);
+typedef DRESULT (*DiskReadFunc)(BYTE, BYTE*, DWORD, BYTE);
+typedef DRESULT (*DiskWriteFunc)(BYTE, const BYTE*, DWORD, BYTE);
+
+extern DiskInitFunc disk_initialize;
+extern DiskReadFunc disk_read;
+extern DiskWriteFunc disk_write;
+
+DSTATUS disk_status(BYTE);
 DWORD get_fattime(void);
 
 /* Disk Status Bits (DSTATUS) */

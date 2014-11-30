@@ -35,12 +35,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "debug.h"
 #include "GCAM.h"
 #include "Patch.h"
-#ifdef NINTENDONT_USB
-#include "usb.h"
+#include "diskio.h"
 #include "usbstorage.h"
-#else
 #include "SDI.h"
-#endif
+
+#define DI_STACK_SIZE 0x400
 
 int verbose = 0;
 u32 base_offset=0;
@@ -87,28 +86,34 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(1, 0, 0);
 
+	u32 UseUSB = ConfigGetConfig(NIN_CFG_USB);
+	SetDiskFunctions(UseUSB);
+
 	BootStatus(2, 0, 0);
-#ifndef NINTENDONT_USB
-	ret = SDHCInit();
-	if(!ret)
+	if(UseUSB)
 	{
-		dbgprintf("SD:SDHCInit() failed:%d\r\n", ret );
+		u32 tmp = read32(HW_TIMER);
+		while((read32(HW_TIMER) - tmp) / 1898437 < 20) //20 seconds timeout
+		{
+			if(USBStorage_Startup() && USBStorage_IsInserted()) //sets s_size and s_cnt
+			{
+				dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
+				ret = 1;
+				break;
+			}
+			mdelay(50);
+		}
+	}
+	else
+		ret = SDHCInit();
+	if(ret != 1)
+	{
+		dbgprintf("Device Init failed:%d\r\n", ret );
 		BootStatusError(-2, ret);
 		mdelay(4000);
 		Shutdown();
 	}
-#else
-	u32 tmp = read32(HW_TIMER);
-	while((read32(HW_TIMER) - tmp) / 1898437 < 20) //20 seconds timeout
-	{
-		if(__usbstorage_Startup() && __usbstorage_IsInserted()) //sets s_size and s_cnt
-		{
-			dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
-			break;
-		}
-		mdelay(50);
-	}
-#endif
+
 	BootStatus(3, 0, 0);
 	fatfs = (FATFS*)malloca( sizeof(FATFS), 32 );
 
@@ -162,10 +167,11 @@ int _main( int argc, char *argv[] )
 		}
 */
 	}
-#ifndef NINTENDONT_USB
-	s_size = 512;
-	s_cnt = fatfs->n_fatent * fatfs->csize;
-#endif
+	if(!UseUSB) //Use FAT values for SD
+	{
+		s_size = fatfs->ssize;
+		s_cnt = fatfs->n_fatent * fatfs->csize;
+	}
 
 	BootStatus(6, s_size, s_cnt);
 
@@ -201,8 +207,8 @@ int _main( int argc, char *argv[] )
 	BootStatus(9, s_size, s_cnt);
 
 	DIRegister();
-	u8 *theDIStack = (u8*)malloca(0x400, 32);
-	DI_Thread = thread_create(DIReadThread, NULL, (u32*)theDIStack, 0x400, 0x78, 1);
+	u32 *theDIStack = (u32*)malloca(DI_STACK_SIZE * sizeof(u32), 32); //yes, it seems like thats how it works
+	DI_Thread = thread_create(DIReadThread, NULL, theDIStack, DI_STACK_SIZE, 0x78, 1); //simply because its a stack
 	thread_continue(DI_Thread);
 
 	DIinit(true);
@@ -249,9 +255,7 @@ int _main( int argc, char *argv[] )
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
-#ifdef NINTENDONT_USB
 	u32 USBReadTimer = Now;
-#endif
 	u32 HIDReadTimer = Now;
 	u32 Reset = 0;
 	bool SaveCard = false;
@@ -302,8 +306,7 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
-		#ifdef NINTENDONT_USB
-		else if((read32(HW_TIMER) - USBReadTimer) / 1898437 > 9) /* Read random sector after about 10 seconds */
+		else if(UseUSB && (read32(HW_TIMER) - USBReadTimer) / 1898437 > 9) /* Read random sector after about 10 seconds */
 		{
 			DI_CallbackMsg.result = -1;
 			sync_after_write(&DI_CallbackMsg, 0x20);
@@ -315,7 +318,6 @@ int _main( int argc, char *argv[] )
 			}
 			USBReadTimer = read32(HW_TIMER);
 		}
-		#endif
 		udelay(10); //wait for other threads
 
 		//Baten Kaitos save hax
@@ -457,9 +459,10 @@ int _main( int argc, char *argv[] )
 //unmount FAT device
 	f_mount(0, NULL);
 
-#ifndef NINTENDONT_USB
-	SDHCShutdown();
-#endif
+	if(UseUSB)
+		USBStorage_Shutdown();
+	else
+		SDHCShutdown();
 
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);
