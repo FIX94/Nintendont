@@ -82,10 +82,10 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 	{
 		if(stat->transferstate == TRANSFER_CALIBRATE)
 		{
-			stat->xAxisLmid = swab16(R16((u32)(((u8*)buffer)+1)));
-			stat->xAxisRmid = swab16(R16((u32)(((u8*)buffer)+3)));
-			stat->yAxisLmid = swab16(R16((u32)(((u8*)buffer)+5)));
-			stat->yAxisRmid = swab16(R16((u32)(((u8*)buffer)+7)));
+			stat->xAxisLmid = bswap16(R16((u32)(((u8*)buffer)+1)));
+			stat->xAxisRmid = bswap16(R16((u32)(((u8*)buffer)+3)));
+			stat->yAxisLmid = bswap16(R16((u32)(((u8*)buffer)+5)));
+			stat->yAxisRmid = bswap16(R16((u32)(((u8*)buffer)+7)));
 			stat->transferstate = TRANSFER_DONE;
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
@@ -93,10 +93,10 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		if(chan == CHAN_NOT_SET)
 			return ERR_OK;
 		sync_before_read(&BTPad[chan], sizeof(struct BTPadCont));
-		BTPad[chan].xAxisL = ((swab16(R16((u32)(((u8*)buffer)+1))) - stat->xAxisLmid) *7) >>6;
-		BTPad[chan].xAxisR = ((swab16(R16((u32)(((u8*)buffer)+3))) - stat->xAxisRmid) *7) >>6;
-		BTPad[chan].yAxisL = ((swab16(R16((u32)(((u8*)buffer)+5))) - stat->yAxisLmid) *7) >>6;
-		BTPad[chan].yAxisR = ((swab16(R16((u32)(((u8*)buffer)+7))) - stat->yAxisRmid) *7) >>6;
+		BTPad[chan].xAxisL = ((bswap16(R16((u32)(((u8*)buffer)+1))) - stat->xAxisLmid) *7) >>6;
+		BTPad[chan].xAxisR = ((bswap16(R16((u32)(((u8*)buffer)+3))) - stat->xAxisRmid) *7) >>6;
+		BTPad[chan].yAxisL = ((bswap16(R16((u32)(((u8*)buffer)+5))) - stat->yAxisLmid) *7) >>6;
+		BTPad[chan].yAxisR = ((bswap16(R16((u32)(((u8*)buffer)+7))) - stat->yAxisRmid) *7) >>6;
 		u32 prevButton = BTPad[chan].button;
 		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+9)));
 		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
@@ -428,12 +428,10 @@ void BTInit(void)
 	BTTimer = read32(HW_TIMER);
 	u32 CheckTimer = read32(HW_TIMER);
 	inited = 1;
-	while(1)
+	while(TimerDiffSeconds(CheckTimer) < 1)
 	{
-		if((read32(HW_TIMER) - CheckTimer) / 1898437)
-			break;
 		BTUpdateRegisters();
-		udelay(10);
+		udelay(200);
 	}
 }
 
@@ -481,7 +479,7 @@ void BTUpdateRegisters(void)
 		{
 			if(LastRumble == 1)
 			{
-				if((read32(HW_TIMER) - BTPadConnected[i]->rumbletime) > 94922)
+				if(TimerDiffTicks(BTPadConnected[i]->rumbletime) > 94922)
 					BTPadConnected[i]->rumbletime = 0;
 				else //extend to at least 1/20th of a second
 					CurRumble = 1;
@@ -511,7 +509,7 @@ void BTUpdateRegisters(void)
 			sync_after_write(BTPadConnected[i], sizeof(struct BTPadStat));
 		}
 	}
-	if((read32(HW_TIMER) - BTTimer) / 1898437)
+	if(TimerDiffSeconds(BTTimer) > 0)
 	{
 		//dbgprintf("tick\n");
 		l2cap_tmr(); //every second

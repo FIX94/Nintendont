@@ -362,7 +362,7 @@ void DIUpdateRegisters( void )
 					// Command
 					*(u16*)(MediaBuffer+2) = *(u16*)(MediaBuffer+0x22) | 0x80;
 
-					u16 cmd = bs16(*(u16*)(MediaBuffer+0x22));
+					u16 cmd = bswap16(*(u16*)(MediaBuffer+0x22));
 
 					#ifdef DEBUG_GCAM
 					if(cmd)
@@ -372,18 +372,18 @@ void DIUpdateRegisters( void )
 					{
 						// ?
 						case 0x000:
-							*(u32*)(MediaBuffer+4) = bs32(1);
+							*(u32*)(MediaBuffer+4) = bswap32(1);
 							break;
 						// DIMM size
 						case 0x001:
-							*(u32*)(MediaBuffer+4) = bs32(0x20000000);
+							*(u32*)(MediaBuffer+4) = bswap32(0x20000000);
 							break;
 						// Media board status
 						case 0x100:
 							// Status
-							*(u32*)(MediaBuffer+4) = bs32(5);
+							*(u32*)(MediaBuffer+4) = bswap32(5);
 							// Progress in %
-							*(u32*)(MediaBuffer+8) = bs32(100);
+							*(u32*)(MediaBuffer+8) = bswap32(100);
 						break;
 						// Media board version: 3.03
 						case 0x101:
@@ -412,8 +412,8 @@ void DIUpdateRegisters( void )
 						// Get IP (?)
 						case 0x406:
 						{
-							char *IP			= (char*)(NetworkCMDBuffer + ( bs32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
-							u32 IPLength	= bs32(*(u32*)(MediaBuffer+0x2C));
+							char *IP			= (char*)(NetworkCMDBuffer + ( bswap32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
+							u32 IPLength	= bswap32(*(u32*)(MediaBuffer+0x2C));
 
 							memcpy( MediaBuffer + 4, IP, IPLength );
 
@@ -425,8 +425,8 @@ void DIUpdateRegisters( void )
 						case 0x415:
 						{
 							#ifdef DEBUG_GCAM
-							char *IP			= (char*)(NetworkCMDBuffer + ( bs32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
-							u32 IPLength	= bs32(*(u32*)(MediaBuffer+0x2C));
+							char *IP			= (char*)(NetworkCMDBuffer + ( bswap32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
+							u32 IPLength	= bswap32(*(u32*)(MediaBuffer+0x2C));
 							dbgprintf( "GC-AM: Set IP:%s, Length:%d\n", IP, IPLength );
 							#endif
 						} break;

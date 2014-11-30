@@ -218,7 +218,7 @@ void EXISetTimings(u32 TitleID, u32 Region)
 
 bool EXICheckTimer(void)
 {
-	return (read32(HW_TIMER) - IRQ_Timer) > CurrentTiming;
+	return TimerDiffTicks(IRQ_Timer) > CurrentTiming;
 }
 void EXIInterrupt(void)
 {

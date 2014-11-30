@@ -108,9 +108,9 @@ static s32 __send_cbw(usbstorage_handle *dev, u8 lun, u32 len, u8 flags, const u
 	if(cbLen == 0 || cbLen > 16)
 		return IPC_EINVAL;
 
-	write32(((u32)cbw_buffer),bs32(CBW_SIGNATURE));
-	write32(((u32)cbw_buffer)+4,bs32(++dev->tag));
-	write32(((u32)cbw_buffer)+8,bs32(len));
+	write32(((u32)cbw_buffer),bswap32(CBW_SIGNATURE));
+	write32(((u32)cbw_buffer)+4,bswap32(++dev->tag));
+	write32(((u32)cbw_buffer)+8,bswap32(len));
 	cbw_buffer[12] = flags;
 	cbw_buffer[13] = lun;
 	cbw_buffer[14] = (cbLen > 6 ? 10 : 6);
@@ -140,9 +140,9 @@ static s32 __read_csw(usbstorage_handle *dev, u8 *status, u32 *dataResidue)
 	if(retval > 0 && retval != CSW_SIZE) return USBSTORAGE_ESHORTREAD;
 	else if(retval < 0) return retval;
 
-	signature = bs32(read32(((u32)cbw_buffer)));
-	tag = bs32(read32(((u32)cbw_buffer)+4));
-	_dataResidue = bs32(read32(((u32)cbw_buffer)+8));
+	signature = bswap32(read32(((u32)cbw_buffer)));
+	tag = bswap32(read32(((u32)cbw_buffer)+4));
+	_dataResidue = bswap32(read32(((u32)cbw_buffer)+8));
 	_status = cbw_buffer[12];
 
 	if(signature != CSW_SIGNATURE) return USBSTORAGE_ESIGNATURE;

@@ -93,7 +93,7 @@ int _main( int argc, char *argv[] )
 	if(UseUSB)
 	{
 		u32 tmp = read32(HW_TIMER);
-		while((read32(HW_TIMER) - tmp) / 1898437 < 20) //20 seconds timeout
+		while(TimerDiffSeconds(tmp) < 20)
 		{
 			if(USBStorage_Startup() && USBStorage_IsInserted()) //sets s_size and s_cnt
 			{
@@ -286,7 +286,7 @@ int _main( int argc, char *argv[] )
 		#endif
 		if ((PatchSI) && (SI_IRQ != 0))
 		{
-			if (((read32(HW_TIMER) - PADTimer) > 7910) || (SI_IRQ & 0x2))	// about 240 times a second
+			if ((TimerDiffTicks(PADTimer) > 7910) || (SI_IRQ & 0x2))	// about 240 times a second
 			{
 				SIInterrupt();
 				PADTimer = read32(HW_TIMER);
@@ -294,26 +294,26 @@ int _main( int argc, char *argv[] )
 		}
 		if(DI_IRQ == true)
 		{
-			udelay(500); //let the driver load data
+			udelay(200); //let the driver load data
 			if(DI_CallbackMsg.result == 0)
 				DIInterrupt();
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
 		{
-			if((read32(HW_TIMER) - Now) / 1898437 > 2) /* after 3 second earliest */
+			if(TimerDiffSeconds(Now) > 2) /* after 3 second earliest */
 			{
 				EXISaveCard();
 				SaveCard = false;
 			}
 		}
-		else if(UseUSB && (read32(HW_TIMER) - USBReadTimer) / 1898437 > 9) /* Read random sector after about 10 seconds */
+		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 9) /* Read random sector after about 10 seconds */
 		{
 			DI_CallbackMsg.result = -1;
 			sync_after_write(&DI_CallbackMsg, 0x20);
 			IOS_IoctlAsync( DI_Handle, 2, NULL, 0, NULL, 0, DI_MessageQueue, &DI_CallbackMsg );
 			while(DI_CallbackMsg.result)
 			{
-				udelay(500); //wait for EHCI
+				udelay(200); //wait for EHCI
 				BTUpdateRegisters();
 			}
 			USBReadTimer = read32(HW_TIMER);
@@ -336,7 +336,7 @@ int _main( int argc, char *argv[] )
 		}
 		else if ( DiscChangeIRQ == 2 )
 		{
-			if ( (read32(HW_TIMER) - DiscChangeTimer ) >  2 * 243000000 / 128)
+			if ( TimerDiffSeconds(DiscChangeTimer) > 2 )
 			{
 				//dbgprintf("DIP:IRQ mon!\r\n");
 				set32( DI_SSTATUS, 0x3A );
@@ -345,7 +345,7 @@ int _main( int argc, char *argv[] )
 				DiscChangeIRQ = 0;
 			}
 		}
-		if((read32(HW_TIMER) - HIDReadTimer) > 31600) //about 60 times a second
+		if(UseHID && TimerDiffTicks(HIDReadTimer) > 31600) //about 60 times a second
 		{
 			HIDUpdateRegisters();
 			HIDReadTimer = read32(HW_TIMER);
@@ -391,7 +391,7 @@ int _main( int argc, char *argv[] )
 			/* The cleanup is not connected to the button press */
 			if (Reset == 2)
 			{
-				if ((read32(HW_TIMER) - ResetTimer) / 949219 > 0) //free after half a second
+				if (TimerDiffTicks(ResetTimer) > 949219) //free after half a second
 				{
 					write32(EXI2DATA, 0); // done, clear
 					write32(DIP_IMM, 0);

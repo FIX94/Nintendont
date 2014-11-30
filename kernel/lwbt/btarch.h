@@ -64,22 +64,22 @@
 
 #if BYTE_ORDER == BIG_ENDIAN
 	#ifndef htole16
-		#define htole16		swab16
+		#define htole16		bswap16
 	#endif
 	#ifndef htole32		
-		#define htole32		swab32
+		#define htole32		bswap32
 	#endif
 	#ifndef htole64		
-		#define htole64		swab64
+		#define htole64		bswap64
 	#endif
 	#ifndef le16toh
-		#define le16toh		swab16
+		#define le16toh		bswap16
 	#endif
 	#ifndef le32toh
-		#define le32toh		swab32
+		#define le32toh		bswap32
 	#endif
 	#ifndef le642toh
-		#define le64toh		swab64
+		#define le64toh		bswap64
 	#endif
 	#ifndef htons
 		#define htons(x)	(x)
