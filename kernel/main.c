@@ -345,7 +345,7 @@ int _main( int argc, char *argv[] )
 				DiscChangeIRQ = 0;
 			}
 		}
-		if(UseHID && TimerDiffTicks(HIDReadTimer) > 31600) //about 60 times a second
+		if(UseHID && TimerDiffTicks(HIDReadTimer) > 7900) //about 240 times a second
 		{
 			HIDUpdateRegisters();
 			HIDReadTimer = read32(HW_TIMER);
