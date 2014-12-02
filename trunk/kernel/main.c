@@ -256,7 +256,6 @@ int _main( int argc, char *argv[] )
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
 	u32 USBReadTimer = Now;
-	u32 HIDReadTimer = Now;
 	u32 Reset = 0;
 	bool SaveCard = false;
 	if( ConfigGetConfig(NIN_CFG_LED) )
@@ -345,17 +344,13 @@ int _main( int argc, char *argv[] )
 				DiscChangeIRQ = 0;
 			}
 		}
-		if(UseHID && TimerDiffTicks(HIDReadTimer) > 7900) //about 240 times a second
-		{
-			HIDUpdateRegisters();
-			HIDReadTimer = read32(HW_TIMER);
-		}
 		_ahbMemFlush(1);
 		DIUpdateRegisters();
 		#ifdef PATCHALL
 		EXIUpdateRegistersNEW();
 		GCAMUpdateRegisters();
 		BTUpdateRegisters();
+		if(UseHID) HIDUpdateRegisters();
 		#endif
 		StreamUpdateRegisters();
 		CheckOSReport();
