@@ -152,6 +152,15 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				write32(0x143ED8, 0xC0029AE8);
 			}
 			return true;
+		case 0x474C4D: //Luigis Mansion
+			dbgprintf("Patch:Patched Luigis Mansion Widescreen\r\n");
+			if(Region == REGION_ID_USA)
+				PatchWideMulti(0x206A4, 0);
+			else if(Region == REGION_ID_EUR)
+				PatchWideMulti(0x2143C, 0);
+			else if(Region == REGION_ID_JAP)
+				PatchWideMulti(0x20300, 0);
+			return true;
 		case 0x474342: //Crash Bandicoot
 			dbgprintf("Patch:Patched Crash Bandicoot Clipping\r\n");
 			if(Region == REGION_ID_USA)
