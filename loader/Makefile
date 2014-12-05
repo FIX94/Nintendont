@@ -35,8 +35,8 @@ LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lfreetype -lpngu -lpng -lz -lfat
-LIBS	+= -lwiiuse -lwupc -lbte -lfat -logc -lm -lz
+LIBS	:= -lfreetype -lpngu -lpng -lz \
+	-lwiiuse -lwupc -lbte -lcustomfat -logc -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

@@ -75,20 +75,20 @@ void EXIInit( void )
 
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 	{
-		f_chdir("/saves");
 		u32 GameID = ConfigGetGameID();
 		memset32(MemCardName, 0, 0x20);
+		memcpy(MemCardName, "/saves/", 7);
 		if ( ConfigGetConfig(NIN_CFG_MC_MULTI) )
 		{
 			if ((GameID & 0xFF) == 'J')  // JPN games
-				memcpy(MemCardName, "ninmemj.raw", 11);
+				memcpy(MemCardName+7, "ninmemj.raw", 11);
 			else
-				memcpy(MemCardName, "ninmem.raw", 10);
+				memcpy(MemCardName+7, "ninmem.raw", 10);
 		}
 		else
 		{
-			memcpy(MemCardName, &GameID, 4);
-			memcpy(MemCardName + 4, ".raw", 4);
+			memcpy(MemCardName+7, &GameID, 4);
+			memcpy(MemCardName+11, ".raw", 4);
 		}
 		sync_after_write(MemCardName, 0x20);
 
