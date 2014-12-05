@@ -55,6 +55,7 @@ extern u32 s_size;
 extern u32 s_cnt;
 
 FATFS *fatfs;
+static const char *fatDevName = "/";
 
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
@@ -105,7 +106,10 @@ int _main( int argc, char *argv[] )
 		}
 	}
 	else
+	{
+		s_size = PAGE_SIZE512; //manually set s_size
 		ret = SDHCInit();
+	}
 	if(ret != 1)
 	{
 		dbgprintf("Device Init failed:%d\r\n", ret );
@@ -117,7 +121,7 @@ int _main( int argc, char *argv[] )
 	BootStatus(3, 0, 0);
 	fatfs = (FATFS*)malloca( sizeof(FATFS), 32 );
 
-	s32 res = f_mount( 0, fatfs );
+	s32 res = f_mount( fatfs, fatDevName, 1 );
 	if( res != FR_OK )
 	{
 		dbgprintf("ES:f_mount() failed:%d\r\n", res );
@@ -129,8 +133,7 @@ int _main( int argc, char *argv[] )
 	BootStatus(4, 0, 0);
 
 	BootStatus(5, 0, 0);
-	
-	int MountFail = 0;
+
 	s32 fres = -1;
 	FIL fp;
 	while(fres != FR_OK)
@@ -148,15 +151,9 @@ int _main( int argc, char *argv[] )
 			default:
 			case FR_DISK_ERR:
 			{
-				f_mount(0, NULL);		//unmount drive todo: retry could never work
-				MountFail++;
-				if(MountFail == 10)
-				{
-					BootStatusError(-5, fres);
-					mdelay(4000);
-					Shutdown();
-				}
-				mdelay(5);
+				BootStatusError(-5, fres);
+				mdelay(4000);
+				Shutdown();
 			} break;
 		}
 /*	//will nenver get here when timeout occures this loop is what is hung
@@ -168,10 +165,7 @@ int _main( int argc, char *argv[] )
 */
 	}
 	if(!UseUSB) //Use FAT values for SD
-	{
-		s_size = fatfs->ssize;
 		s_cnt = fatfs->n_fatent * fatfs->csize;
-	}
 
 	BootStatus(6, s_size, s_cnt);
 
@@ -452,7 +446,8 @@ int _main( int argc, char *argv[] )
 #endif
 
 //unmount FAT device
-	f_mount(0, NULL);
+	free(fatfs);
+	f_mount(NULL, fatDevName, 1);
 
 	if(UseUSB)
 		USBStorage_Shutdown();

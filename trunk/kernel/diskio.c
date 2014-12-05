@@ -12,12 +12,6 @@
 u32 s_size;
 u32 s_cnt;
 
-DSTATUS disk_initialize_sd( BYTE drv, WORD *ss )
-{
-	*ss = PAGE_SIZE512;
-	return RES_OK;
-}
-
 DRESULT disk_read_sd( BYTE drv, BYTE *buff, DWORD sector, BYTE count )
 {
 	s32 Retry=10;
@@ -53,12 +47,6 @@ DRESULT disk_write_sd( BYTE drv, const BYTE *buff, DWORD sector, BYTE count )
 	return RES_OK;
 }
 
-DSTATUS disk_initialize_usb(BYTE drv, WORD *ss)
-{
-	*ss = s_size;
-	return RES_OK;
-}
-
 DRESULT disk_read_usb(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 {
 	if (ConfigGetConfig(NIN_CFG_LED))
@@ -89,9 +77,21 @@ DRESULT disk_write_usb(BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
 	return RES_OK;
 }
 
+DSTATUS disk_initialize( BYTE drv )
+{
+	return RES_OK;
+}
+
 DSTATUS disk_status( BYTE drv )
 {
-	(void)drv;
+	return RES_OK;
+}
+
+DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff)
+{
+	if(cmd == GET_SECTOR_SIZE)
+		*(WORD*)buff = s_size;
+
 	return RES_OK;
 }
 
@@ -113,20 +113,17 @@ DWORD get_fattime(void)
 	return 0;
 }
 
-DiskInitFunc disk_initialize;
 DiskReadFunc disk_read;
 DiskWriteFunc disk_write;
 void SetDiskFunctions(DWORD usb)
 {
 	if(usb == 1)
 	{
-		disk_initialize = disk_initialize_usb;
 		disk_read = disk_read_usb;
 		disk_write = disk_write_usb;
 	}
 	else
 	{
-		disk_initialize = disk_initialize_sd;
 		disk_read = disk_read_sd;
 		disk_write = disk_write_sd;
 	}
