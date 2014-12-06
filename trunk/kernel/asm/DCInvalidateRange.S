@@ -2,6 +2,10 @@
 
 DCInvalidateRange:
 	lis		%r3,	0xC000
+	lwz		%r4,	0x2F38(%r3)
+	andis.	%r4,	%r4,	0x4000
+	bne		NoFlush
+
 	lwz		%r4,	0x2F40(%r3)
 	lwz		%r3,	0x2F44(%r3)
 
@@ -18,6 +22,7 @@ InvalidateRange:
 	addi	%r3,	%r3,	0x20
 	bdnz	InvalidateRange
 
+NoFlush:
 	lis		%r3,	0xCD80
 	li		%r0,	0
 

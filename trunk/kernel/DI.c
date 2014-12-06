@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dol.h"
 #include "Config.h"
 #include "Patch.h"
+#include "Stream.h"
 #include "ISO.h"
 #include "FST.h"
 #include "HID.h"
@@ -49,6 +50,8 @@ u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
+
+extern u32 StreamSize, StreamStart, StreamCurrent;
 
 u32 DiscChangeIRQ	= 0;
 
@@ -299,6 +302,44 @@ void DIUpdateRegisters( void )
 
 					Shutdown();
 
+				} break;
+				case 0xE1:	// play Audio Stream
+				{
+					switch( (read32(DI_SCMD_0) >> 16) & 0xFF )
+					{
+						case 0x00:
+							StreamStartStream(read32(DI_SCMD_1) << 2, read32(DI_SCMD_2));
+							break;
+						case 0x01:
+							StreamEndStream();
+							break;
+						default:
+							break;
+					}
+					//dbgprintf("DIP:DVDAudioStream(%d)\n", (read32(DI_SCMD_0) >> 16 ) & 0xFF );
+					DIOK = 2;
+				} break;
+				case 0xE2:	// request Audio Status
+				{
+					switch( (read32(DI_SCMD_0) >> 16) & 0xFF )
+					{
+						case 0x00:	// Streaming?
+							write32( DI_IMM, !!(StreamCurrent) );
+							break;
+						case 0x01:	// What is the current address?
+							write32( DI_IMM, StreamCurrent >> 2 );
+							break;
+						case 0x02:	// disc offset of file
+							write32( DI_IMM, StreamStart >> 2 );
+							break;
+						case 0x03:	// Size of file
+							write32( DI_IMM, StreamSize );
+							break;
+						default:
+							break;
+					}
+					//dbgprintf("DIP:DVDAudioStatus( %d, %08X )\n", (read32(DI_SCMD_0) >> 16) & 0xFF, read32(DI_IMM) );
+					DIOK = 2;
 				} break;
 				case 0x12:
 				{

@@ -2908,6 +2908,7 @@ void PatchGame()
 	write32( DIP_CMD_1, FullLength >> 5 );
 	write32( DIP_CMD_2, DOLMinOff | 0x80000000 );
 	dbgprintf("Jumping to 0x%08X\n", GameEntry);
+	sync_after_write((void*)0x1800, 0x1800); //low patches
 	write32( DIP_IMM, GameEntry );
 }
 

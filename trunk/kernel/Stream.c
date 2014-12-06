@@ -24,9 +24,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int dbgprintf( const char *fmt, ...);
 u32 StreamEnd = 0;
 u32 StreamEndOffset = 0;
-s32 StreamSize = 0;
+u32 StreamSize = 0;
 u32 StreamStart = 0;
 u32 StreamCurrent = 0;
+u32 StreamLoop = 0;
 
 u8 *StreamBuffer = (u8*)0x132A0000;
 #define REAL_STREAMING DIP_DMA_ADR
@@ -186,8 +187,7 @@ void StreamUpdateRegisters()
 				u32 diff = StreamCurrent - StreamEndOffset;
 				u32 startpos = StreamGetChunkSize() - diff;
 				memset32(StreamBuffer + startpos, 0, diff);
-				sync_before_read( (void*)LOOP_ENABLED, 0x20 );
-				if(read32(LOOP_ENABLED) == 1)
+				if(StreamLoop == 1)
 				{
 					StreamCurrent = StreamStart;
 					StreamPrepare(true);
@@ -198,43 +198,46 @@ void StreamUpdateRegisters()
 			StreamUpdate();
 		}
 	}
-	if(read32(STREAM_UPDATE))		//stream update, it WILL update
+}
+
+void StreamStartStream(u32 CurrentStart, u32 CurrentSize)
+{
+	write32(STREAM_UPDATE, 0);
+	write32(STREAM_BASE, 0); //clear buffer request
+	sync_after_write( (void*)STREAM_BASE, 0x20 );
+	write32(REALSTREAM_END, 0); //stream runs
+	sync_after_write( (void*)FAKE_STREAMING, 0x20 );
+	if(CurrentStart > 0 && CurrentSize > 0)
 	{
-		write32(STREAM_UPDATE, 0);
-		write32(STREAM_BASE, 0); //clear buffer request
-		sync_after_write( (void*)STREAM_BASE, 0x20 );
-		u32 CurrentSize = read32(STREAM_LENGTH);
-		u32 CurrentStart = read32(STREAM_START);
-		write32(REALSTREAM_END, 0); //stream runs
+		StreamSize = CurrentSize;
+		StreamStart = CurrentStart;
+		StreamCurrent = StreamStart;
+		StreamEndOffset = StreamStart + StreamSize;
+		StreamPrepare(true); //TODO: find a game which doesnt need resampling
+		IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+		StreamCurrent += StreamGetChunkSize();
+		cur_buf = buf1; //reset adp buffer
+		StreamUpdate();
+		write32(STREAM_CURRENT, StreamCurrent); //give first update
 		sync_after_write( (void*)FAKE_STREAMING, 0x20 );
-		if(CurrentSize > 0 && CurrentStart > 0)
-		{
-			StreamSize = CurrentSize;
-			StreamStart = CurrentStart;
-			StreamCurrent = StreamStart;
-			StreamEndOffset = StreamStart + StreamSize;
-			StreamPrepare(true); //TODO: find a game which doesnt need resampling
-			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
-			StreamCurrent += StreamGetChunkSize();
-			cur_buf = buf1; //reset adp buffer
-			StreamUpdate();
-			write32(STREAM_CURRENT, StreamCurrent); //give first update
-			sync_after_write( (void*)FAKE_STREAMING, 0x20 );
-			/* Directly read in the second buffer */
-			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
-			StreamCurrent += StreamGetChunkSize();
-			StreamUpdate();
-			/* Send stream signal to PPC */
-			write32(AI_ADP_LOC, 0); //reset adp read pos
-			write32(REAL_STREAMING, 0x20); //set stream flag
-			sync_after_write( (void*)STREAM_BASE, 0x20 );
-			//dbgprintf("Streaming %08x %08x\n", StreamStart, StreamSize);
-			StreamEnd = 0;
-		}
+		/* Directly read in the second buffer */
+		IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+		StreamCurrent += StreamGetChunkSize();
+		StreamUpdate();
+		/* Send stream signal to PPC */
+		write32(AI_ADP_LOC, 0); //reset adp read pos
+		write32(REAL_STREAMING, 0x20); //set stream flag
+		sync_after_write( (void*)STREAM_BASE, 0x20 );
+		//dbgprintf("Streaming %08x %08x\n", StreamStart, StreamSize);
+		StreamLoop = 1;
+		StreamEnd = 0;
 	}
-	else if(read32(FAKE_STREAMING) == 0 && StreamCurrent > 0)		//stop stream
-	{
-		StreamCurrent = 0;
-		write32(REAL_STREAMING, 0); //clear stream flag
-	}
+	else //both offset and length=0 disables loop
+		StreamLoop = 0;
+}
+
+void StreamEndStream()
+{
+	StreamCurrent = 0;
+	write32(REAL_STREAMING, 0); //clear stream flag
 }

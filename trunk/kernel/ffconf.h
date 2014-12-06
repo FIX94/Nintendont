@@ -8,7 +8,7 @@
 / Functions and Buffer Configurations
 /---------------------------------------------------------------------------*/
 
-#define	_FS_TINY		0
+#define	_FS_TINY		1
 /* This option switches tiny buffer configuration. (0:Normal or 1:Tiny)
 /  At the tiny configuration, size of the file object (FIL) is reduced _MAX_SS
 /  bytes. Instead of private sector buffer eliminated from the file object,
@@ -23,7 +23,7 @@
 /  f_getfree() and optional writing functions as well. */
 
 
-#define _FS_MINIMIZE	0
+#define _FS_MINIMIZE	2
 /* This option defines minimization level to remove some API functions.
 /
 /   0: All basic functions are enabled.

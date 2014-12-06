@@ -22,11 +22,23 @@ wait_loop:
 	lwz		%r4,	DIP_CMD_2@l(%r3)
 	stw		%r0,	DIP_CMD_2@l(%r3)
 
-InvalidateRange:
+InvalidateRange1:
 	dcbi	%r0,	%r4
 	icbi	%r0,	%r4
 	addi	%r4,	%r4,	0x20
-	bdnz	InvalidateRange
+	bdnz	InvalidateRange1
+
+	li		%r4,	0x600
+	mtctr	%r4
+	lis		%r4,	0x8000
+	ori		%r4,	%r4,	0x1800
+
+InvalidateRange2:
+	dcbi	%r0,	%r4
+	icbi	%r0,	%r4
+	addi	%r4,	%r4,	0x20
+	bdnz	InvalidateRange2
+
 	sync
 	isync
 	blr

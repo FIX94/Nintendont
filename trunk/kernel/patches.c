@@ -185,9 +185,9 @@ FuncPattern NormalFPatterns[] =
 	{   0xDC,   23,   18,    3,    2,    4,	NULL,				FCODE_PatchFunc,			"DVDLowRead",			"B",		FGROUP_DVDLowRead,			0 },
 	{  0x104,   29,   17,    5,    2,    3,	NULL,				FCODE_PatchFunc,			"DVDLowRead",			"C",		FGROUP_DVDLowRead,			0 },
 #ifdef AUDIOSTREAM
-	{   0x94,   18,   10,    2,    0,    2,	DVDLowAudioStream,	DVDLowAudioStream_size,		"DVDLowAudioStream",	"A",		FGROUP_DVDLowAudioStream,	0 },
-	{   0x8C,   16,   12,    1,    0,    2,	DVDLowAudioStream,	DVDLowAudioStream_size,		"DVDLowAudioStream",	"B",		FGROUP_DVDLowAudioStream,	0 },
-	{   0x88,   18,    8,    2,    0,    2,	DVDLowRequestAudioStatus,DVDLowRequestAudioStatus_size,"DVDLowRequestAudioStatus",	NULL,FGROUP_NONE,			0 },
+	{   0x94,   18,   10,    2,    0,    2,	NULL,				FCODE_PatchFunc,			"DVDLowAudioStream",	"A",		FGROUP_DVDLowAudioStream,	0 },
+	{   0x8C,   16,   12,    1,    0,    2,	NULL,				FCODE_PatchFunc,			"DVDLowAudioStream",	"B",		FGROUP_DVDLowAudioStream,	0 },
+	{   0x88,   18,    8,    2,    0,    2,	NULL,				FCODE_PatchFunc,			"DVDLowRequestAudioStatus",			NULL,FGROUP_NONE,			0 },
 	{   0x98,   19,    8,    2,    1,    3,	DVDLowAudioBufferConfig, DVDLowAudioBufferConfig_size, "DVDLowAudioBufferConfig",	NULL,FGROUP_NONE,			0 },
 #else
 	{   0x94,   18,   10,    2,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"A",		FGROUP_DVDLowAudioStream,	0 },
