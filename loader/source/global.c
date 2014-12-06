@@ -164,15 +164,17 @@ void Initialise()
 		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, RGBA(255, 255, 255, i)); // Opacity increases as i does
 		GRRLIB_Render();
 	}
-	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+	ClearScreen();
 	gprintf("Initialize Finished\r\n");
 }
 static void (*stub)() = (void*)0x80001800;
-
+inline void DrawBuffer(void) {
+	GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF);
+}
 inline void UpdateScreen(void) {
 	GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE);
 	GRRLIB_Render();
-	GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF);
+	DrawBuffer();
 }
 void ExitToLoader(int ret)
 {
@@ -247,7 +249,7 @@ bool LoadNinCFG()
 
 	return ConfigLoaded;
 }
-void ClearScreen()
+inline void ClearScreen()
 {
 	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 }

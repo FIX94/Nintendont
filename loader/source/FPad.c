@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "exi.h"
 
+#include <unistd.h>
 #include <wupc/wupc.h>
 
 static u32 WPAD_Pressed;
@@ -145,7 +146,7 @@ bool FPAD_Left( bool ILock )
 
 	if((WPAD_Pressed & (WPAD_BUTTON_LEFT|WPAD_CLASSIC_BUTTON_LEFT)) || (PAD_Pressed & PAD_BUTTON_LEFT) || (PAD_Stick_X < -30))
 	{
-		Repeat = 1;
+		Repeat = 2;
 		SLock = true;
 		return true;
 	}
@@ -157,7 +158,7 @@ bool FPAD_Right( bool ILock )
 
 	if( (WPAD_Pressed & (WPAD_BUTTON_RIGHT|WPAD_CLASSIC_BUTTON_RIGHT)) || (PAD_Pressed & PAD_BUTTON_RIGHT) || ( PAD_Stick_X > 30 ))
 	{
-		Repeat = 1;
+		Repeat = 2;
 		SLock = true;
 		return true;
 	}
@@ -234,6 +235,7 @@ inline void Screenshot(void) {
 		gprintf("Screenshot %s\r\n", GRRLIB_ScrShot("Screenshot.png") ? "taken" : "failed");
 		#else
 		gprintf("Screenshot function disabled\r\n");
+		usleep(200000);
 		#endif
 	}
 }

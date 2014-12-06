@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*1, "Home: Exit");
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*2, "A   : Select");
 	GRRLIB_Render();
-	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+	ClearScreen();
 
 	if( *(vu32*)(0xCd800064) != -1 )
 	{
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
 				PrintInfo();
 				PrintFormat(DEFAULT_SIZE, BLACK, 320 - 90, MENU_POS_Y + 20*10, "B: Cancel Autoboot");
 				GRRLIB_Render();
-				GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+				ClearScreen();
 			}
 			
 			FPAD_Update();
@@ -262,8 +262,8 @@ int main(int argc, char **argv)
 			PrintInfo();
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : Select");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? "<" : " ");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? " " : "<");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
 			FPAD_Update();
@@ -284,12 +284,12 @@ int main(int argc, char **argv)
 				ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
 
 			GRRLIB_Render();
-			GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+			ClearScreen();
 		}
 		ClearScreen();
 		PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
 		GRRLIB_Render();
-		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+		ClearScreen();
 	}
 
 	if(LoadKernel() < 0)
@@ -591,17 +591,17 @@ int main(int argc, char **argv)
 		}
 		GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE); // Copy all status messages
 		GRRLIB_Render();
-		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+		ClearScreen();
 		while ((STATUS_LOADING < -1) && (STATUS_LOADING > -20))	//displaying a fatal error
 			{ }	//do nothing wait for shutdown
 	}
 
 	gprintf("Nintendont at your service!\r\n");
 
-	GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF); // Draw all status messages
+	DrawBuffer(); // Draw all status messages
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*17, "Nintendont kernel looping, loading game...");
 	GRRLIB_Render();
-	GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF); // Draw all status messages
+	DrawBuffer(); // Draw all status messages
 //	memcpy( (void*)0x80000000, (void*)0x90140000, 0x1200000 );
 	DVDStartCache();
 	GRRLIB_FreeTexture(background);

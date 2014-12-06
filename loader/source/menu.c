@@ -244,7 +244,7 @@ void SelectGame( void )
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*4, MenuMode ? "X   : Update" : "            ");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*4, MenuMode ? "X/1 : Update" : "");
 
 	//	gprintf("\rS:%u P:%u G:%u M:%u    ", ScrollX, PosX, gamecount, ListMax );
 
@@ -348,10 +348,10 @@ void SelectGame( void )
 			if( redraw )
 			{
 				for( i=0; i < ListMax; ++i )
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5 + i * 20, "%50.50s [%.6s]%s", gi[i+ScrollX].Name, gi[i+ScrollX].ID, i == PosX ? "<" : " " );
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5 + i * 20, "%50.50s [%.6s]%s", gi[i+ScrollX].Name, gi[i+ScrollX].ID, i == PosX ? ARROW_LEFT : " " );
 				Screenshot();
 				GRRLIB_Render();
-				GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+				ClearScreen();
 			}
 
 		} else {	//settings menu
@@ -532,14 +532,7 @@ void SelectGame( void )
 					u32 MemCardBlocksVal = ncfg->MemCardBlocks;
 					if (MemCardBlocksVal > MEM_CARD_MAX)
 						MemCardBlocksVal = 0;
-					char *MemcardState;
-					if(MemCardBlocksVal == 2)
-						MemcardState = "(Recommended)";
-					else if(MemCardBlocksVal == 5)
-						MemcardState = "(Unstable)   ";
-					else
-						MemcardState = "             ";
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d%s", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal), MemcardState);
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d%s", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal), MemCardBlocksVal > 2 ? "Unstable" : "");
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex+1), "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
 				}
 				ListLoopIndex+=2;
@@ -547,10 +540,10 @@ void SelectGame( void )
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
 				ListLoopIndex++;
 
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ">");
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);
 				Screenshot();
 				GRRLIB_Render();
-				GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
+				ClearScreen();
 			}
 		}
 	}
