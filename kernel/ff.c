@@ -1355,7 +1355,7 @@ int cmp_lfn (			/* 1:Matched, 0:Not matched */
 }
 
 
-
+#if 0
 static
 int pick_lfn (			/* 1:Succeeded, 0:Buffer overflow */
 	WCHAR* lfnbuf,		/* Pointer to the Unicode-LFN buffer */
@@ -1386,7 +1386,7 @@ int pick_lfn (			/* 1:Succeeded, 0:Buffer overflow */
 
 	return 1;
 }
-
+#endif
 
 #if !_FS_READONLY
 static
