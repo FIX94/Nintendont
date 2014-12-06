@@ -29,12 +29,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <fat.h>
 #include <dirent.h>
 #include <zlib.h>
+#include <ogc/lwp_watchdog.h>
 
 #include "exi.h"
 #include "FPad.h"
 #include "font.h"
 #include "global.h"
 #include "http.h"
+#include "menu.h"
 #include "update.h"
 #include "unzip/miniunz.h"
 #include "../../common/include/NintendontVersion.h"
@@ -56,13 +58,14 @@ typedef enum {
 } DOWNLOADS;
 
 static const downloads_t Downloads[] = {
-	{"http://nintendon-t.googlecode.com/svn/trunk/loader/loader.dol", "Updating Nintendont", "boot.dol", 1 << 21}, // 4MB
-	{"http://nintendon-t.googlecode.com/svn/trunk/nintendont/titles.txt", "Updating titles.txt", "titles.txt", 1 << 19}, // 512KB
-	{"http://nintendon-t.googlecode.com/svn/trunk/controllerconfigs/controllers.zip", "Updating controllers.zip", "controllers.zip", 1 << 15}, // 32KB
-	{"http://nintendon-t.googlecode.com/svn/trunk/common/include/NintendontVersion.h", "Checking Latest Version", "", 1 << 10} // 1KB
+	{"http://nintendon-t.googlecode.com/svn/trunk/loader/loader.dol", "Updating Nintendont", "boot.dol", 0x400000}, // 4MB
+	{"http://nintendon-t.googlecode.com/svn/trunk/nintendont/titles.txt", "Updating titles.txt", "titles.txt", 0x80000}, // 512KB
+	{"http://nintendon-t.googlecode.com/svn/trunk/controllerconfigs/controllers.zip", "Updating controllers.zip", "controllers.zip", 0x8000}, // 32KB
+	{"http://nintendon-t.googlecode.com/svn/trunk/common/include/NintendontVersion.h", "Checking Latest Version", "", 0x400} // 1KB
 };
 
 static int UnzipControllers(const char* filepath) {
+	char unzip_directory[20];
 	unzFile uf = unzOpen(filepath);
 	if (uf==NULL)
 	{
@@ -70,10 +73,11 @@ static int UnzipControllers(const char* filepath) {
 		return -1;
 	}
 	gprintf("%s opened\n", Downloads[DOWNLOAD_CONTROLLERS].filename);
-
-	mkdir("/controllers",S_IWRITE|S_IREAD); // attempt to make dir
-	if(chdir("/controllers")) {
-		gprintf("Error changing into /controllers, aborting\r\n");
+	
+	sprintf(unzip_directory, "%s:/controllers", UseSD ? "sd" : "usb");
+	mkdir(unzip_directory,S_IWRITE|S_IREAD); // attempt to make dir
+	if(chdir(unzip_directory)) {
+		gprintf("Error changing into %s, aborting\r\n", unzip_directory);
 		return -2;
 	}
 
@@ -87,24 +91,61 @@ static int UnzipControllers(const char* filepath) {
 	return 1;
 }
 
-static inline bool LatestVersion(int *major, int *minor, int line) {
+static inline bool LatestVersion(int *major, int *minor, int *current_line) {
 	u32 http_status = 0;
 	u8* outbuf = NULL;
 	u32 filesize;
+	int line = *current_line;
+
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, Downloads[DOWNLOAD_VERSION].text);
 	UpdateScreen();
-	http_request(Downloads[DOWNLOAD_VERSION].url, Downloads[DOWNLOAD_VERSION].max_size);
+	line++;
+	if(!http_request(Downloads[DOWNLOAD_VERSION].url, Downloads[DOWNLOAD_VERSION].max_size)) {
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Failed to retrieve version");
+		UpdateScreen();
+		*current_line = line;
+		return false;
+	}
 	
+
 	http_get_result(&http_status, &outbuf, &filesize);
 	
 	if (((int)*outbuf & 0xF0000000) == 0xF0000000) 
 	{
 		if (outbuf != NULL) free(outbuf);
+		*current_line = line;
 		return false;
 	}
 	sscanf((char*)outbuf, " #ifndef %*s #define %*s #define NIN_MAJOR_VERSION %i #define NIN_MINOR_VERSION %i", major, minor);
 	gprintf("major = %i, minor = %i\r\n", *major, *minor);
 	if (outbuf != NULL) free(outbuf);
+	if ((*major <= NIN_MAJOR_VERSION) && (*minor <= NIN_MINOR_VERSION)) {
+		bool still_download = true;
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "You already have the latest version");
+		line++;
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Download anyway? (A: Yes, B: No)");
+		line++;
+		UpdateScreen();
+		while(true) {
+			DrawBuffer();
+			FPAD_Update();
+			if (FPAD_Cancel(0)) {
+				gprintf("Cancelling download\n");
+				still_download = false;
+				break;
+			}
+			if (FPAD_OK(0)) {
+				gprintf("okay\n");
+				break;
+			}
+			GRRLIB_Render();
+		}
+		if(!still_download) {
+			*current_line = line;
+			return false;
+		}
+	}
+	*current_line = line;
 	return (*major + *minor) > 0;
 
 }
@@ -137,19 +178,18 @@ static s32 Download(DOWNLOADS download_number)  {
 	
 	line++;
 	if (download_number == DOWNLOAD_NINTENDONT) {
-		ret = LatestVersion(&major, &minor, line);
-		line++;
-		if (ret && (major <= NIN_MAJOR_VERSION) && (minor <= NIN_MINOR_VERSION)) {
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "You already have the latest version");
+		ret = LatestVersion(&major, &minor, &line);
+		if (!ret) {
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Download Cancelled");
 			UpdateScreen();
 			if (outbuf != NULL) free(outbuf);
 			net_deinit();
 			sleep(4);
 			return 0;
-		} else {
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Downloading Nintendont v%i.%i", major, minor);
-			UpdateScreen();
 		}
+
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Downloading Nintendont v%i.%i", major, minor);
+		UpdateScreen();
 		line++;
 	}
 	int i;
@@ -198,37 +238,49 @@ end:
 		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*line, "Update Error: %i", ret);
 	else
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Restart Nintendont to complete update");
-	GRRLIB_Render();
+	UpdateScreen();
 	if (outbuf != NULL) free(outbuf);
 	net_deinit();
 	sleep(4);
 	return ret;
 }
 
-void UpdateNintendont(void)  {
+void UpdateNintendont(void) {
+	int selected = 0;
+	u64 delay = ticks_to_millisecs(gettime()) + 500;
 	while(true) {
-		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "A: Download Nintendont");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "X: Download titles.txt");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*3, "Y: Download controllers.zip");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5, "B: Return to Settings");
+		ClearScreen();
+		PrintInfo();
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*5, "Download Nintendont");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*6, "Download titles.txt");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*7, "Download controllers.zip");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*8, "Return to Settings");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 35, MENU_POS_Y + 20*(5+selected), ARROW_RIGHT);
 		GRRLIB_Render();
-		
 		FPAD_Update();
-		
-		if (FPAD_OK(0)) {
-			Download(DOWNLOAD_NINTENDONT);
-			break;
+		if (delay > ticks_to_millisecs(gettime())) continue;
+		if (FPAD_Start(1)) {
+			ClearScreen();
+			PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader...");
+			ExitToLoader(0);
 		}
-		if (FPAD_X(0)) {
-			Download(DOWNLOAD_TITLES);
-			break;
+		if (FPAD_OK(1)) {
+			if (selected <= DOWNLOAD_CONTROLLERS)
+				Download(selected);
+			else
+				break;
 		}
-		if (FPAD_Y(0)) {
-			Download(DOWNLOAD_CONTROLLERS);
-			break;
+		if (FPAD_Down(1)) {
+			delay = ticks_to_millisecs(gettime()) + 150;
+			selected++;
+			if (selected > 3) selected = 0;
 		}
-		if (FPAD_Cancel(0)) {
+		if (FPAD_Up(1)) {
+			delay = ticks_to_millisecs(gettime()) + 150;
+			selected--;
+			if (selected < 0) selected = 3;
+		}
+		if (FPAD_Cancel(1)) {
 			break;
 		}
 	}
