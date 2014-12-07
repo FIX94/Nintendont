@@ -1417,26 +1417,21 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	sync_after_write( Buffer, Length );
 	sync_before_read( Buffer, Length );
 
-#ifdef PATCHALL
-	u32 PatchCount = 1|64|128;
-#else
-	u32 PatchCount = 1|2|16|64|128|2048;
-#endif
-
+	u32 PatchCount = FPATCH_OSSleepThread | FPATCH_VideoModes;
 #ifdef CHEATS
 	if( IsWiiU )
 	{
 		if( ConfigGetConfig(NIN_CFG_CHEATS) )
-			PatchCount &= ~64;
-
-	} else {
-
+			PatchCount &= ~FPATCH_OSSleepThread;
+	}
+	else
+	{
 		if( ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS) )
-			PatchCount &= ~64;
+			PatchCount &= ~FPATCH_OSSleepThread;
 	}
 #endif
 	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) )
-		PatchCount &= ~128;
+		PatchCount &= ~FPATCH_VideoModes;
 
 	u32 patitr;
 	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
@@ -1475,7 +1470,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			u32 BufLowAt0 = BufAt0 & 0xFFFF;
 			u32 BufHighAt0 = BufAt0 >> 16;
 			u32 BufAt4 = read32((u32)Buffer+i+4);
-			if( (PatchCount & 2048) == 0 )	// __OSDispatchInterrupt
+
+			if( (PatchCount & FPATCH_SetInterruptMask) == 0 )
+			{
+				if( BufAt0 == 0x5480056A && BufAt4 == 0x28000000 &&
+					read32( (u32)Buffer + i + 8 ) == 0x40820008 &&
+					(read32( (u32)Buffer + i + 12 ) & 0xFC00FFFF) == 0x60000004 )
+				{
+					if(write32A((u32)Buffer + i - 0x30, 0x60000000, 0x93E50028, 0)) // EXI Channel 2 Status Register
+						printpatchfound("SetInterruptMask", "DBG", (u32)Buffer + i - 0x30);
+					printpatchfound("SetInterruptMask",NULL, (u32)Buffer + i + 12);
+
+					write32( (u32)Buffer + i + 12, (read32( (u32)Buffer + i + 12 ) & 0xFFFF0000) | 0x4004 );
+
+					PatchCount |= FPATCH_SetInterruptMask;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+			}
+			if( (PatchCount & FPATCH_OSDispatchIntr) == 0 )
 			{
 				if( BufAt0 == 0x3C60CC00 &&
 					BufAt4 == 0x83E33000)
@@ -1493,7 +1506,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					write32A( (u32)Buffer+i+0x18C, 0x38630018, 0x38636800, 1 );
 					write32A( (u32)Buffer+i+0x190, 0x80830000, 0x80830028, 1 );
 
-					PatchCount |= 2048;
+					PatchCount |= FPATCH_OSDispatchIntr;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
@@ -1507,30 +1520,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						write32A( (u32)Buffer+i+0x138, 0x3C60C000, 0x3C60CC00, 1 );
 						write32A( (u32)Buffer+i+0x13C, 0x83C30010, 0x83C36800, 1 );
 					}
-					PatchCount |= 2048;
+					PatchCount |= FPATCH_OSDispatchIntr;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
 			}
-
-			if( (PatchCount & 2) == 0 )	// SetInterruptMask
-			{
-				if( BufAt0 == 0x5480056A && BufAt4 == 0x28000000 &&
-					read32( (u32)Buffer + i + 8 ) == 0x40820008 &&
-					(read32( (u32)Buffer + i + 12 ) & 0xFC00FFFF) == 0x60000004 )
-				{
-					if(write32A((u32)Buffer + i - 0x30, 0x60000000, 0x93E50028, 0)) // EXI Channel 2 Status Register
-						printpatchfound("SetInterruptMask", "DBG", (u32)Buffer + i - 0x30);
-					printpatchfound("SetInterruptMask",NULL, (u32)Buffer + i + 12);
-
-					write32( (u32)Buffer + i + 12, (read32( (u32)Buffer + i + 12 ) & 0xFFFF0000) | 0x4004 );
-
-					PatchCount |= 2;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-			if( (PatchCount & 4) == 0 )
+			if( (PatchCount & FPATCH_DVDIntrHandler) == 0 )
 			{
 				if( BufLowAt0 == 0x6000 && (BufAt4 & 0xFFFF) == 0x002A &&
 					(read32( (u32)Buffer + i + 8 ) & 0xFFFF) == 0x0054 )
@@ -1544,12 +1539,45 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					#endif
 					PatchDiscInterface( (char*)Offset );
 					PatchBL(DCInvalidateRangeAddr, HwOffset);
-					PatchCount |= 4;
+					PatchCount |= FPATCH_DVDIntrHandler;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
 			}
-			if( (PatchCount & 8) == 0 )
+			if( (PatchCount & FPATCH_DVDLowReadDiskID) == 0 )
+			{
+				if( (BufAt0 & 0xFC00FFFF ) == 0x3C00A800 && (BufAt4 & 0xFC00FFFF ) == 0x38000040 )
+				{
+					printpatchfound("DVDLowReadDiskID",NULL, (u32)Buffer + i);
+					PatchFunc( Buffer + i );
+					PatchCount |= FPATCH_DVDLowReadDiskID;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+			}
+			if( (PatchCount & FPATCH_DVDLowStopMotor) == 0 )
+			{
+				if( BufAt0 == 0x3C00E300 )
+				{
+					printpatchfound("DVDLowStopMotor",NULL, (u32)Buffer + i);
+					PatchFunc( Buffer + i - 12 );
+					PatchCount |= FPATCH_DVDLowStopMotor;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+			}
+			if( (PatchCount & FPATCH_DVDLowInquiry) == 0 )
+			{
+				if( BufAt0 == 0x3C001200 )
+				{
+					printpatchfound("DVDLowInquiry",NULL, (u32)Buffer + i);
+					PatchFunc( Buffer + i - 12 );
+					PatchCount |= FPATCH_DVDLowInquiry;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+			}
+			if( (PatchCount & FPATCH_cbForStateBusy) == 0 )
 			{
 				if( BufLowAt0 == 0xCC00 && (BufAt4 & 0xFFFF) == 0x6000 && // Game
 					(read32( (u32)Buffer + i + 12 ) & 0xFFFF) == 0x001C )
@@ -1563,7 +1591,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 					PatchFunc( Buffer + i + 12 );
 
-					PatchCount |= 8;
+					PatchCount |= FPATCH_cbForStateBusy;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
@@ -1579,25 +1607,23 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 					PatchFunc( Buffer + i + 8 );
 
-					PatchCount |= 8;
+					PatchCount |= FPATCH_cbForStateBusy;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
 			}
-
-			if( (PatchCount & 16) == 0 )
+			if( (PatchCount & FPATCH_VIConfigure) == 0 )
 			{
 				if( BufAt0 == 0x3C608000 && (BufAt4 & 0xFC1FFFFF) == 0x800300CC && (read32( (u32)Buffer + i + 8 ) >> 24) == 0x54 )
 				{
 					printpatchfound("VIConfigure",NULL, (u32)Buffer + i);
-					write32( (u32)Buffer + i + 4, 0x5400F0BE | ((read32( (u32)Buffer + i + 4 ) & 0x3E00000) >> 5	) );
-					PatchCount |= 16;
+					write32( (u32)Buffer + i + 4, 0x5400F0BE | ((read32( (u32)Buffer + i + 4 ) & 0x3E00000) >> 5) );
+					PatchCount |= FPATCH_VIConfigure;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
 			}
-
-			if( (PatchCount & 32) == 0 )	// GXInit __piReg
+			if( (PatchCount & FPATCH_GXInit) == 0 )
 			{
 				if( BufAt0 == 0x3C80CC00 ) /* Release SDK */
 				{
@@ -1613,7 +1639,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:[GXInit] stw r5,-0x%X(r13) (0x%08X)\r\n", 0x10000 - piReg, (u32)Buffer + j + 2);
 							#endif
-							PatchCount |= 32;
+							PatchCount |= FPATCH_GXInit;
 							i = GotoFuncEnd(j, (u32)Buffer);
 							break;
 						}
@@ -1634,7 +1660,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:[GXInit DBG] stw r3,-0x%X(r13) (0x%08X)\r\n", 0x10000 - piReg, (u32)Buffer + j + 2);
 							#endif
-							PatchCount |= 32;
+							PatchCount |= FPATCH_GXInit;
 							i = GotoFuncEnd(j, (u32)Buffer);
 							break;
 						}
@@ -1642,8 +1668,30 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					}
 				}
 			}
+			if((PatchCount & FPATCH_CARDUnlock) == 0)
+			{
+				if(BufAt0 == 0x38C00008 && read32((u32)Buffer+i+16) == 0x38800008 && read32((u32)Buffer+i+28) == 0x90DD0004)
+				{
+					printpatchfound("__CARDUnlock", NULL, (u32)Buffer+i);
+					write32( (u32)Buffer+i, 0x3CC01000 ); //lis r6, 0x1000
+					write32( (u32)Buffer+i+28, 0x909D0004 ); //stw r4, 4(r29)
+					write32( (u32)Buffer+i+36, 0x90DD0008 ); //stw r6, 8(r29)
+					PatchCount |= FPATCH_CARDUnlock;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+				else if(BufAt0 == 0x38000008 && BufAt4 == 0x90180004 && 
+					read32((u32)Buffer+i+16) == 0x38000000 && read32((u32)Buffer+i+20) == 0x90180008)
+				{
+					printpatchfound("__CARDUnlock", "DBG", (u32)Buffer+i);
+					write32( (u32)Buffer+i+16, 0x3C001000 ); //lis r0, 0x1000
+					PatchCount |= FPATCH_CARDUnlock;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+			}
 	#ifdef CHEATS
-			if( (PatchCount & 64) == 0 )
+			if( (PatchCount & FPATCH_OSSleepThread) == 0 )
 			{
 				//OSSleepThread(Pattern 1)
 				if( BufAt0 == 0x3C808000 &&
@@ -1755,13 +1803,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						}
 					}
 
-					PatchCount |= 64;
+					PatchCount |= FPATCH_OSSleepThread;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
 			}
 	#endif
-			if( (PatchCount & 128) == 0 )
+			if( (PatchCount & FPATCH_VideoModes) == 0 )
 			{
 				/* might be a bit overkill but should detect most video mode in memory */
 				while((BufAt0 & 0xFFFFFF00) == 0 && (BufAt4 & 0xFF000000) == 0x02000000
@@ -1881,55 +1929,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					continue;
 				}
 			}
-
-			if( (PatchCount & 256) == 0 )	//DVDLowStopMotor
-			{
-				if( BufAt0 == 0x3C00E300 )
-				{
-					printpatchfound("DVDLowStopMotor",NULL, (u32)Buffer + i);
-					PatchFunc( Buffer + i - 12 );
-					PatchCount |= 256;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-
-			if( (PatchCount & 512) == 0 )	//DVDLowReadDiskID
-			{
-				if( (BufAt0 & 0xFC00FFFF ) == 0x3C00A800 && (BufAt4 & 0xFC00FFFF ) == 0x38000040 )
-				{
-					printpatchfound("DVDLowReadDiskID",NULL, (u32)Buffer + i);
-					PatchFunc( Buffer + i );
-					PatchCount |= 512;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-
-			if((PatchCount & 4096) == 0)	//__CARDUnlock
-			{
-				if(BufAt0 == 0x38C00008 && read32((u32)Buffer+i+16) == 0x38800008 && read32((u32)Buffer+i+28) == 0x90DD0004)
-				{
-					printpatchfound("__CARDUnlock", NULL, (u32)Buffer+i);
-					write32( (u32)Buffer+i, 0x3CC01000 ); //lis r6, 0x1000
-					write32( (u32)Buffer+i+28, 0x909D0004 ); //stw r4, 4(r29)
-					write32( (u32)Buffer+i+36, 0x90DD0008 ); //stw r6, 8(r29)
-					PatchCount |= 4096;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-				else if(BufAt0 == 0x38000008 && BufAt4 == 0x90180004 && 
-					read32((u32)Buffer+i+16) == 0x38000000 && read32((u32)Buffer+i+20) == 0x90180008)
-				{
-					printpatchfound("__CARDUnlock", "DBG", (u32)Buffer+i);
-					write32( (u32)Buffer+i+16, 0x3C001000 ); //lis r0, 0x1000
-					PatchCount |= 4096;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-
-			if( (PatchCount & 1024) == 0 && ( BufHighAt0 == 0x29F || (BufAt4 >> 16) == 0x29F) )	// DSP patch
+			if( (PatchCount & FPATCH_DSP_ROM) == 0 && ( BufHighAt0 == 0x29F || (BufAt4 >> 16) == 0x29F) )
 			{
 				u32 l;
 				s32 Known = -1;
@@ -1972,7 +1972,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:[DSP v%u] patched (0x%08X)\r\n", Known, Buffer + i );
 							#endif
-							PatchCount |= 1024;
+							PatchCount |= FPATCH_DSP_ROM;
 							break;
 						}
 					}
@@ -2647,6 +2647,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									(TITLE_ID) != 0x475041 )	// Pok駑on Channel
 									break;
 							}
+							if( CurPatterns[j].Group == FGROUP_DVDInquiryAsync )
+							{
+								if(TRIGame == 1) //Mario Kart GP2
+									break;
+							}
 							if( (CurPatterns[j].Length >> 16) == (FCODES  >> 16) )
 							{
 								#ifdef DEBUG_PATCH
@@ -2712,17 +2717,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	free(hash);
 	free(SHA1i);
 
-	if( ((PatchCount & (1|2|4|8|2048)) != (1|2|4|8|2048)) )
+	/*if( ((PatchCount & (1|2|4|8|2048)) != (1|2|4|8|2048)) )
 	{
 		#ifdef DEBUG_PATCH
 		dbgprintf("Patch:Could not apply all required patches!\r\n");
 		#endif
 		Shutdown();
-	}
+	}*/
 
 	#ifdef DEBUG_PATCH
 	//dbgprintf("PatchCount:%08X\r\n", PatchCount );
-	if( (PatchCount & 1024) == 0 )
+	if( (PatchCount & FPATCH_DSP_ROM) == 0 )
 		dbgprintf("Patch:Unknown DSP ROM\r\n");
 
 	for(patitr = 0; patitr < PCODE_MAX; ++patitr)

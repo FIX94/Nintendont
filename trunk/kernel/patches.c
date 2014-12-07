@@ -25,6 +25,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 enum
 {
+	FPATCH_SetInterruptMask = 1<<0,
+	FPATCH_OSDispatchIntr = 1<<1,
+	FPATCH_DVDIntrHandler = 1<<2,
+	FPATCH_DVDLowReadDiskID = 1<<3,
+	FPATCH_DVDLowStopMotor = 1<<4,
+	FPATCH_DVDLowInquiry = 1<<5,
+	FPATCH_cbForStateBusy = 1<<6,
+	FPATCH_VIConfigure = 1<<7,
+	FPATCH_GXInit = 1<<8,
+	FPATCH_CARDUnlock = 1<<9,
+	FPATCH_OSSleepThread = 1<<10,
+	FPATCH_VideoModes = 1<<11,
+	FPATCH_DSP_ROM = 1<<12
+};
+
+enum
+{
 	FCODES								= 0xdead0000,
 	FCODE_ARInit,
 	FCODE_ARStartDMA,
@@ -142,8 +159,8 @@ enum
 
 FuncPattern NormalFPatterns[] =
 {
-	{   0xCC,   17,   10,    5,    3,    2,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"A",		FGROUP_DVDInquiryAsync,		0 },
-	{   0xC0,   18,    8,    4,    1,    3,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"B",		FGROUP_DVDInquiryAsync,		0 },
+//	{   0xCC,   17,   10,    5,    3,    2,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"A",		FGROUP_DVDInquiryAsync,		0 },
+//	{   0xC0,   18,    8,    4,    1,    3,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"B",		FGROUP_DVDInquiryAsync,		0 },
 //	{   0xB8,   15,    7,    5,    3,    2,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"C",		FGROUP_DVDInquiryAsync,		0 },
 
 	{   0xC8,   16,    9,    5,    3,    3,	DVDSeekAbsAsyncPrio,DVDSeekAbsAsyncPrio_size,	"DVDSeekAbsAsyncPrio",	NULL,		FGROUP_NONE,				0 },
@@ -211,7 +228,7 @@ FuncPattern NormalFPatterns[] =
 	{  0x28C,   70,    8,    8,   10,    4,	NULL,				FCODE___OSInitAudioSystem_A,"__OSInitAudioSystem",	"DBG A",	FGROUP___OSInitAudioSystem,	0 },
 	{  0x2B8,   77,    8,   12,   10,    4,	NULL,				FCODE___OSInitAudioSystem_B,"__OSInitAudioSystem",	"DBG B",	FGROUP___OSInitAudioSystem,	0 },
 #ifdef AUDIOSTREAM
-	{   0x84,    8,    4,    2,    0,    5,	NULL,				FCODE_AIInitDMA,			"AIInitDMA",			NULL,		FGROUP_NONE,				0 },
+//	{   0x84,    8,    4,    2,    0,    5,	NULL,				FCODE_AIInitDMA,			"AIInitDMA",			NULL,		FGROUP_NONE,				0 },
 	{  0x420,  103,   23,   34,   32,    9,	NULL,				FCODE___DSPHandler,			"__DSPHandler",			NULL,		FGROUP_NONE,				0 },
 #endif
 	{  0x23C,   66,   24,   35,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"A",		FGROUP_NONE,			    0 },

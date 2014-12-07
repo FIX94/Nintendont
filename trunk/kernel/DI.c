@@ -56,6 +56,7 @@ extern u32 StreamSize, StreamStart, StreamCurrent;
 u32 DiscChangeIRQ	= 0;
 
 static char GamePath[256] ALIGNED(32);
+extern const u8 *DiskDriveInfo;
 extern u32 Region;
 extern u32 FSTMode;
 
@@ -225,6 +226,7 @@ void DIUpdateRegisters( void )
 
 	if( read32(DI_CONTROL) != 0xdeadbeef )
 	{
+		udelay(50); //security delay
 		write32( DI_SCONTROL, read32(DI_CONTROL) & 3 );
 
 		//*(vu32*)DI_SSTATUS &= ~0x14;
@@ -343,11 +345,20 @@ void DIUpdateRegisters( void )
 				} break;
 				case 0x12:
 				{
-					#ifdef DEBUG_GCAM
-					dbgprintf("GC-AM: 0x12\n");
-					#endif
-					write32( DI_IMM, 0x21000000 );
-
+					if(TRIGame)
+					{
+						#ifdef DEBUG_GCAM
+						dbgprintf("GC-AM: 0x12\n");
+						#endif
+						write32( DI_IMM, 0x21000000 );
+					}
+					else if(read32(DI_SCMD_2) == 32)
+					{
+						//dbgprintf("DIP:DVDLowInquiry( 0x%08x, 0x%08x )\r\n", read32(DI_SDMA_ADR), read32(DI_SDMA_LEN));
+						void *Buffer = (void*)P2C(read32(DI_SDMA_ADR));
+						memcpy( Buffer, DiskDriveInfo, 32 );
+						sync_after_write( Buffer, 32 );
+					}
 					DIOK = 2;
 				} break;
 				case 0xAA:

@@ -40,21 +40,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SDI.h"
 
 #define DI_STACK_SIZE 0x400
-
-int verbose = 0;
-u32 base_offset=0;
-void *queuespace=NULL;
-int queueid = 0;
-int heapid=0;
-int FFSHandle=0;
-u32 FSUSB=0;
-void *reset = (void*)0x1300300C;
 //#undef DEBUG
 
+u32 USBReadTimer = 0;
 extern u32 s_size;
 extern u32 s_cnt;
 
-FATFS *fatfs;
+static FATFS *fatfs = NULL;
 static const char *fatDevName = "/";
 
 extern u32 SI_IRQ;
@@ -249,7 +241,7 @@ int _main( int argc, char *argv[] )
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
-	u32 USBReadTimer = Now;
+	USBReadTimer = Now;
 	u32 Reset = 0;
 	bool SaveCard = false;
 	if( ConfigGetConfig(NIN_CFG_LED) )
@@ -447,6 +439,7 @@ int _main( int argc, char *argv[] )
 
 //unmount FAT device
 	free(fatfs);
+	fatfs = NULL;
 	f_mount(NULL, fatDevName, 1);
 
 	if(UseUSB)

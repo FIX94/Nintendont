@@ -30,7 +30,8 @@ u32 StreamCurrent = 0;
 u32 StreamLoop = 0;
 
 u8 *StreamBuffer = (u8*)0x132A0000;
-#define REAL_STREAMING DIP_DMA_ADR
+#define UPDATE_STREAM DIP_DMA_ADR
+#define REAL_STREAMING (UPDATE_STREAM+2)
 #define AI_ADP_LOC DIP_DMA_LEN
 
 #define BUFSIZE 0xC400
@@ -61,7 +62,8 @@ void StreamInit()
 	memset32((void*)buf2, 0, BUFSIZE);
 	sync_after_write((void*)buf2, BUFSIZE);
 
-	write32(REAL_STREAMING, 0);
+	write16(UPDATE_STREAM, 0);
+	write16(REAL_STREAMING, 0);
 	write32(AI_ADP_LOC, 0);
 }
 
@@ -149,38 +151,19 @@ u32 StreamGetChunkSize()
 	return cur_chunksize;
 }
 
-#define STREAM_BASE 0x13026520
-#define STREAM_UPDATE 0x13026524
-#define FAKE_STREAMING 0x13026540
-#define STREAM_LENGTH 0x13026544
-#define STREAM_START 0x13026548
-#define STREAM_CURRENT 0x1302654C
-#define REALSTREAM_END 0x13026550
-
-#define LOOP_ENABLED 0x13026580
-
 void StreamUpdateRegisters()
 {
-	sync_before_read( (void*)STREAM_BASE, 0x40 );
-	if(read32(STREAM_BASE))		//decoder update, it WILL update
+	if(read16(UPDATE_STREAM))		//decoder update, it WILL update
 	{
 		if(StreamEnd)
 		{
 			StreamEnd = 0;
 			StreamCurrent = 0;
-			write32(STREAM_CURRENT, 0); //reset stream pos
-			write32(STREAM_BASE, 0); //clear status
-			write32(REAL_STREAMING, 0); //stop playing
-			write32(REALSTREAM_END, 1); //stream end
-			sync_after_write( (void*)STREAM_BASE, 0x40 );
+			write16(REAL_STREAMING, 0); //stop playing
 		}
 		else if(StreamCurrent > 0)
 		{
-			write32(STREAM_BASE, 0); //clear status
-			sync_after_write( (void*)STREAM_BASE, 0x20 );
 			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
-			write32(STREAM_CURRENT, StreamCurrent); //update after it played to this position
-			sync_after_write( (void*)FAKE_STREAMING, 0x20 );
 			StreamCurrent += StreamGetChunkSize();
 			if(StreamCurrent >= StreamEndOffset) //terrible loop but it works
 			{
@@ -197,16 +180,12 @@ void StreamUpdateRegisters()
 			}
 			StreamUpdate();
 		}
+		write16(UPDATE_STREAM, 0); //clear status
 	}
 }
 
 void StreamStartStream(u32 CurrentStart, u32 CurrentSize)
 {
-	write32(STREAM_UPDATE, 0);
-	write32(STREAM_BASE, 0); //clear buffer request
-	sync_after_write( (void*)STREAM_BASE, 0x20 );
-	write32(REALSTREAM_END, 0); //stream runs
-	sync_after_write( (void*)FAKE_STREAMING, 0x20 );
 	if(CurrentStart > 0 && CurrentSize > 0)
 	{
 		StreamSize = CurrentSize;
@@ -218,16 +197,14 @@ void StreamStartStream(u32 CurrentStart, u32 CurrentSize)
 		StreamCurrent += StreamGetChunkSize();
 		cur_buf = buf1; //reset adp buffer
 		StreamUpdate();
-		write32(STREAM_CURRENT, StreamCurrent); //give first update
-		sync_after_write( (void*)FAKE_STREAMING, 0x20 );
 		/* Directly read in the second buffer */
 		IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
 		StreamCurrent += StreamGetChunkSize();
 		StreamUpdate();
 		/* Send stream signal to PPC */
 		write32(AI_ADP_LOC, 0); //reset adp read pos
-		write32(REAL_STREAMING, 0x20); //set stream flag
-		sync_after_write( (void*)STREAM_BASE, 0x20 );
+		write16(UPDATE_STREAM, 0); //clear status
+		write16(REAL_STREAMING, 0x20); //set stream flag
 		//dbgprintf("Streaming %08x %08x\n", StreamStart, StreamSize);
 		StreamLoop = 1;
 		StreamEnd = 0;
@@ -239,5 +216,5 @@ void StreamStartStream(u32 CurrentStart, u32 CurrentSize)
 void StreamEndStream()
 {
 	StreamCurrent = 0;
-	write32(REAL_STREAMING, 0); //clear stream flag
+	write16(REAL_STREAMING, 0); //clear stream flag
 }

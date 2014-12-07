@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set	REAL_STREAMING,	0xCD806014
+.set	REAL_STREAMING,	0xCD806016
 
 DVDLowAudioBufferConfig:
 	mtctr	%r5
@@ -27,7 +27,7 @@ DVDLowAudioBufferConfig:
 	beq		StopStream
 
 StartStream:
-	lwz		%r3,	REAL_STREAMING@l(%r5)
+	lhz		%r3,	REAL_STREAMING@l(%r5)
 	cmpwi	%r3,	0x40
 	bne		StartCB		#dont start when not paused before
 
@@ -35,13 +35,13 @@ StartStream:
 	b		SaveValue
 
 StopStream:
-	lwz		%r3,	REAL_STREAMING@l(%r5)
+	lhz		%r3,	REAL_STREAMING@l(%r5)
 	cmpwi	%r3,	0x20
 	bne		StartCB		#dont pause when not even streaming
 
 	li		%r3,	0x40
 SaveValue:
-	stw		%r3,	REAL_STREAMING@l(%r5)
+	sth		%r3,	REAL_STREAMING@l(%r5)
 StartCB:
 	li		%r3,	1		#for the cb that everything resulted ok
 	bctr		#will boot cb then return to original function, saves quite some code
