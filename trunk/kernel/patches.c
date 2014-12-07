@@ -121,6 +121,9 @@ enum
 	FCODE_PatchPatchBuffer,
 	FCODE_PrsLoad,
 	FCODE_DolEntryMod,
+	FCODE_GetCoverStatus,
+	FCODE_PatchDiscFunc,
+	FCODE_AppLoad,
 } FPatternCodes;
 
 enum
@@ -377,12 +380,48 @@ FuncPattern EXIFPatterns[] =
 //	{   0xDC,   17,    9,    4,    3,    2,	__CARDEraseSector,	sizeof(__CARDEraseSector),	"__CARDEraseSector",				FGROUP_NONE,				0 },
 };
 
+FuncPattern DatelFPatterns[] =
+{
+	{   0x48,    9,   2,    3,    0,    3,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"Datel",	FGROUP_NONE,				0 },
+	{   0xF8,    8,   6,    7,    1,    6,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"DatelB",	FGROUP_NONE,				0 },
+	{   0x14,    1,   1,    0,    0,    1,	NULL,				FCODE_PatchFunc,			"GetImmediateBuffer",	"Datel",	FGROUP_NONE,				0 },
+	{   0x20,    2,   2,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDLowStopMotor",		"Datel",	FGROUP_NONE,				0 },//DVDLowStopMotor
+	{   0x58,    3,   6,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDInquiryAsync",		"Datel",	FGROUP_DVDInquiryAsync,		0 },
+//	{   0x58,    3,   6,    0,    0,    0,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"Datel",	FGROUP_DVDInquiryAsync,		0 },
+	{   0x6C,    4,   7,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDLowReadDiskID",		"Datel",	FGROUP_NONE,				0 },
+	{   0x60,    3,   7,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDLowRead",			"Datel",	FGROUP_DVDLowRead,			0 },
+	{   0x3C,    3,   4,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDSeekAbsAsyncPrio",	"Datel",	FGROUP_NONE,				0 },
+//	{   0x3C,    3,   4,    0,    0,    0,	DVDSeekAbsAsyncPrio,DVDSeekAbsAsyncPrio_size,	"DVDSeekAbsAsyncPrio",	"Datel",	FGROUP_NONE,				0 },
+	{   0x20,    2,   2,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDEnableInterrupts",	"Datel",	FGROUP_NONE,				0 },
+	{   0xE4,   12,  14,    1,    1,    5,	NULL,				FCODE_PatchFunc,			"DVDEnableInterrupts",	"DatelB",	FGROUP_NONE,				0 },
+	{   0x30,    2,   3,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDEnableInterrupts",	"DatelC",	FGROUP_NONE,				0 },
+	{   0x24,    2,   3,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDGetDriveStatus",	"Datel",	FGROUP_NONE,				0 },
+//	{   0x24,    2,   3,    0,    0,    0,	DVDGetDriveStatus,	sizeof(DVDGetDriveStatus),	"DVDGetDriveStatus",	"Datel",	FGROUP_NONE,				0 },
+//	{  0x190,   15,  12,    2,    8,   15,	NULL,				FCODE_PatchFunc,			"__DVDInterruptHandler","Datel",	FGROUP_NONE,				0 },
+	{   0x18,    2,   1,    0,    0,    0,	NULL,				FCODE_GetCoverStatus,		"GetCoverStatus",		"Datel",	FGROUP_NONE,				0 },
+	{   0x34,    1,   2,    0,    0,    3,	NULL,				FCODE_PatchFunc,			"DVDAudioDisable",		"Datel",	FGROUP_NONE,				0 },
+	{   0x6C,    8,   8,    3,    0,    4,	NULL,				FCODE_PatchFunc,			"CallDVDAudioDisable",	"Datel",	FGROUP_NONE,				0 },
+	{   0x3C,    6,   4,    1,    0,    2,	NULL,				FCODE_PatchFunc,			"GetImmBufferAndStore",	"Datel",	FGROUP_NONE,				0 },
+	{   0x80,   10,   8,    4,    0,    2,	NULL,				FCODE_PatchFunc,			"DVDReadHeader",		"Datel",	FGROUP_NONE,				0 },
+	{   0x70,   10,   9,    2,    1,    2,	NULL,				FCODE_PatchFunc,			"DVDWait",				"Datel",	FGROUP_NONE,				0 },
+	{   0x58,    8,   8,    1,    0,    2,	NULL,				FCODE_PatchFunc,			"ClearCoverInterrupt",	"Datel",	FGROUP_NONE,				0 },
+	{   0x48,    2,   1,    0,    0,    3,	NULL,				FCODE_PatchDiscFunc,		"GetAndClearError",		"Datel",	FGROUP_NONE,				0 },
+//	{  0x134,   19,  10,    0,   11,    7,	NULL,				FCODE_PatchDiscFunc,		"__DVDInterruptHandler","Datel",	FGROUP_NONE,				0 },
+	{   0x14,    1,   1,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"GetImmediateBuffer",	"Datel",	FGROUP_NONE,				0 },
+	{   0x98,    7,   7,    0,    1,    1,	NULL,				FCODE_PatchFunc,			"DVDEnableInterrupts",	"DatelD",	FGROUP_NONE,				0 },
+//  Same as DVDLowStopMotor, but patch is the same so ok
+//	{   0x20,    2,   2,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDGetDriveStatus",	"Datel",	FGROUP_NONE,				0 },
+	{   0x98,    9,   8,    2,    1,    6,	NULL,				FCODE_PatchDiscFunc,		"_CallDVDIntHandler",	"Datel",	FGROUP_NONE,				0 },
+	{   0x74,    8,   8,    3,    0,    4,	NULL,				FCODE_PatchFunc,			"CallDVDAudioDisable",	"Datel",	FGROUP_NONE,				0 },
+};
+
 enum
 {
 	PCODE_NORMAL = 0,
 	PCODE_TRI,
 	PCODE_SI,
 	PCODE_EXI,
+	PCODE_DATEL,
 	PCODE_MAX,
 } AllPGroups;
 
@@ -392,4 +431,5 @@ FuncPatterns AllFPatterns[] =
 	{ TRIFPatterns, sizeof(TRIFPatterns) / sizeof(FuncPattern), PCODE_TRI },
 	{ SIFPatterns, sizeof(SIFPatterns) / sizeof(FuncPattern), PCODE_SI },
 	{ EXIFPatterns, sizeof(EXIFPatterns) / sizeof(FuncPattern), PCODE_EXI },
+	{ DatelFPatterns, sizeof(DatelFPatterns) / sizeof(FuncPattern), PCODE_DATEL },
 };

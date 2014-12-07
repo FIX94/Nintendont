@@ -41,6 +41,7 @@ DataCache DC[CACHE_MAX];
 extern u32 USBReadTimer;
 static FIL GameFile;
 static u32 LastOffset = UINT_MAX, LastLength = 0, readptr;
+bool Datel = false;
 
 static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 {
@@ -85,6 +86,13 @@ bool ISOInit()
 	/* Reset Cache */
 	CacheInited = 0;
 
+	if ((read32(0) == 0x474E4845) && (read32(4) == 0x35640000))
+	{
+		u32 DatelName[2];
+		ISOReadDirect(DatelName, 2 * sizeof(u32), 0x19848);
+		if ((DatelName[0] == 0x20446174) && ((DatelName[1] >> 16) == 0x656C))
+			Datel = true;
+	}
 	return true;
 }
 

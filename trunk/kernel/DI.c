@@ -50,6 +50,7 @@ u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
+bool MultipleDiscs = true;
 
 extern u32 StreamSize, StreamStart, StreamCurrent;
 
@@ -100,6 +101,25 @@ void DIinit( bool FirstTime )
 
 	if (FirstTime)
 	{
+		// Move this to ISO.c?
+		u32 i;
+		char TempDiscName[256];
+		_sprintf(TempDiscName, "%s", ConfigGetGamePath());
+
+		//search the string backwards for '/'
+		for( i=strlen(TempDiscName); i > 0; --i )
+			if( TempDiscName[i] == '/' )
+				break;
+		i++;
+
+		_sprintf(TempDiscName+i, "disc2.iso");
+		FIL ExistsFile;
+		s32 ret = f_open(&ExistsFile, TempDiscName, FA_READ);
+		if (ret != FR_OK)
+			MultipleDiscs = false;
+		else
+			f_close(&ExistsFile);
+
 		GCAMKeyA = read32(0);
 		GCAMKeyB = read32(4);
 		GCAMKeyC = read32(8);
@@ -120,8 +140,11 @@ void DIinit( bool FirstTime )
 		write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
 	}
 }
-void DIChangeDisc( u32 DiscNumber )
+bool DIChangeDisc( u32 DiscNumber )
 {
+	if (!MultipleDiscs)
+		return false;
+
 	u32 i;
 	char* DiscName = ConfigGetGamePath();
 
@@ -138,6 +161,7 @@ void DIChangeDisc( u32 DiscNumber )
 
 	dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
 	DIinit(false);
+	return true;
 }
 
 void DIInterrupt()
@@ -494,18 +518,27 @@ void DIUpdateRegisters( void )
 
 					DIOK = 2;
 				} break;
+				case 0xE0:	// Get error status
+				{
+					write32( DI_IMM, 0x00000000 );
+					DIOK = 2;
+				} break;
 				case 0xE3:	// stop Motor
 				{
 					dbgprintf("DIP:DVDLowStopMotor()\r\n");
 					u32 CDiscNumber = (read32(4) << 16 ) >> 24;
 					dbgprintf("DIP:Current disc number:%u\r\n", CDiscNumber + 1 );
 
-					DIChangeDisc( CDiscNumber ^ 1 );
-
-					DiscChangeIRQ = 1;
+					if (DIChangeDisc( CDiscNumber ^ 1 ))
+						DiscChangeIRQ = 1;
 					
 					DIOK = 2;
 
+				} break;
+				case 0xE4:	// Disable Audio
+				{
+					dbgprintf("DIP:DVDDisableAudio()\r\n");
+					DIOK = 2;
 				} break;
 				case 0xA7:
 				case 0xA9:

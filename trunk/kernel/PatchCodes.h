@@ -55,6 +55,8 @@
 #include "asm/DVDLowRequestAudioStatus.h"
 #include "asm/DVDLowAudioBufferConfig.h"
 
+#include "asm/DatelTimer.h"
+
 unsigned char SRAM[64] =
 {
     0x42, 0x8B,
