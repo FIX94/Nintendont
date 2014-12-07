@@ -71,7 +71,7 @@ void DIRegister(void);
 void DIUnregister(void);
 void DIFinishAsync(void);
 u32 DIReadThread(void *arg);
-void DIChangeDisc( u32 DiscNumber );
+bool DIChangeDisc( u32 DiscNumber );
 void DIUpdateRegisters( void );
 void DIReload(void);
 bool DICheckTGC(u32 Buffer, u32 Length);

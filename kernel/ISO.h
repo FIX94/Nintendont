@@ -19,6 +19,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef _CACHEISO_H_
 #define _CACHEISO_H_
 
+extern bool Datel;
+
 bool ISOInit();
 void ISOClose();
 void ISOSetupCache();

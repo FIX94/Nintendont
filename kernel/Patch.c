@@ -450,15 +450,17 @@ void PatchFuncInterface( char *dst, u32 Length )
 
 	u32 LISReg = 32;
 	u32 LISOff = 0;
+	u32 LISOp = 0;
 
 	for( i=0; i < Length; i+=4 )
 	{
 		u32 op = read32( (u32)dst + i );
 
-		if( (op & 0xFC1FFFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
+		if( (op & 0xFC00FFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
 		{
 			LISReg = (op & 0x3E00000) >> 21;
 			LISOff = (u32)dst + i;
+			LISOp = op & 0xFFFF0000;
 		}
 
 		if( (op & 0xFC000000) == 0x38000000 )	// li rX, x
@@ -477,7 +479,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+				write32( (u32)LISOff, LISOp | 0x0000CD80 );	// Patch to: lis rX, 0xCD80
 				//dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				AIPatched++;
 				LISReg = 32;
@@ -493,12 +495,12 @@ void PatchFuncInterface( char *dst, u32 Length )
 			{
 				if (ConfigGetConfig(NIN_CFG_NATIVE_SI))
 				{
-					write32((u32)LISOff, (LISReg << 21) | 0x3C00CD80);	// Patch to: lis rX, 0xCD80
+					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				}
 				else
 				{
-					write32((u32)LISOff, (LISReg << 21) | 0x3C00D302);	// Patch to: lis rX, 0xD302
+					write32((u32)LISOff, LISOp | 0x0000D302);	// Patch to: lis rX, 0xD302
 					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				}
 				SIPatched++;
@@ -514,7 +516,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			{
 				if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
 				{
-					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					EXIPatched++;
 				}
@@ -525,7 +527,61 @@ void PatchFuncInterface( char *dst, u32 Length )
 				LISReg = 32;
 		}
 
-		if(    ( (op & 0xF8000000 ) == 0x80000000 )   // lwz and lwzu
+		if ((op & 0xFC00FF00) == 0x60006C00) // ori rX, rY, 0x6C00 (ai)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if (src == LISReg)
+			{
+				write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
+				//dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
+				AIPatched++;
+				LISReg = 32;
+			}
+			u32 dst = (op >> 21) & 0x1F;
+			if (dst == LISReg)
+				LISReg = 32;
+		}
+		else if ((op & 0xFC00FF00) == 0x60006400) // ori rX, rY, 0x6400 (si)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if (src == LISReg)
+			{
+				if (ConfigGetConfig(NIN_CFG_NATIVE_SI))
+				{
+					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
+				}
+				else
+				{
+					write32((u32)LISOff, LISOp | 0x0000D302);	// Patch to: lis rX, 0xD302
+					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
+				}
+				SIPatched++;
+				LISReg = 32;
+			}
+			u32 dst = (op >> 21) & 0x1F;
+			if (dst == LISReg)
+				LISReg = 32;
+		}
+		else if ((op & 0xFC00FF00) == 0x60006800) // ori rX, rY, 0x6800 (exi)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if (src == LISReg)
+			{
+				if (ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false)
+				{
+					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
+					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
+					EXIPatched++;
+					LISReg = -1;
+				}
+			}
+			u32 dst = (op >> 21) & 0x1F;
+			if (dst == LISReg)
+				LISReg = -1;
+		}
+
+		if (((op & 0xF8000000) == 0x80000000)   // lwz and lwzu
 		    || ( (op & 0xF8000000 ) == 0x90000000 ) ) // stw and stwu
 		{
 			u32 src = (op >> 16) & 0x1F;
@@ -536,7 +592,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			{
 				if( (val & 0xFF00) == 0x6C00 ) // case with 0x6CXY(rZ) (ai)
 				{
-					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("AI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					AIPatched++;
 					LISReg = 32;
@@ -545,12 +601,12 @@ void PatchFuncInterface( char *dst, u32 Length )
 				{
 					if (ConfigGetConfig(NIN_CFG_NATIVE_SI))
 					{
-						write32((u32)LISOff, (LISReg << 21) | 0x3C00CD80);	// Patch to: lis rX, 0xCD80
+						write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 						//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					}
 					else
 					{
-						write32((u32)LISOff, (LISReg << 21) | 0x3C00D302);	// Patch to: lis rX, 0xD302
+						write32((u32)LISOff, LISOp | 0x0000D302);	// Patch to: lis rX, 0xD302
 						//dbgprintf("SI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					}
 					SIPatched++;
@@ -560,7 +616,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 				{
 					if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
 					{
-						write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
+						write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 						//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 						EXIPatched++;
 					}
@@ -727,6 +783,20 @@ void PatchDiscInterface( char *dst )
 				LISReg = -1;
 		}
 
+		if ((op & 0xFC00FF00) == 0x60006000) // ori rX, rY, 0x6000 (di)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if (src == LISReg)
+			{
+				write32((u32)LISOff, (LISReg << 21) | 0x3C00CD80);	// Patch to: lis rX, 0xCD80
+				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
+				LISReg = -1;
+			}
+			u32 dst = (op >> 21) & 0x1F;
+			if (dst == LISReg)
+				LISReg = -1;
+		}
+
 		if(    ( (op & 0xF8000000 ) == 0x80000000 )   // lwz and lwzu
 		    || ( (op & 0xF8000000 ) == 0x90000000 ) ) // stw and stwu
 		{
@@ -766,10 +836,13 @@ void PatchFunc( char *ptr )
 		{
 			reg = (op & 0x3E00000) >> 21;
 			
-			write32( (u32)ptr + i, (reg<<21) | 0x3C00C000 );	// Patch to: lis rX, 0xC000
-			//#ifdef DEBUG_PATCH
-			//dbgprintf("[%08X] %08X: lis r%u, 0xC000\r\n", (u32)ptr+i, read32( (u32)ptr+i), reg );
-			//#endif
+			if ((read32((u32)ptr + i + 8) & 0xFC00FFFF) != 0x60003024)
+			{
+				write32((u32)ptr + i, (reg << 21) | 0x3C00C000);	// Patch to: lis rX, 0xC000
+				//#ifdef DEBUG_PATCH
+				//dbgprintf("[%08X] %08X: lis r%u, 0xC000\r\n", (u32)ptr+i, read32( (u32)ptr+i), reg );
+				//#endif
+			}
 		}
 
 		if( (op & 0xFC00FFFF) == 0x3C00A800 )	// lis rX, 0xA800
@@ -789,14 +862,26 @@ void PatchFunc( char *ptr )
 			//#endif
 		}
 
-		if( (op & 0xFC00FFFF) == 0x38006000 )	// addi rX, rY, 0x6000
+		if( (op & 0xFC00FF00) == 0x38006000 )	// addi rX, rY, 0x6000
 		{
 			u32 src = (op >> 16) & 0x1F;
-			u32 dst = (op >> 21) & 0x1F;
 
 			if( src == reg )
 			{
-				write32( (u32)ptr + i, (dst<<21) | (src<<16) | 0x38002F00 );	// Patch to: addi rX, rY, 0x2F00
+				write32( (u32)ptr + i, (op & 0xFFFF00FF) | 0x00002F00 );	// Patch to: addi rX, rY, 0x2F00
+				//#ifdef DEBUG_PATCH
+				//dbgprintf("[%08X] %08X: addi r%u, r%u, 0x2F00\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, src );
+				//#endif
+			}
+		}
+
+		if( (op & 0xFC00FF00) == 0x60006000 )	// ori rX, rY, 0x6000
+		{
+			u32 src = (op >> 16) & 0x1F;
+
+			if( src == reg )
+			{
+				write32( (u32)ptr + i, (op & 0xFFFF00FF) | 0x00002F00 );	// Patch to: addi rX, rY, 0x2F00
 				//#ifdef DEBUG_PATCH
 				//dbgprintf("[%08X] %08X: addi r%u, r%u, 0x2F00\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, src );
 				//#endif
@@ -1015,6 +1100,7 @@ u32 DOLMinOff  = 0;
 u32 DOLMaxOff  = 0;
 vu32 TRIGame   = 0;
 vu32 GameEntry = 0;
+u32 AppLoaderSize = 0;
 
 int GotoFuncEnd(int i, u32 Buffer)
 {
@@ -1075,6 +1161,36 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				
 				PSOHack = PSO_STATE_PSR;
 			} break;
+		}
+	}
+
+	if ((TITLE_ID) == 0x474E48)  //NHL Hitz = Possible Datel
+	{
+		if (Datel)
+		{
+			switch ((u32)Buffer)
+			{
+				case 0x01300000:	// Datel AppLoader
+				{
+				} break;
+				case 0x00003100:	// Datel DOL
+				{
+#ifdef DEBUG_PATCH
+					dbgprintf("Patch:Datel loading dol:0x%p %u\r\n", Buffer, Length);
+#endif
+					DOLSize = Length;
+					DOLMinOff = (u32)Buffer;
+					DOLMaxOff = DOLMinOff + Length;
+					Datel = true;
+					if (Length == 0x000BA000)
+					{
+						GameEntry = 0x81300000;
+						PatchState = PATCH_STATE_PATCH;
+					}
+					else
+						GameEntry = DOLMinOff | 0x80000000;
+				} break;
+			}
 		}
 	}
 
@@ -1216,6 +1332,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	POffset = PATCH_OFFSET_ENTRY;
 
 	u32 DCInvalidateRangeAddr = PatchCopy(DCInvalidateRange, DCInvalidateRange_size);
+	//Combine these?  Worried if an interrupt occurs while the code is being overwritten
+	u32 DCInvalidateRangeAddr2 = PatchCopy(DCInvalidateRange, DCInvalidateRange_size);
 
 	u32 FakeInterruptAddr = PatchCopy(FakeInterrupt, FakeInterrupt_size);
 	u32 FakeInterrupt_DBGAddr = PatchCopy(FakeInterrupt_DBG, FakeInterrupt_DBG_size);
@@ -1233,7 +1351,42 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	//if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))  // Make these FuncPatterns?
 	u32 SwitcherPrsAddr = PatchCopy(SwitcherPrs, SwitcherPrs_size);
 
-	// HACK: PokemonXD and Pokemon Colosseum low memory clear patch
+	u32 DatelTimerAddr = PatchCopy(DatelTimer, DatelTimer_size);
+
+	if (Datel)
+	{
+		// Combine these Datel Timers with a generic search function (mtctr rX followed by bdnz to itself)?
+		if (read32(0x0001B1AC) == 0x38006800)
+		{
+			printpatchfound("Timer", "Datel", 0x0001B1AC);
+			PatchB(DatelTimerAddr, 0x0001B1AC);
+		}
+		if (read32(0x000748A0) == 0x38006800)
+		{
+			printpatchfound("Timer", "Datel", 0x000748A0);
+			PatchB(DatelTimerAddr, 0x000748A0);
+		}
+		if (read32(0x00074508) == 0x38006800)
+		{
+			printpatchfound("Timer", "Datel", 0x00074508);
+			PatchB(DatelTimerAddr, 0x00074508);
+		}
+		if (read32(0x00075600) == 0x38006800)
+		{
+			printpatchfound("Timer", "Datel", 0x00075600);
+			PatchB(DatelTimerAddr, 0x00075600);
+		}
+		if (read32(0x000538FC) == 0x38006800)
+		{
+			printpatchfound("Timer", "Datel", 0x000538FC);
+			PatchB(DatelTimerAddr, 0x000538FC);
+		}
+		if (read32(0x0005390C) == 0x380001DB)
+		{
+			printpatchfound("TimerB", "Datel", 0x0005390C);
+			write32(0x0005390C, 0x380002C9);// 0x1DB * 3 /2 = 0x2C8.8
+		}
+	}
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
 	{
 		// patch out initial memset(0x1800, 0, 0x1800)
@@ -1543,6 +1696,79 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
+				else if( BufLowAt0 == 0x6000 && 
+					(read32( (u32)Buffer + i + 8 ) & 0xFFFF) == 0x002A &&
+					(read32( (u32)Buffer + i + 0xC ) & 0xFFFF) == 0x0054 )
+				{
+					u32 Offset = (u32)Buffer + i - 8;
+					u32 HwOffset = Offset;
+					if ((read32(Offset + 4) & 0xFFFF) == 0xCC00)	// Loader
+						HwOffset = Offset + 4;
+					#ifdef DEBUG_PATCH
+					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
+					#endif
+					PatchDiscInterface( (char*)Offset );
+					u32 OrigData = read32(HwOffset);
+					PatchBL(DCInvalidateRangeAddr, HwOffset);
+					if ((read32(DCInvalidateRangeAddr + DCInvalidateRange_size - 0xC) & 0xFC10FFFF) == 0x3C00CD80)
+					{
+						write32(DCInvalidateRangeAddr + DCInvalidateRange_size - 0xC, OrigData);
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", OrigData, HwOffset);
+						#endif
+					}
+					if (write32A(HwOffset-0x20, 0x3d20c000, 0x3d20cc00, 0))
+					{
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X\r\n", HwOffset-0x20);
+						#endif
+					}
+					if (write32A(HwOffset - 0x18, 0x61292F38, 0x61296008, 0))
+					{
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X\r\n", HwOffset-0x18);
+						#endif
+					}
+					PatchCount |= FPATCH_DVDIntrHandler;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+				else if( BufLowAt0 == 0x6000 && 
+					(read32( (u32)Buffer + i + 0x1C ) & 0xFFFF) == 0x002A &&
+					(read32( (u32)Buffer + i + 0x20 ) & 0xFFFF) == 0x0054 )
+				{
+					u32 Offset = (u32)Buffer + i - 8;
+					u32 HwOffset = Offset;
+					if ((read32(Offset + 4) & 0xFFFF) == 0xCC00)	// Loader
+						HwOffset = Offset + 4;
+					else
+					{
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
+						#endif
+						// Save r0 (lr) before bl
+						u32 OrigData = read32(HwOffset);
+						write32(HwOffset, read32(HwOffset + 4));
+						write32(HwOffset + 4, OrigData);
+						HwOffset = Offset + 4;
+					}
+					#ifdef DEBUG_PATCH
+					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
+					#endif
+					PatchDiscInterface( (char*)Offset );
+					u32 OrigData = read32(HwOffset);
+					PatchBL(DCInvalidateRangeAddr2, HwOffset);
+					if ((read32(DCInvalidateRangeAddr2 + DCInvalidateRange_size - 0xC) & 0xFC10FFFF) == 0x3C00CD80)
+					{
+						write32(DCInvalidateRangeAddr2 + DCInvalidateRange_size - 0xC, OrigData);
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", OrigData, HwOffset);
+						#endif
+					}
+					PatchCount |= FPATCH_DVDIntrHandler;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
 			}
 			if( (PatchCount & FPATCH_DVDLowReadDiskID) == 0 )
 			{
@@ -1560,8 +1786,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				if( BufAt0 == 0x3C00E300 )
 				{
 					printpatchfound("DVDLowStopMotor",NULL, (u32)Buffer + i);
-					PatchFunc( Buffer + i - 12 );
-					PatchCount |= FPATCH_DVDLowStopMotor;
+					char* PStart = Buffer + i - 12;
+					if (read32((u32)PStart) == 0x4E800020)
+						PStart = Buffer + i - 8;
+					if (read32((u32)PStart + 4) == 0x4E800020)
+						PStart = Buffer + i - 4;
+					PatchFunc(PStart);
+						PatchCount |= FPATCH_DVDLowStopMotor;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
@@ -1890,6 +2121,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									write32( (u32)Buffer+i, 0x14 );
 								}
 								write32( (u32)Buffer+i+0x14, 1); //mode df
+								break;
 							case 0x04: //PAL50
 								if(NinForceMode == NIN_VID_FORCE_PAL50 || NinForceMode == NIN_VID_FORCE_PAL60)
 									break;
@@ -2022,6 +2254,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							PatchFunc( (char*)FOffset );
+						} break;
+						case FCODE_PatchDiscFunc:	// DVDLowRead
+						{
+							if (Datel)
+							{
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								PatchDiscInterface((char*)FOffset);
+							}
 						} break;
 						case FCODE_Return:	// __AI_set_stream_sample_rate
 						{
@@ -2608,12 +2848,38 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 #ifdef DEBUG_PATCH
 								printpatchfound("PSO", "FakeEntry", OrigAddr);
 #endif
-								// ToDo: What does the function at -0xC do?
-								// This is currently being skipped because it hangs for MemCardEmu
-								// Further investigation needed.
-								if (ConfigGetConfig(NIN_CFG_MEMCARDEMU))
-									OrigAddr -= 0xC;
 								PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
+							}
+							else if (read32(FOffset + 0x38) == 0x4E800421) // bctrl
+							{
+								// HACK: Datel patch To Fake Entry
+								PatchBL(PATCH_OFFSET_ENTRY, FOffset + 0x38);
+								AppLoaderSize = read32(FOffset + 0x20);
+								if ((AppLoaderSize & 0xFFFF0000) == 0x38800000)
+									AppLoaderSize &= 0x0000FFFF;
+								else
+									AppLoaderSize = 0;
+#ifdef DEBUG_PATCH
+								printpatchfound("Datel", "FakeEntry", FOffset + 0x38);
+								printpatchfound("Datel", "FakeEntrySize", AppLoaderSize);
+#endif
+							}
+							else if (((u32)Buffer == 0x01300000) && (read32(FOffset + 0xA0) == 0x4C00012C) && (read32(FOffset + 0xC8) == 0x4E800021))  // isync and blrl
+							{
+#ifdef DEBUG_PATCH
+								printpatchfound("Datel", "FakeEntry", FOffset + 0xC8);
+#endif
+								PatchBL(PATCH_OFFSET_ENTRY, FOffset + 0xC8);
+							}
+						} break;
+						case FCODE_GetCoverStatus:
+						{
+							u32 OrigAddr = FOffset + 0x10;
+							if (write32A(OrigAddr, 0x38600000, 0x80690000, false)) //lwz r3, r9 -> li r3,0
+							{
+#ifdef DEBUG_PATCH
+								printpatchfound("GetCoverStatus", "Datel", OrigAddr);
+#endif
 							}
 						} break;
 						default:
@@ -2735,6 +3001,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == 0)
 			continue;
 		if(AllFPatterns[patitr].patmode == PCODE_EXI && (TRIGame == 3 || ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false))
+			continue;
+		if(AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
 			continue;
 		if ((ConfigGetConfig(NIN_CFG_NATIVE_SI)) && (AllFPatterns[patitr].patmode == PCODE_SI))
 			continue;
@@ -2898,6 +3166,13 @@ void PatchGame()
 	// Commenting out until case where needed found
 	//if ((GameEntry & 0x7FFFFFFF) < 0x31A0)
 	//	Patch31A0();
+	if (Datel && (AppLoaderSize != 0))
+	{
+		DOLMinOff = 0x01300000;
+		DOLMaxOff = DOLMinOff + AppLoaderSize;
+		GameEntry = 0x81300000;
+		AppLoaderSize = 0;
+	}
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
