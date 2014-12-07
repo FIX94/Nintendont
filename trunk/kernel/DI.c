@@ -431,91 +431,98 @@ void DIUpdateRegisters( void )
 				} break;
 				case 0xAB:
 				{
-					memset32( MediaBuffer, 0, 0x20 );
-
-					MediaBuffer[0] = MediaBuffer[0x20];
-
-					// Command
-					*(u16*)(MediaBuffer+2) = *(u16*)(MediaBuffer+0x22) | 0x80;
-
-					u16 cmd = bswap16(*(u16*)(MediaBuffer+0x22));
-
-					#ifdef DEBUG_GCAM
-					if(cmd)
-						dbgprintf("GCAM:Execute command:%03X\n", cmd );
-					#endif
-					switch( cmd )
+					if(TRIGame)
 					{
-						// ?
-						case 0x000:
-							*(u32*)(MediaBuffer+4) = bswap32(1);
-							break;
-						// DIMM size
-						case 0x001:
-							*(u32*)(MediaBuffer+4) = bswap32(0x20000000);
-							break;
-						// Media board status
-						case 0x100:
-							// Status
-							*(u32*)(MediaBuffer+4) = bswap32(5);
-							// Progress in %
-							*(u32*)(MediaBuffer+8) = bswap32(100);
-						break;
-						// Media board version: 3.03
-						case 0x101:
-							// Version
-							*(u16*)(MediaBuffer+4) = 0x0303;
-							// Unknown
-							*(u16*)(MediaBuffer+6) = 0x01;
-							*(u32*)(MediaBuffer+8) = 1;
-							*(u32*)(MediaBuffer+16)= 0xFFFFFFFF;
-						break;
-						// System flags
-						case 0x102:
-							// 1: GD-ROM					
-							MediaBuffer[4] = 1;
-							MediaBuffer[5] = 0;
-							// enable development mode (Sega Boot)
-							MediaBuffer[6] = 1;
-						break;
-						// Media board serial
-						case 0x103:
-							memcpy( MediaBuffer + 4, "A89E28A48984511", 15 );
-						break;
-						case 0x104:
-							MediaBuffer[4] = 1;
-						break;
-						// Get IP (?)
-						case 0x406:
-						{
-							char *IP			= (char*)(NetworkCMDBuffer + ( bswap32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
-							u32 IPLength	= bswap32(*(u32*)(MediaBuffer+0x2C));
+						memset32( MediaBuffer, 0, 0x20 );
 
-							memcpy( MediaBuffer + 4, IP, IPLength );
+						MediaBuffer[0] = MediaBuffer[0x20];
 
-							#ifdef DEBUG_GCAM
-							dbgprintf( "GC-AM: Get IP:%s\n", (char*)(MediaBuffer + 4) );
-							#endif
-						} break;
-						// Set IP
-						case 0x415:
+						// Command
+						*(u16*)(MediaBuffer+2) = *(u16*)(MediaBuffer+0x22) | 0x80;
+
+						u16 cmd = bswap16(*(u16*)(MediaBuffer+0x22));
+
+						#ifdef DEBUG_GCAM
+						if(cmd)
+							dbgprintf("GCAM:Execute command:%03X\n", cmd );
+						#endif
+						switch( cmd )
 						{
-							#ifdef DEBUG_GCAM
-							char *IP			= (char*)(NetworkCMDBuffer + ( bswap32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
-							u32 IPLength	= bswap32(*(u32*)(MediaBuffer+0x2C));
-							dbgprintf( "GC-AM: Set IP:%s, Length:%d\n", IP, IPLength );
-							#endif
-						} break;
-						default:
-						{
-							//dbgprintf("GC-AM: Unknown DIMM Command\n");
-							//hexdump( MediaBuffer + 0x20, 0x20 );
-						} break;
+							// ?
+							case 0x000:
+								*(u32*)(MediaBuffer+4) = bswap32(1);
+								break;
+							// DIMM size
+							case 0x001:
+								*(u32*)(MediaBuffer+4) = bswap32(0x20000000);
+								break;
+							// Media board status
+							case 0x100:
+								// Status
+								*(u32*)(MediaBuffer+4) = bswap32(5);
+								// Progress in %
+								*(u32*)(MediaBuffer+8) = bswap32(100);
+							break;
+							// Media board version: 3.03
+							case 0x101:
+								// Version
+								*(u16*)(MediaBuffer+4) = 0x0303;
+								// Unknown
+								*(u16*)(MediaBuffer+6) = 0x01;
+								*(u32*)(MediaBuffer+8) = 1;
+								*(u32*)(MediaBuffer+16)= 0xFFFFFFFF;
+							break;
+							// System flags
+							case 0x102:
+								// 1: GD-ROM					
+								MediaBuffer[4] = 1;
+								MediaBuffer[5] = 0;
+								// enable development mode (Sega Boot)
+								MediaBuffer[6] = 1;
+							break;
+							// Media board serial
+							case 0x103:
+								memcpy( MediaBuffer + 4, "A89E28A48984511", 15 );
+							break;
+							case 0x104:
+								MediaBuffer[4] = 1;
+							break;
+							// Get IP (?)
+							case 0x406:
+							{
+								char *IP			= (char*)(NetworkCMDBuffer + ( bswap32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
+								u32 IPLength	= bswap32(*(u32*)(MediaBuffer+0x2C));
+
+								memcpy( MediaBuffer + 4, IP, IPLength );
+
+								#ifdef DEBUG_GCAM
+								dbgprintf( "GC-AM: Get IP:%s\n", (char*)(MediaBuffer + 4) );
+								#endif
+							} break;
+							// Set IP
+							case 0x415:
+							{
+								#ifdef DEBUG_GCAM
+								char *IP			= (char*)(NetworkCMDBuffer + ( bswap32(*(u32*)(MediaBuffer+0x28)) - 0x1F800200 ) );
+								u32 IPLength	= bswap32(*(u32*)(MediaBuffer+0x2C));
+								dbgprintf( "GC-AM: Set IP:%s, Length:%d\n", IP, IPLength );
+								#endif
+							} break;
+							default:
+							{
+								//dbgprintf("GC-AM: Unknown DIMM Command\n");
+								//hexdump( MediaBuffer + 0x20, 0x20 );
+							} break;
+						}
+						memset32( MediaBuffer + 0x20, 0, 0x20 );
+						write32( DI_IMM, 0x66556677 );
 					}
-
-					memset32( MediaBuffer + 0x20, 0, 0x20 );
-					write32( DI_IMM, 0x66556677 );
-
+					else if(FSTMode == 0)
+					{
+						u32 Offset = read32(DI_SCMD_1) << 2;
+						//dbgprintf("DIP:DVDLowSeek( 0x%08X )\r\n", Offset);
+						ISOSeek(Offset);
+					}
 					DIOK = 2;
 				} break;
 				case 0xE0:	// Get error status

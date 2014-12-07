@@ -1770,11 +1770,22 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					continue;
 				}
 			}
+			if( (PatchCount & FPATCH_DVDLowSeek) == 0 )
+			{
+				if( BufAt0 == 0x3C00AB00 && (read32((u32)Buffer+i-12) == 0x3C80CC00 || BufAt4 == 0x3C60CC00) )
+				{
+					printpatchfound("DVDLowSeek", NULL, (u32)Buffer + i);
+					PatchFunc( Buffer + i - 12 );
+					PatchCount |= FPATCH_DVDLowSeek;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+			}
 			if( (PatchCount & FPATCH_DVDLowReadDiskID) == 0 )
 			{
 				if( (BufAt0 & 0xFC00FFFF ) == 0x3C00A800 && (BufAt4 & 0xFC00FFFF ) == 0x38000040 )
 				{
-					printpatchfound("DVDLowReadDiskID",NULL, (u32)Buffer + i);
+					printpatchfound("DVDLowReadDiskID", NULL, (u32)Buffer + i);
 					PatchFunc( Buffer + i );
 					PatchCount |= FPATCH_DVDLowReadDiskID;
 					i = GotoFuncEnd(i, (u32)Buffer);
@@ -1783,9 +1794,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			if( (PatchCount & FPATCH_DVDLowStopMotor) == 0 )
 			{
-				if( BufAt0 == 0x3C00E300 )
+				if( BufAt0 == 0x3C00E300 && (read32((u32)Buffer+i-12) == 0x3C80CC00 || BufAt4 == 0x3C60CC00) )
 				{
-					printpatchfound("DVDLowStopMotor",NULL, (u32)Buffer + i);
+					printpatchfound("DVDLowStopMotor", NULL, (u32)Buffer + i);
 					char* PStart = Buffer + i - 12;
 					if (read32((u32)PStart) == 0x4E800020)
 						PStart = Buffer + i - 8;
@@ -1799,9 +1810,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			if( (PatchCount & FPATCH_DVDLowInquiry) == 0 )
 			{
-				if( BufAt0 == 0x3C001200 )
+				if( BufAt0 == 0x3C001200 && (read32((u32)Buffer+i-12) == 0x3C80CC00 || BufAt4 == 0x3C60CC00) )
 				{
-					printpatchfound("DVDLowInquiry",NULL, (u32)Buffer + i);
+					printpatchfound("DVDLowInquiry", NULL, (u32)Buffer + i);
 					PatchFunc( Buffer + i - 12 );
 					PatchCount |= FPATCH_DVDLowInquiry;
 					i = GotoFuncEnd(i, (u32)Buffer);
@@ -1814,7 +1825,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					(read32( (u32)Buffer + i + 12 ) & 0xFFFF) == 0x001C )
 				{
 					u32 Offset = (u32)Buffer + i;
-					printpatchfound("cbForStateBusy",NULL, Offset);
+					printpatchfound("cbForStateBusy", NULL, Offset);
 					value = *(vu32*)(Offset+8);
 					value&= 0x03E00000;
 					value|= 0x38000000;
@@ -1830,7 +1841,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							(read32( (u32)Buffer + i + 12 ) & 0xFFFF) == 0x001C )
 				{
 					u32 Offset = (u32)Buffer + i;
-					printpatchfound("cbForStateBusy","DBG", Offset);
+					printpatchfound("cbForStateBusy", "DBG", Offset);
 					value = *(vu32*)(Offset+4);
 					value&= 0x03E00000;
 					value|= 0x38000000;
@@ -1847,7 +1858,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				if( BufAt0 == 0x3C608000 && (BufAt4 & 0xFC1FFFFF) == 0x800300CC && (read32( (u32)Buffer + i + 8 ) >> 24) == 0x54 )
 				{
-					printpatchfound("VIConfigure",NULL, (u32)Buffer + i);
+					printpatchfound("VIConfigure", NULL, (u32)Buffer + i);
 					write32( (u32)Buffer + i + 4, 0x5400F0BE | ((read32( (u32)Buffer + i + 4 ) & 0x3E00000) >> 5) );
 					PatchCount |= FPATCH_VIConfigure;
 					i = GotoFuncEnd(i, (u32)Buffer);

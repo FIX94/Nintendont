@@ -3,7 +3,8 @@
 DCInvalidateRange:
 	lis		%r3,	0xC000
 	lwz		%r4,	0x2F38(%r3)
-	andis.	%r4,	%r4,	0x4000
+	#skips 0xAA, 0xAB and Audio Stream cmds
+	andis.	%r4,	%r4,	0x4800
 	bne		NoFlush
 
 	lwz		%r4,	0x2F40(%r3)
