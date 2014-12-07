@@ -25,5 +25,6 @@ bool ISOInit();
 void ISOClose();
 void ISOSetupCache();
 u8 *ISORead(u32* Length, u32 Offset);
+void ISOSeek(u32 Offset);
 
 #endif

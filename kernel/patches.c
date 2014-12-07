@@ -28,16 +28,17 @@ enum
 	FPATCH_SetInterruptMask = 1<<0,
 	FPATCH_OSDispatchIntr = 1<<1,
 	FPATCH_DVDIntrHandler = 1<<2,
-	FPATCH_DVDLowReadDiskID = 1<<3,
-	FPATCH_DVDLowStopMotor = 1<<4,
-	FPATCH_DVDLowInquiry = 1<<5,
-	FPATCH_cbForStateBusy = 1<<6,
-	FPATCH_VIConfigure = 1<<7,
-	FPATCH_GXInit = 1<<8,
-	FPATCH_CARDUnlock = 1<<9,
-	FPATCH_OSSleepThread = 1<<10,
-	FPATCH_VideoModes = 1<<11,
-	FPATCH_DSP_ROM = 1<<12
+	FPATCH_DVDLowSeek = 1<<3,
+	FPATCH_DVDLowReadDiskID = 1<<4,
+	FPATCH_DVDLowStopMotor = 1<<5,
+	FPATCH_DVDLowInquiry = 1<<6,
+	FPATCH_cbForStateBusy = 1<<7,
+	FPATCH_VIConfigure = 1<<8,
+	FPATCH_GXInit = 1<<9,
+	FPATCH_CARDUnlock = 1<<10,
+	FPATCH_OSSleepThread = 1<<11,
+	FPATCH_VideoModes = 1<<12,
+	FPATCH_DSP_ROM = 1<<13
 };
 
 enum
@@ -166,7 +167,7 @@ FuncPattern NormalFPatterns[] =
 //	{   0xC0,   18,    8,    4,    1,    3,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"B",		FGROUP_DVDInquiryAsync,		0 },
 //	{   0xB8,   15,    7,    5,    3,    2,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"C",		FGROUP_DVDInquiryAsync,		0 },
 
-	{   0xC8,   16,    9,    5,    3,    3,	DVDSeekAbsAsyncPrio,DVDSeekAbsAsyncPrio_size,	"DVDSeekAbsAsyncPrio",	NULL,		FGROUP_NONE,				0 },
+//	{   0xC8,   16,    9,    5,    3,    3,	DVDSeekAbsAsyncPrio,DVDSeekAbsAsyncPrio_size,	"DVDSeekAbsAsyncPrio",	NULL,		FGROUP_NONE,				0 },
 	{   0xA8,   10,    4,    4,    6,    3,	DVDGetDriveStatus,	sizeof(DVDGetDriveStatus),	"DVDGetDriveStatus",	NULL,		FGROUP_NONE,				0 },
 #ifndef AUDIOSTREAM
 	{   0xD4,   13,    8,   11,    2,    7,	NULL,				FCODE_AIResetStreamCount,"AIResetStreamSampleCount",NULL,		FGROUP_NONE,				0 },

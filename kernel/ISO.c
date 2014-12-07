@@ -40,7 +40,7 @@ DataCache DC[CACHE_MAX];
 
 extern u32 USBReadTimer;
 static FIL GameFile;
-static u32 LastOffset = UINT_MAX, LastLength = 0, readptr;
+static u32 LastOffset = UINT_MAX, readptr;
 bool Datel = false;
 
 static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
@@ -54,7 +54,6 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 	f_read( &GameFile, Buffer, Length, &readptr );
 
 	LastOffset = Offset + Length;
-	LastLength = Length;
 	//refresh read timeout
 	USBReadTimer = read32(HW_TIMER);
 }
@@ -76,7 +75,6 @@ bool ISOInit()
 	/* Setup direct reader */
 	ISOFileOpen = 1;
 	LastOffset = UINT_MAX;
-	LastLength = 0;
 
 	/* Set Low Mem */
 	ISOReadDirect((void*)0x0, 0x20, 0x0);
@@ -130,6 +128,18 @@ void ISOSetupCache()
 	TempCacheCount = 0;
 
 	CacheInited = 1;
+}
+
+void ISOSeek(u32 Offset)
+{
+	if(ISOFileOpen == 0)
+		return;
+
+	if(LastOffset != Offset)
+	{
+		f_lseek( &GameFile, Offset );
+		LastOffset = Offset;
+	}
 }
 
 u8 *ISORead(u32* Length, u32 Offset)
