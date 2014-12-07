@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 .set	STREAM_BASE,	0xD3026520
 .set	STREAM_UPDATE,	0xD3026524
-.set	REAL_STREAMING,	0xCD806014
+.set	REAL_STREAMING,	0xCD806016
 .set	FAKE_STREAMING,	0xD3026540
 .set	STREAM_LENGTH,	0xD3026544
 .set	STREAM_START,	0xD3026548
@@ -37,7 +37,7 @@ DVDLowAudioStream:
 
 StopStream:
 	li		%r3,	0
-	stw		%r3,	REAL_STREAMING@l(%r6)
+	sth		%r3,	REAL_STREAMING@l(%r6)
 	stw		%r3,	FAKE_STREAMING@l(%r6)
 	stw		%r3,	STREAM_LENGTH@l(%r6)
 	stw		%r3,	STREAM_START@l(%r6)

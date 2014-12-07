@@ -38,6 +38,7 @@ u8 *DCCache = CACHE_START;
 u32 DCacheLimit = CACHE_SIZE;
 DataCache DC[CACHE_MAX];
 
+extern u32 USBReadTimer;
 static FIL GameFile;
 static u32 LastOffset = UINT_MAX, LastLength = 0, readptr;
 
@@ -53,6 +54,8 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 
 	LastOffset = Offset + Length;
 	LastLength = Length;
+	//refresh read timeout
+	USBReadTimer = read32(HW_TIMER);
 }
 
 bool ISOInit()

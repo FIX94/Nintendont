@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define EXI_IRQ_INSTANT		0		// as soon as possible
 #define EXI_IRQ_DEFAULT		1900	// about 1000 times a second
 #define EXI_IRQ_SLOW		3800	// about 500 times a second
+#define EXI_IRQ_VERYSLOW	19000	// about 100 times a second
 static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
 extern u8 SRAM[64];
@@ -202,13 +203,15 @@ void EXIInit( void )
 
 	SRAM_Checksum( (unsigned short *)SRAM, (unsigned short *)SRAM, (unsigned short *)( ((u8*)SRAM) + 2 ) );
 }
-
+extern vu32 TRIGame;
 void EXISetTimings(u32 TitleID, u32 Region)
 {
 	if(TitleID == 0x474637 && Region == REGION_ID_USA) //Starfox Assault NTSC
 		CurrentTiming = EXI_IRQ_INSTANT;
 	else if(TitleID == 0x474C4D) //Luigis Mansion
 		CurrentTiming = EXI_IRQ_SLOW;
+	else if(TRIGame == 1) //Mario Kart GP2
+		CurrentTiming = EXI_IRQ_VERYSLOW;
 	else
 		CurrentTiming = EXI_IRQ_DEFAULT;
 #ifdef DEBUG_PATCH
@@ -236,6 +239,7 @@ void EXIInterrupt(void)
 	EXI_IRQ = false;
 	IRQ_Timer = 0;
 	IRQ_Cause = 0;
+	IRQ_Cause2 = 0;
 }
 bool EXICheckCard(void)
 {
@@ -734,13 +738,15 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 
 	if( EXIOK == 2 )
 	{
+		//dbgprintf("EXI: Triforce IRQ\r\n");
 		IRQ_Cause = 8;
-		IRQ_Cause2 = 2 ;
+		IRQ_Cause2 = 2;
 		EXI_IRQ = true;
+		IRQ_Timer = read32(HW_TIMER);
 	}
-
 	return 0;
 }
+
 void EXIUpdateRegistersNEW( void )
 {
 	//uu32 chn, dev, frq, ret, data, len, mode;

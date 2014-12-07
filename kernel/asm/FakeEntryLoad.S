@@ -28,7 +28,7 @@ InvalidateRange1:
 	addi	%r4,	%r4,	0x20
 	bdnz	InvalidateRange1
 
-	li		%r4,	0x600
+	li		%r4,	0xC0
 	mtctr	%r4
 	lis		%r4,	0x8000
 	ori		%r4,	%r4,	0x1800
