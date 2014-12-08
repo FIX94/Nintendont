@@ -209,6 +209,21 @@ u32 _start()
 					*HIDMotor |= (1 << chan);
 				else
 					*HIDMotor &= ~(1 << chan);
+
+				if ((HID_Packet[HID_CTRL->StickX.Offset] == 0)		//if connected device is a bongo
+				  &&(HID_Packet[HID_CTRL->StickY.Offset] == 0)
+				  &&(HID_Packet[HID_CTRL->CStickX.Offset] == 0)
+				  &&(HID_Packet[HID_CTRL->CStickY.Offset] == 0)
+				  &&(HID_Packet[HID_CTRL->LAnalog] == 0))
+				{
+					PADBarrelEnabled[chan] = 1;
+					PADIsBarrel[chan] = 1;
+				}
+				else
+				{
+					PADBarrelEnabled[chan] = 0;
+					PADIsBarrel[chan] = 0;
+				}
 			}
 		}
 
@@ -295,6 +310,12 @@ u32 _start()
 			if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
 				button |= PAD_TRIGGER_R;
 		}
+
+		if (PADBarrelEnabled[chan] && PADIsBarrel[chan]) //if bongo controller
+			if ((( HID_CTRL->DigitalLR != 1) && (HID_Packet[HID_CTRL->RAnalog] > 0x16))
+			  ||(( HID_CTRL->DigitalLR == 1) && (HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)))
+				button |= PAD_TRIGGER_R;	//force button presss todo: bogo should only be using analog
+		
 		if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 			button |= PAD_BUTTON_START;
 		Pad[chan].button = button;
