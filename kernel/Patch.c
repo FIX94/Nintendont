@@ -1110,6 +1110,19 @@ int GotoFuncEnd(int i, u32 Buffer)
 	} while( read32(Buffer + i) != 0x4E800020 );
 	return i;
 }
+
+static inline bool IsReleaseDVD(void *Buffer)
+{
+	return ((read32((u32)Buffer-12) & 0xFC00FFFF) == 0x3C00CC00 &&
+		(read32((u32)Buffer-8) & 0xFC00FFFF) == 0x38006000);
+}
+
+static inline bool IsDebugDVD(void *Buffer)
+{
+	return ((read32((u32)Buffer+4) & 0xFC00FFFF) == 0x3C00CC00 &&
+		(read32((u32)Buffer+8) & 0xFC00FFFF) == 0x90006008);
+}
+
 void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 {
 	if( (u32)Buffer == 0x01200000 && *(u8*)Buffer == 0x7C )
@@ -1773,7 +1786,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			if( (PatchCount & FPATCH_DVDLowSeek) == 0 )
 			{
-				if( BufAt0 == 0x3C00AB00 && (read32((u32)Buffer+i-12) == 0x3C80CC00 || BufAt4 == 0x3C60CC00) )
+				if( (BufAt0 & 0xFC00FFFF ) == 0x3C00AB00 && (IsReleaseDVD(Buffer+i) || IsDebugDVD(Buffer+i)) )
 				{
 					printpatchfound("DVDLowSeek", NULL, (u32)Buffer + i);
 					PatchFunc( Buffer + i - 12 );
@@ -1795,7 +1808,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			if( (PatchCount & FPATCH_DVDLowStopMotor) == 0 )
 			{
-				if( BufAt0 == 0x3C00E300 && (read32((u32)Buffer+i-12) == 0x3C80CC00 || BufAt4 == 0x3C60CC00) )
+				if( (BufAt0 & 0xFC00FFFF ) == 0x3C00E300 && (IsReleaseDVD(Buffer+i) || IsDebugDVD(Buffer+i)) )
 				{
 					printpatchfound("DVDLowStopMotor", NULL, (u32)Buffer + i);
 					char* PStart = Buffer + i - 12;
@@ -1811,7 +1824,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			if( (PatchCount & FPATCH_DVDLowInquiry) == 0 )
 			{
-				if( BufAt0 == 0x3C001200 && (read32((u32)Buffer+i-12) == 0x3C80CC00 || BufAt4 == 0x3C60CC00) )
+				if( (BufAt0 & 0xFC00FFFF ) == 0x3C001200 && (IsReleaseDVD(Buffer+i) || IsDebugDVD(Buffer+i)) )
 				{
 					printpatchfound("DVDLowInquiry", NULL, (u32)Buffer + i);
 					PatchFunc( Buffer + i - 12 );
