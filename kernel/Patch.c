@@ -2240,6 +2240,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				continue;
 			if(AllFPatterns[patitr].patmode == PCODE_EXI && (TRIGame == 3 || ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false))
 				continue;
+			if (AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
+				continue;
 			if ((ConfigGetConfig(NIN_CFG_NATIVE_SI)) && (AllFPatterns[patitr].patmode == PCODE_SI))
 				continue;
 			FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
