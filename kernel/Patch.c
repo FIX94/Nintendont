@@ -820,10 +820,10 @@ void PatchDiscInterface( char *dst )
 			break;
 	}
 }
-void PatchFunc( char *ptr )
+s32 PatchFunc( char *ptr )
 {
-	u32 i	= 0;
-	u32 reg=-1;
+	u32 i = 0;
+	s32 reg = -1;
 
 	while(1)
 	{
@@ -924,6 +924,7 @@ void PatchFunc( char *ptr )
 		}
 		i += 4;
 	}
+	return reg;
 }
 
 // HACK: PSO 0x80001800 move to 0x931C1800
@@ -2265,8 +2266,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					{
 						case FCODE_PatchFunc:	// DVDLowRead
 						{
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-							PatchFunc( (char*)FOffset );
+							if(PatchFunc( (char*)FOffset ) < 0)
+								CurPatterns[j].Found = 0; // False hit
+							else
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
 						case FCODE_PatchDiscFunc:	// DVDLowRead
 						{

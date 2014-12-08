@@ -77,7 +77,7 @@ typedef struct GC_SRAM
 
 void PatchB( u32 dst, u32 src );
 void PatchBL( u32 dst, u32 src );
-void PatchFunc( char *ptr );
+s32 PatchFunc( char *ptr );
 void PatchFuncInterface( char *dst, u32 Length );
 void PatchPatchBuffer(char *dst);
 void CheckPatchPrs();
