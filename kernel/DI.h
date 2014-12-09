@@ -4,7 +4,7 @@
 #include "global.h"
 #include "ff.h"
 
-#define		DI_BASE		0x00002F00
+#define		DI_BASE		0x13026000
 
 #define		DI_STATUS	(DI_BASE+0x00)
 #define		DI_COVER	(DI_BASE+0x04)

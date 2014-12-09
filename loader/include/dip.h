@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <gctypes.h>
 
-#define		DI_BASE		0xC0002F00
+#define		DI_BASE		0xD3026000
 
 #define		DI_STATUS	(*(vu32*)(DI_BASE+0x00))
 #define		DI_COVER	(*(vu32*)(DI_BASE+0x04))

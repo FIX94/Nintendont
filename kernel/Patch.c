@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define GAME_ID		(read32(0))
 #define TITLE_ID	(GAME_ID >> 8)
 
-#define PATCH_OFFSET_START (0x2F00 - (sizeof(u32) * 5))
+#define PATCH_OFFSET_START (0x2F60 - (sizeof(u32) * 5))
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
@@ -442,6 +442,7 @@ u32 PatchCopy(const u8 *PatchPtr, const u32 PatchSize)
 
 void PatchFuncInterface( char *dst, u32 Length )
 {
+	u32 DIPatched = 0;
 	u32 SIPatched = 0;
 	u32 EXIPatched = 0;
 	u32 AIPatched = 0;
@@ -466,8 +467,8 @@ void PatchFuncInterface( char *dst, u32 Length )
 		if( (op & 0xFC000000) == 0x38000000 )	// li rX, x
 		{
 			u32 src = (op >> 16) & 0x1F;
-			u32 dst = (op >> 21) & 0x1F;
-			if ((src != LISReg) && (dst == LISReg))
+			u32 dstR = (op >> 21) & 0x1F;
+			if ((src != LISReg) && (dstR == LISReg))
 			{
 				LISReg = 32;
 				LISOff = (u32)dst + i;
@@ -484,8 +485,8 @@ void PatchFuncInterface( char *dst, u32 Length )
 				AIPatched++;
 				LISReg = 32;
 			}
-			u32 dst = (op >> 21) & 0x1F;
-			if( dst == LISReg )
+			u32 dstR = (op >> 21) & 0x1F;
+			if( dstR == LISReg )
 				LISReg = 32;
 		}
 		else if( (op & 0xFC00FF00) == 0x38006400 ) // addi rX, rY, 0x6400 (si)
@@ -506,10 +507,11 @@ void PatchFuncInterface( char *dst, u32 Length )
 				SIPatched++;
 				LISReg = 32;
 			}
-			u32 dst = (op >> 21) & 0x1F;
-			if( dst == LISReg )
+			u32 dstR = (op >> 21) & 0x1F;
+			if( dstR == LISReg )
 				LISReg = 32;
-		} else if( (op & 0xFC00FF00) == 0x38006800 ) // addi rX, rY, 0x6800 (exi)
+		}
+		else if( (op & 0xFC00FF00) == 0x38006800 ) // addi rX, rY, 0x6800 (exi)
 		{
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
@@ -522,8 +524,22 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				LISReg = 32;
 			}
-			u32 dst = (op >> 21) & 0x1F;
-			if( dst == LISReg )
+			u32 dstR = (op >> 21) & 0x1F;
+			if( dstR == LISReg )
+				LISReg = 32;
+		}
+		else if( (op & 0xFC00FF00) == 0x38006000 ) // addi rX, rY, 0x6000 (di)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if( src == LISReg )
+			{
+				write32((u32)LISOff, LISOp | 0xD302);
+				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				DIPatched++;
+				LISReg = 32;
+			}
+			u32 dstR = (op >> 21) & 0x1F;
+			if( dstR == LISReg )
 				LISReg = 32;
 		}
 
@@ -537,8 +553,8 @@ void PatchFuncInterface( char *dst, u32 Length )
 				AIPatched++;
 				LISReg = 32;
 			}
-			u32 dst = (op >> 21) & 0x1F;
-			if (dst == LISReg)
+			u32 dstR = (op >> 21) & 0x1F;
+			if (dstR == LISReg)
 				LISReg = 32;
 		}
 		else if ((op & 0xFC00FF00) == 0x60006400) // ori rX, rY, 0x6400 (si)
@@ -559,8 +575,8 @@ void PatchFuncInterface( char *dst, u32 Length )
 				SIPatched++;
 				LISReg = 32;
 			}
-			u32 dst = (op >> 21) & 0x1F;
-			if (dst == LISReg)
+			u32 dstR = (op >> 21) & 0x1F;
+			if (dstR == LISReg)
 				LISReg = 32;
 		}
 		else if ((op & 0xFC00FF00) == 0x60006800) // ori rX, rY, 0x6800 (exi)
@@ -573,21 +589,35 @@ void PatchFuncInterface( char *dst, u32 Length )
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
 					EXIPatched++;
-					LISReg = -1;
+					LISReg = 32;
 				}
 			}
-			u32 dst = (op >> 21) & 0x1F;
-			if (dst == LISReg)
-				LISReg = -1;
+			u32 dstR = (op >> 21) & 0x1F;
+			if (dstR == LISReg)
+				LISReg = 32;
 		}
-
+		else if ((op & 0xFC00FF00) == 0x60006000) // ori rX, rY, 0x6000 (di)
+		{
+			u32 src = (op >> 16) & 0x1F;
+			if (src == LISReg)
+			{
+				write32((u32)LISOff, LISOp | 0xD302);
+				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+				DIPatched++;
+				LISReg = 32;
+			}
+			u32 dstR = (op >> 21) & 0x1F;
+			if (dstR == LISReg)
+				LISReg = 32;
+		}
+	
 		if (((op & 0xF8000000) == 0x80000000)   // lwz and lwzu
 		    || ( (op & 0xF8000000 ) == 0x90000000 ) ) // stw and stwu
 		{
 			u32 src = (op >> 16) & 0x1F;
-			u32 dst = (op >> 21) & 0x1F;
+			u32 dstR = (op >> 21) & 0x1F;
 			u32 val = op & 0xFFFF;
-			
+
 			if( src == LISReg )
 			{
 				if( (val & 0xFF00) == 0x6C00 ) // case with 0x6CXY(rZ) (ai)
@@ -622,9 +652,15 @@ void PatchFuncInterface( char *dst, u32 Length )
 					}
 					LISReg = 32;
 				}
+				else if((val & 0xFF00) == 0x6000) // case with 0x60XY(rZ) (di)
+				{
+					write32((u32)LISOff, LISOp | 0x0000D302);
+					//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
+					DIPatched++;
+					LISReg = 32;
+				}
 			}
-
-			if( dst == LISReg )
+			if( dstR == LISReg )
 				LISReg = 32;
 		}
 
@@ -637,6 +673,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
 		dbgprintf("Patch:[EXI] applied %u times\r\n", EXIPatched);
 	dbgprintf("Patch:[AI] applied %u times\r\n", AIPatched);
+	dbgprintf("Patch:[DI] applied %u times\r\n", DIPatched);
 	#endif
 }
 
@@ -820,112 +857,6 @@ void PatchDiscInterface( char *dst )
 			break;
 	}
 }
-s32 PatchFunc( char *ptr )
-{
-	u32 i = 0;
-	s32 reg = -1;
-
-	while(1)
-	{
-		u32 op = read32( (u32)ptr + i );
-
-		if( op == 0x4E800020 )	// blr
-			break;
-
-		if( (op & 0xFC00FFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
-		{
-			reg = (op & 0x3E00000) >> 21;
-			
-			if ((read32((u32)ptr + i + 8) & 0xFC00FFFF) != 0x60003024)
-			{
-				write32((u32)ptr + i, (reg << 21) | 0x3C00C000);	// Patch to: lis rX, 0xC000
-				//#ifdef DEBUG_PATCH
-				//dbgprintf("[%08X] %08X: lis r%u, 0xC000\r\n", (u32)ptr+i, read32( (u32)ptr+i), reg );
-				//#endif
-			}
-		}
-
-		if( (op & 0xFC00FFFF) == 0x3C00A800 )	// lis rX, 0xA800
-		{
-			write32( (u32)ptr + i, (op & 0x3E00000) | 0x3C00A700 );		// Patch to: lis rX, 0xA700
-			//#ifdef DEBUG_PATCH
-			//dbgprintf("[%08X] %08X: lis rX, 0xA700\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
-			//#endif
-		}
-
-		// Triforce
-		if( (op & 0xFC00FFFF) == 0x380000A8 )	// li rX, 0xA8
-		{
-			write32( (u32)ptr + i, (op & 0x3E00000) | 0x380000A7 );		// Patch to: li rX, 0xA7
-			//#ifdef DEBUG
-			//dbgprintf("[%08X] %08X: li rX, 0xA7\r\n", (u32)ptr+i, read32( (u32)ptr+i) );
-			//#endif
-		}
-
-		if( (op & 0xFC00FF00) == 0x38006000 )	// addi rX, rY, 0x6000
-		{
-			u32 src = (op >> 16) & 0x1F;
-
-			if( src == reg )
-			{
-				write32( (u32)ptr + i, (op & 0xFFFF00FF) | 0x00002F00 );	// Patch to: addi rX, rY, 0x2F00
-				//#ifdef DEBUG_PATCH
-				//dbgprintf("[%08X] %08X: addi r%u, r%u, 0x2F00\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, src );
-				//#endif
-			}
-		}
-
-		if( (op & 0xFC00FF00) == 0x60006000 )	// ori rX, rY, 0x6000
-		{
-			u32 src = (op >> 16) & 0x1F;
-
-			if( src == reg )
-			{
-				write32( (u32)ptr + i, (op & 0xFFFF00FF) | 0x00002F00 );	// Patch to: addi rX, rY, 0x2F00
-				//#ifdef DEBUG_PATCH
-				//dbgprintf("[%08X] %08X: addi r%u, r%u, 0x2F00\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, src );
-				//#endif
-			}
-		}
-
-		if( (op & 0xFC000000 ) == 0x80000000 )
-		{
-			u32 src = (op >> 16) & 0x1F;
-			u32 dst = (op >> 21) & 0x1F;
-			u32 val = op & 0xFFFF;
-			
-			if( src == reg )
-			{
-				if( (val & 0xFF00) == 0x6000 )	// case with 0x60XY(rZ)
-				{
-					write32( (u32)ptr + i,  (dst<<21) | (src<<16) | 0x2F00 | (val&0xFF) | 0x80000000 );	// Patch to: lwz rX, 0x2FXY(rZ)
-					//#ifdef DEBUG_PATCH
-					//dbgprintf("[%08X] %08X: lwz r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
-					//#endif
-				}
-			}
-		}
-		else if( (op & 0xFC000000 ) == 0x90000000 )
-		{
-			u32 src = (op >> 16) & 0x1F;
-			u32 dst = (op >> 21) & 0x1F;
-			u32 val = op & 0xFFFF;
-			
-			if( src == reg )
-			{
-				if( (val & 0xFF00) == 0x6000 )	// case with 0x60XY(rZ)
-				{
-					write32( (u32)ptr + i,  (dst<<21) | (src<<16) | 0x2F00 | (val&0xFF) | 0x90000000 );	// Patch to: stw rX, 0x2FXY(rZ)
-					//#ifdef DEBUG_PATCH
-					//dbgprintf("[%08X] %08X: stw r%u, 0x%04X(r%u)\r\n", (u32)ptr+i, read32( (u32)ptr+i), dst, 0x2F00 | (val&0xFF), src );
-					//#endif
-				}
-			}
-		}
-		i += 4;
-	}
-	return reg;
-}
 
 // HACK: PSO 0x80001800 move to 0x931C1800
 void PatchPatchBuffer(char *dst)
@@ -1103,24 +1034,19 @@ vu32 TRIGame   = 0;
 vu32 GameEntry = 0;
 u32 AppLoaderSize = 0;
 
+int GotoFuncStart(int i, u32 Buffer)
+{
+	while( read32(Buffer + i - 4) != 0x4E800020 )
+		i -= 4;
+	return i;
+}
+
 int GotoFuncEnd(int i, u32 Buffer)
 {
 	do {
 		i += 4; //known function, skip over it
 	} while( read32(Buffer + i) != 0x4E800020 );
 	return i;
-}
-
-static inline bool IsReleaseDVD(void *Buffer)
-{
-	return ((read32((u32)Buffer-12) & 0xFC00FFFF) == 0x3C00CC00 &&
-		(read32((u32)Buffer-8) & 0xFC00FFFF) == 0x38006000);
-}
-
-static inline bool IsDebugDVD(void *Buffer)
-{
-	return ((read32((u32)Buffer+4) & 0xFC00FFFF) == 0x3C00CC00 &&
-		(read32((u32)Buffer+8) & 0xFC00FFFF) == 0x90006008);
 }
 
 void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
@@ -1345,8 +1271,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	/* Have gc patches loaded at the same place for reloading games */
 	POffset = PATCH_OFFSET_ENTRY;
 
-	u32 DCInvalidateRangeAddr = PatchCopy(DCInvalidateRange, DCInvalidateRange_size);
+	u32 __DVDInterruptHandlerAddr = PatchCopy(__DVDInterruptHandler, __DVDInterruptHandler_size);
 	//Combine these?  Worried if an interrupt occurs while the code is being overwritten
+	u32 DCInvalidateRangeAddr = PatchCopy(DCInvalidateRange, DCInvalidateRange_size);
 	u32 DCInvalidateRangeAddr2 = PatchCopy(DCInvalidateRange, DCInvalidateRange_size);
 
 	u32 FakeInterruptAddr = PatchCopy(FakeInterrupt, FakeInterrupt_size);
@@ -1704,8 +1631,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					#ifdef DEBUG_PATCH
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 					#endif
-					PatchDiscInterface( (char*)Offset );
-					PatchBL(DCInvalidateRangeAddr, HwOffset);
+					PatchBL(__DVDInterruptHandlerAddr, HwOffset);
 					PatchCount |= FPATCH_DVDIntrHandler;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
@@ -1721,7 +1647,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					#ifdef DEBUG_PATCH
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 					#endif
-					PatchDiscInterface( (char*)Offset );
+					//PatchDiscInterface( (char*)Offset );
 					u32 OrigData = read32(HwOffset);
 					PatchBL(DCInvalidateRangeAddr, HwOffset);
 					if ((read32(DCInvalidateRangeAddr + DCInvalidateRange_size - 0xC) & 0xFC10FFFF) == 0x3C00CD80)
@@ -1769,7 +1695,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					#ifdef DEBUG_PATCH
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 					#endif
-					PatchDiscInterface( (char*)Offset );
+					//PatchDiscInterface( (char*)Offset );
 					u32 OrigData = read32(HwOffset);
 					PatchBL(DCInvalidateRangeAddr2, HwOffset);
 					if ((read32(DCInvalidateRangeAddr2 + DCInvalidateRange_size - 0xC) & 0xFC10FFFF) == 0x3C00CD80)
@@ -1780,90 +1706,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						#endif
 					}
 					PatchCount |= FPATCH_DVDIntrHandler;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-			if( (PatchCount & FPATCH_DVDLowSeek) == 0 )
-			{
-				if( (BufAt0 & 0xFC00FFFF ) == 0x3C00AB00 && (IsReleaseDVD(Buffer+i) || IsDebugDVD(Buffer+i)) )
-				{
-					printpatchfound("DVDLowSeek", NULL, (u32)Buffer + i);
-					PatchFunc( Buffer + i - 12 );
-					PatchCount |= FPATCH_DVDLowSeek;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-			if( (PatchCount & FPATCH_DVDLowReadDiskID) == 0 )
-			{
-				if( (BufAt0 & 0xFC00FFFF ) == 0x3C00A800 && (BufAt4 & 0xFC00FFFF ) == 0x38000040 )
-				{
-					printpatchfound("DVDLowReadDiskID", NULL, (u32)Buffer + i);
-					PatchFunc( Buffer + i );
-					PatchCount |= FPATCH_DVDLowReadDiskID;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-			if( (PatchCount & FPATCH_DVDLowStopMotor) == 0 )
-			{
-				if( (BufAt0 & 0xFC00FFFF ) == 0x3C00E300 && (IsReleaseDVD(Buffer+i) || IsDebugDVD(Buffer+i)) )
-				{
-					printpatchfound("DVDLowStopMotor", NULL, (u32)Buffer + i);
-					char* PStart = Buffer + i - 12;
-					if (read32((u32)PStart) == 0x4E800020)
-						PStart = Buffer + i - 8;
-					if (read32((u32)PStart + 4) == 0x4E800020)
-						PStart = Buffer + i - 4;
-					PatchFunc(PStart);
-						PatchCount |= FPATCH_DVDLowStopMotor;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-			if( (PatchCount & FPATCH_DVDLowInquiry) == 0 )
-			{
-				if( (BufAt0 & 0xFC00FFFF ) == 0x3C001200 && (IsReleaseDVD(Buffer+i) || IsDebugDVD(Buffer+i)) )
-				{
-					printpatchfound("DVDLowInquiry", NULL, (u32)Buffer + i);
-					PatchFunc( Buffer + i - 12 );
-					PatchCount |= FPATCH_DVDLowInquiry;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-			}
-			if( (PatchCount & FPATCH_cbForStateBusy) == 0 )
-			{
-				if( BufLowAt0 == 0xCC00 && (BufAt4 & 0xFFFF) == 0x6000 && // Game
-					(read32( (u32)Buffer + i + 12 ) & 0xFFFF) == 0x001C )
-				{
-					u32 Offset = (u32)Buffer + i;
-					printpatchfound("cbForStateBusy", NULL, Offset);
-					value = *(vu32*)(Offset+8);
-					value&= 0x03E00000;
-					value|= 0x38000000;
-					*(vu32*)(Offset+8) = value;
-
-					PatchFunc( Buffer + i + 12 );
-
-					PatchCount |= FPATCH_cbForStateBusy;
-					i = GotoFuncEnd(i, (u32)Buffer);
-					continue;
-				}
-				else if( BufLowAt0 == 0xCC00 && (BufAt4 & 0xFFFF) == 0x6018 && // Loader
-							(read32( (u32)Buffer + i + 12 ) & 0xFFFF) == 0x001C )
-				{
-					u32 Offset = (u32)Buffer + i;
-					printpatchfound("cbForStateBusy", "DBG", Offset);
-					value = *(vu32*)(Offset+4);
-					value&= 0x03E00000;
-					value|= 0x38000000;
-					*(vu32*)(Offset+4) = value;
-
-					PatchFunc( Buffer + i + 8 );
-
-					PatchCount |= FPATCH_cbForStateBusy;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
@@ -2277,13 +2119,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 					switch( CurPatterns[j].PatchLength )
 					{
-						case FCODE_PatchFunc:	// DVDLowRead
-						{
-							if(PatchFunc( (char*)FOffset ) < 0)
-								CurPatterns[j].Found = 0; // False hit
-							else
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-						} break;
 						case FCODE_PatchDiscFunc:	// DVDLowRead
 						{
 							if (Datel)
@@ -2606,16 +2441,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
 							}
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-						} break;
-						case FCODE_GCAMIdentify:
-						{
-							if(read32(FOffset + 0x38) == 0x9003601C)
-							{
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-								PatchFunc( (char*)FOffset );
-							}
-							else
-								CurPatterns[j].Found = 0; // False hit
 						} break;
 						case FCODE_GCAMSendCommand:
 						{
