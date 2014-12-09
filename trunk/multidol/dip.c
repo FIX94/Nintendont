@@ -26,32 +26,16 @@ int DVDLowRead( void *ptr, u32 len, u32 offset )
 	sync_after_write(ptr, len);
 
 	DI_STATUS	= 0x2A | 0x14;			// clear IRQs
-	DI_CMD_0	= 0xA8000000;
+	DI_CMD_0	= 0xF8000000;
 	DI_CMD_1	= ((u32)offset)>>2;
 	DI_CMD_2	= len;
 	DI_DMA_ADR	= (u32)ptr;
 	DI_DMA_LEN	= len;
-	
-	
+
 //Start cmd!
 	DI_CONTROL = 3;
-	while( DI_CONTROL == 3 );
-	while( DI_SCONTROL & 1 );
+	while( DI_CONTROL & 1 );
 
-	usleep(1000);
-
-	while(1)
-	{
-		if( DI_SSTATUS & 0x04 )		//Error
-		{
-			DI_SSTATUS = 0;
-			return 0;
-		}
-		if( DI_SSTATUS & 0x10 )		//Transfer done
-		{
-			sync_before_read(ptr, len);
-			DI_SSTATUS = 0;
-			return 1;
-		}
-	}
+	sync_before_read(ptr, len);
+	return 1;
 }

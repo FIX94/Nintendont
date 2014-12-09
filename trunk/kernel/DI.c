@@ -130,7 +130,7 @@ void DIinit( bool FirstTime )
 		NetworkCMDBuffer = (u8*)malloc( 512 );
 		memset32( NetworkCMDBuffer, 0, 512 );
 
-		memset32( (void*)DI_BASE, 0xdeadbeef, 0x30 );
+		memset32( (void*)DI_BASE, 0, 0x30 );
 		memset32( (void*)DI_SHADOW, 0, 0x30 );
 
 		sync_after_write( (void*)DI_BASE, 0x60 );
@@ -167,17 +167,15 @@ bool DIChangeDisc( u32 DiscNumber )
 void DIInterrupt()
 {
 	DI_IRQ = false;
-
-	clear32(DI_SSTATUS, (1<<2) | (1<<4)); //transfer complete, no errors
-	sync_after_write((void*)DI_SSTATUS, 4);
-
+	/* Update DMA registers when needed */
+	if(read32(DI_SCONTROL) == 3)
+		write32(DI_DMA_ADR, read32(DI_SDMA_ADR) + read32(DI_SDMA_LEN));
+	write32( DI_DMA_LEN, 0 ); // all data handled, clear length
+	write32( DI_CONTROL, 0 ); // finished command
+	sync_after_write( (void*)DI_BASE, 0x60 );
 	write32( DIP_CONTROL, 1 ); //start transfer, causes an interrupt, game gets its data
-
-	//some games might need this
-	//while( read32(DIP_CONTROL) & 1 ) ;
-	//clear32(DI_SCONTROL, (1<<0)); //game shadow controls, just in case its not interrupt based
-	//sync_after_write((void*)DI_SCONTROL, 4);
 }
+
 static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
 {
 	if( (Offset & 0x8FFF0000) == 0x80000000 )
@@ -248,26 +246,16 @@ void DIUpdateRegisters( void )
 
 	sync_before_read( (void*)DI_BASE, 0x60 );
 
-	if( read32(DI_CONTROL) != 0xdeadbeef )
+	if( read32(DI_CONTROL) != 0 )
 	{
 		udelay(50); //security delay
 		write32( DI_SCONTROL, read32(DI_CONTROL) & 3 );
-
-		//*(vu32*)DI_SSTATUS &= ~0x14;
-
-		write32( DI_CONTROL, 0xdeadbeef );
 		sync_after_write( (void*)DI_BASE, 0x60 );
 
 		if( read32(DI_SCONTROL) & 1 )
 		{
-			for( i=2; i < 8; ++i ) //keep IMM
-			{
-				if( DInterface[i] != 0xdeadbeef )
-				{
-					DInterfaceS[i] = DInterface[i];
-					DInterface[i]  = 0xdeadbeef;
-				}
-			}
+			for( i = 2; i < 9; ++i )
+				DInterfaceS[i] = DInterface[i];
 
 			/*
 				Trifroce is sending all DI commands encrypted since by chance a crypted command
@@ -288,6 +276,7 @@ void DIUpdateRegisters( void )
 					case 0xE30000:
 					case 0xE40000:
 					case 0xE40100:
+					case 0xF80000:
 					case 0xF90000:
 						DIcommand = read32(DI_SCMD_0) >> 24;
 					break;
@@ -547,16 +536,13 @@ void DIUpdateRegisters( void )
 					dbgprintf("DIP:DVDDisableAudio()\r\n");
 					DIOK = 2;
 				} break;
-				case 0xA7:
-				case 0xA9:
-					//dbgprintf("DIP:Async!\r\n");
 				case 0xA8:
 				{
 					u32 Buffer	= P2C(read32(DI_SDMA_ADR));
 					u32 Length	= read32(DI_SCMD_2);
 					u32 Offset	= read32(DI_SCMD_1) << 2;
 
-					//dbgprintf( "DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\r\n", DIcommand, Offset, Length, Buffer|0x80000000 );
+					//dbgprintf( "DIP:DVDReadA8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, Buffer|0x80000000 );
 
 					if( TRIGame && Offset >= 0x1F000000 )
 					{
@@ -585,17 +571,23 @@ void DIUpdateRegisters( void )
 							DIOK = 2;
 						}
 					}
+				} break;
+				case 0xF8:
+				{
+					u32 Buffer	= P2C(read32(DI_SDMA_ADR));
+					u32 Length	= read32(DI_SCMD_2);
+					u32 Offset	= read32(DI_SCMD_1) << 2;
 
-					// not async so wait
-					if( DIcommand == 0xA8 )
+					DI_CallbackMsg.result = -1;
+					sync_after_write(&DI_CallbackMsg, 0x20);
+					IOS_IoctlAsync( DI_Handle, 0, (void*)Offset, 0, (void*)Buffer, Length, DI_MessageQueue, &DI_CallbackMsg );
+
+					while(DI_CallbackMsg.result)
 					{
-						while(DI_CallbackMsg.result)
-						{
-							udelay(100);
-							CheckOSReport();
-						}
-						DIOK = 1;
+						udelay(200);
+						CheckOSReport();
 					}
+					DIOK = 1;
 				} break;
 				case 0xF9:
 				{
@@ -610,17 +602,10 @@ void DIUpdateRegisters( void )
 
 			if( DIOK )
 			{
-				//write32( DI_SDMA_LEN, 0 );
-
 				if( DIOK == 2 )
 					DI_IRQ = true;
 				else
-				{
-					set32( DI_SSTATUS, 0x3A );
-					write32(DI_SCONTROL, 0);
-				}
-				//while( read32(DI_SCONTROL) & 1 )
-				//	clear32( DI_SCONTROL, 1 );
+					write32(DI_CONTROL, 0);
 			}
 		}
 		sync_after_write( (void*)DI_BASE, 0x60 );

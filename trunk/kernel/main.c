@@ -323,9 +323,6 @@ int _main( int argc, char *argv[] )
 		{
 			if ( TimerDiffSeconds(DiscChangeTimer) > 2 )
 			{
-				//dbgprintf("DIP:IRQ mon!\r\n");
-				set32( DI_SSTATUS, 0x3A );
-				sync_after_write((void*)DI_SSTATUS, 4);
 				DIInterrupt();
 				DiscChangeIRQ = 0;
 			}

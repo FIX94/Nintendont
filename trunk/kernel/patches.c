@@ -28,17 +28,12 @@ enum
 	FPATCH_SetInterruptMask = 1<<0,
 	FPATCH_OSDispatchIntr = 1<<1,
 	FPATCH_DVDIntrHandler = 1<<2,
-	FPATCH_DVDLowSeek = 1<<3,
-	FPATCH_DVDLowReadDiskID = 1<<4,
-	FPATCH_DVDLowStopMotor = 1<<5,
-	FPATCH_DVDLowInquiry = 1<<6,
-	FPATCH_cbForStateBusy = 1<<7,
-	FPATCH_VIConfigure = 1<<8,
-	FPATCH_GXInit = 1<<9,
-	FPATCH_CARDUnlock = 1<<10,
-	FPATCH_OSSleepThread = 1<<11,
-	FPATCH_VideoModes = 1<<12,
-	FPATCH_DSP_ROM = 1<<13
+	FPATCH_VIConfigure = 1<<3,
+	FPATCH_GXInit = 1<<4,
+	FPATCH_CARDUnlock = 1<<5,
+	FPATCH_OSSleepThread = 1<<6,
+	FPATCH_VideoModes = 1<<7,
+	FPATCH_DSP_ROM = 1<<8
 };
 
 enum
@@ -77,21 +72,7 @@ enum
 	FCODE_C_MTXLightPerspective,
 	FCODE_J3DUClipper_clip,
 	//FCODE_C_MTXOrtho,
-	FCODE_GCAMIdentify,
 	FCODE_GCAMSendCommand,
-	FCODE_PatchFunc,
-										//GCAMSendCMD,	
-										//GCAMRead,	
-										//GCAMExecute,	
-										//GCAMWrite,	
-										//GCAMIdentify,
-										//DVDLowRead_A,
-										//DVDLowRead_B,	
-										//DVDLowRead_C,	
-										//DVDLowAudioStream_A,	
-										//DVDLowAudioStream_B,	
-										//DVDLowRequestAudioStatus,	
-										//DVDLowAudioBufferConfig,
 	FCODE___fwrite,
 										//__fwrite_A,	
 										//__fwrite_B,	
@@ -163,11 +144,6 @@ enum
 
 FuncPattern NormalFPatterns[] =
 {
-//	{   0xCC,   17,   10,    5,    3,    2,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"A",		FGROUP_DVDInquiryAsync,		0 },
-//	{   0xC0,   18,    8,    4,    1,    3,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"B",		FGROUP_DVDInquiryAsync,		0 },
-//	{   0xB8,   15,    7,    5,    3,    2,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"C",		FGROUP_DVDInquiryAsync,		0 },
-
-//	{   0xC8,   16,    9,    5,    3,    3,	DVDSeekAbsAsyncPrio,DVDSeekAbsAsyncPrio_size,	"DVDSeekAbsAsyncPrio",	NULL,		FGROUP_NONE,				0 },
 	{   0xA8,   10,    4,    4,    6,    3,	DVDGetDriveStatus,	sizeof(DVDGetDriveStatus),	"DVDGetDriveStatus",	NULL,		FGROUP_NONE,				0 },
 #ifndef AUDIOSTREAM
 	{   0xD4,   13,    8,   11,    2,    7,	NULL,				FCODE_AIResetStreamCount,"AIResetStreamSampleCount",NULL,		FGROUP_NONE,				0 },
@@ -202,20 +178,6 @@ FuncPattern NormalFPatterns[] =
 //	{  0x2E4,   39,    8,    3,   13,    9,	NULL,				FCODE_J3DUClipper_clip,		"J3DUClipper::clip()",	NULL,		FGROUP_NONE,				0 },
 //	{   0x94,    0,    0,    0,    0,    0,	NULL,				FCODE_J3DUClipper_clip,		"C_MTXOrtho",						FGROUP_NONE,				0 },
 #endif
-	{  0x10C,   30,   18,    5,    2,    3,	NULL,				FCODE_PatchFunc,			"DVDLowRead",			"A",		FGROUP_DVDLowRead,			0 },
-	{   0xDC,   23,   18,    3,    2,    4,	NULL,				FCODE_PatchFunc,			"DVDLowRead",			"B",		FGROUP_DVDLowRead,			0 },
-	{  0x104,   29,   17,    5,    2,    3,	NULL,				FCODE_PatchFunc,			"DVDLowRead",			"C",		FGROUP_DVDLowRead,			0 },
-#ifdef AUDIOSTREAM
-	{   0x94,   18,   10,    2,    0,    2,	NULL,				FCODE_PatchFunc,			"DVDLowAudioStream",	"A",		FGROUP_DVDLowAudioStream,	0 },
-	{   0x8C,   16,   12,    1,    0,    2,	NULL,				FCODE_PatchFunc,			"DVDLowAudioStream",	"B",		FGROUP_DVDLowAudioStream,	0 },
-	{   0x88,   18,    8,    2,    0,    2,	NULL,				FCODE_PatchFunc,			"DVDLowRequestAudioStatus",			NULL,FGROUP_NONE,			0 },
-	{   0x98,   19,    8,    2,    1,    3,	DVDLowAudioBufferConfig, DVDLowAudioBufferConfig_size, "DVDLowAudioBufferConfig",	NULL,FGROUP_NONE,			0 },
-#else
-	{   0x94,   18,   10,    2,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"A",		FGROUP_DVDLowAudioStream,	0 },
-	{   0x8C,   16,   12,    1,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"B",		FGROUP_DVDLowAudioStream,	0 },
-	{   0x88,   18,    8,    2,    0,    2,	DVDLowAudioStatusNULL,	sizeof(DVDLowAudioStatusNULL),"DVDLowRequestAudioStatus",	NULL,FGROUP_NONE,			0 },
-	{   0x98,   19,    8,    2,    1,    3,	DVDLowAudioConfigNULL,	sizeof(DVDLowAudioConfigNULL),"DVDLowAudioBufferConfig",	NULL,FGROUP_NONE,			0 },
-#endif
 	{  0x308,   40,   18,   10,   23,   17,	NULL,				FCODE___fwrite,				"__fwrite",				"A",		FGROUP___fwrite,			0 },
 	{  0x338,   48,   20,   10,   24,   16,	NULL,				FCODE___fwrite,				"__fwrite",				"B",		FGROUP___fwrite,			0 },
 	{  0x2D8,   41,   17,    8,   21,   13,	NULL,				FCODE___fwrite,				"__fwrite",				"C",		FGROUP___fwrite,			0 },
@@ -232,8 +194,12 @@ FuncPattern NormalFPatterns[] =
 	{  0x28C,   70,    8,    8,   10,    4,	NULL,				FCODE___OSInitAudioSystem_A,"__OSInitAudioSystem",	"DBG A",	FGROUP___OSInitAudioSystem,	0 },
 	{  0x2B8,   77,    8,   12,   10,    4,	NULL,				FCODE___OSInitAudioSystem_B,"__OSInitAudioSystem",	"DBG B",	FGROUP___OSInitAudioSystem,	0 },
 #ifdef AUDIOSTREAM
-//	{   0x84,    8,    4,    2,    0,    5,	NULL,				FCODE_AIInitDMA,			"AIInitDMA",			NULL,		FGROUP_NONE,				0 },
 	{  0x420,  103,   23,   34,   32,    9,	NULL,				FCODE___DSPHandler,			"__DSPHandler",			NULL,		FGROUP_NONE,				0 },
+#else
+	{   0x94,   18,   10,    2,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"A",		FGROUP_DVDLowAudioStream,	0 },
+	{   0x8C,   16,   12,    1,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"B",		FGROUP_DVDLowAudioStream,	0 },
+	{   0x88,   18,    8,    2,    0,    2,	DVDLowAudioStatusNULL,	sizeof(DVDLowAudioStatusNULL),"DVDLowRequestAudioStatus",	NULL,FGROUP_NONE,			0 },
+	{   0x98,   19,    8,    2,    1,    3,	DVDLowAudioConfigNULL,	sizeof(DVDLowAudioConfigNULL),"DVDLowAudioBufferConfig",	NULL,FGROUP_NONE,			0 },
 #endif
 	{  0x23C,   66,   24,   35,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"A",		FGROUP_NONE,			    0 },
 	{  0x274,   51,   24,    7,   17,   16,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"B",		FGROUP_NONE,			    0 },
@@ -246,13 +212,7 @@ FuncPattern NormalFPatterns[] =
 
 FuncPattern TRIFPatterns[] =
 {
-	{   0xB4,   18,   11,    1,    0,    7,	NULL,				FCODE_PatchFunc,			"GCAMSendCMD",			NULL,		FGROUP_NONE,				0 },
-	{   0xCC,   20,   16,    5,    0,    3,	NULL,				FCODE_PatchFunc,			"GCAMRead",				NULL,		FGROUP_NONE,				0 },
-	{   0x9C,   18,    9,    4,    0,    2,	NULL,				FCODE_PatchFunc,			"GCAMExecute",			NULL,		FGROUP_NONE,				0 },
-	{   0xB0,   19,   12,    4,    0,    2,	NULL,				FCODE_PatchFunc,			"GCAMWrite",			NULL,		FGROUP_NONE,				0 },
-	{   0x98,   19,    9,    4,    0,    2,	NULL,				FCODE_GCAMIdentify,			"GCAMIdentify",			NULL,		FGROUP_NONE,				0 },
 	{   0x54,   10,    2,    2,    0,    2,	NULL,				FCODE_GCAMSendCommand,		"GCAMSendCommand",		NULL,		FGROUP_NONE,				0 },
-
 	{  0x168,   22,   10,    7,    6,   10,	SITransfer,			sizeof(SITransfer),			"SITransfer",			NULL,		FGROUP_NONE,				0 },
 };
 
@@ -385,35 +345,11 @@ FuncPattern DatelFPatterns[] =
 {
 	{   0x48,    9,   2,    3,    0,    3,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"Datel",	FGROUP_NONE,				0 },
 	{   0xF8,    8,   6,    7,    1,    6,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"DatelB",	FGROUP_NONE,				0 },
-	{   0x14,    1,   1,    0,    0,    1,	NULL,				FCODE_PatchFunc,			"GetImmediateBuffer",	"Datel",	FGROUP_NONE,				0 },
-	{   0x20,    2,   2,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDLowStopMotor",		"Datel",	FGROUP_NONE,				0 },//DVDLowStopMotor
-	{   0x58,    3,   6,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDInquiryAsync",		"Datel",	FGROUP_DVDInquiryAsync,		0 },
-//	{   0x58,    3,   6,    0,    0,    0,	DVDInquiryAsync,	DVDInquiryAsync_size,		"DVDInquiryAsync",		"Datel",	FGROUP_DVDInquiryAsync,		0 },
-	{   0x6C,    4,   7,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDLowReadDiskID",		"Datel",	FGROUP_NONE,				0 },
-	{   0x60,    3,   7,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDLowRead",			"Datel",	FGROUP_DVDLowRead,			0 },
-	{   0x3C,    3,   4,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDSeekAbsAsyncPrio",	"Datel",	FGROUP_NONE,				0 },
-//	{   0x3C,    3,   4,    0,    0,    0,	DVDSeekAbsAsyncPrio,DVDSeekAbsAsyncPrio_size,	"DVDSeekAbsAsyncPrio",	"Datel",	FGROUP_NONE,				0 },
-	{   0x20,    2,   2,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDEnableInterrupts",	"Datel",	FGROUP_NONE,				0 },
-	{   0xE4,   12,  14,    1,    1,    5,	NULL,				FCODE_PatchFunc,			"DVDEnableInterrupts",	"DatelB",	FGROUP_NONE,				0 },
-	{   0x30,    2,   3,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDEnableInterrupts",	"DatelC",	FGROUP_NONE,				0 },
-	{   0x24,    2,   3,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDGetDriveStatus",	"Datel",	FGROUP_NONE,				0 },
-//	{   0x24,    2,   3,    0,    0,    0,	DVDGetDriveStatus,	sizeof(DVDGetDriveStatus),	"DVDGetDriveStatus",	"Datel",	FGROUP_NONE,				0 },
-//	{  0x190,   15,  12,    2,    8,   15,	NULL,				FCODE_PatchFunc,			"__DVDInterruptHandler","Datel",	FGROUP_NONE,				0 },
 	{   0x18,    2,   1,    0,    0,    0,	NULL,				FCODE_GetCoverStatus,		"GetCoverStatus",		"Datel",	FGROUP_NONE,				0 },
-	{   0x34,    1,   2,    0,    0,    3,	NULL,				FCODE_PatchFunc,			"DVDAudioDisable",		"Datel",	FGROUP_NONE,				0 },
-	{   0x6C,    8,   8,    3,    0,    4,	NULL,				FCODE_PatchFunc,			"CallDVDAudioDisable",	"Datel",	FGROUP_NONE,				0 },
-	{   0x3C,    6,   4,    1,    0,    2,	NULL,				FCODE_PatchFunc,			"GetImmBufferAndStore",	"Datel",	FGROUP_NONE,				0 },
-	{   0x80,   10,   8,    4,    0,    2,	NULL,				FCODE_PatchFunc,			"DVDReadHeader",		"Datel",	FGROUP_NONE,				0 },
-	{   0x70,   10,   9,    2,    1,    2,	NULL,				FCODE_PatchFunc,			"DVDWait",				"Datel",	FGROUP_NONE,				0 },
-	{   0x58,    8,   8,    1,    0,    2,	NULL,				FCODE_PatchFunc,			"ClearCoverInterrupt",	"Datel",	FGROUP_NONE,				0 },
 	{   0x48,    2,   1,    0,    0,    3,	NULL,				FCODE_PatchDiscFunc,		"GetAndClearError",		"Datel",	FGROUP_NONE,				0 },
 //	{  0x134,   19,  10,    0,   11,    7,	NULL,				FCODE_PatchDiscFunc,		"__DVDInterruptHandler","Datel",	FGROUP_NONE,				0 },
-	{   0x14,    1,   1,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"GetImmediateBuffer",	"Datel",	FGROUP_NONE,				0 },
-	{   0x98,    7,   7,    0,    1,    1,	NULL,				FCODE_PatchFunc,			"DVDEnableInterrupts",	"DatelD",	FGROUP_NONE,				0 },
 //  Same as DVDLowStopMotor, but patch is the same so ok
-//	{   0x20,    2,   2,    0,    0,    0,	NULL,				FCODE_PatchFunc,			"DVDGetDriveStatus",	"Datel",	FGROUP_NONE,				0 },
 	{   0x98,    9,   8,    2,    1,    6,	NULL,				FCODE_PatchDiscFunc,		"_CallDVDIntHandler",	"Datel",	FGROUP_NONE,				0 },
-	{   0x74,    8,   8,    3,    0,    4,	NULL,				FCODE_PatchFunc,			"CallDVDAudioDisable",	"Datel",	FGROUP_NONE,				0 },
 };
 
 enum

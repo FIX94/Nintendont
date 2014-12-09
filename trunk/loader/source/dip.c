@@ -22,42 +22,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ogc/cache.h"
 #include <string.h>
 
-int DVDLowRead( void *ptr, u32 len, u32 offset )
-{
-	DI_STATUS	= 0x2A | 0x14;			// clear IRQs
-	DI_CMD_0	= 0xA8000000;
-	DI_CMD_1	= ((u32)offset)>>2;
-	DI_CMD_2	= len;
-	DI_DMA_ADR	= (u32)ptr;
-	DI_DMA_LEN	= len;
-	
-	
-//Start cmd!
-	DI_CONTROL = 3;
-	while( DI_CONTROL == 3 );
-	while( DI_SCONTROL & 1 );
-
-	while(1)
-	{
-		if( DI_SSTATUS & 0x04 )		//Error
-		{
-			DI_SSTATUS = 0;
-			return 0;
-		}
-		if( DI_SSTATUS & 0x10 )		//Transfer done
-		{
-			DCInvalidateRange( (void*)ptr, len );
-
-			DI_SSTATUS = 0;
-			return 1;
-		}
-	}
-}
 void DVDStartCache(void)
 {
-	DI_STATUS	= 0x2A | 0x14;			// clear IRQs
 	DI_CMD_0	= 0xF9000000;
-	DI_CONTROL = 3;
-	while( DI_CONTROL == 3 );
-	while( DI_SCONTROL & 1 );
+	DI_CONTROL = 1;
+	while( DI_CONTROL & 1 );
 }
