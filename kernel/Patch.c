@@ -533,7 +533,10 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				write32((u32)LISOff, LISOp | 0xD302);
+				if (Datel && ((op & 0xFFFF) == 0x6000)) //Use original DI Status register to clear interrupts
+					write32((u32)LISOff, LISOp | 0x0000CD80);
+				else
+					write32((u32)LISOff, LISOp | 0x0000D302);
 				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				DIPatched++;
 				LISReg = 32;
@@ -601,7 +604,10 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if (src == LISReg)
 			{
-				write32((u32)LISOff, LISOp | 0xD302);
+				if (Datel && ((op & 0xFFFF) == 0x6000)) //Use original DI Status register to clear interrupts
+					write32((u32)LISOff, LISOp | 0x0000CD80);
+				else
+					write32((u32)LISOff, LISOp | 0x0000D302);
 				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				DIPatched++;
 				LISReg = 32;
@@ -654,7 +660,10 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6000) // case with 0x60XY(rZ) (di)
 				{
-					write32((u32)LISOff, LISOp | 0x0000D302);
+					if (Datel && ((op & 0xFFFF) == 0x6000)) //Use original DI Status register to clear interrupts
+						write32((u32)LISOff, LISOp | 0x0000CD80);
+					else
+						write32((u32)LISOff, LISOp | 0x0000D302);
 					//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					DIPatched++;
 					LISReg = 32;
@@ -776,86 +785,6 @@ bool PatchProcessorInterface( u32 BufAt0, u32 Buffer )
 		}
 	}
 	return false;
-}
-
-void PatchDiscInterface( char *dst )
-{
-	int i;
-
-	u32 LISReg=-1;
-	u32 LISOff=-1;
-
-	for( i=0; ; i+=4 )
-	{
-		u32 op = read32( (u32)dst + i );
-
-		if( (op & 0xFC1FFFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
-		{
-			LISReg = (op & 0x3E00000) >> 21;
-			LISOff = (u32)dst + i;
-		}
-
-		if( (op & 0xFC000000) == 0x38000000 )	// li rX, x
-		{
-			u32 src = (op >> 16) & 0x1F;
-			u32 dst = (op >> 21) & 0x1F;
-			if ((src != LISReg) && (dst == LISReg))
-			{
-				LISReg = -1;
-				LISOff = (u32)dst + i;
-			}
-		}
-
-		if( (op & 0xFC00FF00) == 0x38006000 ) // addi rX, rY, 0x6000 (di)
-		{
-			u32 src = (op >> 16) & 0x1F;
-			if( src == LISReg )
-			{
-				write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
-				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-				LISReg = -1;
-			}
-			u32 dst = (op >> 21) & 0x1F;
-			if( dst == LISReg )
-				LISReg = -1;
-		}
-
-		if ((op & 0xFC00FF00) == 0x60006000) // ori rX, rY, 0x6000 (di)
-		{
-			u32 src = (op >> 16) & 0x1F;
-			if (src == LISReg)
-			{
-				write32((u32)LISOff, (LISReg << 21) | 0x3C00CD80);	// Patch to: lis rX, 0xCD80
-				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
-				LISReg = -1;
-			}
-			u32 dst = (op >> 21) & 0x1F;
-			if (dst == LISReg)
-				LISReg = -1;
-		}
-
-		if(    ( (op & 0xF8000000 ) == 0x80000000 )   // lwz and lwzu
-		    || ( (op & 0xF8000000 ) == 0x90000000 ) ) // stw and stwu
-		{
-			u32 src = (op >> 16) & 0x1F;
-			u32 dst = (op >> 21) & 0x1F;
-			u32 val = op & 0xFFFF;
-
-			if( src == LISReg )
-			{
-				if( (val & 0xFF00) == 0x6000 ) // case with 0x60XY(rZ) (di)
-				{
-					write32( (u32)LISOff, (LISReg<<21) | 0x3C00CD80 );	// Patch to: lis rX, 0xCD80
-					//dbgprintf("DI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
-					LISReg = -1;
-				}
-			}
-			if( dst == LISReg )
-				LISReg = -1;
-		}
-		if( op == 0x4E800020 )	// blr
-			break;
-	}
 }
 
 // HACK: PSO 0x80001800 move to 0x931C1800
@@ -1273,8 +1202,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	u32 __DVDInterruptHandlerAddr = PatchCopy(__DVDInterruptHandler, __DVDInterruptHandler_size);
 	//Combine these?  Worried if an interrupt occurs while the code is being overwritten
-	u32 DCInvalidateRangeAddr = PatchCopy(DCInvalidateRange, DCInvalidateRange_size);
-	u32 DCInvalidateRangeAddr2 = PatchCopy(DCInvalidateRange, DCInvalidateRange_size);
+	u32 __DVDInterruptHandlerAddr2 = PatchCopy(__DVDInterruptHandler, __DVDInterruptHandler_size);
 
 	u32 FakeInterruptAddr = PatchCopy(FakeInterrupt, FakeInterrupt_size);
 	u32 FakeInterrupt_DBGAddr = PatchCopy(FakeInterrupt_DBG, FakeInterrupt_DBG_size);
@@ -1626,7 +1554,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				{
 					u32 Offset = (u32)Buffer + i - 8;
 					u32 HwOffset = Offset;
-					if ((read32(Offset + 4) & 0xFFFF) == 0xCC00)	// Loader
+					if ((read32(Offset + 4) & 0xFFFF) == 0xD302)	// Loader
 						HwOffset = Offset + 4;
 					#ifdef DEBUG_PATCH
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
@@ -1642,31 +1570,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				{
 					u32 Offset = (u32)Buffer + i - 8;
 					u32 HwOffset = Offset;
-					if ((read32(Offset + 4) & 0xFFFF) == 0xCC00)	// Loader
+					if ((read32(Offset + 4) & 0xFFFF) == 0xD302)	// Loader
 						HwOffset = Offset + 4;
 					#ifdef DEBUG_PATCH
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 					#endif
 					//PatchDiscInterface( (char*)Offset );
 					u32 OrigData = read32(HwOffset);
-					PatchBL(DCInvalidateRangeAddr, HwOffset);
-					if ((read32(DCInvalidateRangeAddr + DCInvalidateRange_size - 0xC) & 0xFC10FFFF) == 0x3C00CD80)
+					PatchBL(__DVDInterruptHandlerAddr, HwOffset);
+					if ((read32(__DVDInterruptHandlerAddr + __DVDInterruptHandler_size - 0x8) & 0xFC00FFFF) == 0x3C00D302)
 					{
-						write32(DCInvalidateRangeAddr + DCInvalidateRange_size - 0xC, OrigData);
+						write32(__DVDInterruptHandlerAddr + __DVDInterruptHandler_size - 0x8, OrigData);
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", OrigData, HwOffset);
-						#endif
-					}
-					if (write32A(HwOffset-0x20, 0x3d20c000, 0x3d20cc00, 0))
-					{
-						#ifdef DEBUG_PATCH
-						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X\r\n", HwOffset-0x20);
-						#endif
-					}
-					if (write32A(HwOffset - 0x18, 0x61292F38, 0x61296008, 0))
-					{
-						#ifdef DEBUG_PATCH
-						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X\r\n", HwOffset-0x18);
 						#endif
 					}
 					PatchCount |= FPATCH_DVDIntrHandler;
@@ -1679,7 +1595,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				{
 					u32 Offset = (u32)Buffer + i - 8;
 					u32 HwOffset = Offset;
-					if ((read32(Offset + 4) & 0xFFFF) == 0xCC00)	// Loader
+					if ((read32(Offset + 4) & 0xFFFF) == 0xD302)	// Loader
 						HwOffset = Offset + 4;
 					else
 					{
@@ -1697,10 +1613,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					#endif
 					//PatchDiscInterface( (char*)Offset );
 					u32 OrigData = read32(HwOffset);
-					PatchBL(DCInvalidateRangeAddr2, HwOffset);
-					if ((read32(DCInvalidateRangeAddr2 + DCInvalidateRange_size - 0xC) & 0xFC10FFFF) == 0x3C00CD80)
+					PatchBL(__DVDInterruptHandlerAddr2, HwOffset);
+					if ((read32(__DVDInterruptHandlerAddr2 + __DVDInterruptHandler_size - 0x8) & 0xFC00FFFF) == 0x3C00D302)
 					{
-						write32(DCInvalidateRangeAddr2 + DCInvalidateRange_size - 0xC, OrigData);
+						write32(__DVDInterruptHandlerAddr2 + __DVDInterruptHandler_size - 0x8, OrigData);
 						#ifdef DEBUG_PATCH
 						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", OrigData, HwOffset);
 						#endif
@@ -2119,14 +2035,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 					switch( CurPatterns[j].PatchLength )
 					{
-						case FCODE_PatchDiscFunc:	// DVDLowRead
-						{
-							if (Datel)
-							{
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-								PatchDiscInterface((char*)FOffset);
-							}
-						} break;
 						case FCODE_Return:	// __AI_set_stream_sample_rate
 						{
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
@@ -2724,16 +2632,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								printpatchfound("Datel", "FakeEntry", FOffset + 0xC8);
 #endif
 								PatchBL(PATCH_OFFSET_ENTRY, FOffset + 0xC8);
-							}
-						} break;
-						case FCODE_GetCoverStatus:
-						{
-							u32 OrigAddr = FOffset + 0x10;
-							if (write32A(OrigAddr, 0x38600000, 0x80690000, false)) //lwz r3, r9 -> li r3,0
-							{
-#ifdef DEBUG_PATCH
-								printpatchfound("GetCoverStatus", "Datel", OrigAddr);
-#endif
 							}
 						} break;
 						default:

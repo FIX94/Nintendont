@@ -59,4 +59,6 @@ InvalidateRange:
 	bdnz	InvalidateRange
 
 NoFlush:
+	# Replaced in Datel version with lis %rX, DIP_STATUS@h
+	lis		%r3,	DI_STATUS@h
 	blr
