@@ -103,8 +103,6 @@ enum
 	FCODE_PatchPatchBuffer,
 	FCODE_PrsLoad,
 	FCODE_DolEntryMod,
-	FCODE_GetCoverStatus,
-	FCODE_PatchDiscFunc,
 	FCODE_AppLoad,
 } FPatternCodes;
 
@@ -345,11 +343,6 @@ FuncPattern DatelFPatterns[] =
 {
 	{   0x48,    9,   2,    3,    0,    3,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"Datel",	FGROUP_NONE,				0 },
 	{   0xF8,    8,   6,    7,    1,    6,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"DatelB",	FGROUP_NONE,				0 },
-	{   0x18,    2,   1,    0,    0,    0,	NULL,				FCODE_GetCoverStatus,		"GetCoverStatus",		"Datel",	FGROUP_NONE,				0 },
-	{   0x48,    2,   1,    0,    0,    3,	NULL,				FCODE_PatchDiscFunc,		"GetAndClearError",		"Datel",	FGROUP_NONE,				0 },
-//	{  0x134,   19,  10,    0,   11,    7,	NULL,				FCODE_PatchDiscFunc,		"__DVDInterruptHandler","Datel",	FGROUP_NONE,				0 },
-//  Same as DVDLowStopMotor, but patch is the same so ok
-	{   0x98,    9,   8,    2,    1,    6,	NULL,				FCODE_PatchDiscFunc,		"_CallDVDIntHandler",	"Datel",	FGROUP_NONE,				0 },
 };
 
 enum

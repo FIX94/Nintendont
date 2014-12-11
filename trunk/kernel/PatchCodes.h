@@ -33,7 +33,6 @@
 #include "asm/PADControlAllMotors.h"
 #include "asm/PADControlMotor.h"
 #include "asm/PADIsBarrel.h"
-#include "asm/DCInvalidateRange.h"
 #include "asm/DVDInquiryAsync.h"
 #include "asm/DVDSeekAbsAsyncPrio.h"
 #include "asm/GCAMSendCommand.h"
