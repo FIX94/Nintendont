@@ -377,10 +377,17 @@ u32 _start()
 		else
 		if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo wiiu Gamecube Adapter
 		{
-			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1D 1E 1F ... 7F 80 81 ... E7 E8 E9 (left ... center ... right)
-			stickY		= HID_Packet[HID_CTRL->StickY.Offset] - 128;	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
-			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
-			substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
+			if (PADIsBarrel[chan])
+			{
+				stickX = stickY = substickX = substickY = 0;
+			}
+			else
+			{
+				stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1D 1E 1F ... 7F 80 81 ... E7 E8 E9 (left ... center ... right)
+				stickY		= HID_Packet[HID_CTRL->StickY.Offset] - 128;	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
+				substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
+				substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
+			}
 		}
 		else	//standard sticks
 		{
