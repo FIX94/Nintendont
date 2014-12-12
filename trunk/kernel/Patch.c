@@ -1222,40 +1222,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	u32 DatelTimerAddr = PatchCopy(DatelTimer, DatelTimer_size);
 
-	if (Datel)
-	{
-		// Combine these Datel Timers with a generic search function (mtctr rX followed by bdnz to itself)?
-		if (read32(0x0001B1AC) == 0x38006800)
-		{
-			printpatchfound("Timer", "Datel", 0x0001B1AC);
-			PatchB(DatelTimerAddr, 0x0001B1AC);
-		}
-		if (read32(0x000748A0) == 0x38006800)
-		{
-			printpatchfound("Timer", "Datel", 0x000748A0);
-			PatchB(DatelTimerAddr, 0x000748A0);
-		}
-		if (read32(0x00074508) == 0x38006800)
-		{
-			printpatchfound("Timer", "Datel", 0x00074508);
-			PatchB(DatelTimerAddr, 0x00074508);
-		}
-		if (read32(0x00075600) == 0x38006800)
-		{
-			printpatchfound("Timer", "Datel", 0x00075600);
-			PatchB(DatelTimerAddr, 0x00075600);
-		}
-		if (read32(0x000538FC) == 0x38006800)
-		{
-			printpatchfound("Timer", "Datel", 0x000538FC);
-			PatchB(DatelTimerAddr, 0x000538FC);
-		}
-		if (read32(0x0005390C) == 0x380001DB)
-		{
-			printpatchfound("TimerB", "Datel", 0x0005390C);
-			write32(0x0005390C, 0x380002C9);// 0x1DB * 3 /2 = 0x2C8.8
-		}
-	}
 	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
 	{
 		// patch out initial memset(0x1800, 0, 0x1800)
@@ -1942,6 +1908,31 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					}
 					i += 0x3C;
 					continue;
+				}
+			}
+			if (Datel)
+			{
+				if (BufAt0 == 0x7C0903A6 &&    // mtctr %r0
+					BufAt4 == 0x42000000)      // bdnz 0 (itself)
+				{
+					u32 BufAtMinus4 = read32((u32)Buffer+i-4);
+					if (BufAtMinus4 == 0x38006800) // li %r0, 0x6800
+					{
+						// 0x6800 * 3 / 2 = 0x9C00  is too big to fit in li %r0, imm
+						// Use branch to function
+						printpatchfound("Timer", "Datel", (u32)Buffer+i-4);
+						PatchB(DatelTimerAddr, (u32)Buffer+i-4);  
+						i += 8;
+						continue;
+					}
+					if (BufAtMinus4 == 0x380001DB) // li %r0, 0x1DB
+					{
+						// 0x1DB * 3 /2 = 0x2C8.8
+						printpatchfound("ShortTimer", "Datel", (u32)Buffer+i-4);
+						write32((u32)Buffer+i-4, 0x380002C9); // li %r0, 0x2C9
+						i += 8;
+						continue;
+					}
 				}
 			}
 			if( (PatchCount & FPATCH_DSP_ROM) == 0 && ( BufHighAt0 == 0x29F || (BufAt4 >> 16) == 0x29F) )
