@@ -29,38 +29,53 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 	//																DataIn[DataPos+5],
 	//																DataIn[DataPos+6],
 	//																DataIn[DataPos+7] );
-				
+
 	switch(TRIGame)
 	{
 		case 1:
 		{
+			sync_before_read( (void*)0x00690AC0, 0x20 );
 			write32( 0x00690AC0, 1 );	// MGP2 credits
+			sync_after_write( (void*)0x00690AC0, 0x20 );
 		} break;
 		case 2:	// VS42006
 		{
 			if( read32( 0x0210C08 ) == 0x386000A8 )	// EXPORT
+			{
+				sync_before_read( (void*)0x064C6A0, 0x20 );
 				write32( 0x064C6B0, 1 );			// credits
-
+				sync_after_write( (void*)0x064C6A0, 0x20 );
+			}
 			if( read32( 0x024E888 ) == 0x386000A8 ) // JAPAN
+			{
+				sync_before_read( (void*)0x0694BA0, 0x20 );
 				write32( 0x0694BB0, 1 );			// credits
-
+				sync_after_write( (void*)0x0694BA0, 0x20 );
+			}
 		} break;
 		case 3:
 		{
-			write32( 0x00400DE8, 1 );						// FZeroAX credits
+			sync_before_read( (void*)0x00400DE0, 0x20 );
+			write32( 0x00400DE8, 1 );			// FZeroAX credits
+			sync_after_write( (void*)0x00400DE0, 0x20 );
+
+			sync_before_read( (void*)0x003BC400, 0x20 );
 			write32( 0x003BC400, 0x803BB940 );	// Crash hack
+			sync_after_write( (void*)0x003BC400, 0x20 );
 
+			sync_before_read( (void*)0x03CFBE0, 0x20 );
 			u32 val = read32( 0x03CFBF4 ) & 0xFFFF00FF;
-					val|= 0x0400;
-			write32( 0x03CFBF4, val );
-
+			write32( 0x03CFBF4, val | 0x0400 );
+			sync_after_write( (void*)0x03CFBE0, 0x20 );
 		} break;
 		case 4:
 		{
+			sync_before_read( (void*)0x00577760, 0x20 );
 			write32( 0x00577760, 1 );	// MGP credits
+			sync_after_write( (void*)0x00577760,0x20 );
 		} break;
 	}
-  
+
 	JVSIOMessage();
 
 	u32 i,j;
@@ -72,7 +87,6 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 		jvs_io_buffer[jvs_io_length++] = DataIn[ DataPos + 1 + i ];
 
 	int node = jvs_io_buffer[1];
-									
 	JVSIOstart(0);
 	addDataByte(1);
 
@@ -91,9 +105,9 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			{
 				addDataByte(1);
 				if( TRIGame == 2 )
-					addDataString("SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00");	
+					addDataString("SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00");
 				else
-      		addDataString("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");				
+			addDataString("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");
 			} break;
 			// get command format revision
 			case 0x11:
@@ -137,7 +151,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			*/
 			case 0x14:
 				addDataByte(1);
-        switch(TRIGame)
+				switch(TRIGame)
 				{
 					case 2:
 					{
@@ -169,7 +183,6 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						addDataBuffer((void *)"\x00\x00\x00\x00", 4);
 					} break;
 				}
-				
 #ifdef DEBUG_JVSIO
 				dbgprintf("JVS-IO:GetFeatures\n");
 #endif
@@ -182,7 +195,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 				dbgprintf("JVS-IO:SentConfigString\n");
 #endif
 			break;
-			// read switch inputs 
+			// read switch inputs
 			case 0x20:
 			{
 				//dbgprintf("JVS-IO:Read Switch Input\n");
@@ -222,34 +235,33 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 
 				if( mcoin )
 					coin = !coin;
-				
+
 				addDataByte(1);
 				while (slots--)
 				{
 					addDataByte(0);
 					addDataByte(coin);
 				}
-												
 			} break;
-			//  read analog inputs
+			// read analog inputs
 			case 0x22:
 			{
 				addDataByte(1);	// status
 				int players = *jvs_io++;
 
 				for( i=0; i < players; ++i )
-				{	
+				{
 					int val = 0;
-						
+
 						if (i < 4)
 							val = 0x7FFF;
 						else if (i < 6)
 							val = 42 * 0x101;
 						else
 							val = 0;
-						
+
 					unsigned char player_data[2] = {val >> 8, val};
-					
+
 					addDataByte( player_data[0] );
 					addDataByte( player_data[1] );
 				}
@@ -275,7 +287,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 
 				if( a == 1 )
 					mcoin = 0;
-				
+
 				addDataByte(1);
 
 			} break;
@@ -311,7 +323,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					dbgprintf("JVS-IO:JVS RESET unknown reset value:%02X\n", DataIn[DataPos-1] );
 #endif
 				}
-				addDataByte(1);		
+				addDataByte(1);
 
 				d10_1 |= 1;
 			} break;
