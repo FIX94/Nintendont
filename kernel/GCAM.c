@@ -778,10 +778,10 @@ void GCAMUpdateRegisters( void )
 
 				//hexdump( dataout, lenout );
 
-				while( read32(GCAM_CONTROL) & 1 )
-					clear32( GCAM_CONTROL, 1 );
+				//while( read32(GCAM_CONTROL) & 1 )
+				//	clear32( GCAM_CONTROL, 1 );
 				
-				while( (read32(GCAM_SSTATUS) & 0x10) != 0x10 )
+				//while( (read32(GCAM_SSTATUS) & 0x10) != 0x10 )
 					set32( GCAM_SSTATUS, 0x10 );
 
 			} break;
@@ -811,10 +811,10 @@ void GCAMUpdateRegisters( void )
 
 				//hexdump( dataout, 0x10 );
 
-				while( read32(GCAM_CONTROL) & 1 )
-					clear32( GCAM_CONTROL, 1 );
+				//while( read32(GCAM_CONTROL) & 1 )
+				//	clear32( GCAM_CONTROL, 1 );
 				
-				while( (read32(GCAM_SSTATUS) & 0x10) != 0x10 )
+				//while( (read32(GCAM_SSTATUS) & 0x10) != 0x10 )
 					set32( GCAM_SSTATUS, 0x10 );
 			} break;
 			default:
