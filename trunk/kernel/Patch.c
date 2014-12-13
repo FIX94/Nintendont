@@ -1332,6 +1332,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//Goto Test menu
 		//write32( 0x00DF3D0, 0x60000000 );
 
+		//Replace Motor Init with Controller Setup
+		write32( 0x0024E034, 0x80180D5C );
+		write32( 0x0024E038, 0x80180BC0 );
+
 		//English 
 		write32( 0x000DF698, 0x38000000 );
 
@@ -1397,6 +1401,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//memcpy( (void*)0x020CBCC, OSReportDM, sizeof(OSReportDM) );	// UNkReport
 		//memcpy( (void*)0x02281B8, OSReportDM, sizeof(OSReportDM) );	// UNkReport4
 	}
+	/* Triforce relevant function */
+	u32 GCAMSendCommandAddr = TRIGame ? PatchCopy(GCAMSendCommand, sizeof(GCAMSendCommand)) : 0;
+
 	bool PatchWide = ConfigGetConfig(NIN_CFG_FORCE_WIDE);
 	if(PatchWide && PatchStaticWidescreen(TITLE_ID, GAME_ID & 0xFF)) //if further patching is needed
 		PatchWide = false;
@@ -2343,27 +2350,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_GCAMSendCommand:
 						{
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-							if( TRIGame == 1 )
+							if(read32(FOffset + 0x2C) == 0x38C40080)
 							{
-								PatchB( PatchCopy(GCAMSendCommand2, sizeof(GCAMSendCommand2)), FOffset );
-								break;
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								/* Data I/O */
+								W16(GCAMSendCommandAddr+0x0E, R16(FOffset+0x1E));
+								W16(GCAMSendCommandAddr+0x12, R16(FOffset+0x22));
+								/* Callback */
+								W16(GCAMSendCommandAddr+0xC2, R16(FOffset+0x26));
+								W16(GCAMSendCommandAddr+0xC6, R16(FOffset+0x2A));
+								PatchB(GCAMSendCommandAddr, FOffset);
 							}
-							if( TRIGame == 2 )
-							{
-								PatchB( PatchCopy(GCAMSendCommandVSExp, sizeof(GCAMSendCommandVSExp)), FOffset );
-								break;
-							}
-							if( TRIGame == 3 )
-							{
-								PatchB( PatchCopy(GCAMSendCommandF, sizeof(GCAMSendCommandF)), FOffset );
-								break;
-							}
-							if( TRIGame == 4 )
-							{
-								PatchB( PatchCopy(GCAMSendCommand, sizeof(GCAMSendCommand)), FOffset );
-								break;
-							}
+							else
+								CurPatterns[j].Found = 0; // False hit
 						} break;
 						case FCODE___fwrite:	// patch_fwrite_Log
 						case FCODE___fwrite_D:	// patch_fwrite_LogB
