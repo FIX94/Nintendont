@@ -1472,9 +1472,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					read32( (u32)Buffer + i + 8 ) == 0x40820008 &&
 					(read32( (u32)Buffer + i + 12 ) & 0xFC00FFFF) == 0x60000004 )
 				{
+					printpatchfound("SetInterruptMask",NULL,  (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					if(write32A((u32)Buffer + i - 0x30, 0x60000000, 0x93E50028, 0)) // EXI Channel 2 Status Register
 						printpatchfound("SetInterruptMask", "DBG", (u32)Buffer + i - 0x30);
-					printpatchfound("SetInterruptMask",NULL, (u32)Buffer + i + 12);
 
 					write32( (u32)Buffer + i + 12, (read32( (u32)Buffer + i + 12 ) & 0xFFFF0000) | 0x4004 );
 
@@ -1488,7 +1488,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				if( BufAt0 == 0x3C60CC00 &&
 					BufAt4 == 0x83E33000)
 				{
-					printpatchfound("__OSDispatchInterrupt",NULL, (u32)Buffer + i);
+					printpatchfound("__OSDispatchInterrupt", NULL, (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					PatchBL( FakeInterruptAddr, (u32)Buffer + i + 4 );
 					if(ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true)
 					{
@@ -1507,7 +1507,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				}
 				else if( BufAt0 == 0x3C60CC00 && BufAt4 == 0x83A33000 && read32( (u32)Buffer + i + 8 ) == 0x57BD041C)
 				{
-					printpatchfound("__OSDispatchInterrupt","DBG", (u32)Buffer + i + 4);
+					printpatchfound("__OSDispatchInterrupt", "DBG", (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					PatchBL( FakeInterrupt_DBGAddr, (u32)Buffer + i + 4 );
 					if(ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true)
 					{
@@ -1603,7 +1603,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				if( BufAt0 == 0x3C608000 && (BufAt4 & 0xFC1FFFFF) == 0x800300CC && (read32( (u32)Buffer + i + 8 ) >> 24) == 0x54 )
 				{
-					printpatchfound("VIConfigure", NULL, (u32)Buffer + i);
+					printpatchfound("VIConfigure", NULL, (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					write32( (u32)Buffer + i + 4, 0x5400F0BE | ((read32( (u32)Buffer + i + 4 ) & 0x3E00000) >> 5) );
 					PatchCount |= FPATCH_VIConfigure;
 					i = GotoFuncEnd(i, (u32)Buffer);
@@ -1659,7 +1659,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				if(BufAt0 == 0x38C00008 && read32((u32)Buffer+i+16) == 0x38800008 && read32((u32)Buffer+i+28) == 0x90DD0004)
 				{
-					printpatchfound("__CARDUnlock", NULL, (u32)Buffer+i);
+					printpatchfound("__CARDUnlock", NULL, (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					write32( (u32)Buffer+i, 0x3CC01000 ); //lis r6, 0x1000
 					write32( (u32)Buffer+i+28, 0x909D0004 ); //stw r4, 4(r29)
 					write32( (u32)Buffer+i+36, 0x90DD0008 ); //stw r6, 8(r29)
@@ -1670,7 +1670,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				else if(BufAt0 == 0x38000008 && BufAt4 == 0x90180004 && 
 					read32((u32)Buffer+i+16) == 0x38000000 && read32((u32)Buffer+i+20) == 0x90180008)
 				{
-					printpatchfound("__CARDUnlock", "DBG", (u32)Buffer+i);
+					printpatchfound("__CARDUnlock", "DBG", (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					write32( (u32)Buffer+i+16, 0x3C001000 ); //lis r0, 0x1000
 					PatchCount |= FPATCH_CARDUnlock;
 					i = GotoFuncEnd(i, (u32)Buffer);
@@ -1985,7 +1985,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							#ifdef DEBUG_PATCH
 							dbgprintf("Patch:[DSP v%u] patched (0x%08X)\r\n", Known, Buffer + i );
 							#endif
-							PatchCount |= FPATCH_DSP_ROM;
+							//PatchCount |= FPATCH_DSP_ROM; // yes, games can
+							//have multiple DSPs, check out Smugglers Run
+							i += DspMatches[l].Length;
 							break;
 						}
 					}
@@ -1994,6 +1996,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					else
 						UseLast = 0;
 				}
+				if(Known != -1) continue; //i is already advanced
 			}
 			i += 4;
 			continue;
@@ -2735,8 +2738,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	#ifdef DEBUG_PATCH
 	//dbgprintf("PatchCount:%08X\r\n", PatchCount );
-	if( (PatchCount & FPATCH_DSP_ROM) == 0 )
-		dbgprintf("Patch:Unknown DSP ROM\r\n");
+	//if( (PatchCount & FPATCH_DSP_ROM) == 0 )
+	//	dbgprintf("Patch:Unknown DSP ROM\r\n");
 
 	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 	{
