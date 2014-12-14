@@ -50,6 +50,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "FPad.h"
 #include "menu.h"
+#include "MemCard.h"
 #include "Patches.h"
 #include "kernel_bin.h"
 #include "PADReadGC_bin.h"
@@ -366,19 +367,14 @@ int main(int argc, char **argv)
 		FILE *f = fopen(MemCard, "rb");
 		if(f == NULL)
 		{
-			f = fopen(MemCard, "wb");
-			if(f == NULL)
+			if(GenerateMemCard(MemCard) == false)
 			{
 				ClearScreen();
 				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "Failed to create Memory Card File!" );
 				ExitToLoader(1);
 			}
-			char NullChar[1];
-			NullChar[0] = 0;
-			fwrite(NullChar, 1, MEM_CARD_SIZE(ncfg->MemCardBlocks), f);
-			gprintf("Memory Card File created!\r\n");
 		}
-		if(f != NULL)
+		else
 			fclose(f);
 	}
 //sync changes
