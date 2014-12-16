@@ -63,8 +63,8 @@ unsigned char rawData[] =
 	0x00, 
 } ;
 
-struct _usb_msg *readreq = (struct _usb_msg *)NULL;
-struct _usb_msg *writereq = (struct _usb_msg *)NULL;
+struct _usb_msg readreq ALIGNED(32);
+struct _usb_msg writereq ALIGNED(32);
 u8 *ps3buf = (u8*)NULL;
 u8 *gcbuf = (u8*)NULL;
 
@@ -89,11 +89,8 @@ s32 HIDInit( void )
 	s32 ret = -1;
 	dbgprintf("HIDInit()\r\n");
 
-	readreq = (struct _usb_msg*)malloca( sizeof(struct _usb_msg), 32 );
-	memset32(readreq, 0, sizeof(struct _usb_msg));
-
-	writereq = (struct _usb_msg*)malloca( sizeof(struct _usb_msg), 32 );
-	memset32(writereq, 0, sizeof(struct _usb_msg));
+	memset32(&readreq, 0, sizeof(struct _usb_msg));
+	memset32(&writereq, 0, sizeof(struct _usb_msg));
 
 	ps3buf = (u8*)malloca( 64, 32 );
 	memset32(ps3buf, 0, 64);
@@ -461,7 +458,7 @@ static s32 HIDControlMessage(u8 *Data, u32 Length, u32 RequestType, u32 Request,
 {
 	u8 request_dir = !!(RequestType & USB_CTRLTYPE_DIR_DEVICE2HOST);
 
-	struct _usb_msg *msg = (request_dir ? readreq : writereq);
+	struct _usb_msg *msg = VirtualToPhysical(request_dir ? &readreq : &writereq);
 	msg->fd = DeviceID;
 
 	msg->ctrl.bmRequestType = RequestType;
@@ -485,7 +482,7 @@ static s32 HIDInterruptMessage(u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueu
 {
 	u8 endpoint_dir = !!(Endpoint & USB_ENDPOINT_IN);
 
-	struct _usb_msg *msg = (endpoint_dir ? readreq : writereq);
+	struct _usb_msg *msg = VirtualToPhysical(endpoint_dir ? &readreq : &writereq);
 	msg->hid_intr_dir = !endpoint_dir;
 	msg->fd = DeviceID;
 
@@ -511,8 +508,6 @@ void HIDGCInit()
 }
 void HIDPS3Init()
 {
-	memset32( readreq, 0, sizeof( struct _usb_msg ) );
-
 	u8 *buf = (u8*)malloca( 0x20, 32 );
 	memset32( buf, 0, 0x20 );
 	s32 ret = HIDControlMessage(buf, 17, USB_REQTYPE_INTERFACE_GET,
