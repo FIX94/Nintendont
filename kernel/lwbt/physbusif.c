@@ -30,8 +30,8 @@ struct usbtxbuf
 
 static struct _usb_p __usbdev ALIGNED(32);
 
-static u32 btstack1[0x100] ALIGNED(32);
-static u32 btstack2[0x100] ALIGNED(32);
+static u32 *btstack1 = NULL;
+static u32 *btstack2 = NULL;
 
 static struct ipcmessage intrmsg ALIGNED(32);
 static struct ipcmessage bulkmsg ALIGNED(32);
@@ -364,14 +364,17 @@ static s32 __usb_open(pbcallback cb)
 	bulkheap = (u8*)malloca(32,32);
 	bulkqueue = mqueue_create(bulkheap, 1);
 
+	btstack1 = malloca(0x100 * sizeof(u32), 32);
+	btstack2 = malloca(0x100 * sizeof(u32), 32);
+
 	Interruptread_Thread = thread_create(intrreadAlarm, NULL, btstack1, 0x100, 0x78, 1);
 	thread_continue(Interruptread_Thread);
-	mdelay(400);
+	mdelay(100);
 	//dbgprintf("Started intrreadAlarm thread\n");
 
 	Bulkread_Thread = thread_create(bulkreadAlarm, NULL, btstack2, 0x100, 0x78, 1);
 	thread_continue(Bulkread_Thread);
-	mdelay(400);
+	mdelay(100);
 	//dbgprintf("Started bulkreadAlarm thread\n");
 
 	__issue_intrread();
