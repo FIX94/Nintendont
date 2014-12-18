@@ -403,7 +403,12 @@ void SelectGame( void )
 			{
 				SaveSettings = true;
 				if ( PosX < NIN_CFG_BIT_LAST )
-					ncfg->Config ^= (1 << PosX);
+				{
+					if(PosX == NIN_CFG_BIT_USB) //Option gets replaced
+						ncfg->Config ^= NIN_CFG_WIIU_WIDE;
+					else
+						ncfg->Config ^= (1 << PosX);
+				}
 				else switch( PosX )
 				{
 					case NIN_SETTINGS_MAX_PADS:
@@ -477,7 +482,12 @@ void SelectGame( void )
 			{
 				u32 ListLoopIndex = 0;
 				for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
+				{
+					if(ListLoopIndex == NIN_CFG_BIT_USB) //Option gets replaced
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_WIIU_WIDE)) ? "On " : "Off");
+					else
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
+				}
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
 				ListLoopIndex++;
 

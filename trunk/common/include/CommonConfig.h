@@ -42,6 +42,7 @@ enum ninconfigbitpos
 
 	NIN_CFG_BIT_MC_MULTI	= (13),
 	NIN_CFG_BIT_NATIVE_SI	= (14),
+	NIN_CFG_BIT_WIIU_WIDE	= (15),
 };
 
 enum ninconfig
@@ -61,6 +62,7 @@ enum ninconfig
 	NIN_CFG_LOG			= (1<<NIN_CFG_BIT_LOG),
 	NIN_CFG_MC_MULTI	= (1<<NIN_CFG_BIT_MC_MULTI),
 	NIN_CFG_NATIVE_SI	= (1<<NIN_CFG_BIT_NATIVE_SI),
+	NIN_CFG_WIIU_WIDE	= (1<<NIN_CFG_BIT_WIIU_WIDE),
 };
 
 enum ninextrasettings
