@@ -15,7 +15,7 @@ const char* OptionStrings[] =
 	"Auto Boot",
 	"Use HID device",
 	"OSReport",
-	"USB",
+	"WiiU Widescreen", //Replaces USB
 	"Drive Read LED",
 	"Log",
 	
