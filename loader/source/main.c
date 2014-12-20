@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/lwp_threads.h>
 #include <ogc/isfs.h>
 #include <ogc/ipc.h>
-
+#include <di/di.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -344,6 +344,48 @@ int main(int argc, char **argv)
 		}
 	}
 
+	//Init DI and set correct ID if needed
+	if( memcmp(ncfg->GamePath, "di", 3) == 0 )
+	{
+		ClearScreen();
+		PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
+		GRRLIB_Render();
+		ClearScreen();
+
+		DI_Init();
+		DI_Mount();
+		while (DI_GetStatus() & DVD_INIT)
+			usleep(20000);
+		if(!(DI_GetStatus() & DVD_READY))
+		{
+			ClearScreen();
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc Drive could not be initialized!" );
+			ExitToLoader(1);
+		}
+		DI_Close();
+		u8 *DIBuf = memalign(32,0x800);
+		memset(DIBuf, 0, 0x20);
+		DCFlushRange(DIBuf, 0x20);
+		ReadRealDisc(DIBuf, 0, 0x20, DIP_CMD_NORMAL);
+		u32 DiscMagic = *(vu32*)(DIBuf+0x1C);
+		if( DiscMagic != 0xC2339F3D )
+		{
+			memset(DIBuf, 0, 0x800);
+			DCFlushRange(DIBuf, 0x800);
+			ReadRealDisc(DIBuf, 0, 0x800, DIP_CMD_DVDR);
+			DiscMagic = *(vu32*)(DIBuf+0x1C);
+			if( DiscMagic != 0xC2339F3D )
+			{
+				free(DIBuf);
+				ClearScreen();
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc in the Drive is not a GC Disc!" );
+				ExitToLoader(1);
+			}
+		}
+		memcpy(&(ncfg->GameID), DIBuf, 4);
+		free(DIBuf);
+	}
+
 //setup memory card
 	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
 	{
@@ -456,11 +498,11 @@ int main(int argc, char **argv)
 		if((STATUS_LOADING > 0 || abs(STATUS_LOADING) > 1) && STATUS_LOADING < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init... Done!");
 		if(STATUS_LOADING == 2)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Init USB/SD device...");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing devices...");
 		if(abs(STATUS_LOADING) > 2 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Init USB/SD device... Done!");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing devices... Done!");
 		if(STATUS_LOADING == -2)
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Init USB/SD device... Error! %d  Shutting down", STATUS_ERROR);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Initing devices... Error! %d  Shutting down", STATUS_ERROR);
 		if(STATUS_LOADING == 3)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...");
 		if(abs(STATUS_LOADING) > 3 && abs(STATUS_LOADING) < 20)

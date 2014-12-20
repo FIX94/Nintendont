@@ -75,13 +75,6 @@ int _main( int argc, char *argv[] )
 	thread_set_priority( 0, 0x50 );
 	thread_set_priority( 0, 0x79 );
 
-	if(memcmp(ConfigGetGamePath(), "NORMAL", 7) == 0)
-		RealDiscCMD = DIP_CMD_NORMAL;
-	else if(memcmp(ConfigGetGamePath(), "DVDR", 5) == 0)
-		RealDiscCMD = DIP_CMD_DVDR;
-	else
-		RealDiscCMD = 0;
-
 	//MessageQueue = ES_Init( MessageHeap );
 	ES_Init( MessageHeap );
 
@@ -116,6 +109,28 @@ int _main( int argc, char *argv[] )
 		BootStatusError(-2, ret);
 		mdelay(4000);
 		Shutdown();
+	}
+
+	//Verification if we can read from disc
+	if(memcmp(ConfigGetGamePath(), "di", 3) == 0)
+	{
+		u32 Length = 0x20;
+		RealDiscCMD = DIP_CMD_NORMAL;
+		u8 *TmpBuf = ReadRealDisc(&Length, 0, false);
+		if(read32((u32)TmpBuf+0x1C) != 0xC2339F3D)
+		{
+			Length = 0x800;
+			RealDiscCMD = DIP_CMD_DVDR;
+			TmpBuf = ReadRealDisc(&Length, 0, false);
+			if(read32((u32)TmpBuf+0x1C) != 0xC2339F3D)
+			{
+				dbgprintf("No GC Disc!\r\n");
+				BootStatusError(-2, -2);
+				mdelay(4000);
+				Shutdown();
+			}
+		}
+		dbgprintf("DI:Reading real disc with command 0x%02X\r\n", RealDiscCMD);
 	}
 
 	BootStatus(3, 0, 0);

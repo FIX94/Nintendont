@@ -457,22 +457,21 @@ void PatchFuncInterface( char *dst, u32 Length )
 	{
 		u32 op = read32( (u32)dst + i );
 
-		if( (op & 0xFC00FFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
+		if( (op & 0xFC1FFFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
 		{
-			LISReg = (op & 0x3E00000) >> 21;
+			LISReg = (op >> 21) & 0x1F;
 			LISOff = (u32)dst + i;
 			LISOp = op & 0xFFFF0000;
+			continue;
 		}
 
-		if( (op & 0xFC000000) == 0x38000000 )	// li rX, x
+		if( (op & 0xFC1F0000) == 0x38000000 || 	// li rX, x
+			(op & 0xFC1F0000) == 0x3C000000 )	// lis rX, x
 		{
-			u32 src = (op >> 16) & 0x1F;
 			u32 dstR = (op >> 21) & 0x1F;
-			if ((src != LISReg) && (dstR == LISReg))
-			{
+			if (dstR == LISReg)
 				LISReg = 32;
-				LISOff = (u32)dst + i;
-			}
+			continue;
 		}
 
 		if( (op & 0xFC00FF00) == 0x38006C00 ) // addi rX, rY, 0x6C00 (ai)
@@ -488,6 +487,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dstR = (op >> 21) & 0x1F;
 			if( dstR == LISReg )
 				LISReg = 32;
+			continue;
 		}
 		else if( (op & 0xFC00FF00) == 0x38006400 ) // addi rX, rY, 0x6400 (si)
 		{
@@ -510,6 +510,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dstR = (op >> 21) & 0x1F;
 			if( dstR == LISReg )
 				LISReg = 32;
+			continue;
 		}
 		else if( (op & 0xFC00FF00) == 0x38006800 ) // addi rX, rY, 0x6800 (exi)
 		{
@@ -527,6 +528,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dstR = (op >> 21) & 0x1F;
 			if( dstR == LISReg )
 				LISReg = 32;
+			continue;
 		}
 		else if( (op & 0xFC00FF00) == 0x38006000 ) // addi rX, rY, 0x6000 (di)
 		{
@@ -544,6 +546,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dstR = (op >> 21) & 0x1F;
 			if( dstR == LISReg )
 				LISReg = 32;
+			continue;
 		}
 
 		if ((op & 0xFC00FF00) == 0x60006C00) // ori rX, rY, 0x6C00 (ai)
@@ -559,6 +562,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dstR = (op >> 21) & 0x1F;
 			if (dstR == LISReg)
 				LISReg = 32;
+			continue;
 		}
 		else if ((op & 0xFC00FF00) == 0x60006400) // ori rX, rY, 0x6400 (si)
 		{
@@ -581,6 +585,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dstR = (op >> 21) & 0x1F;
 			if (dstR == LISReg)
 				LISReg = 32;
+			continue;
 		}
 		else if ((op & 0xFC00FF00) == 0x60006800) // ori rX, rY, 0x6800 (exi)
 		{
@@ -598,6 +603,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dstR = (op >> 21) & 0x1F;
 			if (dstR == LISReg)
 				LISReg = 32;
+			continue;
 		}
 		else if ((op & 0xFC00FF00) == 0x60006000) // ori rX, rY, 0x6000 (di)
 		{
@@ -615,6 +621,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 dstR = (op >> 21) & 0x1F;
 			if (dstR == LISReg)
 				LISReg = 32;
+			continue;
 		}
 	
 		if (((op & 0xF8000000) == 0x80000000)   // lwz and lwzu
@@ -671,6 +678,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			}
 			if( dstR == LISReg )
 				LISReg = 32;
+			continue;
 		}
 
 		if( op == 0x4E800020 )	// blr

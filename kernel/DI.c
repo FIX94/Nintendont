@@ -134,13 +134,15 @@ void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 	}
 }
 
-u8 *ReadRealDisc(u32 *Length, u32 Offset)
+u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 {
 	//dbgprintf("ReadRealDisc(%08x %08x)\r\n", *Length, Offset);
-	WaitForWrite = 1;
-	while(WaitForWrite == 1)
-		udelay(20);
-
+	if(NeedSync)
+	{
+		WaitForWrite = 1;
+		while(WaitForWrite == 1)
+			udelay(20);
+	}
 	if (ConfigGetConfig(NIN_CFG_LED))
 		set32(HW_GPIO_OUT, GPIO_SLOT_LED);	//turn on drive light
 
@@ -176,9 +178,17 @@ u8 *ReadRealDisc(u32 *Length, u32 Offset)
 	write32( DIP_CONTROL, 3 );
 	udelay(70);
 
-	WaitForRead = 1;
-	while(WaitForRead == 1)
-		udelay(200);
+	if(NeedSync)
+	{
+		WaitForRead = 1;
+		while(WaitForRead == 1)
+			udelay(200);
+	}
+	else
+	{
+		while(read32(DIP_CONTROL) & 1)
+			udelay(200);
+	}
 
 	if (ConfigGetConfig(NIN_CFG_LED))
 		clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
@@ -781,7 +791,7 @@ u32 DIReadThread(void *arg)
 				{
 					Length = di_length - Offset;
 					if( RealDiscCMD )
-						di_src = ReadRealDisc(&Length, di_offset + Offset);
+						di_src = ReadRealDisc(&Length, di_offset + Offset, true);
 					else if( FSTMode )
 						di_src = FSTRead(GamePath, &Length, di_offset + Offset);
 					else
