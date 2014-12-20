@@ -105,7 +105,7 @@ void SelectGame( void )
 		gi[0].Name = strdup("Boot GC Disc in Drive");
 		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
 		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
-		gi[0].Path = strdup("di:"); //gets replaced later
+		gi[0].Path = strdup("di:di");
 		gamecount++;
 	}
 	while( ( pent = readdir(pdir) ) != NULL )
@@ -562,56 +562,12 @@ void SelectGame( void )
 			}
 		}
 	}
-	u32 SelectedGame = PosX + ScrollX;
-	if( !IsWiiU() && SelectedGame == 0 )
-	{
-		ClearScreen();
-		PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
-		GRRLIB_Render();
-		ClearScreen();
-
-		DI_Init();
-		DI_Mount();
-		while (DI_GetStatus() & DVD_INIT)
-			usleep(20000);
-		if(!(DI_GetStatus() & DVD_READY))
-		{
-			ClearScreen();
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc Drive could not be initialized!" );
-			ExitToLoader(1);
-		}
-		DI_Close();
-		u8 *DIBuf = memalign(32,0x800);
-		memset(DIBuf, 0, 0x800);
-		DCFlushRange(DIBuf, 0x800);
-		ReadRealDisc(DIBuf, 0x2, 0x800, DIP_CMD_NORMAL);
-		u32 DiscMagic = *(vu32*)(DIBuf+0x1C);
-		if( DiscMagic != 0xC2339F3D )
-		{
-			memset(DIBuf, 0, 0x800);
-			DCFlushRange(DIBuf, 0x800);
-			ReadRealDisc(DIBuf, 0x0, 0x800, DIP_CMD_DVDR);
-			DiscMagic = *(vu32*)(DIBuf+0x1C);
-			if( DiscMagic != 0xC2339F3D )
-			{
-				free(DIBuf);
-				ClearScreen();
-				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc in the Drive is not a GC Disc!" );
-				ExitToLoader(1);
-			}
-			else
-				gi[SelectedGame].Path = strdup("di:DVDR");
-		}
-		else
-			gi[SelectedGame].Path = strdup("di:NORMAL");
-		memcpy(gi[SelectedGame].ID, DIBuf, 6);
-		free(DIBuf);
-	}
 	ClearScreen();
 	PrintInfo();
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel ...");
 	UpdateScreen();
 
+	u32 SelectedGame = PosX + ScrollX;
 	char* StartChar = gi[SelectedGame].Path + 3;
 	if (StartChar[0] == ':')
 		StartChar++;
