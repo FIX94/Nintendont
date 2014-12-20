@@ -2930,15 +2930,16 @@ void PatchGame()
 	memset32((void*)0x131C0040, 0, 0x20);
 	sync_after_write((void*)0x131C0040, 0x20);
 
-	write32( DIP_CMD_1, FullLength >> 5 );
+	write32( DI_SCMD_1, FullLength >> 5 );
 	u32 Command2 = DOLMinOff;
 	// ToDo.  HACK: Why doesn't Nightfire Deep Descent level like this??
 	if ((TITLE_ID) != 0x474f37)  // 007 Nightfire
 		Command2 |= 0x80000000;
-	write32( DIP_CMD_2, Command2 );
+	write32( DI_SCMD_2, Command2 );
 	dbgprintf("Jumping to 0x%08X\n", GameEntry);
 	sync_after_write((void*)0x1800, 0x1800); //low patches
-	write32( DIP_IMM, GameEntry );
+	write32( DI_SIMM, GameEntry );
+	sync_after_write((void*)DI_BASE, 0x60);
 }
 
 s32 Check_Cheats()

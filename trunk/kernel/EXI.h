@@ -69,6 +69,10 @@ enum EXICommands {
 #define SIZE_TO_Mb							(1024 * 8 * 16)
 #define MC_HDR_SIZE							0xA000
 
+#define		EXI_BASE	0x13026800
+
+#define		EXI_CMD_0	(EXI_BASE+0x00)
+#define		EXI_CMD_1	(EXI_BASE+0x04)
 
 #define EXI_READ			0
 #define EXI_WRITE			1

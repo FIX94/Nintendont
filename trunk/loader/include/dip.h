@@ -50,7 +50,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define		DI_SIMM		(*(vu32*)(DI_SHADOW+0x20))
 #define		DI_SCONFIG	(*(vu32*)(DI_SHADOW+0x24))
 
-int DVDLowRead( void *ptr, u32 len, u32 offset );
+#define		DIP_BASE	0xCD806000
+
+#define		DIP_STATUS	(DIP_BASE+0x00)
+#define		DIP_COVER	(DIP_BASE+0x04)
+#define		DIP_CMD_0	(DIP_BASE+0x08)
+#define		DIP_CMD_1	(DIP_BASE+0x0C)
+#define		DIP_CMD_2	(DIP_BASE+0x10)
+#define		DIP_DMA_ADR	(DIP_BASE+0x14)
+#define		DIP_DMA_LEN	(DIP_BASE+0x18)
+#define		DIP_CONTROL	(DIP_BASE+0x1C)
+#define		DIP_IMM		(DIP_BASE+0x20)
+#define		DIP_CONFIG	(DIP_BASE+0x24)
+
+#define		DIP_CMD_NORMAL	0xA8
+#define		DIP_CMD_DVDR	0xD0
+
+void ReadRealDisc(u8 *Buffer, u32 Offset, u32 Length, u32 Command);
 void DVDStartCache(void);
 
 #endif

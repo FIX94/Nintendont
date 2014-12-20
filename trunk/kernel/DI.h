@@ -43,10 +43,13 @@
 #define		DIP_IMM		(DIP_BASE+0x20)
 #define		DIP_CONFIG	(DIP_BASE+0x24)
 
+#define		DIP_CMD_NORMAL	0xA8
+#define		DIP_CMD_DVDR	0xD0
+
 #define		DMA_READ		3
 #define		IMM_READ		1
 
-enum GameRegion 
+enum GameRegion
 {
 	JAP=0,
 	USA,
@@ -71,6 +74,8 @@ void DIRegister(void);
 void DIUnregister(void);
 void DIFinishAsync(void);
 u32 DIReadThread(void *arg);
+bool DiscCheckAsync( void );
+void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode);
 bool DIChangeDisc( u32 DiscNumber );
 void DIUpdateRegisters( void );
 void DIReload(void);

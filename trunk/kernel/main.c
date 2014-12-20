@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define DI_STACK_SIZE 0x400
 //#undef DEBUG
 
+u32 RealDiscCMD = 0;
 u32 USBReadTimer = 0;
 extern u32 s_size;
 extern u32 s_cnt;
@@ -73,6 +74,13 @@ int _main( int argc, char *argv[] )
 	thread_set_priority( 0, 0x79 );	// do not remove this, this waits for FS to be ready!
 	thread_set_priority( 0, 0x50 );
 	thread_set_priority( 0, 0x79 );
+
+	if(memcmp(ConfigGetGamePath(), "NORMAL", 7) == 0)
+		RealDiscCMD = DIP_CMD_NORMAL;
+	else if(memcmp(ConfigGetGamePath(), "DVDR", 5) == 0)
+		RealDiscCMD = DIP_CMD_DVDR;
+	else
+		RealDiscCMD = 0;
 
 	//MessageQueue = ES_Init( MessageHeap );
 	ES_Init( MessageHeap );
@@ -250,7 +258,9 @@ int _main( int argc, char *argv[] )
 		clear32(HW_GPIO_DIR, GPIO_SLOT_LED);
 		clear32(HW_GPIO_OWNER, GPIO_SLOT_LED);
 	}
+
 	EnableAHBProt(-1); //disable AHBPROT
+	u32 ori_widesetting = read32(0xd8006a0);
 	if(IsWiiU)
 	{
 		if( ConfigGetConfig(NIN_CFG_WIIU_WIDE) )
@@ -286,9 +296,10 @@ int _main( int argc, char *argv[] )
 		}
 		if(DI_IRQ == true)
 		{
-			udelay(200); //let the driver load data
-			if(DI_CallbackMsg.result == 0)
+			if(DiscCheckAsync())
 				DIInterrupt();
+			else
+				udelay(200); //let the driver load data
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
 		{
@@ -352,12 +363,12 @@ int _main( int argc, char *argv[] )
 		if (PatchSI)
 		{
 			SIUpdateRegisters();
-			if (read32(DIP_IMM) == 0x1DEA)
+			if (read32(DI_SIMM) == 0x1DEA)
 			{
 				DIFinishAsync();
 				break;
 			}
-			if (read32(DIP_IMM) == 0x3DEA)
+			if (read32(DI_SIMM) == 0x3DEA)
 			{
 				if (Reset == 0)
 				{
@@ -379,12 +390,13 @@ int _main( int argc, char *argv[] )
 				if (TimerDiffTicks(ResetTimer) > 949219) //free after half a second
 				{
 					write32(EXI2DATA, 0); // done, clear
-					write32(DIP_IMM, 0);
+					write32(DI_SIMM, 0);
+					sync_after_write( (void*)DI_BASE, 0x60 );
 					Reset = 0;
 				}
 			}
 		}
-		if(read32(DIP_IMM) == 0x4DEA)
+		if(read32(DI_SIMM) == 0x4DEA)
 			PatchGame();
 		CheckPatchPrs();
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
@@ -419,11 +431,13 @@ int _main( int argc, char *argv[] )
 	thread_cancel(DI_Thread, 0);
 	DIUnregister();
 
-	write32( DIP_IMM, 0 );
+	write32( DI_SIMM, 0 );
+	sync_after_write( (void*)DI_BASE, 0x60 );
 	/* reset time */
 	while(1)
 	{
-		if(read32(DIP_IMM) == 0x2DEA)
+		sync_before_read( (void*)DI_BASE, 0x60 );
+		if(read32(DI_SIMM) == 0x2DEA)
 			break;
 		wait_for_ppc(1);
 	}
@@ -453,6 +467,12 @@ int _main( int argc, char *argv[] )
 
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);
+
+	if(IsWiiU)
+	{
+		write32(0xd8006a0, ori_widesetting);
+		mask32(0xd8006a8, 0, 2);
+	}
 
 	IOSBoot((char*)0x13003020, 0, read32(0x13003000));
 	return 0;
