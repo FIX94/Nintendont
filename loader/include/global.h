@@ -72,6 +72,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define ALIGNED(x) __attribute__((aligned(x)))
 
+#define ALIGN_FORWARD(x,align) \
+	((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
+
+#define ALIGN_BACKWARD(x,align) \
+	((typeof(x))(((u32)(x)) & (~(align-1))))
+
 extern bool UseSD;
 extern u32 Region;
 extern u32 POffset;

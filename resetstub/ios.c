@@ -314,14 +314,14 @@ ios_ioctlvreboot(int fd, u32 n, u32 in_count, u32 out_count, struct ioctlv *vec)
 }
 
 #include "usbgecko.h"
-static vu32* reset = (u32*)0xCD806020;
+static vu32* DI_SIMM = (u32*)0xD3026050;
 void ios_reload(void)
 {
 	usbgecko_printf("waiting for reset\n");
 	*(volatile unsigned int*)0x80003140 = 0;//wait for right ios version
 	sync_after_write( (void*)0x80003140, 0x20 );
-	/* reset status 2 */
-	*reset = 0x2DEA;
+	/* DI_SIMM status 2 */
+	*DI_SIMM = 0x2DEA;
 	while(((*(volatile unsigned int*)0x80003140) >> 16) != 58)
 	{
 		ios_delay();

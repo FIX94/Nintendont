@@ -30,9 +30,9 @@ u32 StreamCurrent = 0;
 u32 StreamLoop = 0;
 
 u8 *StreamBuffer = (u8*)0x132A0000;
-#define UPDATE_STREAM DIP_DMA_ADR
+#define UPDATE_STREAM EXI2MAR
 #define REAL_STREAMING (UPDATE_STREAM+2)
-#define AI_ADP_LOC DIP_DMA_LEN
+#define AI_ADP_LOC EXI2LENGTH
 
 #define BUFSIZE 0xC400
 #define CHUNK_48 0x3800
@@ -163,7 +163,7 @@ void StreamUpdateRegisters()
 		}
 		else if(StreamCurrent > 0)
 		{
-			IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+			DiscReadSync((u32)StreamBuffer, StreamCurrent, StreamGetChunkSize(), 1);
 			StreamCurrent += StreamGetChunkSize();
 			if(StreamCurrent >= StreamEndOffset) //terrible loop but it works
 			{
@@ -193,12 +193,12 @@ void StreamStartStream(u32 CurrentStart, u32 CurrentSize)
 		StreamCurrent = StreamStart;
 		StreamEndOffset = StreamStart + StreamSize;
 		StreamPrepare(true); //TODO: find a game which doesnt need resampling
-		IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+		DiscReadSync((u32)StreamBuffer, StreamCurrent, StreamGetChunkSize(), 1);
 		StreamCurrent += StreamGetChunkSize();
 		cur_buf = buf1; //reset adp buffer
 		StreamUpdate();
 		/* Directly read in the second buffer */
-		IOS_Ioctl(DI_Handle, 1, (void*)StreamCurrent, 0, (void*)StreamBuffer, StreamGetChunkSize());
+		DiscReadSync((u32)StreamBuffer, StreamCurrent, StreamGetChunkSize(), 1);
 		StreamCurrent += StreamGetChunkSize();
 		StreamUpdate();
 		/* Send stream signal to PPC */

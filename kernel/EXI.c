@@ -65,10 +65,9 @@ void EXIInit( void )
 {
 	dbgprintf("EXIInit Start\r\n");
 	u32 i, wrote, ret;
-	
-	write32( DIP_CMD_1, 0 );
-	write32( DIP_CMD_2, 0 );
-	write32( DIP_IMM, 0 );
+
+	memset32((void*)EXI_BASE, 0, 0x20);
+	sync_after_write((void*)EXI_BASE, 0x20);
 
 	write32( EXI2CSR, 0 );
 	write32( EXI2CR, 0 );
@@ -413,8 +412,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 					{
 						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
 						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
-						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;							
-						
+						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
 #ifdef DEBUG_EXI
 						dbgprintf("EXI: CARDReadPage(%08X)\r\n", BlockOff );
 #endif
@@ -463,19 +461,19 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 			{
 				if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 				{
-					write32( 0x0D806010, ConfigGetMemcardCode() );
+					write32( EXI_CMD_1, ConfigGetMemcardCode() );
 				} else {
-					write32( 0x0D806010, 0x00000000 ); //no memory card
+					write32( EXI_CMD_1, 0x00000000 ); //no memory card
 				}
 #ifdef DEBUG_EXI
-				dbgprintf("EXI: CARDReadID(%X)\r\n", read32(0x0D806010) );
+				dbgprintf("EXI: CARDReadID(%X)\r\n", read32(EXI_CMD_1) );
 #endif
 			} break;
 			case MEM_READ_STATUS:
 			{
-				write32( 0x0D806010, 0x41 );	// Unlocked(0x40) and Ready(0x01)
+				write32( EXI_CMD_1, 0x41 );	// Unlocked(0x40) and Ready(0x01)
 #ifdef DEBUG_EXI
-				dbgprintf("EXI: CARDReadStatus(%X)\r\n", read32(0x0D806010) );
+				dbgprintf("EXI: CARDReadStatus(%X)\r\n", read32(EXI_CMD_1) );
 #endif
 			} break;
 			case MEM_BLOCK_READ:
@@ -495,7 +493,8 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 		}
 	}
 	//dbgprintf("%08x %08x %08x %08x\r\n", (u32)Data >> 16, Mode, Length, EXICommand);
-	write32( 0x0D80600C, 0 ); //exit EXIDMA / EXIImm
+	write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
+	sync_after_write( (void*)EXI_BASE, 0x20 );
 
 	if( EXIOK == 2 )
 	{
@@ -504,6 +503,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 	}
 	return 1;
 }
+
 u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 {
 	if( Mode == 1 )		// Write
@@ -582,8 +582,8 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 		}
 	}
 
-	write32( 0x0D80600C, 0 );
-
+	write32( EXI_CMD_0, 0 );
+	sync_after_write( (void*)EXI_BASE, 0x20 );
 	return 1;
 }
 u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
@@ -683,28 +683,28 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 			/* 0x01 */
 			case AMBB_BACKUP_OFFSET:
 			{
-				write32( 0x0D806010, 0x01 );
+				write32( EXI_CMD_1, 0x01 );
 			} break;
 			/* 0x03 */
 			case AMBB_BACKUP_READ:
 			{
-				write32( 0x0D806010, 0x0100 | MCard[TRIBackupOffset] );
+				write32( EXI_CMD_1, 0x0100 | MCard[TRIBackupOffset] );
 			} break;
 			/* 0x87 */
 			case AMBB_IMR_WRITE:
 			/* 0x83 */
 			case AMBB_UNKNOWN:
 			{
-				write32( 0x0D806010, 0x04 );
+				write32( EXI_CMD_1, 0x04 );
 			} break;
 			/* 0x82 */
 			case AMBB_ISR_READ:
 			{
 				if( Length == 1 )
 				{
-					write32( 0x0D806010, 0x04 );
+					write32( EXI_CMD_1, 0x04 );
 				} else {
-					write32( 0x0D806010, EXI2IRQStatus );
+					write32( EXI_CMD_1, EXI2IRQStatus );
 					EXI2IRQ = 0;
 				}
 			} break;
@@ -713,9 +713,9 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 			{
 				if( Length == 1 )
 				{
-					write32( 0x0D806010, 0x04 );
+					write32( EXI_CMD_1, 0x04 );
 				} else {
-					write32( 0x0D806010, 0x0000 );
+					write32( EXI_CMD_1, 0x0000 );
 				}
 			} break;
 			/* 0xFF */
@@ -725,16 +725,17 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 				{
 					EXIOK = 2;
 				}
-				write32( 0x0D806010, 0x04 );
+				write32( EXI_CMD_1, 0x04 );
 			} break;
 			case MEM_READ_ID:
 			{
-				write32( 0x0D806010, EXI_DEVTYPE_BASEBOARD );
+				write32( EXI_CMD_1, EXI_DEVTYPE_BASEBOARD );
 			} break;
 		}
 	}
 
-	write32( 0x0D80600C, 0 );
+	write32( EXI_CMD_0, 0 );
+	sync_after_write((void*)EXI_BASE, 0x20);
 
 	if( EXIOK == 2 )
 	{
@@ -752,9 +753,9 @@ void EXIUpdateRegistersNEW( void )
 	//uu32 chn, dev, frq, ret, data, len, mode;
 	u32 chn, dev, ret, data, len, mode;
 	u8 *ptr;
-	
-	u32 command = read32(0x0D80600C);
-	
+	sync_before_read((void*)EXI_BASE, 0x20);
+	u32 command = read32(EXI_CMD_0);
+
 	if( command & 0xFF000000 )
 	{
 		switch( command >> 24 )
@@ -801,15 +802,14 @@ void EXIUpdateRegistersNEW( void )
 				}
 
 				EXICommand = 0;
-				
-				write32( 0x0D806010, ret );
-				write32( 0x0D80600C, 0 );
-
+				write32( EXI_CMD_0, 0 );
+				write32( EXI_CMD_1, ret );
+				sync_after_write((void*)EXI_BASE, 0x20);
 			} break;
 			case 0x11:	// EXI_Imm( s32 nChn, void *pData, u32 nLen, u32 nMode, EXICallback tc_cb );
 			{
 				chn	=	(command >> 20) & 0xF;
-				data=	read32(0x0D806010);
+				data=	read32(EXI_CMD_1);
 				len	=	command& 0xFFFF;
 				mode=	(command >> 16) & 0xF;
 
@@ -845,7 +845,7 @@ void EXIUpdateRegistersNEW( void )
 			case 0x12:	// EXIDMA
 			{
 				chn	=	(command >> 20) & 0xF;
-				ptr=	(u8*)P2C(read32(0x0D806010));
+				ptr=	(u8*)P2C(read32(EXI_CMD_1));
 				len	=	command& 0xFFFF;
 				mode=	(command >> 16) & 0xF;
 				

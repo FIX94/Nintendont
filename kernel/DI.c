@@ -60,6 +60,7 @@ static char GamePath[256] ALIGNED(32);
 extern const u8 *DiskDriveInfo;
 extern u32 Region;
 extern u32 FSTMode;
+extern u32 RealDiscCMD;
 
 u8 *DI_READ_BUFFER = (u8*)0x12E80000;
 u32 DI_READ_BUFFER_LENGTH = 0x80000;
@@ -75,6 +76,10 @@ u8 *MediaBuffer;
 u8 *NetworkCMDBuffer;
 u8 *DIMMMemory = (u8*)0x12B80000;
 
+//No Cache so lets take alot of memory
+u8 *DISC_DRIVE_BUFFER = (u8*)0x12000000;
+u32 DISC_DRIVE_BUFFER_LENGTH = 0x800000;
+
 void DIRegister(void)
 {
 	DI_MessageHeap = malloca(0x20, 0x20);
@@ -89,37 +94,141 @@ void DIUnregister(void)
 	free(DI_MessageHeap);
 	DI_MessageHeap = NULL;
 }
+vu32 WaitForWrite = 0, WaitForRead = 0;
+bool DiscCheckAsync( void )
+{
+	if(RealDiscCMD)
+	{
+		if(WaitForWrite == 1)
+		{
+			WaitForWrite = 0;
+			while(WaitForRead == 0)
+				udelay(20);
+		}
+		if(WaitForRead == 1 && (read32(DIP_CONTROL) & 1) == 0)
+			WaitForRead = 0;
+	}
+	return (DI_CallbackMsg.result == 0);
+}
+
+static void DiscReadAsync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
+{
+	DI_CallbackMsg.result = -1;
+	sync_after_write(&DI_CallbackMsg, 0x20);
+	IOS_IoctlAsync( DI_Handle, Mode, (void*)Offset, 0, (void*)Buffer, Length, DI_MessageQueue, &DI_CallbackMsg );
+}
+
+void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
+{
+	//if something is still running
+	while(DiscCheckAsync() == false)
+	{
+		udelay(20);
+		CheckOSReport();
+	}
+	DiscReadAsync(Buffer, Offset, Length, Mode);
+	while(DiscCheckAsync() == false)
+	{
+		udelay(20);
+		CheckOSReport();
+	}
+}
+
+u8 *ReadRealDisc(u32 *Length, u32 Offset)
+{
+	//dbgprintf("ReadRealDisc(%08x %08x)\r\n", *Length, Offset);
+	WaitForWrite = 1;
+	while(WaitForWrite == 1)
+		udelay(20);
+
+	if (ConfigGetConfig(NIN_CFG_LED))
+		set32(HW_GPIO_OUT, GPIO_SLOT_LED);	//turn on drive light
+
+	u32 ReadDiff = 0;
+	if(RealDiscCMD == DIP_CMD_DVDR)
+	{
+		ReadDiff = Offset - ALIGN_BACKWARD(Offset,0x800);
+		//dbgprintf("ReadDiff: %08x\r\n", ReadDiff);
+	}
+	if (*Length > DISC_DRIVE_BUFFER_LENGTH - ReadDiff)
+	{
+		*Length = DISC_DRIVE_BUFFER_LENGTH - ReadDiff;
+		//dbgprintf("New Length: %08x\r\n", *Length);
+	}
+	u32 TmpLen = *Length;
+	if(RealDiscCMD == DIP_CMD_DVDR)
+		TmpLen = ALIGN_FORWARD(TmpLen,0x800);
+
+	write32(DIP_STATUS, 0x54); //mask and clear interrupts
+
+	//Actually read
+	write32(DIP_CMD_0, RealDiscCMD << 24);
+	write32(DIP_CMD_1, RealDiscCMD == DIP_CMD_DVDR ? ALIGN_BACKWARD(Offset,0x800) >> 11 : Offset >> 2);
+	write32(DIP_CMD_2, RealDiscCMD == DIP_CMD_DVDR ? TmpLen >> 11 : TmpLen);
+
+	//dbgprintf("Read %08x %08x\r\n", read32(DIP_CMD_1), read32(DIP_CMD_2));
+	sync_before_read(DISC_DRIVE_BUFFER, TmpLen);
+	_ahbMemFlush(9);
+
+	write32(DIP_DMA_ADR, (u32)DISC_DRIVE_BUFFER);
+	write32(DIP_DMA_LEN, TmpLen);
+
+	write32( DIP_CONTROL, 3 );
+	udelay(70);
+
+	WaitForRead = 1;
+	while(WaitForRead == 1)
+		udelay(200);
+
+	if (ConfigGetConfig(NIN_CFG_LED))
+		clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
+
+	return (DISC_DRIVE_BUFFER + ReadDiff);
+}
 
 void DIinit( bool FirstTime )
 {
+	u8 TmpBuffer[32] __attribute__((aligned(32)));
 	//This debug statement seems to cause crashing.
 	//dbgprintf("DIInit()\r\n");
 
 	if(DI_Handle >= 0) //closes old file
 		IOS_Close(DI_Handle);
 	DI_Handle = IOS_Open( "/dev/di", 0 );
-
+	if(RealDiscCMD)
+	{
+		DiscReadSync((u32)TmpBuffer, 0, 0x20, 0);
+		memcpy((void*)0x0, TmpBuffer, 0x20);
+		sync_after_write((void*)0x0, 0x20);
+		DiscReadSync((u32)TmpBuffer, 0x440, 0x20, 0);
+		memcpy(&Region, TmpBuffer+0x18, sizeof(u32));
+	}
 	if (FirstTime)
 	{
-		// Move this to ISO.c?
-		u32 i;
-		char TempDiscName[256];
-		_sprintf(TempDiscName, "%s", ConfigGetGamePath());
+		if(RealDiscCMD == 0)
+		{
+			// Move this to ISO.c?
+			u32 i;
+			char TempDiscName[256];
+			_sprintf(TempDiscName, "%s", ConfigGetGamePath());
 
-		//search the string backwards for '/'
-		for( i=strlen(TempDiscName); i > 0; --i )
-			if( TempDiscName[i] == '/' )
-				break;
-		i++;
+			//search the string backwards for '/'
+			for( i=strlen(TempDiscName); i > 0; --i )
+				if( TempDiscName[i] == '/' )
+					break;
+			i++;
 
-		_sprintf(TempDiscName+i, "disc2.iso");
-		FIL ExistsFile;
-		s32 ret = f_open(&ExistsFile, TempDiscName, FA_READ);
-		if (ret != FR_OK)
-			MultipleDiscs = false;
-		else
-			f_close(&ExistsFile);
+			_sprintf(TempDiscName+i, "disc2.iso");
+			FIL ExistsFile;
+			s32 ret = f_open(&ExistsFile, TempDiscName, FA_READ);
+			if (ret != FR_OK)
+				MultipleDiscs = false;
+			else
+				f_close(&ExistsFile);
 
+			write32( DIP_STATUS, 0x7E ); //clear interrupts and reset
+			write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
+		}
 		GCAMKeyA = read32(0);
 		GCAMKeyB = read32(4);
 		GCAMKeyC = read32(8);
@@ -134,10 +243,6 @@ void DIinit( bool FirstTime )
 		memset32( (void*)DI_SHADOW, 0, 0x30 );
 
 		sync_after_write( (void*)DI_BASE, 0x60 );
-
-		write32( DIP_IMM, 0 ); //reset errors
-		write32( DIP_STATUS, 0x2E );
-		write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
 	}
 }
 bool DIChangeDisc( u32 DiscNumber )
@@ -173,7 +278,17 @@ void DIInterrupt()
 	write32( DI_DMA_LEN, 0 ); // all data handled, clear length
 	write32( DI_CONTROL, 0 ); // finished command
 	sync_after_write( (void*)DI_BASE, 0x60 );
+	//dbgprintf("Disc Interrupt\r\n");
+
+	if(RealDiscCMD)
+	{
+		write32( DIP_STATUS, 0x7E ); //clear interrupts and reset
+		write32( DIP_CMD_0, 0xE0000000 ); //spam request error
+		udelay(70);
+	}
 	write32( DIP_CONTROL, 1 ); //start transfer, causes an interrupt, game gets its data
+	while( read32(DIP_CONTROL) & 1 )
+		udelay(70);
 }
 
 static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
@@ -233,6 +348,7 @@ static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
 		memcpy( (void*)Buffer, NetworkCMDBuffer + roffset, Length );
 	}
 }
+
 void DIUpdateRegisters( void )
 {
 	if(DI_IRQ == true)
@@ -320,6 +436,7 @@ void DIUpdateRegisters( void )
 				} break;
 				case 0xE1:	// play Audio Stream
 				{
+					//dbgprintf("DIP:DVDAudioStream(%d)\n", (read32(DI_SCMD_0) >> 16 ) & 0xFF );
 					switch( (read32(DI_SCMD_0) >> 16) & 0xFF )
 					{
 						case 0x00:
@@ -331,7 +448,6 @@ void DIUpdateRegisters( void )
 						default:
 							break;
 					}
-					//dbgprintf("DIP:DVDAudioStream(%d)\n", (read32(DI_SCMD_0) >> 16 ) & 0xFF );
 					DIOK = 2;
 				} break;
 				case 0xE2:	// request Audio Status
@@ -506,7 +622,7 @@ void DIUpdateRegisters( void )
 						memset32( MediaBuffer + 0x20, 0, 0x20 );
 						write32( DI_IMM, 0x66556677 );
 					}
-					else if(FSTMode == 0)
+					else if(FSTMode == 0 && RealDiscCMD == 0)
 					{
 						u32 Offset = read32(DI_SCMD_1) << 2;
 						//dbgprintf("DIP:DVDLowSeek( 0x%08X )\r\n", Offset);
@@ -565,9 +681,7 @@ void DIUpdateRegisters( void )
 						} else*/
 						if( Buffer < 0x01800000 )
 						{
-							DI_CallbackMsg.result = -1;
-							sync_after_write(&DI_CallbackMsg, 0x20);
-							IOS_IoctlAsync( DI_Handle, 0, (void*)Offset, 0, (void*)Buffer, Length, DI_MessageQueue, &DI_CallbackMsg );
+							DiscReadAsync(Buffer, Offset, Length, 0);
 							DIOK = 2;
 						}
 					}
@@ -578,15 +692,7 @@ void DIUpdateRegisters( void )
 					u32 Length	= read32(DI_SCMD_2);
 					u32 Offset	= read32(DI_SCMD_1) << 2;
 
-					DI_CallbackMsg.result = -1;
-					sync_after_write(&DI_CallbackMsg, 0x20);
-					IOS_IoctlAsync( DI_Handle, 0, (void*)Offset, 0, (void*)Buffer, Length, DI_MessageQueue, &DI_CallbackMsg );
-
-					while(DI_CallbackMsg.result)
-					{
-						udelay(200);
-						CheckOSReport();
-					}
+					DiscReadSync(Buffer, Offset, Length, 0);
 					DIOK = 1;
 				} break;
 				case 0xF9:
@@ -629,25 +735,31 @@ u32 DIReadThread(void *arg)
 					mqueue_ack( di_msg, -6 );
 					break;
 				}
-				ISOClose();
-				if( ISOInit() == false )
+				if(RealDiscCMD == 0)
 				{
-					_sprintf( GamePath, "%s", ConfigGetGamePath() );
-					//Try to switch to FST mode
-					if( !FSTInit(GamePath) )
+					ISOClose();
+					if( ISOInit() == false )
 					{
-						//dbgprintf("Failed to open:%s Error:%u\r\n", ConfigGetGamePath(), ret );	
-						Shutdown();
+						_sprintf( GamePath, "%s", ConfigGetGamePath() );
+						//Try to switch to FST mode
+						if( !FSTInit(GamePath) )
+						{
+							//dbgprintf("Failed to open:%s Error:%u\r\n", ConfigGetGamePath(), ret );	
+							Shutdown();
+						}
 					}
 				}
 				mqueue_ack( di_msg, 24 );
 				break;
 
 			case IOS_CLOSE:
-				if( FSTMode )
-					FSTCleanup();
-				else
-					ISOClose();
+				if(RealDiscCMD == 0)
+				{
+					if( FSTMode )
+						FSTCleanup();
+					else
+						ISOClose();
+				}
 				mqueue_ack( di_msg, 0 );
 				break;
 
@@ -668,7 +780,9 @@ u32 DIReadThread(void *arg)
 				for (Offset = 0; Offset < di_length; Offset += Length)
 				{
 					Length = di_length - Offset;
-					if( FSTMode )
+					if( RealDiscCMD )
+						di_src = ReadRealDisc(&Length, di_offset + Offset);
+					else if( FSTMode )
 						di_src = FSTRead(GamePath, &Length, di_offset + Offset);
 					else
 						di_src = ISORead(&Length, di_offset + Offset);
@@ -676,10 +790,8 @@ u32 DIReadThread(void *arg)
 					memcpy( di_dest + Offset, di_src, Length > di_length ? di_length : Length );
 				}
 				if(di_msg->ioctl.command == 0)
-				{
 					DoPatches(di_dest, di_length, di_offset);
-					sync_after_write( di_dest, di_length );
-				}
+				sync_after_write( di_dest, di_length );
 				mqueue_ack( di_msg, 0 );
 				break;
 

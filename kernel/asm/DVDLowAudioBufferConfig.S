@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set	REAL_STREAMING,	0xCD806016
+.set	REAL_STREAMING,	0xCD80682E
 
 DVDLowAudioBufferConfig:
 	mtctr	%r5
