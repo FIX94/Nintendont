@@ -76,9 +76,11 @@ u8 *MediaBuffer;
 u8 *NetworkCMDBuffer;
 u8 *DIMMMemory = (u8*)0x12B80000;
 
-//No Cache so lets take alot of memory
-u8 *DISC_DRIVE_BUFFER = (u8*)0x12000000;
-u32 DISC_DRIVE_BUFFER_LENGTH = 0x800000;
+//No ISO Cache so lets take alot of memory
+u8 *DISC_FRONT_CACHE = (u8*)0x12000000;
+u8 *DISC_DRIVE_BUFFER = (u8*)0x12000800;
+u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
+u8 *DISC_TMP_CACHE = (u8*)0x127FF800;
 
 void DIRegister(void)
 {
@@ -133,10 +135,29 @@ void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 		CheckOSReport();
 	}
 }
-
+static u32 DVD_OFFSET = UINT_MAX;
 u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 {
 	//dbgprintf("ReadRealDisc(%08x %08x)\r\n", *Length, Offset);
+
+	u32 CachedBlockStart = 0;
+	u32 ReadDiff = 0;
+	if(RealDiscCMD == DIP_CMD_DVDR)
+	{
+		u32 AlignedOffset = ALIGN_BACKWARD(Offset, 0x800);
+		ReadDiff = Offset - AlignedOffset;
+		if(AlignedOffset == DVD_OFFSET)
+		{
+			sync_before_read(DISC_TMP_CACHE, 0x800);
+			//dbgprintf("Using cached offset %08x\r\n", DVD_OFFSET>>11);
+			memcpy(DISC_FRONT_CACHE, DISC_TMP_CACHE, 0x800);
+			CachedBlockStart = 0x800;
+			u32 AlignedLength = ALIGN_FORWARD(*Length + ReadDiff, 0x800);
+			if( AlignedLength > 0 && AlignedLength == CachedBlockStart )
+				return (DISC_FRONT_CACHE + ReadDiff);
+		}
+		//dbgprintf("ReadDiff: %08x\r\n", ReadDiff);
+	}
 	if(NeedSync)
 	{
 		WaitForWrite = 1;
@@ -146,32 +167,28 @@ u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 	if (ConfigGetConfig(NIN_CFG_LED))
 		set32(HW_GPIO_OUT, GPIO_SLOT_LED);	//turn on drive light
 
-	u32 ReadDiff = 0;
-	if(RealDiscCMD == DIP_CMD_DVDR)
-	{
-		ReadDiff = Offset - ALIGN_BACKWARD(Offset,0x800);
-		//dbgprintf("ReadDiff: %08x\r\n", ReadDiff);
-	}
 	if (*Length > DISC_DRIVE_BUFFER_LENGTH - ReadDiff)
 	{
 		*Length = DISC_DRIVE_BUFFER_LENGTH - ReadDiff;
 		//dbgprintf("New Length: %08x\r\n", *Length);
 	}
 	u32 TmpLen = *Length;
+	u32 TmpOffset = Offset;
 	if(RealDiscCMD == DIP_CMD_DVDR)
-		TmpLen = ALIGN_FORWARD(TmpLen,0x800);
+	{
+		TmpLen = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800) - CachedBlockStart;
+		TmpOffset = ALIGN_BACKWARD(Offset, 0x800) + CachedBlockStart;
+	}
 
 	write32(DIP_STATUS, 0x54); //mask and clear interrupts
 
 	//Actually read
 	write32(DIP_CMD_0, RealDiscCMD << 24);
-	write32(DIP_CMD_1, RealDiscCMD == DIP_CMD_DVDR ? ALIGN_BACKWARD(Offset,0x800) >> 11 : Offset >> 2);
+	write32(DIP_CMD_1, RealDiscCMD == DIP_CMD_DVDR ? TmpOffset >> 11 : TmpOffset >> 2);
 	write32(DIP_CMD_2, RealDiscCMD == DIP_CMD_DVDR ? TmpLen >> 11 : TmpLen);
 
 	//dbgprintf("Read %08x %08x\r\n", read32(DIP_CMD_1), read32(DIP_CMD_2));
 	sync_before_read(DISC_DRIVE_BUFFER, TmpLen);
-	_ahbMemFlush(9);
-
 	write32(DIP_DMA_ADR, (u32)DISC_DRIVE_BUFFER);
 	write32(DIP_DMA_LEN, TmpLen);
 
@@ -193,7 +210,17 @@ u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 	if (ConfigGetConfig(NIN_CFG_LED))
 		clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
 
-	return (DISC_DRIVE_BUFFER + ReadDiff);
+	if(RealDiscCMD == DIP_CMD_DVDR)
+	{
+		u32 LastBlockStart = (read32(DIP_CMD_2) - 1) << 11;
+		DVD_OFFSET = (read32(DIP_CMD_1) << 11) + LastBlockStart;
+		memcpy(DISC_TMP_CACHE, DISC_DRIVE_BUFFER + LastBlockStart, 0x800);
+		sync_after_write(DISC_TMP_CACHE, 0x800);
+		if(CachedBlockStart)
+			return (DISC_FRONT_CACHE + ReadDiff);
+	}
+
+	return DISC_DRIVE_BUFFER + ReadDiff;
 }
 
 void DIinit( bool FirstTime )
@@ -204,15 +231,7 @@ void DIinit( bool FirstTime )
 
 	if(DI_Handle >= 0) //closes old file
 		IOS_Close(DI_Handle);
-	DI_Handle = IOS_Open( "/dev/di", 0 );
-	if(RealDiscCMD)
-	{
-		DiscReadSync((u32)TmpBuffer, 0, 0x20, 0);
-		memcpy((void*)0x0, TmpBuffer, 0x20);
-		sync_after_write((void*)0x0, 0x20);
-		DiscReadSync((u32)TmpBuffer, 0x440, 0x20, 0);
-		memcpy(&Region, TmpBuffer+0x18, sizeof(u32));
-	}
+
 	if (FirstTime)
 	{
 		if(RealDiscCMD == 0)
@@ -239,10 +258,6 @@ void DIinit( bool FirstTime )
 			write32( DIP_STATUS, 0x7E ); //clear interrupts and reset
 			write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
 		}
-		GCAMKeyA = read32(0);
-		GCAMKeyB = read32(4);
-		GCAMKeyC = read32(8);
-
 		MediaBuffer = (u8*)malloc( 0x40 );
 		memset32( MediaBuffer, 0, 0x40 );
 
@@ -254,7 +269,21 @@ void DIinit( bool FirstTime )
 
 		sync_after_write( (void*)DI_BASE, 0x60 );
 	}
+	DI_Handle = IOS_Open( "/dev/di", 0 );
+	if(RealDiscCMD)
+	{
+		DiscReadSync((u32)TmpBuffer, 0, 0x20, 0);
+		memcpy((void*)0x0, TmpBuffer, 0x20);
+		sync_after_write((void*)0x0, 0x20);
+		DiscReadSync((u32)TmpBuffer, 0x440, 0x20, 0);
+		memcpy(&Region, TmpBuffer+0x18, sizeof(u32));
+	}
+
+	GCAMKeyA = read32(0);
+	GCAMKeyB = read32(4);
+	GCAMKeyC = read32(8);
 }
+
 bool DIChangeDisc( u32 DiscNumber )
 {
 	if (!MultipleDiscs)
