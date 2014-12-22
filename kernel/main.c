@@ -273,6 +273,10 @@ int _main( int argc, char *argv[] )
 		clear32(HW_GPIO_DIR, GPIO_SLOT_LED);
 		clear32(HW_GPIO_OWNER, GPIO_SLOT_LED);
 	}
+	set32(HW_GPIO_ENABLE, GPIO_SENSOR_BAR);
+	clear32(HW_GPIO_DIR, GPIO_SENSOR_BAR);
+	clear32(HW_GPIO_OWNER, GPIO_SENSOR_BAR);
+	set32(HW_GPIO_OUT, GPIO_SENSOR_BAR);	//turn on sensor bar
 
 	EnableAHBProt(-1); //disable AHBPROT
 	u32 ori_widesetting = read32(0xd8006a0);

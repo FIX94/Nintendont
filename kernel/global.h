@@ -161,6 +161,7 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define GPIO_POWER		(1<<0)
 #define GPIO_SHUTDOWN	(1<<1)
 #define GPIO_SLOT_LED	(1<<5)
+#define GPIO_SENSOR_BAR (1<<8)
 #define P2C(x)			((x)&0x7FFFFFFF)
 
 enum Gameregion

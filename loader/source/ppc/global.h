@@ -44,6 +44,9 @@ struct BTPadCont {
 	u32 button;
 	u8 triggerL;
 	u8 triggerR;
+	s16 xAccel;
+	s16 yAccel;
+	s16 zAccel;
 } __attribute__((aligned(32)));
 
 #define PAD_BUTTON_LEFT         0x0001
@@ -76,7 +79,18 @@ struct BTPadCont {
 #define BT_DPAD_DOWN            0x4000
 #define BT_DPAD_RIGHT           0x8000
 
-//is normally 0x10, pushed into cc buttons
-#define WM_BUTTON_MINUS         0x0100
+#define WM_BUTTON_TWO			0x0001
+#define WM_BUTTON_ONE			0x0002
+#define WM_BUTTON_B				0x0004
+#define WM_BUTTON_A				0x0008
+#define WM_BUTTON_MINUS			0x0010
+#define NUN_BUTTON_Z			0x0020 
+#define NUN_BUTTON_C			0x0040
+#define WM_BUTTON_HOME			0x0080
+#define WM_BUTTON_LEFT			0x0100
+#define WM_BUTTON_RIGHT			0x0200
+#define WM_BUTTON_DOWN			0x0400
+#define WM_BUTTON_UP			0x0800
+#define WM_BUTTON_PLUS			0x1000
 
 #endif

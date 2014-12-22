@@ -63,6 +63,8 @@ MEM2
 0x93200000=Cache FST Buffer
 0x93280000-0x932B3000=audio stream buffers
 0x932C0000-0x932C0482=conf_pads
+0x932C0490-0x932C0494=IRSensitivity
+0x932C0494-0x932C0498=SensorBarPosition
 0x932F0000-0x932F008F=BTPad
 
 Hardware Registers
