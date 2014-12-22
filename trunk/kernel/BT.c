@@ -45,6 +45,9 @@ struct BTPadCont *BTPad = (struct BTPadCont*)0x132F0000;
 static vu32* BTMotor = (u32*)0x13002720;
 static vu32* BTPadFree = (u32*)0x13002730;
 
+static vu32* IRSensitivity = (u32*)0x132C0490;
+static vu32* SensorBarPosition = (u32*)0x132C0494;
+
 u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 
 #define CHAN_NOT_SET 4
@@ -54,14 +57,27 @@ u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 #define TRANSFER_EXT2 2
 #define TRANSFER_SET_IDENT 3
 #define TRANSFER_GET_IDENT 4
-#define TRANSFER_CALIBRATE 5
-#define TRANSFER_DONE 6
+#define TRANSFER_ENABLE_IR_PIXEL_CLOCK 5
+#define TRANSFER_ENABLE_IR_LOGIC 6
+#define TRANSFER_WRITE_IR_REG30_1 7
+#define TRANSFER_WRITE_IR_SENSITIVITY_BLOCK_1 8
+#define TRANSFER_WRITE_IR_SENSITIVITY_BLOCK_2 9
+#define TRANSFER_WRITE_IR_MODE 10
+#define TRANSFER_WRITE_IR_REG30_8 11
+#define TRANSFER_CALIBRATE 12
+#define TRANSFER_DONE 13
 
 #define C_NOT_SET	(0<<0)
 #define C_CCP		(1<<0)
 #define C_CC		(1<<1)
 #define C_SWAP		(1<<2)
 #define C_RUMBLE_WM	(1<<3)
+#define C_NUN		(1<<4)
+#define C_NSWAP1	(1<<5)
+#define C_NSWAP2	(1<<6)
+#define C_NSWAP3	(1<<7)
+#define C_ISWAP		(1<<8)
+#define C_TestSWAP	(1<<9)
 
 const s8 DEADZONE = 0x1A;
 
@@ -114,8 +130,8 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		if(stat->transferstate == TRANSFER_CALIBRATE)
 		{
 			stat->xAxisLmid = *((u8*)buffer+3)&0x3F;
-			stat->xAxisRmid = ((*((u8*)buffer+5)&0x80)>>7) | ((*((u8*)buffer+4)&0xC0)>>5) | ((*((u8*)buffer+3)&0xC0)>>3);
 			stat->yAxisLmid = *((u8*)buffer+4)&0x3F;
+			stat->xAxisRmid = ((*((u8*)buffer+5)&0x80)>>7) | ((*((u8*)buffer+4)&0xC0)>>5) | ((*((u8*)buffer+3)&0xC0)>>3);
 			stat->yAxisRmid = *((u8*)buffer+5)&0x1F;
 			stat->transferstate = TRANSFER_DONE;
 			sync_after_write(arg, sizeof(struct BTPadStat));
@@ -124,6 +140,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		if(chan == CHAN_NOT_SET || stat->controller == C_NOT_SET)
 			return ERR_OK;
 		sync_before_read(&BTPad[chan], sizeof(struct BTPadCont));
+		
 		BTPad[chan].xAxisL = ((*((u8*)buffer+3)&0x3F) - stat->xAxisLmid) <<2;
 		BTPad[chan].xAxisR = ((((*((u8*)buffer+5)&0x80)>>7) | ((*((u8*)buffer+4)&0xC0)>>5) | ((*((u8*)buffer+3)&0xC0)>>3)) - stat->xAxisRmid) <<3;
 		BTPad[chan].yAxisL = ((*((u8*)buffer+4)&0x3F) - stat->yAxisLmid) <<2;
@@ -143,8 +160,9 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 			else
 				BTPad[chan].triggerR = 0;
 		}
+
 		u32 prevButton = BTPad[chan].button;
-		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+7))) | (*((u8*)buffer+2) & 0x10)<<4; //unused 0x100 for wiimote minus
+		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+7))) | (*((u8*)buffer+2) & 0x10)<<4; //unused 0x100 for wiimote button Minus
 		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
 		{
 			dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
@@ -152,13 +170,131 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
 		}
-		if((!(prevButton & WM_BUTTON_MINUS)) && BTPad[chan].button & WM_BUTTON_MINUS)
+		if((!(prevButton & (WM_BUTTON_MINUS << 4))) && BTPad[chan].button & (WM_BUTTON_MINUS << 4))	//wiimote button minus pressed leading edge
 		{
 			dbgprintf("%s rumble for wiimote\n", (stat->controller & C_RUMBLE_WM) ? "Disabling" : "Enabling");
 			stat->controller = (stat->controller & C_RUMBLE_WM) ? (stat->controller & ~C_RUMBLE_WM) : (stat->controller | C_RUMBLE_WM);
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
 		}
+		BTPad[chan].used = stat->controller;
+		sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
+	}
+	else if(*(u8*)buffer == 0x37)	//Core Buttons and Accelerometer with 10 IR bytes and 6 Extension Bytes report
+	{
+		if(stat->transferstate == TRANSFER_CALIBRATE)
+		{
+			stat->xAxisLmid = *(((u8*)buffer)+16);
+			stat->yAxisLmid = *(((u8*)buffer)+17);
+//			stat->xAxisRmid = 0;
+//			stat->yAxisRmid = 0;
+			stat->transferstate = TRANSFER_DONE;
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
+
+		if(chan == CHAN_NOT_SET || stat->controller == C_NOT_SET)
+			return ERR_OK;
+		sync_before_read(&BTPad[chan], sizeof(struct BTPadCont));
+
+		BTPad[chan].xAxisL = (*(((u8*)buffer)+16) - stat->xAxisLmid);
+		BTPad[chan].yAxisL = (*(((u8*)buffer)+17) - stat->yAxisLmid);
+		BTPad[chan].xAccel = (*(((u8*)buffer)+18) << 2) | ((*(((u8*)buffer)+21) & 0x0C) >> 2);
+		BTPad[chan].yAccel = (*(((u8*)buffer)+19) << 2) | ((*(((u8*)buffer)+21) & 0x30) >> 4);
+		BTPad[chan].zAccel = (*(((u8*)buffer)+20) << 2) | ((*(((u8*)buffer)+21) & 0xC0) >> 6);
+		
+		struct IRdot {
+			bool	has_data;
+			s32		x;
+			s32		y;
+		}IRdots[4];
+		struct IRdot temp_dot = {0,0,0};
+
+		IRdots[0].x = (u32)(*(((u8*)buffer)+6 )) | (((u32)(*(((u8*)buffer)+8 ) & 0x30)) << 4);
+		IRdots[0].y = (u32)(*(((u8*)buffer)+7 )) | (((u32)(*(((u8*)buffer)+8 ) & 0xC0)) << 2);
+		IRdots[1].x = (u32)(*(((u8*)buffer)+9 )) | (((u32)(*(((u8*)buffer)+8 ) & 0x03)) << 8);
+		IRdots[1].y = (u32)(*(((u8*)buffer)+10)) | (((u32)(*(((u8*)buffer)+8 ) & 0x0C)) << 6);
+		IRdots[2].x = (u32)(*(((u8*)buffer)+11)) | (((u32)(*(((u8*)buffer)+13) & 0x30)) << 4);
+		IRdots[2].y = (u32)(*(((u8*)buffer)+12)) | (((u32)(*(((u8*)buffer)+13) & 0xC0)) << 2);
+		IRdots[3].x = (u32)(*(((u8*)buffer)+14)) | (((u32)(*(((u8*)buffer)+13) & 0x03)) << 8);
+		IRdots[3].y = (u32)(*(((u8*)buffer)+15)) | (((u32)(*(((u8*)buffer)+13) & 0x0C)) << 6);
+		int dot;
+		int num_dots = 0;
+		for (dot = 0; dot < 4; dot++)
+		{
+			IRdots[dot].has_data = (IRdots[dot].x != 1023) && (IRdots[dot].y != 1023);
+			if (IRdots[dot].has_data)
+			{
+				num_dots ++;
+				temp_dot.x += IRdots[dot].x;
+				temp_dot.y += IRdots[dot].y;
+			}
+		}
+		if (num_dots == 2)
+		{
+			s32 SensorBarOffset = (*SensorBarPosition)? 128 : -128;
+
+			temp_dot.x =  (512 - (temp_dot.x / num_dots)) / 4;	//origanally 0-1024
+			BTPad[chan].xAxisR =  temp_dot.x;
+
+			BTPad[chan].yAxisR = ((384 - (temp_dot.y / num_dots)) * 2 / 3) + SensorBarOffset;	//origonally 0-768
+		}
+		else
+		{
+			//use previous value. Currently does this automaticly but if someone decides to clear memory. 
+		}
+
+		u32 prevButton = BTPad[chan].button;
+		BTPad[chan].button = ((R16((u32)((u8*)buffer+1))) & 0x1F9F) | ((~(*(((u8*)buffer)+21))&0x03)<<5);
+		if((prevButton & WM_BUTTON_TWO) && BTPad[chan].button & WM_BUTTON_TWO)	//wiimote button TWO held down
+		{
+			switch (BTPad[chan].button & ~WM_BUTTON_TWO)
+			{
+				case WM_BUTTON_LEFT:
+					stat->controller = (stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3)) | (C_NSWAP1 * 1);
+					break;
+				case WM_BUTTON_RIGHT:
+					stat->controller = (stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3)) | (C_NSWAP1 * 2);
+					break;
+				case WM_BUTTON_UP:
+					stat->controller = (stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3)) | (C_NSWAP1 * 3);
+					break;
+				case WM_BUTTON_DOWN:
+					stat->controller = (stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3)) | (C_NSWAP1 * 4);
+					break;
+				case WM_BUTTON_MINUS:
+					stat->controller = (stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3)) | (C_NSWAP1 * 5);
+					break;
+				case WM_BUTTON_ONE:
+					stat->controller = (stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3)) | (C_NSWAP1 * 6);
+					break;
+				case WM_BUTTON_PLUS:
+					stat->controller = (stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3)) | (C_NSWAP1 * 7);
+					break;
+				case NUN_BUTTON_C:
+					if(!(prevButton & NUN_BUTTON_C))
+						stat->controller = (stat->controller & C_SWAP) ? (stat->controller & ~C_SWAP) : (stat->controller | C_SWAP);
+					break;
+				case NUN_BUTTON_Z:
+					if(!(prevButton & NUN_BUTTON_Z))
+						stat->controller = (stat->controller & C_ISWAP) ? (stat->controller & ~C_ISWAP) : (stat->controller | C_ISWAP);
+					break;
+				case WM_BUTTON_A:
+					if(!(prevButton & WM_BUTTON_A))
+						stat->controller = (stat->controller & C_TestSWAP) ? (stat->controller & ~C_TestSWAP) : (stat->controller | C_TestSWAP);
+					break;
+				default: { }
+			}
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
+		if((!(prevButton & WM_BUTTON_TWO)) && BTPad[chan].button & WM_BUTTON_TWO)	//wiimote button TWO pressed leading edge
+		{
+			stat->controller = stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3 | C_SWAP | C_ISWAP | C_TestSWAP);
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
+
 		BTPad[chan].used = stat->controller;
 		sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
 	}
@@ -186,13 +322,13 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				data[1] = 0x04; //write to registers
 				data[2] = 0xA4; data[3] = 0x00; data[4] = 0xF0; //address
 				data[5] = 0x01; //length
-				data[6] = 0x55; //data
+				data[6] = 0x55; //data deactivate motion plus
 				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result 
 				stat->transferstate = TRANSFER_EXT2;
 				sync_after_write(arg, sizeof(struct BTPadStat));
 			}
 		}
-		else if(stat->transfertype == 0x34)
+		else if(stat->transfertype == 0x34 || stat->transfertype == 0x37)
 		{
 			//reset
 			stat->controller = C_NOT_SET;
@@ -221,20 +357,37 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 					stat->controller = C_CCP;
 					dbgprintf("Connected Classic Controller Pro\n");
 				}
+				stat->transfertype = 0x34;
 				/* Finally enable reading */
 				u8 buf[3];
 				buf[0] = 0x12;	//set data reporting mode
 				buf[1] = 0x00;	//report only when data changes
 				buf[2] = stat->transfertype;
 				bte_senddata(stat->sock,buf,3);
+				stat->transferstate = TRANSFER_CALIBRATE;
+				sync_after_write(arg, sizeof(struct BTPadStat));
 			}
-			stat->transferstate = TRANSFER_CALIBRATE;
-			sync_after_write(arg, sizeof(struct BTPadStat));
+			else if(R32((u32)((u8*)buffer+8)) == 0xA4200000)
+			{
+				stat->controller = C_NUN;
+				dbgprintf("Connected NUNCHUCK\n");
+				u8 data[2];
+				data[0] = 0x13; //IR camera pixel clock
+				data[1] = 0x06; //enable IR pixel clock and return 0x22
+				bte_senddata(stat->sock,data,2);	//returns 0x22 Acknowledge output report and return function result
+				stat->transferstate = TRANSFER_ENABLE_IR_PIXEL_CLOCK;
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
+			else
+			{
+				stat->transferstate = TRANSFER_CALIBRATE;	//todo was this for unknown controllers or just in the wrong spot?
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
 		}
 	}
 	else if(*(u8*)buffer == 0x22)	//acknowledge output report, return function result 
 	{
-		if(*((u8*)buffer+3) & 0x02)
+		if(*((u8*)buffer+3) & 0x02)	//??message being acknowledged todo lucky all needed messages had 2 bit set
 		{
 			if(stat->transferstate == TRANSFER_EXT2)
 			{
@@ -260,8 +413,130 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				stat->transferstate = TRANSFER_GET_IDENT;
 				sync_after_write(arg, sizeof(struct BTPadStat));
 			}
+			else if(stat->transferstate == TRANSFER_ENABLE_IR_PIXEL_CLOCK)
+			{
+				u8 data[2];
+				data[0] = 0x1a; //IR camera logic
+				data[1] = 0x06; //enable IR logic and return 0x22
+				bte_senddata(stat->sock,data,2);	//returns 0x22 Acknowledge output report and return function result
+				stat->transferstate = TRANSFER_ENABLE_IR_LOGIC;
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
+			else if(stat->transferstate == TRANSFER_ENABLE_IR_LOGIC)
+			{
+				u8 data[22];
+				memset(data, 0, 22);
+				data[0] = 0x16; //set mode to write
+				data[1] = 0x04; //write to registers
+				data[2] = 0xb0; data[3] = 0x00; data[4] = 0x30; //address
+				data[5] = 0x01; //length
+				data[6] = 0x01; //data
+				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result
+				stat->transferstate = TRANSFER_WRITE_IR_REG30_1;
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
+			else if(stat->transferstate == TRANSFER_WRITE_IR_REG30_1)
+			{
+				u8 data[22];
+				memset(data, 0, 22);
+				data[0] = 0x16; //set mode to write
+				data[1] = 0x04; //write to registers
+				data[2] = 0xb0; data[3] = 0x00; data[4] = 0x00; //address
+				data[5] = 0x09; //length
+				switch (*IRSensitivity)
+				{
+					case 0:
+						data[6] = 0x02; data[7] = 0x00; data[8] = 0x00; data[9] = 0x71; data[10] = 0x01; data[11] = 0x00; data[12] = 0x64; data[13] = 0x00; data[14] = 0xFE; //data
+						break;
+					case 1:
+						data[6] = 0x02; data[7] = 0x00; data[8] = 0x00; data[9] = 0x71; data[10] = 0x01; data[11] = 0x00; data[12] = 0x96; data[13] = 0x00; data[14] = 0xB4; //data
+						break;
+					default:
+					case 2:
+						data[6] = 0x02; data[7] = 0x00; data[8] = 0x00; data[9] = 0x71; data[10] = 0x01; data[11] = 0x00; data[12] = 0xAA; data[13] = 0x00; data[14] = 0x64; //data
+						break;
+					case 3:
+						data[6] = 0x02; data[7] = 0x00; data[8] = 0x00; data[9] = 0x71; data[10] = 0x01; data[11] = 0x00; data[12] = 0xC8; data[13] = 0x00; data[14] = 0x36; //data
+						break;
+					case 4:
+						data[6] = 0x07; data[7] = 0x00; data[8] = 0x00; data[9] = 0x71; data[10] = 0x01; data[11] = 0x00; data[12] = 0x72; data[13] = 0x00; data[14] = 0x20; //data
+						break;
+				}
+				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result
+				stat->transferstate = TRANSFER_WRITE_IR_SENSITIVITY_BLOCK_1;
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
+			else if(stat->transferstate == TRANSFER_WRITE_IR_SENSITIVITY_BLOCK_1)
+			{
+				u8 data[22];
+				memset(data, 0, 22);
+				data[0] = 0x16; //set mode to write
+				data[1] = 0x04; //write to registers
+				data[2] = 0xb0; data[3] = 0x00; data[4] = 0x1a; //address
+				data[5] = 0x02; //length
+				switch (*IRSensitivity)
+				{
+					case 0:
+						data[6] = 0xFD; data[7] = 0x05; //data
+						break;
+					case 1:
+						data[6] = 0xB3; data[7] = 0x04; //data
+						break;
+					default:
+					case 2:
+						data[6] = 0x63; data[7] = 0x03; //data
+						break;
+					case 3:
+						data[6] = 0x35; data[7] = 0x03; //data
+						break;
+					case 4:
+						data[6] = 0x1F; data[7] = 0x03; //data
+						break;
+				}
+				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result
+				stat->transferstate = TRANSFER_WRITE_IR_SENSITIVITY_BLOCK_2;
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
+			else if(stat->transferstate == TRANSFER_WRITE_IR_SENSITIVITY_BLOCK_2)
+			{
+				u8 data[22];
+				memset(data, 0, 22);
+				data[0] = 0x16; //set mode to write
+				data[1] = 0x04; //write to registers
+				data[2] = 0xb0; data[3] = 0x00; data[4] = 0x33; //address
+				data[5] = 0x01; //length
+				data[6] = 0x01; //data IR mode basic
+				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result
+				stat->transferstate = TRANSFER_WRITE_IR_MODE;
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
+			else if(stat->transferstate == TRANSFER_WRITE_IR_MODE)
+			{
+				u8 data[22];
+				memset(data, 0, 22);
+				data[0] = 0x16; //set mode to write
+				data[1] = 0x04; //write to registers
+				data[2] = 0xb0; data[3] = 0x00; data[4] = 0x30; //address
+				data[5] = 0x01; //length
+				data[6] = 0x08; //data
+				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result
+				stat->transferstate = TRANSFER_WRITE_IR_REG30_8;
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
+			else if(stat->transferstate == TRANSFER_WRITE_IR_REG30_8)
+			{
+				stat->transfertype = 0x37;
+				/* Finally enable reading */
+				u8 buf[3];
+				buf[0] = 0x12;	//set data reporting mode
+				buf[1] = 0x00;	//report only when data changes
+				buf[2] = stat->transfertype;
+				bte_senddata(stat->sock,buf,3);
+				stat->transferstate = TRANSFER_CALIBRATE;
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
 		}
-		else if(stat->transfertype == 0x34)
+		else if(stat->transfertype == 0x34 || stat->transfertype == 0x37)
 		{
 			//reset
 			stat->controller = C_NOT_SET;
@@ -296,7 +571,7 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 	BTSetControllerState(stat->sock, LEDState[CHAN_NOT_SET]);
 
 	//wiimote extensions need some extra stuff first, start with getting its status
-	if(stat->transfertype == 0x34)
+	if(stat->transfertype == 0x34 || stat->transfertype == 0x37)
 	{
 		buf[0] = 0x12;	//set data reporting mode
 		buf[1] = 0x00;	//report only when data changes
@@ -502,7 +777,7 @@ void BTUpdateRegisters(void)
 			}
 			BTPadConnected[i]->channel = CurChan;
 			BTPadConnected[i]->rumble = CurRumble;
-			if(BTPadConnected[i]->transfertype == 0x3D || BTPadConnected[i]->controller & C_RUMBLE_WM)
+			if(BTPadConnected[i]->transfertype == 0x3D || BTPadConnected[i]->controller & (C_RUMBLE_WM | C_NUN))
 				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan] | CurRumble);
 			else //classic controller doesnt have rumble, can be forced to wiimote if wanted
 				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan]);

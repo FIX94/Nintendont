@@ -433,6 +433,9 @@ int main(int argc, char **argv)
 	//for BT.c
 	CONF_GetPadDevices((conf_pads*)0x932C0000);
 	DCFlushRange((void*)0x932C0000, sizeof(conf_pads));
+	*(vu32*)0x932C0490 = CONF_GetIRSensitivity();
+	*(vu32*)0x932C0494 = CONF_GetSensorBarPosition();
+	DCFlushRange((void*)0x932C0490, 8);
 
 	DCInvalidateRange( (void*)0x939F02F0, 0x20 );
 
