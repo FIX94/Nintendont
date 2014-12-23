@@ -57,7 +57,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 	//refresh read timeout
 	USBReadTimer = read32(HW_TIMER);
 }
-
+extern u32 ISOShift;
 bool ISOInit()
 {
 	s32 ret = f_open( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
@@ -77,17 +77,17 @@ bool ISOInit()
 	LastOffset = UINT_MAX;
 
 	/* Set Low Mem */
-	ISOReadDirect((void*)0x0, 0x20, 0x0);
+	ISOReadDirect((void*)0x0, 0x20, 0x0 + ISOShift);
 	sync_after_write((void*)0x0, 0x20); //used by game so sync it
 	/* Get Region */
-	ISOReadDirect(&Region, sizeof(u32), 0x458);
+	ISOReadDirect(&Region, sizeof(u32), 0x458 + ISOShift);
 	/* Reset Cache */
 	CacheInited = 0;
 
 	if ((read32(0) == 0x474E4845) && (read32(4) == 0x35640000))
 	{
 		u32 DatelName[2];
-		ISOReadDirect(DatelName, 2 * sizeof(u32), 0x19848);
+		ISOReadDirect(DatelName, 2 * sizeof(u32), 0x19848 + ISOShift);
 		if ((DatelName[0] == 0x20446174) && ((DatelName[1] >> 16) == 0x656C))
 			Datel = true;
 	}

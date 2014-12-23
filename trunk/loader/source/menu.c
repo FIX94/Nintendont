@@ -75,7 +75,7 @@ int compare_names(const void *a, const void *b)
 
 	return strcasecmp(da->Name, db->Name);
 }
-void SelectGame( void )
+bool SelectGame( void )
 {
 //Create a list of games
 	char filename[MAXPATHLEN];
@@ -208,10 +208,10 @@ void SelectGame( void )
 		}
 	}
 
+	u32 UpHeld = 0, DownHeld = 0;
 	while(1)
 	{
-		PrintInfo();
-
+		VIDEO_WaitVSync();
 		FPAD_Update();
 
 		if( FPAD_Start(1) )
@@ -245,38 +245,39 @@ void SelectGame( void )
 
 			redraw = 1;
 		}
-		
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*4, MenuMode ? "X/1 : Update" : "");
 
 	//	gprintf("\rS:%u P:%u G:%u M:%u    ", ScrollX, PosX, gamecount, ListMax );
 
 		if( MenuMode == 0 )		//game select menu
 		{
-			if( FPAD_Down(0) )
+			if( FPAD_Down(1) )
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
-
-				if( PosX + 1 >= ListMax )
+				if(DownHeld == 0 || DownHeld > 10)
 				{
-					if( PosX + 1 + ScrollX < gamecount)
-						ScrollX++;
-					else {
-						PosX	= 0;
-						ScrollX = 0;
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+
+					if( PosX + 1 >= ListMax )
+					{
+						if( PosX + 1 + ScrollX < gamecount)
+							ScrollX++;
+						else {
+							PosX	= 0;
+							ScrollX = 0;
+						}
+					} else {
+						PosX++;
 					}
-				} else {
-					PosX++;
-				}
-			
-				if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
-					ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
-				redraw=1;
-				SaveSettings = true;
+				
+					if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
+						ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
+					redraw=1;
+					SaveSettings = true;
+					}
+				DownHeld++;
 			}
-			else if( FPAD_Right(0) )
+			else
+				DownHeld = 0;
+			if( FPAD_Right(0) )
 			{
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
@@ -300,28 +301,34 @@ void SelectGame( void )
 				redraw=1;
 				SaveSettings = true;
 			}
-			else if( FPAD_Up(0) )
+			else if( FPAD_Up(1) )
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
-
-				if( PosX <= 0 )
+				if(UpHeld == 0 || UpHeld > 10)
 				{
-					if( ScrollX > 0 )
-						ScrollX--;
-					else {
-						PosX	= ListMax - 1;
-						ScrollX = gamecount - ListMax;
-					}
-				} else {
-					PosX--;
-				}
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
-				if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
-					ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
-				redraw=1;
-				SaveSettings = true;
+					if( PosX <= 0 )
+					{
+						if( ScrollX > 0 )
+							ScrollX--;
+						else {
+							PosX	= ListMax - 1;
+							ScrollX = gamecount - ListMax;
+						}
+					} else {
+						PosX--;
+					}
+
+					if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
+						ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
+					redraw=1;
+					SaveSettings = true;
+				}
+				UpHeld++;
 			}
-			else if( FPAD_Left(0) )
+			else
+				UpHeld = 0;
+			if( FPAD_Left(0) )
 			{
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
@@ -352,11 +359,17 @@ void SelectGame( void )
 
 			if( redraw )
 			{
+				PrintInfo();
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*4, MenuMode ? "X/1 : Update" : "");
 				for( i=0; i < ListMax; ++i )
 					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5 + i * 20, "%50.50s [%.6s]%s", gi[i+ScrollX].Name, gi[i+ScrollX].ID, i == PosX ? ARROW_LEFT : " " );
-				Screenshot();
 				GRRLIB_Render();
+				Screenshot();
 				ClearScreen();
+				redraw = 0;
 			}
 
 		} else {	//settings menu
@@ -556,16 +569,23 @@ void SelectGame( void )
 				ListLoopIndex++;
 
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);
-				Screenshot();
+
+				PrintInfo();
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : %s", MenuMode ? "Modify" : "Select");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "B   : %s", MenuMode ? "Game List" : "Settings ");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*4, MenuMode ? "X/1 : Update" : "");
 				GRRLIB_Render();
+				Screenshot();
 				ClearScreen();
+				redraw = 0;
 			}
 		}
 	}
 	ClearScreen();
-	PrintInfo();
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel ...");
-	UpdateScreen();
+	PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
+	GRRLIB_Render();
+	ClearScreen();
 
 	u32 SelectedGame = PosX + ScrollX;
 	char* StartChar = gi[SelectedGame].Path + 3;
@@ -575,32 +595,12 @@ void SelectGame( void )
 	memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
 	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 
-	if (SaveSettings)
-	{
-		FILE *cfg;
-		char ConfigPath[20];
-		// Todo: detects the boot device to prevent writing twice on the same one
-		sprintf(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch
-		cfg = fopen(ConfigPath, "wb");
-		if( cfg != NULL )
-		{
-			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
-			fclose( cfg );
-		}
-		sprintf(ConfigPath, "%s:/nincfg.bin", GetRootDevice()); // writes config to game device, used by kernel
-		cfg = fopen(ConfigPath, "wb");
-		if( cfg != NULL )
-		{
-			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
-			fclose( cfg );
-		}
-	}
-
 	for( i=0; i < gamecount; ++i )
 	{
 		free(gi[i].Name);
 		free(gi[i].Path);
 	}
+	return SaveSettings;
 }
 
 void PrintInfo()
