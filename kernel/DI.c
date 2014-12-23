@@ -51,7 +51,7 @@ bool DI_IRQ = false;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
 bool MultipleDiscs = true;
-
+u32 ISOShift = 0;
 extern u32 StreamSize, StreamStart, StreamCurrent;
 
 u32 DiscChangeIRQ	= 0;
@@ -108,7 +108,11 @@ bool DiscCheckAsync( void )
 				udelay(20);
 		}
 		if(WaitForRead == 1 && (read32(DIP_CONTROL) & 1) == 0)
+		{
+			write32(DIP_STATUS, 0x54); //mask and clear interrupts
+			udelay(70);
 			WaitForRead = 0;
+		}
 	}
 	return (DI_CallbackMsg.result == 0);
 }
@@ -136,6 +140,13 @@ void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 	}
 }
 static u32 DVD_OFFSET = UINT_MAX;
+void ClearRealDiscBuffer(void)
+{
+	DVD_OFFSET = UINT_MAX;
+	memset32(DISC_DRIVE_BUFFER, 0, DISC_DRIVE_BUFFER_LENGTH);
+	sync_after_write(DISC_DRIVE_BUFFER, DISC_DRIVE_BUFFER_LENGTH);
+}
+
 u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 {
 	//dbgprintf("ReadRealDisc(%08x %08x)\r\n", *Length, Offset);
@@ -205,6 +216,8 @@ u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 	{
 		while(read32(DIP_CONTROL) & 1)
 			udelay(200);
+		write32(DIP_STATUS, 0x54); //mask and clear interrupts
+		udelay(70);
 	}
 
 	if (ConfigGetConfig(NIN_CFG_LED))
@@ -258,6 +271,9 @@ void DIinit( bool FirstTime )
 			write32( DIP_STATUS, 0x7E ); //clear interrupts and reset
 			write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
 		}
+		sync_before_read((void*)0x13003000, 0x20);
+		ISOShift = read32(0x1300300C);
+
 		MediaBuffer = (u8*)malloc( 0x40 );
 		memset32( MediaBuffer, 0, 0x40 );
 
@@ -812,7 +828,7 @@ u32 DIReadThread(void *arg)
 				di_src = 0;
 				di_dest = (char*)di_msg->ioctl.buffer_io;
 				di_length = di_msg->ioctl.length_io;
-				di_offset = (u32)di_msg->ioctl.buffer_in;
+				di_offset = ((u32)di_msg->ioctl.buffer_in) + ISOShift;
 
 				u32 Offset = 0;
 				u32 Length = di_length;

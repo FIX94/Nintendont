@@ -114,6 +114,7 @@ int _main( int argc, char *argv[] )
 	//Verification if we can read from disc
 	if(memcmp(ConfigGetGamePath(), "di", 3) == 0)
 	{
+		ClearRealDiscBuffer();
 		u32 Length = 0x20;
 		RealDiscCMD = DIP_CMD_NORMAL;
 		u8 *TmpBuf = ReadRealDisc(&Length, 0, false);
@@ -493,6 +494,7 @@ int _main( int argc, char *argv[] )
 		mask32(0xd8006a8, 0, 2);
 	}
 
+	sync_before_read((void*)0x13003000, 0x420);
 	IOSBoot((char*)0x13003020, 0, read32(0x13003000));
 	return 0;
 }

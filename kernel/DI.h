@@ -81,6 +81,7 @@ void DIUpdateRegisters( void );
 void DIReload(void);
 bool DICheckTGC(u32 Buffer, u32 Length);
 
+void ClearRealDiscBuffer(void);
 u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync);
 
 #endif

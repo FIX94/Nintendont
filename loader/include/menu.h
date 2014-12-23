@@ -35,6 +35,6 @@ typedef struct GameInfo
 void HandleSTMEvent(u32 event);
 void HandleWiiMoteEvent(s32 chan);
 
-void SelectGame( void );
+bool SelectGame( void );
 void PrintInfo( void );
 #endif

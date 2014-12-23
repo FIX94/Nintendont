@@ -18,30 +18,16 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <gccore.h>
-#include <wiiuse/wpad.h>
-#include <wupc/wupc.h>
-#include <fat.h>
-#include <sys/dir.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdarg.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <network.h>
-#include <sys/errno.h>
 #include <ogc/lwp_watchdog.h>
 #include <ogc/lwp_threads.h>
-#include <ogc/isfs.h>
-#include <ogc/ipc.h>
+#include <wiiuse/wpad.h>
+#include <wupc/wupc.h>
 #include <di/di.h>
-#include <dirent.h>
-#include <sys/types.h>
-#include <sys/errno.h>
-#include <fcntl.h>
+#include <fat.h>
+
+#include <unistd.h>
+#include <sys/dir.h>
 
 #include "exi.h"
 #include "dip.h"
@@ -187,11 +173,6 @@ int main(int argc, char **argv)
 	}
 	LoadTitles();
 
-	gprintf("Nintendont Loader\r\n");
-	gprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
-	gprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
-	gprintf("Firmware: %d.%d.%d\r\n", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
-
 	memset((void*)ncfg, 0, sizeof(NIN_CFG));
 
 	bool argsboot = false;
@@ -254,11 +235,13 @@ int main(int argc, char **argv)
 	else
 		ncfg->VideoMode &= ~NIN_VID_PROG;
 
-
 	if((ncfg->Config & NIN_CFG_AUTO_BOOT) == 0)
 	{
 		while (1)
 		{
+			VIDEO_WaitVSync();
+			FPAD_Update();
+
 			UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 			PrintInfo();
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
@@ -267,7 +250,6 @@ int main(int argc, char **argv)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
-			FPAD_Update();
 
 			if (FPAD_OK(0))
 				break;
@@ -313,10 +295,172 @@ int main(int argc, char **argv)
 
 //Reset drive
 
+	bool SaveSettings = false;
 	if( ncfg->Config & NIN_CFG_AUTO_BOOT )
 		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
 	else
-		SelectGame();
+		SaveSettings = SelectGame();
+
+	u32 CurDICMD = 0;
+	//Init DI and set correct ID if needed
+	if( memcmp(ncfg->GamePath, "di", 3) == 0 )
+	{
+		ClearScreen();
+		PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
+		GRRLIB_Render();
+		ClearScreen();
+
+		DI_Init();
+		DI_Mount();
+		while (DI_GetStatus() & DVD_INIT)
+			usleep(20000);
+		if(!(DI_GetStatus() & DVD_READY))
+		{
+			ClearScreen();
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc Drive could not be initialized!" );
+			ExitToLoader(1);
+		}
+		DI_Close();
+		u8 *DIBuf = memalign(32,0x800);
+		memset(DIBuf, 0, 0x20);
+		DCFlushRange(DIBuf, 0x20);
+		CurDICMD = DIP_CMD_NORMAL;
+		ReadRealDisc(DIBuf, 0, 0x20, CurDICMD);
+		u32 DiscMagic = *(vu32*)(DIBuf+0x1C);
+		if( DiscMagic != 0xC2339F3D )
+		{
+			memset(DIBuf, 0, 0x800);
+			DCFlushRange(DIBuf, 0x800);
+			CurDICMD = DIP_CMD_DVDR;
+			ReadRealDisc(DIBuf, 0, 0x800, CurDICMD);
+			DiscMagic = *(vu32*)(DIBuf+0x1C);
+			if( DiscMagic != 0xC2339F3D )
+			{
+				free(DIBuf);
+				ClearScreen();
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc in the Drive is not a GC Disc!" );
+				ExitToLoader(1);
+			}
+		}
+		memcpy(&(ncfg->GameID), DIBuf, 4);
+		free(DIBuf);
+	}
+
+	if(SaveSettings)
+	{
+		FILE *cfg;
+		char ConfigPath[20];
+		// Todo: detects the boot device to prevent writing twice on the same one
+		sprintf(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch
+		cfg = fopen(ConfigPath, "wb");
+		if( cfg != NULL )
+		{
+			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
+			fclose( cfg );
+		}
+		sprintf(ConfigPath, "%s:/nincfg.bin", GetRootDevice()); // writes config to game device, used by kernel
+		cfg = fopen(ConfigPath, "wb");
+		if( cfg != NULL )
+		{
+			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
+			fclose( cfg );
+		}
+	}
+	u32 ISOShift = 0;
+	if(memcmp(&(ncfg->GameID), "COBR", 4) == 0 || memcmp(&(ncfg->GameID), "GGCO", 4) == 0
+		|| memcmp(&(ncfg->GameID), "GCOP", 4) == 0 || memcmp(&(ncfg->GameID), "RGCO", 4) == 0)
+	{
+		u32 i, j = 0;
+		u32 Offsets[15];
+		gameinfo gi[15];
+		FILE *f = NULL;
+		u8 *MultiHdr = memalign(32, 0x800);
+		u8 *GameHdr = memalign(32, 0x800);
+		if(CurDICMD)
+		{
+			ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
+		}
+		else if(strstr(ncfg->GamePath, ".iso") != NULL)
+		{
+			char GamePath[255];
+			sprintf( GamePath, "%s:%s", GetRootDevice(), ncfg->GamePath );
+			f = fopen(GamePath, "rb");
+			fread(MultiHdr,1,0x800,f);
+		}
+		u32 NeedShift = (*(vu32*)(MultiHdr+4) == 0x44564439);
+		for(i = 0x40; i < 0x100; i += 4)
+		{
+			u32 TmpOffset = *(vu32*)(MultiHdr+i);
+			if(TmpOffset > 0)
+			{
+				Offsets[j] = NeedShift ? TmpOffset << 2 : TmpOffset;
+				if(CurDICMD)
+				{
+					ReadRealDisc(GameHdr, Offsets[j], 0x800, CurDICMD);
+				}
+				else
+				{
+					fseek(f, Offsets[j], SEEK_SET);
+					fread(GameHdr, 1, 0x800, f);
+				}
+				memcpy(gi[j].ID, GameHdr, 6);
+				gi[j].Name = strdup((char*)GameHdr+0x20);
+				j++;
+				if(j == 15) break;
+			}
+		}
+		free(GameHdr);
+		free(MultiHdr);
+		if(f) fclose(f);
+		bool redraw = 1;
+		ClearScreen();
+		u32 PosX = 0;
+		u32 UpHeld = 0, DownHeld = 0;
+		while(1)
+		{
+			VIDEO_WaitVSync();
+			FPAD_Update();
+			if( FPAD_OK(0) )
+				break;
+			else if( FPAD_Down(1) )
+			{
+				if(DownHeld == 0 || DownHeld > 10)
+				{
+					PosX++;
+					if(PosX == j) PosX = 0;
+					redraw = true;
+				}
+				DownHeld++;
+			}
+			else
+				DownHeld = 0;
+			if( FPAD_Up(1) )
+			{
+				if(UpHeld == 0 || UpHeld > 10)
+				{
+					if(PosX == 0) PosX = j;
+					PosX--;
+					redraw = true;
+				}
+				UpHeld++;
+			}
+			else
+				UpHeld = 0;
+			if( redraw )
+			{
+				PrintInfo();
+				for( i=0; i < j; ++i )
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5 + i * 20, "%50.50s [%.6s]%s", gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
+				GRRLIB_Render();
+				Screenshot();
+				ClearScreen();
+				redraw = false;
+			}
+		}
+		ISOShift = Offsets[PosX];
+		memcpy(&(ncfg->GameID), gi[PosX].ID, 6);
+	}
+	*(vu32*)0xD300300C = ISOShift; //multi-iso games
 
 	//Set Language
 	if(ncfg->Language == NIN_LAN_AUTO)
@@ -342,48 +486,6 @@ int main(int argc, char **argv)
 				ncfg->Language = NIN_LAN_ENGLISH;
 				break;
 		}
-	}
-
-	//Init DI and set correct ID if needed
-	if( memcmp(ncfg->GamePath, "di", 3) == 0 )
-	{
-		ClearScreen();
-		PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
-		GRRLIB_Render();
-		ClearScreen();
-
-		DI_Init();
-		DI_Mount();
-		while (DI_GetStatus() & DVD_INIT)
-			usleep(20000);
-		if(!(DI_GetStatus() & DVD_READY))
-		{
-			ClearScreen();
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc Drive could not be initialized!" );
-			ExitToLoader(1);
-		}
-		DI_Close();
-		u8 *DIBuf = memalign(32,0x800);
-		memset(DIBuf, 0, 0x20);
-		DCFlushRange(DIBuf, 0x20);
-		ReadRealDisc(DIBuf, 0, 0x20, DIP_CMD_NORMAL);
-		u32 DiscMagic = *(vu32*)(DIBuf+0x1C);
-		if( DiscMagic != 0xC2339F3D )
-		{
-			memset(DIBuf, 0, 0x800);
-			DCFlushRange(DIBuf, 0x800);
-			ReadRealDisc(DIBuf, 0, 0x800, DIP_CMD_DVDR);
-			DiscMagic = *(vu32*)(DIBuf+0x1C);
-			if( DiscMagic != 0xC2339F3D )
-			{
-				free(DIBuf);
-				ClearScreen();
-				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc in the Drive is not a GC Disc!" );
-				ExitToLoader(1);
-			}
-		}
-		memcpy(&(ncfg->GameID), DIBuf, 4);
-		free(DIBuf);
 	}
 
 //setup memory card
@@ -453,11 +555,6 @@ int main(int argc, char **argv)
 
 	//make sure the cfg gets to the kernel
 	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
-
-	/* dont directly reset the kernel */
-	DCInvalidateRange( (void*)0x9300300C, 0x20 );
-	*(vu32*)0x9300300C = 0;
-	DCFlushRange( (void*)0x9300300C, 0x20 );
 
 	gprintf("ES_ImportBoot():");
 
@@ -816,15 +913,10 @@ int main(int argc, char **argv)
 	DCInvalidateRange((void*)0x93003000, 0x20);
 	*(vu32*)0x93003000 = currev; //set kernel rev
 	*(vu32*)0x93003008 = 0x80000004; //just some address for SIGetType
-	//*(vu32*)0x9300300C = 3; //init cache if needed
+	//0x9300300C is already used for multi-iso
 	memset((void*)0x93003010, 0, 0x10); //disable rumble on bootup
 	DCFlushRange((void*)0x93003000, 0x20);
 
-	/*while(*(vu32*)0x9300300C == 3)
-	{
-		DCFlushRange((void*)0x9300300C, 4);
-		usleep(500);
-	}*/
 	write16(0xD8B420A, 0); //disable MEMPROT again after reload
 	//u32 level = IRQ_Disable();
 	__exception_closeall();
