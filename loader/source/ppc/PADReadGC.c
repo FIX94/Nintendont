@@ -605,7 +605,7 @@ u32 _start()
 		{
 			switch ((BTPad[chan].used & (C_NSWAP1 | C_NSWAP2 | C_NSWAP3)) >> 5)
 			{
-				case 0:
+				case 0:	// (2)
 				default:
 				{	//Howards general config 
 					//A=A B=B Z=Z +=X -=Y Dpad=Standard
@@ -683,7 +683,7 @@ u32 _start()
 					if(BTPad[chan].button & WM_BUTTON_UP)
 						button |= PAD_BUTTON_UP;
 				}break;
-				case 1:
+				case 1:	// (2 & left)
 				{	//AbdallahTerro general config
 					//A=A B=B C=X Z=Y -=Z +=R Dpad=Standard
 					if (!(BTPad[chan].used & C_ISWAP))	//not using IR
@@ -721,12 +721,8 @@ u32 _start()
 					else
 						Pad[chan].triggerRight = 0;
 				}break;
-				case 2:
+				case 2:	// (2 & right)
 				{	//config asked for by naggers
-						//OLD
-						//A=A B=L Z=R +=R1/2 -=L1/2
-						//C not pressed U=Z D=B R=X L=Y
-						//C		pressed Dpad=Standard tilt controls cStick
 					//A=A 
 					//C not pressed U=Z D=B R=X L=Y B=R Z=L
 					//C		pressed Dpad=Standard B=R1/2 Z=L1/2 tilt controls cStick
@@ -810,7 +806,7 @@ u32 _start()
 							button |= PAD_BUTTON_Y;
 					}
 				}break;
-				case 3:
+				case 3:	// (2 & up)
 				{	//racing games that use AnalogR and AnalogL for gas and break
 					//A=A B=B Z=Z +=X -=Y Dpad=Standard
 					//C not pressed backwards forward tilt tied to L R analog triggers.
@@ -887,7 +883,7 @@ u32 _start()
 					if(BTPad[chan].button & WM_BUTTON_UP)
 						button |= PAD_BUTTON_UP;
 				}break;
-				case 4:
+				case 4:	// (2 & down)
 				{	//racing games that require A held  for gas
 					//A=Z B=B Z=A +=X -=Y Dpad=Standard
 					//C not pressed L R tilt tied to L R analog triggers.
@@ -962,7 +958,7 @@ u32 _start()
 					if(BTPad[chan].button & WM_BUTTON_UP)
 						button |= PAD_BUTTON_UP;
 				}break;
-				case 5:
+				case 5:	// (2 & minus)
 				{	//Troopage config 
 					//A=A
 					//C not pressed +=X -=B Z=L    B=R    Dpad=cStick
@@ -1041,9 +1037,9 @@ u32 _start()
 					if(BTPad[chan].button & WM_BUTTON_A)
 						button |= PAD_BUTTON_A;
 				}break;	
-				case 6:
+				case 6:	// (2 & 1)
 				{	//FPS using IR as cStick alt based on naggers
-					//A=A B=L Z=R +=R1/2 -=L1/2
+					//A=A B=R Z=L +=R1/2 -=L1/2
 					//C not pressed U=Z D=B R=X L=Y
 					//C		pressed Dpad=Standard, L R tilt tied to L R analog triggers.
 					//IR controls the cStick
@@ -1122,7 +1118,7 @@ u32 _start()
 							button |= PAD_BUTTON_Y;
 					}
 				}break;
-//				case 7:
+//				case 7:	// (2 & plus)
 //				{
 //				}break;
 			}
