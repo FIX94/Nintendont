@@ -55,12 +55,25 @@ extern u32 __SYS_GetRTC(u32 *gctime);
 #define STATUS_GB_MB	(*(vu32*)(0x90004100 + 16))
 #define STATUS_ERROR	(*(vu32*)(0x90004100 + 20))
 
+#define HW_DIFLAGS		0xD800180
+#define MEM_PROT		0xD8B420A
+
+#define DI_DISABLEDVD	(1<<21)
+
 static GXRModeObj *vmode = NULL;
 
 static const unsigned char Boot2Patch[] =
 {
     0x48, 0x03, 0x49, 0x04, 0x47, 0x78, 0x46, 0xC0, 0xE6, 0x00, 0x08, 0x70, 0xE1, 0x2F, 0xFF, 0x1E, 
     0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x25,
+};
+static const unsigned char AHBAccessPattern[] =
+{
+	0x68, 0x5B, 0x22, 0xEC, 0x00, 0x52, 0x18, 0x9B, 0x68, 0x1B, 0x46, 0x98, 0x07, 0xDB,
+};
+static const unsigned char AHBAccessPatch[] =
+{
+	0x68, 0x5B, 0x22, 0xEC, 0x00, 0x52, 0x18, 0x9B, 0x23, 0x01, 0x46, 0x98, 0x07, 0xDB,
 };
 static const unsigned char FSAccessPattern[] =
 {
@@ -98,6 +111,27 @@ int main(int argc, char **argv)
 	DCInvalidateRange(loader_stub, 0x1800);
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
 	DCFlushRange(loader_stub, 0x1800);
+
+	u32 u;
+	//Try to reload to IOS58
+	if( *(vu32*)(0xCd800064) == -1 && *(vu16*)0x80003140 != 58 )
+	{
+		//Disables MEMPROT for patches
+		write16(MEM_PROT, 0);
+		//Patches HW access for the next IOS
+		for( u = 0x938F0000; u < 0x93A00000; u+=2 )
+		{
+			if( memcmp( (void*)(u), AHBAccessPattern, sizeof(AHBAccessPattern) ) == 0 )
+			{
+			//	gprintf("HWAccessPatch:%08X\r\n", u );
+				memcpy( (void*)u, AHBAccessPatch, sizeof(AHBAccessPatch) );
+				DCFlushRange((void*)u, sizeof(AHBAccessPatch));
+				//Loads IOS58 with AHBPROT disabled
+				IOS_ReloadIOS(58);
+				break;
+			}
+		}
+	}
 
 	u32 currev = *(vu32*)0x80003140;
 	RAMInit();
@@ -143,22 +177,24 @@ int main(int argc, char **argv)
 	free(fontbuffer);
 	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
 
-	write16(0xD8B420A, 0); //disable MEMPROT for patches
-
-//Patch FS access
-
-	int u;
+	//Disables MEMPROT for patches
+	write16(MEM_PROT, 0);
+	//Enables DVD access
+	write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
+	//Patches FS access
 	for( u = 0x93A00000; u < 0x94000000; u+=2 )
 	{
 		if( memcmp( (void*)(u), FSAccessPattern, sizeof(FSAccessPattern) ) == 0 )
 		{
 		//	gprintf("FSAccessPatch:%08X\r\n", u );
 			memcpy( (void*)u, FSAccessPatch, sizeof(FSAccessPatch) );
+			DCFlushRange((void*)u, sizeof(FSAccessPatch));
+			break;
 		}
 	}
 
 	fatInitDefault();
-	
+
 	// Simple code to autoupdate the meta.xml in Nintendont's folder
 	FILE *meta = fopen("meta.xml", "w");
 	if(meta != NULL)

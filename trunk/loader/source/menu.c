@@ -494,6 +494,7 @@ bool SelectGame( void )
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDBLOCKS), "%29s", "");
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDMULTI), "%29s", "");
 				}
+				redraw = 1;
 			}
 
 			if( redraw )
