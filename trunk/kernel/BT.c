@@ -345,7 +345,15 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 	{
 		if(stat->transferstate == TRANSFER_GET_IDENT)
 		{
-			if(R32((u32)((u8*)buffer+8)) == 0xA4200101)
+			if((R32((u32)((u8*)buffer+8)) == 0xA4200101) ||	//CLASSIC_CONTROLLER
+			   (R32((u32)((u8*)buffer+8)) == 0x90908f00) ||	//CLASSIC_CONTROLLER_NYKOWING
+			   (R32((u32)((u8*)buffer+8)) == 0x9e9f9c00) ||	//CLASSIC_CONTROLLER_NYKOWING2
+			   (R32((u32)((u8*)buffer+8)) == 0x908f8f00) ||	//CLASSIC_CONTROLLER_NYKOWING3
+			   (R32((u32)((u8*)buffer+8)) == 0xa5a2a300) ||	//CLASSIC_CONTROLLER_GENERIC
+			   (R32((u32)((u8*)buffer+8)) == 0x98999900) ||	//CLASSIC_CONTROLLER_GENERIC2
+			   (R32((u32)((u8*)buffer+8)) == 0xa0a1a000) ||	//CLASSIC_CONTROLLER_GENERIC3
+			   (R32((u32)((u8*)buffer+8)) == 0x8d8d8e00) ||	//CLASSIC_CONTROLLER_GENERIC4
+			   (R32((u32)((u8*)buffer+8)) == 0x93949400))		//CLASSIC_CONTROLLER_GENERIC5
 			{
 				if(*((u8*)buffer+6) == 0)
 				{
