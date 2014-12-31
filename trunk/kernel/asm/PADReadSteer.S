@@ -3,7 +3,7 @@
 .set		PadBuff,	0x93002800
 
 PADReadSteer:
-	lis		%r5,			PadBuff@h
+	lis		%r3,			PadBuff@h
 
 	cmpwi	%r0,	0
 	beq		CheckStickX
@@ -16,20 +16,22 @@ PADReadSteer:
 
 NoUpdate:
 	li		%r3,	0
-	blr
+	b		end
 
 CheckStickX:
-	lbz		%r3,	0x2802(%r5)
+	lbz		%r3,	0x2802(%r3)
 	addi	%r3,	%r3,	0x80
 	slwi	%r3,	%r3,	8
-	blr
+	b		end
 
 CheckRightTrigger:
-	lbz		%r3,	0x2807(%r5)
+	lbz		%r3,	0x2807(%r3)
 	rlwinm	%r3,	%r3,	7,		17,		23 #reduce to 0x7F
-	blr
+	b		end
 
 CheckLeftTrigger:
-	lbz		%r3,	0x2806(%r5)
+	lbz		%r3,	0x2806(%r3)
 	rlwinm	%r3,	%r3,	7,		17,		23 #reduce to 0x7F
+
+end:
 	blr

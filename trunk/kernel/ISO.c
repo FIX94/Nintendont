@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "FST.h"
 #include "DI.h"
 #include "ff.h"
+#include "debug.h"
 
 extern u32 Region;
 extern u32 TRIGame;
@@ -65,12 +66,19 @@ bool ISOInit()
 		return false;
 
 	/* Setup table */
-	DWORD tmp = 1; //size 1 to get the real size
-	GameFile.cltbl = &tmp;
-	f_lseek(&GameFile, CREATE_LINKMAP);
-	GameFile.cltbl = malloc(tmp * sizeof(DWORD));
-	GameFile.cltbl[0] = tmp; //fatfs automatically sets real size into tmp
-	f_lseek(&GameFile, CREATE_LINKMAP); //actually create it
+	u32 tblsize = 4; //minimum default size
+	GameFile.cltbl = malloc(tblsize * sizeof(DWORD));
+	GameFile.cltbl[0] = tblsize;
+	ret = f_lseek(&GameFile, CREATE_LINKMAP);
+	if( ret == FR_NOT_ENOUGH_CORE )
+	{	/* We need more table mem */
+		tblsize = GameFile.cltbl[0];
+		free(GameFile.cltbl);
+		dbgprintf("ISO:Fragmented, allocating %08x\r\n", tblsize);
+		GameFile.cltbl = malloc(tblsize * sizeof(DWORD));
+		GameFile.cltbl[0] = tblsize;
+		f_lseek(&GameFile, CREATE_LINKMAP);
+	}
 
 	/* Setup direct reader */
 	ISOFileOpen = 1;
@@ -113,15 +121,22 @@ void ISOSetupCache()
 	DCCache = CACHE_START;
 	DCacheLimit = CACHE_SIZE;
 	/* Setup Caching */
-	if(TRIGame) //triforce buffer is after cache
+	if(TRIGame)
+	{
+		//AMBB buffer is before cache
+		DCCache += 0x10000;
+		DCacheLimit -= 0x10000;
+		//triforce buffer is after cache
 		DCacheLimit -= 0x300000;
-
-	u32 MemCardSize = ConfigGetMemcardSize();
-	if (!ConfigGetConfig(NIN_CFG_MEMCARDEMU))
-		MemCardSize = 0;
-	DCCache += MemCardSize; //memcard is before cache
-	DCacheLimit -= MemCardSize;
-
+	}
+	else
+	{
+		u32 MemCardSize = ConfigGetMemcardSize();
+		if (!ConfigGetConfig(NIN_CFG_MEMCARDEMU))
+			MemCardSize = 0;
+		DCCache += MemCardSize; //memcard is before cache
+		DCacheLimit -= MemCardSize;
+	}
 	memset32(DC, 0, sizeof(DataCache)* CACHE_MAX);
 
 	DataCacheOffset = 0;

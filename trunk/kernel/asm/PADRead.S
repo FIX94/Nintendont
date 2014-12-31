@@ -4,17 +4,16 @@
 .set		PadBuff,	0x93002800
 
 PADRead:
+	stwu	%sp,	-0x20(%sp)
 	mflr	%r0
-	stw		%r0,	4(%sp)
-	stwu	%sp,	-0x40(%sp)
-	stw		%r31,	0x18(%sp)
+	stw		%r0,	0xC(%sp)
+	stw		%r31,	0x10(%sp)
 	mr		%r31,	%r3
 
-
 	#to stub instead of arm
-	lis		%r6,			PadStub@h
-	ori		%r6,	%r6,	PadStub@l
-	mtctr	%r6
+	lis		%r3,			PadStub@h
+	ori		%r3,	%r3,	PadStub@l
+	mtctr	%r3
 	bctrl
 
 	lis		%r5,			PadBuff@h
@@ -36,8 +35,8 @@ memcpy:
 	cmpwi	%r4,		0
 	bne		memcpy
 
-	lwz		%r31,	0x18(%sp)
-	lwz		%r0,	0x44(%sp)
-	addi	%sp,	%sp,	0x40
+	lwz		%r0,	0xC(%sp)
+	lwz		%r31,	0x10(%sp)
+	addi	%sp,	%sp,	0x20
 	mtlr	%r0
 	blr

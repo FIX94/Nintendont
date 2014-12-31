@@ -109,7 +109,6 @@ enum
 enum
 {
 	FGROUP_NONE				= 0x0,
-	FGROUP_DVDInquiryAsync,
 	FGROUP_GXInitTlutObj,
 	FGROUP_ARInit,
 	FGROUP_ARStartDMA,
