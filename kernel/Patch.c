@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
+vu32 DisableSIPatch = 0;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
 #define PRS_DOL     0x131C0000
@@ -446,7 +447,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 	u32 SIPatched = 0;
 	u32 EXIPatched = 0;
 	u32 AIPatched = 0;
-
+	u32 EXIFuncPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false);
 	int i;
 
 	u32 LISReg = 32;
@@ -494,7 +495,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				if (ConfigGetConfig(NIN_CFG_NATIVE_SI))
+				if (DisableSIPatch)
 				{
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
@@ -517,7 +518,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
+				if( EXIFuncPatch )
 				{
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
@@ -569,7 +570,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if (src == LISReg)
 			{
-				if (ConfigGetConfig(NIN_CFG_NATIVE_SI))
+				if (DisableSIPatch)
 				{
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
@@ -592,7 +593,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if (src == LISReg)
 			{
-				if (ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false)
+				if ( EXIFuncPatch )
 				{
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
@@ -642,7 +643,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6400) // case with 0x64XY(rZ) (si)
 				{
-					if (ConfigGetConfig(NIN_CFG_NATIVE_SI))
+					if (DisableSIPatch)
 					{
 						write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 						//dbgprintf("SI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
@@ -657,7 +658,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6800) // case with 0x68XY(rZ) (exi)
 				{
-					if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
+					if( EXIFuncPatch )
 					{
 						write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 						//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
@@ -687,8 +688,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 
 #ifdef DEBUG_PATCH
 	dbgprintf("Patch:[SI] applied %u times\r\n", SIPatched);
-	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false )
-		dbgprintf("Patch:[EXI] applied %u times\r\n", EXIPatched);
+	if( EXIFuncPatch ) dbgprintf("Patch:[EXI] applied %u times\r\n", EXIPatched);
 	dbgprintf("Patch:[AI] applied %u times\r\n", AIPatched);
 	dbgprintf("Patch:[DI] applied %u times\r\n", DIPatched);
 	#endif
@@ -967,7 +967,7 @@ u32 ELFLoading = 0;
 u32 DOLSize    = 0;
 u32 DOLMinOff  = 0;
 u32 DOLMaxOff  = 0;
-vu32 TRIGame   = 0;
+vu32 TRIGame   = TRI_NONE;
 vu32 GameEntry = 0;
 u32 AppLoaderSize = 0;
 
@@ -1253,11 +1253,61 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32(0x00003194, 0x48000028);
 	}
 
-	if (read32(0x02856EC) == 0x386000A8)
+	if( read32(0x023D240) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Mario kart GP 2\r\n");
-		TRIGame = 1;
+		dbgprintf("TRI:Mario kart GP1\n");
+		TRIGame = TRI_GP1;
 		SystemRegion = REGION_JAPAN;
+
+		//Patch EXI ID check
+		write32( 0x023E150, 0x4800001C );
+
+		//Unlimited CARD uses
+		write32( 0x01F5C44, 0x60000000 );
+
+		//Disable cam
+		write32( 0x00790A0, 0x98650025 );
+
+		//Disable CARD
+		write32( 0x00790B4, 0x98650023 );
+		write32( 0x00790CC, 0x98650023 );
+
+		//Disable wheel/handle
+		write32( 0x007909C, 0x98650022 );
+
+		//VS wait
+		write32( 0x00BE10C, 0x4800002C );
+
+		//cam loop
+		write32( 0x009F1E0, 0x60000000 );
+
+		//Skip device test
+		write32( 0x0031BF0, 0x60000000 );
+		write32( 0x0031BFC, 0x60000000 );
+
+		//GXProg patch
+		memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
+
+		PatchB( PatchCopy(PADReadB, PADReadB_size), 0x003C6F0 );
+		memcpy( (void*)0x024E4B0, PADReadSteer, PADReadSteer_size );
+
+		//some report check skip
+		//write32( 0x00307CC, 0x60000000 );
+
+		//memcpy( (void*)0x00330BC, OSReportDM, sizeof(OSReportDM) );
+		//memcpy( (void*)0x0030710, OSReportDM, sizeof(OSReportDM) );
+		//memcpy( (void*)0x0030760, OSReportDM, sizeof(OSReportDM) );
+		//memcpy( (void*)0x020CBCC, OSReportDM, sizeof(OSReportDM) );	// UNkReport
+		//memcpy( (void*)0x02281B8, OSReportDM, sizeof(OSReportDM) );	// UNkReport4
+	}
+	else if (read32(0x02856EC) == 0x386000A8)
+	{
+		dbgprintf("TRI:Mario kart GP2\r\n");
+		TRIGame = TRI_GP2;
+		SystemRegion = REGION_JAPAN;
+
+		//Patch EXI ID check
+		write32( 0x02865FC, 0x4800001C );
 
 		//Skip device test
 		write32( 0x002E340, 0x60000000 );
@@ -1295,23 +1345,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
 		//write32( 0x002CEF8, 0x60000000 );
 	}
-
-	if( read32( 0x0210C08 ) == 0x386000A8 )	// Virtua Striker 4 Ver 2006 (EXPORT)
-	{
-		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (EXPORT)\n");
-		TRIGame = 2;
-		SystemRegion = REGION_USA;
-
-		memcpy( (void*)0x0208314, PADReadSteerVSSimple, sizeof(PADReadSteerVSSimple) );	
-		memcpy( (void*)0x0208968, PADReadVSSimple, sizeof(PADReadVSSimple) );
-
-		//memcpy( (void*)0x001C2B80, OSReportDM, sizeof(OSReportDM) );
-	}
-
-	if( read32(0x01851C4) == 0x386000A8 )	// FZero AX
+	else if( read32(0x01851C4) == 0x386000A8 )
 	{
 		dbgprintf("TRI:FZero AX\n");
-		TRIGame = 3;
+		TRIGame = TRI_AX;
 		SystemRegion = REGION_JAPAN;
 
 		//Patch EXI ID check
@@ -1362,53 +1399,31 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//memcpy( (void*)0x01CAACC, patch_fwrite_GC, sizeof(patch_fwrite_GC) );
 		//memcpy( (void*)0x01882C0, OSReportDM, sizeof(OSReportDM) );
 	}
-	if( read32(0x023D240) == 0x386000A8 )	// Mario kart GP (TRI)
+	else if( read32( 0x0210C08 ) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Mario kart GP\n");
-		TRIGame = 4;
-		SystemRegion = REGION_JAPAN;
+		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (EXPORT)\n");
+		TRIGame = TRI_VS4;
+		SystemRegion = REGION_USA;
 
-		//Reset skip
-		write32( 0x024F95C, 0x60000000 );
+		//Patch EXI ID check
+		write32( 0x0211B18, 0x4800001C );
 
-		//Unlimited CARD uses
-		write32( 0x01F5C44, 0x60000000 );
+		//BOOT/FIRM version mismatch patch
+		write32( 0x0051924, 0x60000000 );
 
-		//Disable cam
-		write32( 0x00790A0, 0x98650025 );
+		memcpy( (void*)0x0208314, PADReadSteerVS, PADReadSteerVS_size );
+		//its a bit too big to just be copied and I dont feel like optimizing
+		PatchB( PatchCopy(PADReadVS, PADReadVS_size), 0x0208968 );
+		//memcpy( (void*)0x0208968, PADReadVS, PADReadVS_size );
 
-		//Disable CARD
-		write32( 0x00790B4, 0x98650023 );
-		write32( 0x00790CC, 0x98650023 );
-
-		//Disable wheel/handle
-		write32( 0x007909C, 0x98650022 );
-
-		//VS wait
-		write32( 0x00BE10C, 0x4800002C );
-
-		//cam loop
-		write32( 0x009F1E0, 0x60000000 );
-
-		//Skip device test
-		write32( 0x0031BF0, 0x60000000 );
-		write32( 0x0031BFC, 0x60000000 );
-
-		//GXProg patch
-		memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
-
-		PatchB( PatchCopy(PADReadB, PADReadB_size), 0x003C6F0 );
-		memcpy( (void*)0x024E4B0, PADReadSteer, PADReadSteer_size );
-
-		//some report check skip
-		//write32( 0x00307CC, 0x60000000 );
-
-		//memcpy( (void*)0x00330BC, OSReportDM, sizeof(OSReportDM) );
-		//memcpy( (void*)0x0030710, OSReportDM, sizeof(OSReportDM) );
-		//memcpy( (void*)0x0030760, OSReportDM, sizeof(OSReportDM) );
-		//memcpy( (void*)0x020CBCC, OSReportDM, sizeof(OSReportDM) );	// UNkReport
-		//memcpy( (void*)0x02281B8, OSReportDM, sizeof(OSReportDM) );	// UNkReport4
+		//memcpy( (void*)0x001C2B80, OSReportDM, sizeof(OSReportDM) );
 	}
+	else
+		TRIGame = TRI_NONE;
+
+	u32 DisableEXIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false) || TRIGame == TRI_AX || TRIGame == TRI_VS4;
+	DisableSIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_NATIVE_SI));
+
 	/* Triforce relevant function */
 	u32 GCAMSendCommandAddr = TRIGame ? PatchCopy(GCAMSendCommand, sizeof(GCAMSendCommand)) : 0;
 
@@ -1498,17 +1513,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				{
 					printpatchfound("__OSDispatchInterrupt", NULL, (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					PatchBL( FakeInterruptAddr, (u32)Buffer + i + 4 );
-					if(ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true)
+					if(DisableEXIPatch == 0)
 					{
 						// EXI Device 0 Control Register
 						write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
 						write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
+						if(TRIGame)
+						{
+							// EXI Device 2 Control Register (Trifroce)
+							write32A( (u32)Buffer+i+0x188, 0x3C60C000, 0x3C60CC00, 1 );
+							write32A( (u32)Buffer+i+0x18C, 0x38630018, 0x38636800, 1 );
+							write32A( (u32)Buffer+i+0x190, 0x80830000, 0x80830028, 1 );
+						}
 					}
-					// EXI Device 2 Control Register (Trifroce)
-					write32A( (u32)Buffer+i+0x188, 0x3C60C000, 0x3C60CC00, 1 );
-					write32A( (u32)Buffer+i+0x18C, 0x38630018, 0x38636800, 1 );
-					write32A( (u32)Buffer+i+0x190, 0x80830000, 0x80830028, 1 );
-
 					PatchCount |= FPATCH_OSDispatchIntr;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
@@ -1517,7 +1534,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				{
 					printpatchfound("__OSDispatchInterrupt", "DBG", (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					PatchBL( FakeInterrupt_DBGAddr, (u32)Buffer + i + 4 );
-					if(ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true)
+					if(DisableEXIPatch == 0)
 					{
 						// EXI Device 0 Control Register
 						write32A( (u32)Buffer+i+0x138, 0x3C60C000, 0x3C60CC00, 1 );
@@ -2017,13 +2034,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d\r\n", fp.Length, fp.Loads, fp.Stores, fp.FCalls, fp.Branch, fp.Moves);
 		for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 		{
-			if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == 0)
+			if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == TRI_NONE)
 				continue;
-			if(AllFPatterns[patitr].patmode == PCODE_EXI && (TRIGame == 3 || ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false))
+			if(AllFPatterns[patitr].patmode == PCODE_EXI && DisableEXIPatch)
 				continue;
 			if (AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
 				continue;
-			if ((ConfigGetConfig(NIN_CFG_NATIVE_SI)) && (AllFPatterns[patitr].patmode == PCODE_SI))
+			if (AllFPatterns[patitr].patmode == PCODE_SI && DisableSIPatch)
 				continue;
 			FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
 			u32 CurPatternsLen = AllFPatterns[patitr].patlen;
@@ -2666,11 +2683,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									(TITLE_ID) != 0x475041 )	// Pok駑on Channel
 									break;
 							}
-							if( CurPatterns[j].Group == FGROUP_DVDInquiryAsync )
-							{
-								if(TRIGame == 1) //Mario Kart GP2
-									break;
-							}
 							if( (CurPatterns[j].Length >> 16) == (FCODES  >> 16) )
 							{
 								#ifdef DEBUG_PATCH
@@ -2751,13 +2763,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 	{
-		if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == 0)
+		if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == TRI_NONE)
 			continue;
-		if(AllFPatterns[patitr].patmode == PCODE_EXI && (TRIGame == 3 || ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false))
+		if(AllFPatterns[patitr].patmode == PCODE_EXI && DisableEXIPatch)
 			continue;
 		if(AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
 			continue;
-		if ((ConfigGetConfig(NIN_CFG_NATIVE_SI)) && (AllFPatterns[patitr].patmode == PCODE_SI))
+		if(AllFPatterns[patitr].patmode == PCODE_SI && DisableSIPatch)
 			continue;
 		FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
 		u32 CurPatternsLen = AllFPatterns[patitr].patlen;
@@ -2810,7 +2822,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	else if( TITLE_ID == 0x474336 )	// Pokemon Colosseum
 	{
 		// Memory Card inserted hack
-		if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) == true )
+		if( DisableEXIPatch == 0 )
 		{
 			if(write32A(0x000B0D88, 0x38600001, 0x4801C0B1, 0))
 			{
@@ -2909,12 +2921,6 @@ void CheckPatchPrs()
 
 void PatchGame()
 {
-	u32 SiInitSet = 0;
-	// Didn't look for why PMW2 requires this.  ToDo
-	if ((TITLE_ID) == 0x475032)  // PacMan World 2 hack
-		SiInitSet = 1;
-	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
-	sync_after_write((void*)0x13002740, 0x20);
 	// Yea that & is needed, I'm not sure if the patch is needed at all
 	// Commenting out until case where needed found
 	//if ((GameEntry & 0x7FFFFFFF) < 0x31A0)
@@ -2933,6 +2939,13 @@ void PatchGame()
 	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
 	// Init Cache if its a new ISO
 	ISOSetupCache();
+
+	u32 SiInitSet = 0;
+	// Didn't look for why PMW2 requires this.  ToDo
+	if ((TITLE_ID) == 0x475032 || TRIGame) // PacMan World 2 and Triforce hack
+		SiInitSet = 1;
+	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
+	sync_after_write((void*)0x13002740, 0x20);
 
 	/* Clear AR positions */
 	memset32((void*)0x131C0040, 0, 0x20);

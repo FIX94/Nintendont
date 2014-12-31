@@ -32,28 +32,19 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 
 	switch(TRIGame)
 	{
-		case 1:
+		case TRI_GP1:
+		{
+			sync_before_read( (void*)0x00577760, 0x20 );
+			write32( 0x00577760, 1 );	// MGP credits
+			sync_after_write( (void*)0x00577760,0x20 );
+		} break;
+		case TRI_GP2:
 		{
 			sync_before_read( (void*)0x00690AC0, 0x20 );
 			write32( 0x00690AC0, 1 );	// MGP2 credits
 			sync_after_write( (void*)0x00690AC0, 0x20 );
 		} break;
-		case 2:	// VS42006
-		{
-			if( read32( 0x0210C08 ) == 0x386000A8 )	// EXPORT
-			{
-				sync_before_read( (void*)0x064C6A0, 0x20 );
-				write32( 0x064C6B0, 1 );			// credits
-				sync_after_write( (void*)0x064C6A0, 0x20 );
-			}
-			if( read32( 0x024E888 ) == 0x386000A8 ) // JAPAN
-			{
-				sync_before_read( (void*)0x0694BA0, 0x20 );
-				write32( 0x0694BB0, 1 );			// credits
-				sync_after_write( (void*)0x0694BA0, 0x20 );
-			}
-		} break;
-		case 3:
+		case TRI_AX:
 		{
 			sync_before_read( (void*)0x00400DE0, 0x20 );
 			write32( 0x00400DE8, 1 );			// FZeroAX credits
@@ -68,12 +59,23 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			write32( 0x03CFBF4, val | 0x0400 );
 			sync_after_write( (void*)0x03CFBE0, 0x20 );
 		} break;
-		case 4:
+		case TRI_VS4:
 		{
-			sync_before_read( (void*)0x00577760, 0x20 );
-			write32( 0x00577760, 1 );	// MGP credits
-			sync_after_write( (void*)0x00577760,0x20 );
+			if( read32( 0x0210C08 ) == 0x386000A8 )	// EXPORT
+			{
+				sync_before_read( (void*)0x064C6A0, 0x20 );
+				write32( 0x064C6B0, 1 );			// credits
+				sync_after_write( (void*)0x064C6A0, 0x20 );
+			}
+			if( read32( 0x024E888 ) == 0x386000A8 ) // JAPAN
+			{
+				sync_before_read( (void*)0x0694BA0, 0x20 );
+				write32( 0x0694BB0, 1 );			// credits
+				sync_after_write( (void*)0x0694BA0, 0x20 );
+			}
 		} break;
+		default:
+			break;
 	}
 
 	JVSIOMessage();
@@ -104,10 +106,10 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			case 0x10:
 			{
 				addDataByte(1);
-				if( TRIGame == 2 )
+				if( TRIGame == TRI_VS4 )
 					addDataString("SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00");
 				else
-			addDataString("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");
+					addDataString("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");
 			} break;
 			// get command format revision
 			case 0x11:
@@ -153,7 +155,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 				addDataByte(1);
 				switch(TRIGame)
 				{
-					case 2:
+					case TRI_VS4:
 					{
 						// 2 Player, 2 Coin slots, 4 Analogs, 8Bit out
 						addDataBuffer((void *)"\x01\x02\x0D\x00", 4);
@@ -163,7 +165,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						addDataBuffer((void *)"\x12\x08\x00\x00", 4);
 						addDataBuffer((void *)"\x00\x00\x00\x00", 4);
 					} break;
-					case 3:
+					case TRI_AX:
 					{
 						// 1 Player (12-bits), 1 Coin slot, 6 Analog-in
 						addDataBuffer((void *)"\x01\x01\x0c\x00", 4);

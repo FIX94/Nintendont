@@ -12,11 +12,10 @@ PADReadB:
 	mflr	%r30
 
 	#to stub instead of arm
-	lis		%r4,			PadStub@h
-	ori		%r4,	%r4,	PadStub@l
-	mtctr	%r4
+	lis		%r3,			PadStub@h
+	ori		%r3,	%r3,	PadStub@l
+	mtctr	%r3
 	bctrl
-
 
 	li		%r3,	0
 	lis		%r4,	PadBuff@h
@@ -29,10 +28,10 @@ CheckA:
 
 CheckB:
 	andi.	%r4,	%r0,	0x200
-	beq		CheckZ
+	beq		CheckStart
 	ori		%r3,	%r3,	0x400
 
-CheckZ:
+#CheckZ:
 #	andi.	%r4,	%r0,	0x010
 #	beq		CheckStart
 #	ori		%r3,	%r3,	0x1000

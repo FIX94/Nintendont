@@ -80,7 +80,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 			res[resp++] = 0x32;
 
 			u32 ReadLength = CARDReadLength - CARDRead;
-			if( TRIGame == 3 )
+			if( TRIGame == TRI_AX )
 			{
 				if( ReadLength > 0x2F )
 					ReadLength = 0x2F;
@@ -164,7 +164,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 			{
 				res[resp++] = 0x80;	// 0x01
 
-				if( TRIGame == 3 )
+				if( TRIGame == TRI_AX )
 					res[resp++] = 0x01;	// 0x02
 				else
 					res[resp++] = 0x31;	// 0x02
@@ -258,7 +258,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 	#endif
 						CARDCommand = CARD_GET_CARD_STATE;
 
-						if( TRIGame == 3 && CARDMemorySize )
+						if( TRIGame == TRI_AX && CARDMemorySize )
 						{
 							CARDStateCallCount++;
 							if( CARDStateCallCount > 10 )
@@ -283,7 +283,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 								if( fi.fsize > 0 )
 								{
 									CARDMemorySize = fi.fsize;
-									if( TRIGame == 3 )
+									if( TRIGame == TRI_AX )
 										CARDBit = 2;
 									else
 										CARDBit = 1;
@@ -436,7 +436,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 	#endif
 						CARDCommand	= CARD_80;
 
-						if( TRIGame != 3 )
+						if( TRIGame != TRI_AX )
 							CARDBit = 0;
 					} break;
 					case 0xD0000000:
@@ -446,7 +446,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 	#endif
 						CARDCommand	= CARD_D0;
 
-						if( TRIGame != 3 )
+						if( TRIGame != TRI_AX )
 							CARDBit = 0;
 					} break;
 				}

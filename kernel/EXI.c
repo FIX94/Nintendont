@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "debug.h"
 
 #define EXI_IRQ_INSTANT		0		// as soon as possible
+#define EXI_IRQ_VERYFAST	950		// about 2000 times a second
 #define EXI_IRQ_DEFAULT		1900	// about 1000 times a second
 #define EXI_IRQ_SLOW		3800	// about 500 times a second
 #define EXI_IRQ_VERYSLOW	19000	// about 100 times a second
@@ -209,7 +210,9 @@ void EXISetTimings(u32 TitleID, u32 Region)
 		CurrentTiming = EXI_IRQ_INSTANT;
 	else if(TitleID == 0x474C4D) //Luigis Mansion
 		CurrentTiming = EXI_IRQ_SLOW;
-	else if(TRIGame == 1) //Mario Kart GP2
+	else if(TRIGame == TRI_GP1) //GP1 is very different here from GP2
+		CurrentTiming = EXI_IRQ_VERYFAST;
+	else if(TRIGame == TRI_GP2)
 		CurrentTiming = EXI_IRQ_VERYSLOW;
 	else
 		CurrentTiming = EXI_IRQ_DEFAULT;
@@ -252,6 +255,9 @@ bool EXICheckCard(void)
 
 void EXISaveCard(void)
 {
+	if(TRIGame)
+		return;
+
 	u32 wrote;
 	
 	if (BlockOffLow < BlockOffHigh)
@@ -279,6 +285,9 @@ void EXISaveCard(void)
 
 void EXIShutdown( void )
 {
+	if(TRIGame)
+		return;
+
 	u32 wrote;
 
 //#ifdef DEBUG_EXI

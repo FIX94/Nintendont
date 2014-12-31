@@ -253,11 +253,16 @@ inline void ClearScreen()
 {
 	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 }
+extern bool sdio_Deinitialize();
+extern void USBStorage_Deinitialize();
 void CloseDevices()
 {
 	closeLog();
 	fatUnmount("sd");
+	sdio_Deinitialize();
 	fatUnmount("usb");
+	USBStorage_Deinitialize();
+	USB_Deinitialize();
 }
 static char ascii(char s)
 {

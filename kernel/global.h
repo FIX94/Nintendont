@@ -171,6 +171,15 @@ enum Gameregion
 	REGION_EXPORT,
 };
 
+enum
+{
+	TRI_NONE = 0,
+	TRI_GP1,
+	TRI_GP2,
+	TRI_AX,
+	TRI_VS4
+} TRIGames;
+
 typedef struct
 {
 	u32 data;
