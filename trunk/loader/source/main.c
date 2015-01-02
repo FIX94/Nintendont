@@ -362,15 +362,13 @@ int main(int argc, char **argv)
 		DCFlushRange(DIBuf, 0x20);
 		CurDICMD = DIP_CMD_NORMAL;
 		ReadRealDisc(DIBuf, 0, 0x20, CurDICMD);
-		u32 DiscMagic = *(vu32*)(DIBuf+0x1C);
-		if( DiscMagic != 0xC2339F3D )
+		if( IsGCGame(DIBuf) == false )
 		{
 			memset(DIBuf, 0, 0x800);
 			DCFlushRange(DIBuf, 0x800);
 			CurDICMD = DIP_CMD_DVDR;
 			ReadRealDisc(DIBuf, 0, 0x800, CurDICMD);
-			DiscMagic = *(vu32*)(DIBuf+0x1C);
-			if( DiscMagic != 0xC2339F3D )
+			if( IsGCGame(DIBuf) == false )
 			{
 				free(DIBuf);
 				ClearScreen();

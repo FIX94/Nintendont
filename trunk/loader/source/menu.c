@@ -133,7 +133,7 @@ bool SelectGame( void )
 					fread( buf, 1, 0x100, in );
 					fclose(in);
 
-					if( *(vu32*)(buf+0x1C) == 0xC2339F3D )	// Must be GC game
+					if( IsGCGame((u8*)buf) )	// Must be GC game
 					{
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						if(!SearchTitles(gi[gamecount].ID, gamename)) strcpy( gamename, buf + 0x20 );
@@ -158,7 +158,7 @@ bool SelectGame( void )
 					fread( buf, 1, 0x100, in );
 					fclose(in);
 
-					if( *(vu32*)(buf+0x1C) == 0xC2339F3D )	// Must be GC game
+					if( IsGCGame((u8*)buf) )	// Must be GC game
 					{
 						sprintf(filename, "%s:/games/%s/", GetRootDevice(), pent->d_name);
 

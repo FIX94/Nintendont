@@ -10,7 +10,7 @@ static vu32 *stubsrc = (u32*)0x93011810;
 static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* const _siReg = (u32*)0xCD006400;
 static vu32* const MotorCommand = (u32*)0xD3003010;
-static vu32* DI_SIMM = (u32*)0xD3026050;
+static vu32* RESET_STATUS = (u32*)0xD3003420;
 static vu32* HIDMotor = (u32*)0x93002700;
 static vu32* PadUsed = (u32*)0x93002704;
 
@@ -162,11 +162,11 @@ u32 _start()
 		}
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
-			/* DI_SIMM status 3 */
-			*DI_SIMM = 0x3DEA;
+			/* reset status 3 */
+			*RESET_STATUS = 0x3DEA;
 		}
 		else /* for held status */
-			*DI_SIMM = 0;
+			*RESET_STATUS = 0;
 		/* clear unneeded button attributes */
 		Pad[chan].button &= 0x9F7F;
 		/* set current command */
@@ -327,11 +327,11 @@ u32 _start()
 
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
-			/* DI_SIMM status 3 */
-			*DI_SIMM = 0x3DEA;
+			/* reset status 3 */
+			*RESET_STATUS = 0x3DEA;
 		}
 		else /* for held status */
-			*DI_SIMM = 0;
+			*RESET_STATUS = 0;
 
 		/* then analog sticks */
 		s8 stickX, stickY, substickX, substickY;
@@ -1191,11 +1191,11 @@ u32 _start()
 		}
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
-			/* DI_SIMM status 3 */
-			*DI_SIMM = 0x3DEA;
+			/* reset status 3 */
+			*RESET_STATUS = 0x3DEA;
 		}
 		else // for held status
-			*DI_SIMM = 0;
+			*RESET_STATUS = 0;
 	}
 	memInvalidate = (u32)SIInited;
 	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
@@ -1217,9 +1217,9 @@ u32 _start()
 Shutdown:
 	/* stop audio dma */
 	_dspReg[27] = (_dspReg[27]&~0x8000);
-	/* DI_SIMM status 1 */
-	*DI_SIMM = 0x1DEA;
-	while(*DI_SIMM == 0x1DEA) ;
+	/* reset status 1 */
+	*RESET_STATUS = 0x1DEA;
+	while(*RESET_STATUS == 0x1DEA) ;
 	/* load in stub */
 	memFlush = (u32)stubdest;
 	u32 end = memFlush + stubsize;

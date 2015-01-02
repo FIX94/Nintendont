@@ -297,6 +297,17 @@ static inline u32 TimerDiffSeconds(u32 time)
 	return (((curtime - time) >> 13)*71)>>14;
 }
 
+static inline u32 IsGCGame(u32 Buffer)
+{
+	u32 AMB1 = read32(Buffer+0x4);
+	u32 GCMagic = read32(Buffer+0x1C);
+	return (AMB1 == 0x414D4231 || GCMagic == 0xC2339F3D);
+}
+
+#define RESET_STATUS 0x13003420
+#define FLUSH_LEN (RESET_STATUS+4)
+#define FLUSH_ADDR (RESET_STATUS+8)
+
 #define IsWiiU ( (*(u32*)0x0d8005A0 >> 16 ) == 0xCAFE )
 
 #endif

@@ -136,6 +136,7 @@ const char* const GetRootDevice();
 void RAMInit(void);
 void Initialise();
 bool LoadNinCFG();
+bool IsGCGame(u8 *Buffer);
 void ExitToLoader(int ret);
 void ClearScreen();
 void CloseDevices();
