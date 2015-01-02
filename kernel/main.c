@@ -331,14 +331,11 @@ int _main( int argc, char *argv[] )
 		}
 		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 9) /* Read random sector after about 10 seconds */
 		{
+			DIFinishAsync(); //if something is still running
 			DI_CallbackMsg.result = -1;
 			sync_after_write(&DI_CallbackMsg, 0x20);
 			IOS_IoctlAsync( DI_Handle, 2, NULL, 0, NULL, 0, DI_MessageQueue, &DI_CallbackMsg );
-			while(DI_CallbackMsg.result)
-			{
-				udelay(200); //wait for EHCI
-				BTUpdateRegisters();
-			}
+			DIFinishAsync();
 			USBReadTimer = read32(HW_TIMER);
 		}
 		udelay(10); //wait for other threads

@@ -76,6 +76,7 @@ void DIFinishAsync(void);
 u32 DIReadThread(void *arg);
 bool DiscCheckAsync( void );
 void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode);
+void DISetDIMMVersion( u32 Version );
 bool DIChangeDisc( u32 DiscNumber );
 void DIUpdateRegisters( void );
 void DIReload(void);

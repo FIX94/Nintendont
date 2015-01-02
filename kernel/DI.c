@@ -119,6 +119,7 @@ bool DiscCheckAsync( void )
 
 static void DiscReadAsync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 {
+	DIFinishAsync(); //if something is still running
 	DI_CallbackMsg.result = -1;
 	sync_after_write(&DI_CallbackMsg, 0x20);
 	IOS_IoctlAsync( DI_Handle, Mode, (void*)Offset, 0, (void*)Buffer, Length, DI_MessageQueue, &DI_CallbackMsg );
@@ -126,19 +127,10 @@ static void DiscReadAsync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 
 void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 {
-	//if something is still running
-	while(DiscCheckAsync() == false)
-	{
-		udelay(20);
-		CheckOSReport();
-	}
 	DiscReadAsync(Buffer, Offset, Length, Mode);
-	while(DiscCheckAsync() == false)
-	{
-		udelay(20);
-		CheckOSReport();
-	}
+	DIFinishAsync();
 }
+
 static u32 DVD_OFFSET = UINT_MAX;
 void ClearRealDiscBuffer(void)
 {
@@ -280,6 +272,9 @@ void DIinit( bool FirstTime )
 		NetworkCMDBuffer = (u8*)malloc( 512 );
 		memset32( NetworkCMDBuffer, 0, 512 );
 
+		//This normally contains default rankings but we just clear it
+		memset32( DIMMMemory, 0, 0x300000 );
+
 		memset32( (void*)DI_BASE, 0, 0x30 );
 		memset32( (void*)DI_SHADOW, 0, 0x30 );
 
@@ -299,7 +294,10 @@ void DIinit( bool FirstTime )
 	GCAMKeyB = read32(4);
 	GCAMKeyC = read32(8);
 }
-
+void DISetDIMMVersion( u32 Version )
+{
+	write32((u32)DIMMMemory, Version);
+}
 bool DIChangeDisc( u32 DiscNumber )
 {
 	if (!MultipleDiscs)
@@ -348,13 +346,14 @@ void DIInterrupt()
 
 static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
 {
+	sync_before_read( (void*)Buffer, Length );
 	if( (Offset & 0x8FFF0000) == 0x80000000 )
 	{
 		switch(Offset)
 		{
 			// Media board status (1)
 			case 0x80000000:
-				write16( Buffer, 0x0100 );
+				W16( Buffer, 0x0100 );
 				break;
 			// Media board status (2)
 			case 0x80000020:
@@ -362,19 +361,19 @@ static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
 				break;
 			// Media board status (3)
 			case 0x80000040:
-				memset( (void*)Buffer, 0xFFFFFFFF, Length );
+				memset( (void*)Buffer, 0xFF, Length );
 				// DIMM size (512MB)
-				write32( Buffer, 0x00000020 );
+				W32( Buffer, 0x00000020 );
 				// GCAM signature
-				write32( Buffer+4, 0x4743414D );
+				W32( Buffer+4, 0x4743414D );
 				break;
 			// Firmware status (1)
 			case 0x80000120:
-				write32( Buffer, 0x00000001 );
+				W32( Buffer, 0x00000001 );
 				break;
 			// Firmware status (2)
 			case 0x80000140:
-				write32( Buffer, 0x01000000 );
+				W32( Buffer, 0x01000000 );
 				break;
 			default:
 				dbgprintf("Unhandled Media Board Read:%08X\n", Offset );
@@ -402,6 +401,7 @@ static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
 	#endif
 		memcpy( (void*)Buffer, NetworkCMDBuffer + roffset, Length );
 	}
+	sync_after_write( (void*)Buffer, Length );
 }
 
 void DIUpdateRegisters( void )
@@ -859,13 +859,11 @@ u32 DIReadThread(void *arg)
 
 void DIFinishAsync()
 {
-	if(DI_IRQ == true)
+	while(DiscCheckAsync() == false)
 	{
-		while(DI_CallbackMsg.result)
-		{
-			udelay(100);
-			CheckOSReport();
-		}
+		udelay(200); //wait for driver
+		CheckOSReport();
+		BTUpdateRegisters();
 	}
 }
 

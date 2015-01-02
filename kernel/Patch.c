@@ -1259,9 +1259,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		TRIGame = TRI_GP1;
 		SystemRegion = REGION_JAPAN;
 
-		//Patch EXI ID check
-		write32( 0x023E150, 0x4800001C );
-
 		//Unlimited CARD uses
 		write32( 0x01F5C44, 0x60000000 );
 
@@ -1306,9 +1303,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		TRIGame = TRI_GP2;
 		SystemRegion = REGION_JAPAN;
 
-		//Patch EXI ID check
-		write32( 0x02865FC, 0x4800001C );
-
 		//Skip device test
 		write32( 0x002E340, 0x60000000 );
 		write32( 0x002E34C, 0x60000000 );
@@ -1350,9 +1344,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		dbgprintf("TRI:FZero AX\n");
 		TRIGame = TRI_AX;
 		SystemRegion = REGION_JAPAN;
-
-		//Patch EXI ID check
-		write32( 0x01AD60C, 0x4800001C );
+		DISetDIMMVersion(0x12301777);
 
 		//Reset loop
 		write32( 0x01B5410, 0x60000000 );
@@ -1404,9 +1396,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (EXPORT)\n");
 		TRIGame = TRI_VS4;
 		SystemRegion = REGION_USA;
-
-		//Patch EXI ID check
-		write32( 0x0211B18, 0x4800001C );
+		DISetDIMMVersion(0xA3A479);
 
 		//BOOT/FIRM version mismatch patch
 		write32( 0x0051924, 0x60000000 );
@@ -1421,7 +1411,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	else
 		TRIGame = TRI_NONE;
 
-	u32 DisableEXIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false) || TRIGame == TRI_AX || TRIGame == TRI_VS4;
+	u32 DisableEXIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false);
 	DisableSIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_NATIVE_SI));
 
 	/* Triforce relevant function */
