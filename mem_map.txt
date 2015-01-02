@@ -43,7 +43,10 @@ MEM2
 0x9300301C=pad rumble command chan3
 
 0x93003020-0x93003420=ios58 kernel path
-0x93003420-0x93005000=old hid thread stack
+
+0x93003420=reset status
+0x93003424=dol flush len
+0x93003428=dol flush addr
 
 0x93005000-0x930050E8=hid controller positions
 0x930050F0-0x93005170=hid packet (may be bigger device dependent)

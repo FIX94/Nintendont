@@ -44,7 +44,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
-vu32 DisableSIPatch = 0;
+vu32 DisableSIPatch = 0, DisableEXIPatch = 0;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
 #define PRS_DOL     0x131C0000
@@ -447,7 +447,6 @@ void PatchFuncInterface( char *dst, u32 Length )
 	u32 SIPatched = 0;
 	u32 EXIPatched = 0;
 	u32 AIPatched = 0;
-	u32 EXIFuncPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false);
 	int i;
 
 	u32 LISReg = 32;
@@ -518,7 +517,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				if( EXIFuncPatch )
+				if( DisableEXIPatch )
 				{
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
@@ -593,7 +592,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if (src == LISReg)
 			{
-				if ( EXIFuncPatch )
+				if ( DisableEXIPatch )
 				{
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
@@ -658,7 +657,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6800) // case with 0x68XY(rZ) (exi)
 				{
-					if( EXIFuncPatch )
+					if( DisableEXIPatch )
 					{
 						write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 						//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
@@ -688,7 +687,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 
 #ifdef DEBUG_PATCH
 	dbgprintf("Patch:[SI] applied %u times\r\n", SIPatched);
-	if( EXIFuncPatch ) dbgprintf("Patch:[EXI] applied %u times\r\n", EXIPatched);
+	if( DisableEXIPatch ) dbgprintf("Patch:[EXI] applied %u times\r\n", EXIPatched);
 	dbgprintf("Patch:[AI] applied %u times\r\n", AIPatched);
 	dbgprintf("Patch:[DI] applied %u times\r\n", DIPatched);
 	#endif
@@ -1411,7 +1410,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	else
 		TRIGame = TRI_NONE;
 
-	u32 DisableEXIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false);
+	DisableEXIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false);
 	DisableSIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_NATIVE_SI));
 
 	/* Triforce relevant function */
@@ -2929,7 +2928,8 @@ void PatchGame()
 	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
 	// Init Cache if its a new ISO
 	ISOSetupCache();
-
+	// Reset SI status
+	SIInit();
 	u32 SiInitSet = 0;
 	// Didn't look for why PMW2 requires this.  ToDo
 	if ((TITLE_ID) == 0x475032 || TRIGame) // PacMan World 2 and Triforce hack
@@ -2941,16 +2941,16 @@ void PatchGame()
 	memset32((void*)0x131C0040, 0, 0x20);
 	sync_after_write((void*)0x131C0040, 0x20);
 
-	write32( DI_SCMD_1, FullLength >> 5 );
+	write32( FLUSH_LEN, FullLength >> 5 );
 	u32 Command2 = DOLMinOff;
 	// ToDo.  HACK: Why doesn't Nightfire Deep Descent level like this??
 	if ((TITLE_ID) != 0x474f37)  // 007 Nightfire
 		Command2 |= 0x80000000;
-	write32( DI_SCMD_2, Command2 );
+	write32( FLUSH_ADDR, Command2 );
 	dbgprintf("Jumping to 0x%08X\n", GameEntry);
 	sync_after_write((void*)0x1800, 0x1800); //low patches
-	write32( DI_SIMM, GameEntry );
-	sync_after_write((void*)DI_BASE, 0x60);
+	write32( RESET_STATUS, GameEntry );
+	sync_after_write((void*)RESET_STATUS, 0x20);
 }
 
 s32 Check_Cheats()

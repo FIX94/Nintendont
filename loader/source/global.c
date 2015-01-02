@@ -300,3 +300,9 @@ void hexdump(void *d, int len)
 		gprintf("\r\n");
 	}
 }
+bool IsGCGame(u8 *Buffer)
+{
+	u32 AMB1 = *(vu32*)(Buffer+0x4);
+	u32 GCMagic = *(vu32*)(Buffer+0x1C);
+	return (AMB1 == 0x414D4231 || GCMagic == 0xC2339F3D);
+}

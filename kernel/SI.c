@@ -31,6 +31,10 @@ void SIInit()
 {
 	memset((void*)SI_BASE, 0, 0x120);
 	sync_after_write((void*)SI_BASE, 0x120);
+
+	SI_IRQ = 0;
+	complete = true;
+	cur_control = 0;
 }
 
 void SIInterrupt()

@@ -54,7 +54,7 @@ extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
 extern struct ipcmessage DI_CallbackMsg;
 extern u32 DI_MessageQueue;
-
+extern vu32 DisableSIPatch;
 extern char __bss_start, __bss_end;
 int _main( int argc, char *argv[] )
 {
@@ -118,12 +118,12 @@ int _main( int argc, char *argv[] )
 		u32 Length = 0x20;
 		RealDiscCMD = DIP_CMD_NORMAL;
 		u8 *TmpBuf = ReadRealDisc(&Length, 0, false);
-		if(read32((u32)TmpBuf+0x1C) != 0xC2339F3D)
+		if(IsGCGame((u32)TmpBuf) == false)
 		{
 			Length = 0x800;
 			RealDiscCMD = DIP_CMD_DVDR;
 			TmpBuf = ReadRealDisc(&Length, 0, false);
-			if(read32((u32)TmpBuf+0x1C) != 0xC2339F3D)
+			if(IsGCGame((u32)TmpBuf) == false)
 			{
 				dbgprintf("No GC Disc!\r\n");
 				BootStatusError(-2, -2);
@@ -187,12 +187,15 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(7, s_size, s_cnt);
 	ConfigInit();
-	
+
 	if (ConfigGetConfig(NIN_CFG_LOG))
 		SDisInit = 1;  // Looks okay after threading fix
 	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
 
 	BootStatus(8, s_size, s_cnt);
+
+	memset32((void*)RESET_STATUS, 0, 0x20);
+	sync_after_write((void*)RESET_STATUS, 0x20);
 
 	memset32((void*)0x13002800, 0, 0x30);
 	sync_after_write((void*)0x13002800, 0x30);
@@ -240,9 +243,7 @@ int _main( int argc, char *argv[] )
 	
 	BootStatus(11, s_size, s_cnt);
 
-	bool PatchSI = !ConfigGetConfig(NIN_CFG_NATIVE_SI);
-	if (PatchSI)
-		SIInit();
+	SIInit();
 	StreamInit();
 
 	PatchInit();
@@ -306,7 +307,7 @@ int _main( int argc, char *argv[] )
 				EXIInterrupt();
 		}
 		#endif
-		if ((PatchSI) && (SI_IRQ != 0))
+		if (SI_IRQ != 0)
 		{
 			if ((TimerDiffTicks(PADTimer) > 7910) || (SI_IRQ & 0x2))	// about 240 times a second
 			{
@@ -369,6 +370,7 @@ int _main( int argc, char *argv[] )
 		GCAMUpdateRegisters();
 		BTUpdateRegisters();
 		if(UseHID) HIDUpdateRegisters();
+		if(DisableSIPatch == 0) SIUpdateRegisters();
 		#endif
 		StreamUpdateRegisters();
 		CheckOSReport();
@@ -377,43 +379,43 @@ int _main( int argc, char *argv[] )
 			Now = read32(HW_TIMER);
 			SaveCard = true;
 		}
-		if (PatchSI)
+		sync_before_read((void*)RESET_STATUS, 0x20);
+		vu32 reset_status = read32(RESET_STATUS);
+		if (reset_status == 0x1DEA)
 		{
-			SIUpdateRegisters();
-			if (read32(DI_SIMM) == 0x1DEA)
+			write32(RESET_STATUS, 0);
+			sync_after_write((void*)RESET_STATUS, 0x20);
+			DIFinishAsync();
+			break;
+		}
+		if (reset_status == 0x3DEA)
+		{
+			if (Reset == 0)
 			{
-				DIFinishAsync();
-				break;
-			}
-			if (read32(DI_SIMM) == 0x3DEA)
-			{
-				if (Reset == 0)
-				{
-					dbgprintf("Fake Reset IRQ\n");
-					write32(EXI2DATA, 0x2); // Reset irq
-					write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
-					Reset = 1;
-				}
-			}
-			else if (Reset == 1)
-			{
-				write32(EXI2DATA, 0x10000); // send pressed
-				ResetTimer = read32(HW_TIMER);
-				Reset = 2;
-			}
-			/* The cleanup is not connected to the button press */
-			if (Reset == 2)
-			{
-				if (TimerDiffTicks(ResetTimer) > 949219) //free after half a second
-				{
-					write32(EXI2DATA, 0); // done, clear
-					write32(DI_SIMM, 0);
-					sync_after_write( (void*)DI_BASE, 0x60 );
-					Reset = 0;
-				}
+				dbgprintf("Fake Reset IRQ\n");
+				write32(EXI2DATA, 0x2); // Reset irq
+				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+				Reset = 1;
 			}
 		}
-		if(read32(DI_SIMM) == 0x4DEA)
+		else if (Reset == 1)
+		{
+			write32(EXI2DATA, 0x10000); // send pressed
+			ResetTimer = read32(HW_TIMER);
+			Reset = 2;
+		}
+		/* The cleanup is not connected to the button press */
+		if (Reset == 2)
+		{
+			if (TimerDiffTicks(ResetTimer) > 949219) //free after half a second
+			{
+				write32(EXI2DATA, 0); // done, clear
+				write32(RESET_STATUS, 0);
+				sync_after_write( (void*)RESET_STATUS, 0x20 );
+				Reset = 0;
+			}
+		}
+		if(reset_status == 0x4DEA)
 			PatchGame();
 		CheckPatchPrs();
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
@@ -448,13 +450,11 @@ int _main( int argc, char *argv[] )
 	thread_cancel(DI_Thread, 0);
 	DIUnregister();
 
-	write32( DI_SIMM, 0 );
-	sync_after_write( (void*)DI_BASE, 0x60 );
 	/* reset time */
 	while(1)
 	{
-		sync_before_read( (void*)DI_BASE, 0x60 );
-		if(read32(DI_SIMM) == 0x2DEA)
+		sync_before_read( (void*)RESET_STATUS, 0x20 );
+		if(read32(RESET_STATUS) == 0x2DEA)
 			break;
 		wait_for_ppc(1);
 	}

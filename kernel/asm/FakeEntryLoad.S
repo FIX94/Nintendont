@@ -1,27 +1,24 @@
 #include <asm.h>
 
-.set	DI_SCMD_1,		0xD302603C
-.set	DI_SCMD_2,		0xD3026040
-.set	DI_SIMM,		0xD3026050
+.set	RESET_STATUS,	0xD3003420
+.set	FLUSH_LEN,		0xD3003424
+.set	FLUSH_ADDR,		0xD3003428
 
 FakeEntryLoad:
-	lis		%r3,	DI_SIMM@h
+	lis		%r3,	RESET_STATUS@h
 	li		%r0,	0x4DEA
-	stw		%r0,	DI_SIMM@l(%r3)
+	stw		%r0,	RESET_STATUS@l(%r3)
 wait_loop:
-	lwz		%r4,	DI_SIMM@l(%r3)
+	lwz		%r4,	RESET_STATUS@l(%r3)
 	cmplw	%r4,	%r0
 	beq		wait_loop
 	mtlr	%r4
 
-	li		%r0,	0
-	lwz		%r4,	DI_SCMD_1@l(%r3)
+	lwz		%r4,	FLUSH_LEN@l(%r3)
 	mtctr	%r4
-	stw		%r0,	DI_SCMD_1@l(%r3)
 
-	lwz		%r4,	DI_SCMD_2@l(%r3)
-	stw		%r0,	DI_SCMD_2@l(%r3)
-
+	li		%r0,	0
+	lwz		%r4,	FLUSH_ADDR@l(%r3)
 InvalidateRange1:
 	dcbi	%r0,	%r4
 	icbi	%r0,	%r4
