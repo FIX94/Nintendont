@@ -22,22 +22,46 @@ __ARHandler:
 	oris	%r5,	%r5,	0x9000
 
 	cmpwi	%r0,	AR_MRAM_TO_ARAM
-	beq		memcpyPrep
+	beq		memcpy32prep
 
 ARAM_TO_MRAM:
 	mr		%r0,	%r4
 	mr		%r4,	%r5
 	mr		%r5,	%r0
 
-memcpyPrep:		#save length for DCStoreRange
-	srwi	%r0,	%r6,	5
+memcpy32prep:
+	li		%r7,	0
+	cmplwi	%r6,	3
+	ble		memcpy16prep
+	srwi	%r0,	%r6,	2	#32bit
 	mtctr	%r0
+memcpy32:
+	lwzx	%r0,	%r4,	%r7
+	stwx	%r0,	%r5,	%r7
+	addi	%r7,	%r7,	4
+	bdnz	memcpy32
 
-memcpy:
-	addic.	%r6,	%r6,	-4
-	lwzx	%r0,	%r4,	%r6
-	stwx	%r0,	%r5,	%r6
-	bne		memcpy
+memcpy16prep:
+	subf	%r0,	%r7,	%r6
+	cmpwi	%r0,	1
+	ble		memcpy8prep
+memcpy16:
+	lhzx	%r0,	%r4,	%r7
+	sthx	%r0,	%r5,	%r7
+	addi	%r7,	%r7,	2
+
+memcpy8prep:
+	subf	%r0,	%r7,	%r6
+	cmpwi	%r0,	0
+	ble		DCStoreRangePrep
+memcpy8:
+	lbzx	%r0,	%r4,	%r7
+	stbx	%r0,	%r5,	%r7
+
+DCStoreRangePrep:
+	addi	%r0,	%r6,	0x1F
+	srwi	%r0,	%r0,	5
+	mtctr	%r0
 
 	li		%r0,	0
 DCStoreRange:

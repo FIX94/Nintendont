@@ -25,14 +25,15 @@ ARStartDMA:
 	oris	%r5,	%r5,	0x9000
 
 	cmpwi	%r3,	AR_MRAM_TO_ARAM
-	beq		memcpyPrep		#we dont need to invalidate main mem
+	beq		memcpy32prep		#we dont need to invalidate main mem
 
 ARAM_TO_MRAM:
 	mr		%r0,	%r4
 	mr		%r4,	%r5
 	mr		%r5,	%r0
 
-	srwi	%r0,	%r6,	5
+	addi	%r0,	%r6,	0x1F
+	srwi	%r0,	%r0,	5
 	mtctr	%r0
 	mr		%r7,	%r4
 
@@ -43,16 +44,38 @@ DCInvalidateRange:
 	bdnz	DCInvalidateRange
 	sync
 
-memcpyPrep:
-	mr		%r7,	%r6		#save length
-memcpy:
-	addic.	%r7,	%r7,	-4
+memcpy32prep:
+	li		%r7,	0
+	cmplwi	%r6,	3
+	ble		memcpy16prep
+	srwi	%r0,	%r6,	2	#32bit
+	mtctr	%r0
+memcpy32:
 	lwzx	%r0,	%r4,	%r7
 	stwx	%r0,	%r5,	%r7
-	bne		memcpy
+	addi	%r7,	%r7,	4
+	bdnz	memcpy32
+
+memcpy16prep:
+	subf	%r0,	%r7,	%r6
+	cmpwi	%r0,	1
+	ble		memcpy8prep
+memcpy16:
+	lhzx	%r0,	%r4,	%r7
+	sthx	%r0,	%r5,	%r7
+	addi	%r7,	%r7,	2
+
+memcpy8prep:
+	subf	%r0,	%r7,	%r6
+	cmpwi	%r0,	0
+	ble		DCFlushRangePrep
+memcpy8:
+	lbzx	%r0,	%r4,	%r7
+	stbx	%r0,	%r5,	%r7
 
 DCFlushRangePrep:
-	srwi	%r0,	%r6,	5
+	addi	%r0,	%r6,	0x1F
+	srwi	%r0,	%r0,	5
 	mtctr	%r0
 
 	li		%r0,	0

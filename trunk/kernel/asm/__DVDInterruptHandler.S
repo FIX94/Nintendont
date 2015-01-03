@@ -44,6 +44,7 @@ __DVDInterruptHandler:
 	lwz		%r4,	DI_SDMA_ADR@l(%r3)
 	lwz		%r0,	DI_SDMA_LEN@l(%r3)
 
+	addi	%r0,	%r0,	0x1F
 	srwi	%r0,	%r0,	5
 	cmpwi	%r0,	0
 	bne		NoZero
