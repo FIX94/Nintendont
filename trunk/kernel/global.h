@@ -88,6 +88,9 @@ typedef u32 u_int32_t;
 
 typedef s32(*ipccallback)(s32 result,void *usrdata);
 
+#include "ipc.h"
+#include "syscalls.h"
+
 #define NULL ((void *)0)
 
 #define ALIGNED(x) __attribute__((aligned(x)))
@@ -304,9 +307,21 @@ static inline u32 IsGCGame(u32 Buffer)
 	return (AMB1 == 0x414D4231 || GCMagic == 0xC2339F3D);
 }
 
+static inline void sync_before_read_align32(void *Buf, u32 Len)
+{
+	void *BufA = ALIGN_BACKWARD(Buf, 0x20);
+	u32 LenDiff = (u32)Buf - (u32)BufA;
+	sync_before_read(BufA, ALIGN_FORWARD(Len + LenDiff, 0x20));
+}
+
+static inline void sync_after_write_align32(void *Buf, u32 Len)
+{
+	void *BufA = ALIGN_BACKWARD(Buf, 0x20);
+	u32 LenDiff = (u32)Buf - (u32)BufA;
+	sync_after_write(BufA, ALIGN_FORWARD(Len + LenDiff, 0x20));
+}
+
 #define RESET_STATUS 0x13003420
-#define FLUSH_LEN (RESET_STATUS+4)
-#define FLUSH_ADDR (RESET_STATUS+8)
 
 #define IsWiiU ( (*(u32*)0x0d8005A0 >> 16 ) == 0xCAFE )
 

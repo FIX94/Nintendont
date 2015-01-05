@@ -26,15 +26,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "vsprintf.h"
 #include "alloc.h"
 #include "Patch.h"
-#include "syscalls.h"
 #include "Config.h"
 #include "debug.h"
 
 #define EXI_IRQ_INSTANT		0		// as soon as possible
-#define EXI_IRQ_VERYFAST	950		// about 2000 times a second
 #define EXI_IRQ_DEFAULT		1900	// about 1000 times a second
 #define EXI_IRQ_SLOW		3800	// about 500 times a second
-#define EXI_IRQ_VERYSLOW	19000	// about 100 times a second
+
 static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
 extern u8 SRAM[64];
@@ -210,10 +208,6 @@ void EXISetTimings(u32 TitleID, u32 Region)
 		CurrentTiming = EXI_IRQ_INSTANT;
 	else if(TitleID == 0x474C4D) //Luigis Mansion
 		CurrentTiming = EXI_IRQ_SLOW;
-	else if(TRIGame == TRI_GP1) //GP1 is very different here from GP2
-		CurrentTiming = EXI_IRQ_VERYFAST;
-	else if(TRIGame == TRI_GP2)
-		CurrentTiming = EXI_IRQ_VERYSLOW;
 	else
 		CurrentTiming = EXI_IRQ_DEFAULT;
 #ifdef DEBUG_PATCH

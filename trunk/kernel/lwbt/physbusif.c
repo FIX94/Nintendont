@@ -3,12 +3,11 @@
 
 #include "global.h"
 #include "alloc.h"
-#include "syscalls.h"
 #include "string.h"
 #include "hci.h"
 #include "btmemb.h"
 #include "physbusif.h"
-#include "ipc.h"
+
 extern int dbgprintf( const char *fmt, ...);
 
 #define STACKSIZE					32768

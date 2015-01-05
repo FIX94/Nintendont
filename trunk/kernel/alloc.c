@@ -1,3 +1,4 @@
+#include "global.h"
 #include "alloc.h"
 #include "vsprintf.h"
 #include "debug.h"

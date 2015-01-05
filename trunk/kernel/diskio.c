@@ -4,7 +4,6 @@
 #include "Config.h"
 
 #include "SDI.h"
-#include "syscalls.h"
 #include "usbstorage.h"
 #include "alloc.h"
 #include "common.h"

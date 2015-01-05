@@ -44,18 +44,21 @@ void GCAMInit( void )
 	Buf = (char*)malloca( 0x80, 32 );
 	res = (u8*)  malloca( 0x80, 32 );
 
-	CARDMemory			= (u8*)malloca( 0xD0, 32 );
-	CARDReadPacket	= (u8*)malloca( 0xDB, 32 );
-	CARDBuffer			= (u8*)malloca( 0x100, 32 );
-	
+	CARDMemory = (u8*)malloca( 0xD0, 32 );
+	CARDReadPacket = (u8*)malloca( 0xDB, 32 );
+	CARDBuffer = (u8*)malloca( 0x100, 32 );
+
 	memset32( Bufo, 0, 0x80 );
 	memset32( Bufi, 0, 0x80 );
 	memset32( Buf,  0, 0x80 );
 	memset32( res,  0, 0x80 );
 
-	memset32( CARDMemory,			0, 0xD0 );
+	memset32( CARDMemory, 0, 0xD0 );
 	memset32( CARDReadPacket, 0, 0xDB );
-	memset32( CARDBuffer,			0, 0x100 );
+	memset32( CARDBuffer, 0, 0x100 );
+
+	memset32( (void*)GCAM_BASE, 0xdeadbeef, 0x40 );
+	sync_after_write( (void*)GCAM_BASE, 0x40 );
 
 	CARDMemorySize		= 0;
 	CARDIsInserted		= 0;
@@ -689,11 +692,11 @@ void GCAMCommand( char *DataIn, char *DataOut )
 
 	res[0x7F] = ~(chk & 0xFF);
 
-	//Check checksum
-	chk = 0;
-	for( i=0; i < 0x80; i++)
-		chk+=res[i];
-						
+	//Check checksum (???)
+	//chk = 0;
+	//for( i=0; i < 0x80; i++)
+	//	chk+=res[i];
+
 	memcpy( DataOut, res, 0x80 );
 }
 void GCAMUpdateRegisters( void )
@@ -737,14 +740,12 @@ void GCAMUpdateRegisters( void )
 		{
 			case 0x00:
 			{
-				;//dbgprintf("CARD:Warning unknown command!\n");
+				//dbgprintf("CARD:Warning unknown command!\n");
 			} break;
 			case 0x50:
 			{
 				char	*datain		= (char*)P2C( read32(GCAM_SCMD_1) );
-#ifdef DEBUG_GCAM
 				u32		lenin			= read32(GCAM_SCMD_2);
-#endif
 
 				char	*dataout	= (char*)P2C( read32(GCAM_SCMD_3) );
 				u32		lenout		= read32(GCAM_SCMD_4);
@@ -754,6 +755,7 @@ void GCAMUpdateRegisters( void )
 				hexdump( datain, lenin );
 #endif
 
+				sync_before_read_align32(datain, lenin);
 				switch( datain[0] )
 				{
 				//	dbgprintf("[%02X]", datain[0] );
@@ -773,8 +775,8 @@ void GCAMUpdateRegisters( void )
 						memset( dataout, 0, lenout );
 					} break;
 				}
-				
-				sync_after_write( (void*)((u32)dataout&(~3)), 0x20 );
+
+				sync_after_write_align32(dataout, lenout);
 
 				//hexdump( dataout, lenout );
 
@@ -791,8 +793,8 @@ void GCAMUpdateRegisters( void )
 				char	*dataout	= (char*)P2C( read32(GCAM_SCMD_2) );
 
 				//dbgprintf("GC-AM:Command( %p, %u, %p, %u )\n", datain, 0x80, dataout, 0x80 );
-				
-				sync_before_read( (void*)datain, 0x80 );
+
+				sync_before_read_align32(datain, 0x80);
 
 				memcpy( Bufi, datain, 0x80 );
 
@@ -807,7 +809,7 @@ void GCAMUpdateRegisters( void )
 					memcpy( Bufo, Buf, 0x80 );
 				}
 
-				sync_after_write( (void*)dataout, 0x80 );
+				sync_after_write_align32(dataout, 0x80);
 
 				//hexdump( dataout, 0x10 );
 

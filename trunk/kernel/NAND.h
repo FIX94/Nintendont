@@ -23,9 +23,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "global.h"
 #include "string.h"
-#include "syscalls.h"
-#include "global.h"
-#include "ipc.h"
 #include "common.h"
 
 u8 *NANDLoadFile( char * path, u32 *Size );

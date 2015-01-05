@@ -14,7 +14,15 @@ u8	*res		= NULL;
 u8	resp		= 0;
 u32	DataPos	= 0;
 
+extern vu32 m_ptr;
+extern vu8 m_msg[0x80];
+
 extern vu32 TRIGame;
+static const char *TRI_SegaChar = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
+static const char *TRI_NamcoChar = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
+static const u32 TRI_DefaultCoinCount = 9;
+
+static vu8 jvs_io_buffer[0x80];
 
 void JVSIOCommand( char *DataIn, char *DataOut )
 {
@@ -35,19 +43,19 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 		case TRI_GP1:
 		{
 			sync_before_read( (void*)0x00577760, 0x20 );
-			write32( 0x00577760, 1 );	// MGP credits
+			write32( 0x00577760, TRI_DefaultCoinCount ); // MGP credits
 			sync_after_write( (void*)0x00577760,0x20 );
 		} break;
 		case TRI_GP2:
 		{
 			sync_before_read( (void*)0x00690AC0, 0x20 );
-			write32( 0x00690AC0, 1 );	// MGP2 credits
+			write32( 0x00690AC0, TRI_DefaultCoinCount ); // MGP2 credits
 			sync_after_write( (void*)0x00690AC0, 0x20 );
 		} break;
 		case TRI_AX:
 		{
 			sync_before_read( (void*)0x00400DE0, 0x20 );
-			write32( 0x00400DE8, 1 );			// FZeroAX credits
+			write32( 0x00400DE8, TRI_DefaultCoinCount ); // FZeroAX credits
 			sync_after_write( (void*)0x00400DE0, 0x20 );
 
 			sync_before_read( (void*)0x003BC400, 0x20 );
@@ -64,13 +72,13 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			if( read32( 0x0210C08 ) == 0x386000A8 )	// EXPORT
 			{
 				sync_before_read( (void*)0x064C6A0, 0x20 );
-				write32( 0x064C6B0, 1 );			// credits
+				write32( 0x064C6B0, TRI_DefaultCoinCount ); // credits
 				sync_after_write( (void*)0x064C6A0, 0x20 );
 			}
 			if( read32( 0x024E888 ) == 0x386000A8 ) // JAPAN
 			{
 				sync_before_read( (void*)0x0694BA0, 0x20 );
-				write32( 0x0694BB0, 1 );			// credits
+				write32( 0x0694BB0, TRI_DefaultCoinCount ); // credits
 				sync_after_write( (void*)0x0694BA0, 0x20 );
 			}
 		} break;
@@ -81,9 +89,8 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 	JVSIOMessage();
 
 	u32 i,j;
-	unsigned char jvs_io_buffer[0x80];
-	int nr_bytes = DataIn[DataPos + 3]; // byte after e0 xx
-	int jvs_io_length = 0;
+	u32 nr_bytes = DataIn[DataPos + 3]; // byte after e0 xx
+	u32 jvs_io_length = 0;
 
 	for( i=0; i<nr_bytes + 3; ++i)
 		jvs_io_buffer[jvs_io_length++] = DataIn[ DataPos + 1 + i ];
@@ -92,7 +99,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 	JVSIOstart(0);
 	addDataByte(1);
 
-	unsigned char *jvs_io = jvs_io_buffer + 3;
+	vu8 *jvs_io = jvs_io_buffer + 3;
 	jvs_io_length--; // checksum
 
 	while( jvs_io < (jvs_io_buffer + jvs_io_length) )
@@ -107,9 +114,9 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			{
 				addDataByte(1);
 				if( TRIGame == TRI_VS4 )
-					addDataString("SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00");
+					addDataString(TRI_SegaChar);
 				else
-					addDataString("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");
+					addDataString(TRI_NamcoChar);
 			} break;
 			// get command format revision
 			case 0x11:
@@ -356,14 +363,9 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 
 	res[resp++] = DataIn[DataPos-1];
 
-	extern int m_ptr;
-	extern unsigned char m_msg[0x80];
-
-	unsigned char *buf = m_msg;
-	int len = m_ptr;
-	res[resp++] = len;
-	for (i=0; i<len; ++i)
-		res[resp++] = buf[i];
+	res[resp++] = m_ptr;
+	for (i=0; i < m_ptr; ++i)
+		res[resp++] = m_msg[i];
 
 	DataPos += nr_bytes + 4;
 }

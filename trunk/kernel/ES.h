@@ -1,8 +1,6 @@
 #ifndef __ES_H__
 #define __ES_H__
 
-#include "syscalls.h"
-#include "ipc.h"
 #include "global.h"
 #include "string.h"
 #include "Config.h"
