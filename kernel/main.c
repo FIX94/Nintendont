@@ -19,9 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include "string.h"
-#include "syscalls.h"
 #include "global.h"
-#include "ipc.h"
 #include "common.h"
 #include "alloc.h"
 #include "DI.h"

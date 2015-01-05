@@ -2,7 +2,6 @@
 #define __HID_H__
 
 #include "global.h"
-#include "syscalls.h"
 #include "common.h"
 #include "vsprintf.h"
 #include "alloc.h"

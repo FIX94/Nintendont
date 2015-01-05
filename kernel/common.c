@@ -1,5 +1,4 @@
 #include "string.h"
-#include "syscalls.h"
 #include "global.h"
 #include "EXI.h"
 #include "Config.h"

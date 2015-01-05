@@ -42,21 +42,20 @@ __DVDInterruptHandler:
 
 	#load original address from shadow
 	lwz		%r4,	DI_SDMA_ADR@l(%r3)
-	lwz		%r0,	DI_SDMA_LEN@l(%r3)
+	lwz		%r5,	DI_SDMA_LEN@l(%r3)
 
-	addi	%r0,	%r0,	0x1F
-	srwi	%r0,	%r0,	5
-	cmpwi	%r0,	0
-	bne		NoZero
-	li		%r0,	1
-NoZero:
-	mtctr	%r0
+	clrrwi	%r3,	%r4,	5
+	subf	%r4,	%r3,	%r4
+	add		%r4,	%r4,	%r5
+	addi	%r4,	%r4,	0x1F
+	srwi	%r4,	%r4,	5
+	mtctr	%r4
 
 	li		%r0,	0
 InvalidateRange:
-	dcbi	%r0,	%r4
-	icbi	%r0,	%r4
-	addi	%r4,	%r4,	0x20
+	dcbi	%r0,	%r3
+	icbi	%r0,	%r3
+	addi	%r3,	%r3,	0x20
 	bdnz	InvalidateRange
 
 NoFlush:

@@ -45,38 +45,23 @@ SITransfer:
 	stw     %r7,	0x2F70(%r9)
 
 #flush DataIn
-	clrrwi  %r3,	%r4,	5
-	mr		%r4,	%r5	
+	clrrwi	%r3,	%r4,	5
+	subf	%r4,	%r3,	%r4
+	add		%r4,	%r4,	%r5
+	addi	%r4,	%r4,	0x1F
+	srwi	%r4,	%r4,	5
+	mtctr	%r4
+
 	li		%r0,	0
+DCFlushRange:
+	dcbf	%r0,	%r3
+	addi	%r3,	%r3,	0x20
+	bdnz	DCFlushRange
+	sync
 
-	clrlwi  %r5, %r3, 27
-	add     %r4, %r4, %r5
-	addi    %r4, %r4, 0x1F
-	srwi    %r4, %r4, 5
-	mtctr   %r4
-flushA:
-	dcbf    %r0, %r3
-	addi    %r3, %r3, 0x20
-	bdnz	flushA
+	li		%r0,	3
+	stw		%r0,	0x2F78(%r9)
 
-#flush DataOut
-	clrrwi  %r3,	%r6,	5
-	mr		%r4,	%r7	
-	li		%r0,	0
-
-	clrlwi  %r5, %r3, 27
-	add     %r4, %r4, %r5
-	addi    %r4, %r4, 0x1F
-	srwi    %r4, %r4, 5
-	mtctr   %r4
-flushB:
-	dcbi    %r0, %r3
-	addi    %r3, %r3, 0x20
-	bdnz	flushB
-		
-	li      %r0,	3
-	stw     %r0,	0x2F78(%r9)
-	
 ready_loop:
 	lwz		%r0,	0x2F78(%r9)
 	cmpwi	%r0,	3
@@ -87,7 +72,22 @@ wait_loop:
 	andi.	%r0,	%r0,	0x14
 	cmpwi	%r0,	0
 	beq		wait_loop
-	
+
+#invalidate DataOut
+	clrrwi	%r3,	%r6,	5
+	subf	%r4,	%r3,	%r6
+	add		%r4,	%r4,	%r7
+	addi	%r4,	%r4,	0x1F
+	srwi	%r4,	%r4,	5
+	mtctr	%r4
+
+	li		%r0,	0
+DCInvalidateRange:
+	dcbi	%r0,	%r3
+	addi	%r3,	%r3,	0x20
+	bdnz	DCInvalidateRange
+	sync
+
 	cmpwi	%r8,	0
 	beq		skip_cb
 	mtctr	%r8

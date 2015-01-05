@@ -2,7 +2,6 @@
 #define __SDI_H__
 
 #include "global.h"
-#include "ipc.h"
 
 #define PAGE_SIZE512				512
 

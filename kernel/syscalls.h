@@ -1,8 +1,6 @@
-#ifndef __SYSCALLS_H__
-#define __SYSCALLS_H__	1
 
-#include "global.h"
-#include "ipc.h"
+#ifndef __SYSCALLS_H__
+#define __SYSCALLS_H__
 
 u32 thread_create( u32 (*proc)(void* arg), void* arg, u32* stack, u32 stacksize, u8 priority, bool detach );
 
@@ -79,9 +77,7 @@ void syscall_30(int device );
 #define irq_enable(a) syscall_34(a)
 int syscall_34(int device);
 
-#define sync_before_read(a, b) sync_before_read(a, b)
 void sync_before_read(void *ptr, int len);
-
 void sync_after_write(void *ptr, int len);
 
 #define PPCBoot( Path ) syscall_41( Path )

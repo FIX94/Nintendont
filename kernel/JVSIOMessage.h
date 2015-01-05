@@ -8,8 +8,8 @@ void JVSIOMessage(void);
 void JVSIOstart(int node);
 void addDataBuffer(const void *data, size_t len);
 void addDataString(const char *data);
-void addDataByte(int n);
+void addDataByte(const u8 data);
 void end();
-void addData(const unsigned char *dst, size_t len, int sync );
+void addData(const void *data, size_t len, int sync);
 
 #endif

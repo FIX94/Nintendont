@@ -1,12 +1,13 @@
 #include "JVSIOMessage.h"
 
-int m_ptr, m_last_start, m_csum;
-unsigned char m_msg[0x80];
+vu32 m_ptr, m_last_start, m_csum;
+vu8 m_msg[0x80];
 
 void JVSIOMessage(void)
 {
 	m_ptr = 0;
 	m_last_start = 0;
+	m_csum = 0;
 }
 void JVSIOstart(int node)
 {
@@ -17,27 +18,27 @@ void JVSIOstart(int node)
 }
 void addDataBuffer(const void *data, size_t len)
 {
-	addData((const unsigned char*)data, len, 0);
+	addData(data, len, 0);
 }
 void addDataString(const char *data)
 {
 	addDataBuffer(data, strlen(data));
 }
-void addDataByte(int n)
+void addDataByte(const u8 data)
 {
-	unsigned char cs = n;
-	addDataBuffer(&cs, 1);
+	addDataBuffer(&data, 1);
 }
 
 void end()
 {
-	int len = m_ptr - m_last_start;
+	u32 len = m_ptr - m_last_start;
 	m_msg[m_last_start + 2] = len - 2; // assuming len <0xD0
 	addDataByte(m_csum + len - 2);
 }
 
-void addData(const unsigned char *dst, size_t len, int sync )
+void addData(const void *data, size_t len, int sync)
 {
+	vu8 *dst = (vu8*)data;
 	while (len--)
 	{
 		int c = *dst++;

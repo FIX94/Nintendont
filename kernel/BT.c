@@ -117,7 +117,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+9)));
 		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
 		{
-			dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
+			//dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
 			stat->controller = (stat->controller & C_SWAP) ? (stat->controller & ~C_SWAP) : (stat->controller | C_SWAP);
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
@@ -165,14 +165,14 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+7))) | (*((u8*)buffer+2) & 0x10)<<4; //unused 0x100 for wiimote button Minus
 		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
 		{
-			dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
+			//dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
 			stat->controller = (stat->controller & C_SWAP) ? (stat->controller & ~C_SWAP) : (stat->controller | C_SWAP);
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
 		}
 		if((!(prevButton & (WM_BUTTON_MINUS << 4))) && BTPad[chan].button & (WM_BUTTON_MINUS << 4))	//wiimote button minus pressed leading edge
 		{
-			dbgprintf("%s rumble for wiimote\n", (stat->controller & C_RUMBLE_WM) ? "Disabling" : "Enabling");
+			//dbgprintf("%s rumble for wiimote\n", (stat->controller & C_RUMBLE_WM) ? "Disabling" : "Enabling");
 			stat->controller = (stat->controller & C_RUMBLE_WM) ? (stat->controller & ~C_RUMBLE_WM) : (stat->controller | C_RUMBLE_WM);
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
@@ -358,12 +358,12 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				if(*((u8*)buffer+6) == 0)
 				{
 					stat->controller = C_CC;
-					dbgprintf("Connected Classic Controller\n");
+					//dbgprintf("Connected Classic Controller\n");
 				}
 				else
 				{
 					stat->controller = C_CCP;
-					dbgprintf("Connected Classic Controller Pro\n");
+					//dbgprintf("Connected Classic Controller Pro\n");
 				}
 				stat->transfertype = 0x34;
 				/* Finally enable reading */
@@ -378,7 +378,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 			else if(R32((u32)((u8*)buffer+8)) == 0xA4200000)
 			{
 				stat->controller = C_NUN;
-				dbgprintf("Connected NUNCHUCK\n");
+				//dbgprintf("Connected NUNCHUCK\n");
 				u8 data[2];
 				data[0] = 0x13; //IR camera pixel clock
 				data[1] = 0x06; //enable IR pixel clock and return 0x22
@@ -590,7 +590,7 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 	}
 	else
 	{
-		dbgprintf("Connected WiiU Pro Controller\n");
+		//dbgprintf("Connected WiiU Pro Controller\n");
 		buf[0] = 0x12;	//set data reporting mode
 		buf[1] = 0x00;	//report only when data changes
 		buf[2] = stat->transfertype;
@@ -607,7 +607,7 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 
 static s32 BTHandleDisconnect(void *arg,struct bte_pcb *pcb,u8 err)
 {
-	dbgprintf("Controller disconnected\n");
+	//dbgprintf("Controller disconnected\n");
 	if(BTChannelsUsed) BTChannelsUsed--;
 	u32 i;
 	for(i = 0; i < 4; ++i)

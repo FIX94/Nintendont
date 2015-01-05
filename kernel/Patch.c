@@ -2355,7 +2355,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									 (TITLE_ID) == 0x47504E ||	// P.N.03
 									 (TITLE_ID) == 0x474D4F ||	// Micro Machines
 									 (TITLE_ID) == 0x473258 ||	// Sonic Gems Collection
-									 (TITLE_ID) == 0x475355 )	// Superman: Shadow of Apokolips
+									 (TITLE_ID) == 0x475355 ||	// Superman: Shadow of Apokolips
+									 (TITLE_ID) == 0x443737 ||	// Multi-Game Demo Disc 18
+									 (TITLE_ID) == 0x474353 )	// Street Racing Syndicate
 							{
 								memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
 							}
@@ -2374,8 +2376,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								W16(GCAMSendCommandAddr+0x0E, R16(FOffset+0x1E));
 								W16(GCAMSendCommandAddr+0x12, R16(FOffset+0x22));
 								/* Callback */
-								W16(GCAMSendCommandAddr+0xC2, R16(FOffset+0x26));
-								W16(GCAMSendCommandAddr+0xC6, R16(FOffset+0x2A));
+								W16(GCAMSendCommandAddr+0xA6, R16(FOffset+0x26));
+								W16(GCAMSendCommandAddr+0xAA, R16(FOffset+0x2A));
 								PatchB(GCAMSendCommandAddr, FOffset);
 							}
 							else
@@ -2908,6 +2910,8 @@ void CheckPatchPrs()
 	}
 }
 
+#define FLUSH_LEN (RESET_STATUS+4)
+#define FLUSH_ADDR (RESET_STATUS+8)
 void PatchGame()
 {
 	// Yea that & is needed, I'm not sure if the patch is needed at all
