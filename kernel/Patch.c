@@ -1379,16 +1379,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		memcpy( (void*)0x0302AC0, (void*)0x0302A84, 0x3C );
 		memcpy( (void*)0x021D3EC, (void*)0x0302A84, 0x3C );
 
-		//Unkreport
-		PatchB( 0x01882C0, 0x0191B54 );
-		PatchB( 0x01882C0, 0x01C53CC );
-		PatchB( 0x01882C0, 0x01CC684 );
-
 		memcpy( (void*)0x001B3D10, PADReadSteerF, PADReadSteerF_size );
 		memcpy( (void*)0x001B4340, PADReadF, PADReadF_size );
 
 		//memcpy( (void*)0x01CAACC, patch_fwrite_GC, sizeof(patch_fwrite_GC) );
 		//memcpy( (void*)0x01882C0, OSReportDM, sizeof(OSReportDM) );
+
+		//Unkreport
+		//PatchB( 0x01882C0, 0x0191B54 );
+		//PatchB( 0x01882C0, 0x01C53CC );
+		//PatchB( 0x01882C0, 0x01CC684 );
 	}
 	else if( read32( 0x0210C08 ) == 0x386000A8 )
 	{
