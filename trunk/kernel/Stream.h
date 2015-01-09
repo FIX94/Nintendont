@@ -32,7 +32,7 @@ void StreamInit();
 void StreamStartStream(u32 CurrentStart, u32 CurrentSize);
 void StreamEndStream();
 void StreamUpdateRegisters();
-void StreamPrepare(bool resample);
+void StreamPrepare();
 void StreamUpdate();
 u32 StreamGetChunkSize();
 
