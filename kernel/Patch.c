@@ -2983,6 +2983,8 @@ s32 Check_Cheats()
 			if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
 			{
 				_sprintf( path, "%s", ConfigGetCheatPath() );
+				if (path[0] == 0)	//cheat path is null
+					return -4;
 			} else {
 				return 0;	//todo: temp until fixed
 //				_sprintf( path, "/games/%.6s/%.6s.gct", (char*)0x1800, (char*)0x1800 );

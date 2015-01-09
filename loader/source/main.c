@@ -632,11 +632,11 @@ int main(int argc, char **argv)
 		if((STATUS_LOADING > 0 || abs(STATUS_LOADING) > 1) && STATUS_LOADING < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init... Done!");
 		if(STATUS_LOADING == 2)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing devices...");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices...");
 		if(abs(STATUS_LOADING) > 2 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing devices... Done!");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices... Done!");
 		if(STATUS_LOADING == -2)
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Initing devices... Error! %d  Shutting down", STATUS_ERROR);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices... Error! %d  Shutting down", STATUS_ERROR);
 		if(STATUS_LOADING == 3)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...");
 		if(abs(STATUS_LOADING) > 3 && abs(STATUS_LOADING) < 20)
@@ -755,6 +755,9 @@ int main(int argc, char **argv)
 					break;	
 				case -3:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Cheat file to large", GetRootDevice());
+					break;	
+				case -4:
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Cheat path is empty", GetRootDevice());
 					break;	
 				default:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Unknown error %d %35s", STATUS_ERROR, " ");
