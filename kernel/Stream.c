@@ -34,6 +34,9 @@ u8 *StreamBuffer = (u8*)0x132A0000;
 #define REAL_STREAMING (UPDATE_STREAM+2)
 #define AI_ADP_LOC EXI2LENGTH
 
+#define AI_CR 0x0D806C00
+#define AI_32K (1<<6)
+
 #define BUFSIZE 0xC400
 #define CHUNK_48 0x3800
 #define CHUNK_48to32 0x5400
@@ -67,10 +70,10 @@ void StreamInit()
 	write32(AI_ADP_LOC, 0);
 }
 
-void StreamPrepare(bool resample)
+void StreamPrepare()
 {
 	memset32(hist, 0, sizeof(hist));
-	if(resample)
+	if(read32(AI_CR) & AI_32K)
 	{
 		//dbgprintf("Using 48kHz ADP -> 32kHz PCM Decoder\n");
 		CurrentWriter = WritePCM48to32;
@@ -173,7 +176,7 @@ void StreamUpdateRegisters()
 				if(StreamLoop == 1)
 				{
 					StreamCurrent = StreamStart;
-					StreamPrepare(true);
+					StreamPrepare();
 				}
 				else
 					StreamEnd = 1;
@@ -192,7 +195,7 @@ void StreamStartStream(u32 CurrentStart, u32 CurrentSize)
 		StreamStart = CurrentStart;
 		StreamCurrent = StreamStart;
 		StreamEndOffset = StreamStart + StreamSize;
-		StreamPrepare(true); //TODO: find a game which doesnt need resampling
+		StreamPrepare();
 		DiscReadSync((u32)StreamBuffer, StreamCurrent, StreamGetChunkSize(), 1);
 		StreamCurrent += StreamGetChunkSize();
 		cur_buf = buf1; //reset adp buffer

@@ -850,7 +850,8 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x474832 ||	// NFS: HP2
 			(TITLE_ID) == 0x474156 ||	// Avatar Last Airbender
 			(TITLE_ID) == 0x473442 ||	// Resident Evil 4
-			(TITLE_ID) == 0x474856 );	// Disneys Hide and Sneak
+			(TITLE_ID) == 0x474856 ||	// Disneys Hide and Sneak
+			(TITLE_ID) == 0x474353 );	// Street Racing Syndicate
 }
 
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
@@ -2356,8 +2357,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									 (TITLE_ID) == 0x474D4F ||	// Micro Machines
 									 (TITLE_ID) == 0x473258 ||	// Sonic Gems Collection
 									 (TITLE_ID) == 0x475355 ||	// Superman: Shadow of Apokolips
-									 (TITLE_ID) == 0x443737 ||	// Multi-Game Demo Disc 18
-									 (TITLE_ID) == 0x474353 )	// Street Racing Syndicate
+									 (TITLE_ID) == 0x443737 )	// Multi-Game Demo Disc 18
 							{
 								memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
 							}
