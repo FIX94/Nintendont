@@ -123,7 +123,7 @@ u32 _start()
 			if(PADBarrelPress[3+curchan] == 0)
 			{
 				u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
-				if(tmp_triggerR > 0x16) // need to do this manually
+				if(tmp_triggerR > 0x30) // need to do this manually
 					PADBarrelPress[3+curchan] = 3;
 			}
 			else
@@ -215,11 +215,11 @@ u32 _start()
 				else
 					*HIDMotor &= ~(1 << chan);
 
-				if ((HID_Packet[HID_CTRL->StickX.Offset] == 0)		//if connected device is a bongo
-				  &&(HID_Packet[HID_CTRL->StickY.Offset] == 0)
-				  &&(HID_Packet[HID_CTRL->CStickX.Offset] == 0)
-				  &&(HID_Packet[HID_CTRL->CStickY.Offset] == 0)
-				  &&(HID_Packet[HID_CTRL->LAnalog] == 0))
+				if ((HID_Packet[HID_CTRL->StickX.Offset] < 5)		//if connected device is a bongo
+				  &&(HID_Packet[HID_CTRL->StickY.Offset] < 5)
+				  &&(HID_Packet[HID_CTRL->CStickX.Offset] < 5)
+				  &&(HID_Packet[HID_CTRL->CStickY.Offset] < 5)
+				  &&(HID_Packet[HID_CTRL->LAnalog] < 5))
 				{
 					PADBarrelEnabled[chan] = 1;
 					PADIsBarrel[chan] = 1;
@@ -317,9 +317,19 @@ u32 _start()
 		}
 
 		if (PADBarrelEnabled[chan] && PADIsBarrel[chan]) //if bongo controller
-			if ((( HID_CTRL->DigitalLR != 1) && (HID_Packet[HID_CTRL->RAnalog] > 0x16))
+		{
+			if(button & (PAD_BUTTON_A | PAD_BUTTON_B | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_BUTTON_START))	//any bongo pressed
+				PADBarrelPress[0+chan] = 6;
+			else
+			{
+				if(PADBarrelPress[0+chan] > 0)
+					PADBarrelPress[0+chan]--;
+			}
+			if ((( HID_CTRL->DigitalLR != 1) && (HID_Packet[HID_CTRL->RAnalog] > 0x30)) //shadowfield liked 40 but didnt work for multi player
 			  ||(( HID_CTRL->DigitalLR == 1) && (HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)))
-				button |= PAD_TRIGGER_R;	//force button presss todo: bogo should only be using analog
+				if (PADBarrelPress[0+chan] == 0)	// bongos not pressed last 6 cycles (dont pickup bongo noise as clap)
+					button |= PAD_TRIGGER_R;	//force button presss todo: bogo should only be using analog
+		}
 		
 		if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 			button |= PAD_BUTTON_START;
@@ -335,6 +345,11 @@ u32 _start()
 
 		/* then analog sticks */
 		s8 stickX, stickY, substickX, substickY;
+		if (PADIsBarrel[chan])
+		{
+			stickX = stickY = substickX = substickY = 0;	//DK Jungle Beat requires all sticks = 0 in menues
+		}
+		else
 		if ((HID_CTRL->VID == 0x044F) && (HID_CTRL->PID == 0xB303))	//Logitech Thrustmaster Firestorm Dual Analog 2
 		{
 			stickX		= HID_Packet[HID_CTRL->StickX.Offset];			//raw 80 81...FF 00 ... 7E 7F (left...center...right)
@@ -382,17 +397,10 @@ u32 _start()
 		else
 		if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo wiiu Gamecube Adapter
 		{
-			if (PADIsBarrel[chan])
-			{
-				stickX = stickY = substickX = substickY = 0;
-			}
-			else
-			{
-				stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1D 1E 1F ... 7F 80 81 ... E7 E8 E9 (left ... center ... right)
-				stickY		= HID_Packet[HID_CTRL->StickY.Offset] - 128;	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
-				substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
-				substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
-			}
+			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1D 1E 1F ... 7F 80 81 ... E7 E8 E9 (left ... center ... right)
+			stickY		= HID_Packet[HID_CTRL->StickY.Offset] - 128;	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
+			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
+			substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
 		}
 		else	//standard sticks
 		{

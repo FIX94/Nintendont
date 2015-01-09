@@ -405,7 +405,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				data[1] = 0x04; //write to registers
 				data[2] = 0xA4; data[3] = 0x00; data[4] = 0xFB; //address
 				data[5] = 0x01; //length
-				data[6] = 0x00; //data
+				data[6] = 0x00; //data unencrypt expansion bytes
 				bte_senddata(stat->sock,data,22);	//returns 0x22 Acknowledge output report and return function result
 				stat->transferstate = TRANSFER_SET_IDENT;
 				sync_after_write(arg, sizeof(struct BTPadStat));
