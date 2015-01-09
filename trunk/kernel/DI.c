@@ -50,7 +50,8 @@ u32 DI_Thread = 0;
 s32 DI_Handle = -1;
 bool MultipleDiscs = true;
 u32 ISOShift = 0;
-extern u32 StreamSize, StreamStart, StreamCurrent;
+static u32 Streaming = 0; //internal
+extern u32 StreamSize, StreamStart, StreamCurrent, StreamEndOffset;
 
 u32 DiscChangeIRQ	= 0;
 
@@ -494,9 +495,11 @@ void DIUpdateRegisters( void )
 					{
 						case 0x00:
 							StreamStartStream(read32(DI_SCMD_1) << 2, read32(DI_SCMD_2));
+							Streaming = 1;
 							break;
 						case 0x01:
 							StreamEndStream();
+							Streaming = 0;
 							break;
 						default:
 							break;
@@ -508,10 +511,19 @@ void DIUpdateRegisters( void )
 					switch( (read32(DI_SCMD_0) >> 16) & 0xFF )
 					{
 						case 0x00:	// Streaming?
-							write32( DI_IMM, !!(StreamCurrent) );
+							Streaming = !!(StreamCurrent);
+							write32( DI_IMM, Streaming );
 							break;
 						case 0x01:	// What is the current address?
-							write32( DI_IMM, StreamCurrent >> 2 );
+							if(Streaming)
+							{
+								if(StreamCurrent)
+									write32( DI_IMM, ALIGN_BACKWARD(StreamCurrent, 0x8000) >> 2 );
+								else
+									write32( DI_IMM, StreamEndOffset >> 2 );
+							}
+							else
+								write32( DI_IMM, 0 );
 							break;
 						case 0x02:	// disc offset of file
 							write32( DI_IMM, StreamStart >> 2 );

@@ -1282,8 +1282,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0031BF0, 0x60000000 );
 		write32( 0x0031BFC, 0x60000000 );
 
-		//GXProg patch
-		memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
+		//Modify to regular GX pattern to patch later
+		write32( 0x363660, 0x00 ); //NTSC Interlaced
+
+		//Test Menu Interlaced
+		//memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
 
 		PatchB( PatchCopy(PADReadB, PADReadB_size), 0x003C6F0 );
 		memcpy( (void*)0x024E4B0, PADReadSteer, PADReadSteer_size );
@@ -1323,6 +1326,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Game vol
 		write32( 0x00790E8, 0x39000009 );
+
 		//Attract vol
 		write32( 0x00790F4, 0x38C0000C );
 
@@ -1331,6 +1335,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Patches the analog input count
 		write32( 0x000392F4, 0x38000003 );
+
+		//Modify to regular GX pattern to patch later
+		write32( 0x3F1FD0, 0x00 ); //NTSC Interlaced
 
 		PatchB( PatchCopy(PADReadB, PADReadB_size), 0x0038EF4 );
 		memcpy( (void*)0x028A128, PADReadSteer, PADReadSteer_size );
@@ -1348,6 +1355,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Reset loop
 		write32( 0x01B5410, 0x60000000 );
+
 		//DBGRead fix
 		write32( 0x01BEF38, 0x60000000 );
 
@@ -1376,9 +1384,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//English 
 		write32( 0x000DF698, 0x38000000 );
 
-		//GXProg patch
-		memcpy( (void*)0x0302AC0, (void*)0x0302A84, 0x3C );
-		memcpy( (void*)0x021D3EC, (void*)0x0302A84, 0x3C );
+		//Modify to regular GX pattern to patch later
+		u32 NTSC480ProgTri = 0x21D3EC;
+		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
+		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		NTSC480ProgTri = 0x302AC0;
+		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
+		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
 
 		memcpy( (void*)0x001B3D10, PADReadSteerF, PADReadSteerF_size );
 		memcpy( (void*)0x001B4340, PADReadF, PADReadF_size );
@@ -1400,6 +1413,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//BOOT/FIRM version mismatch patch
 		write32( 0x0051924, 0x60000000 );
+
+		//Modify to regular GX pattern to patch later
+		write32( 0x26DD38, 0x00 ); //NTSC Interlaced
 
 		memcpy( (void*)0x0208314, PADReadSteerVS, PADReadSteerVS_size );
 		//its a bit too big to just be copied and I dont feel like optimizing
