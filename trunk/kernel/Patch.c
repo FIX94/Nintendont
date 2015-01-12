@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
+vu32 useipl = 0;
 vu32 DisableSIPatch = 0, DisableEXIPatch = 0;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
@@ -1128,11 +1129,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				/* Hack Position */
 				GameEntry = dol->entrypoint;
 				if (!(PSOHack & PSO_STATE_NOENTRY))
-				{
 					dol->entrypoint = PATCH_OFFSET_ENTRY + 0x80000000;
-					sync_after_write((void*)&(dol->entrypoint), 0x4);
-				}
-				dbgprintf("DIP:DOL EntryPoint::0x%08X, GameEntry::0x%08X\r\n", &(dol->entrypoint), GameEntry);
+				dbgprintf("DIP:DOL EntryPoint::0x%08X, GameEntry::0x%08X\r\n", dol->entrypoint, GameEntry);
 				PatchState |= PATCH_STATE_LOAD;
 			}
 			PSOHack = PSO_STATE_NONE;
@@ -2110,7 +2108,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							if(read32(FOffset + 0x44) == 0x280C0000)
 							{
-								if(GameNeedsHook())
+								if(GameNeedsHook() && useipl == 0)
 								{
 									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x44);
 									PatchBL(__ARHandlerAddr, FOffset + 0x44);
@@ -2203,6 +2201,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE___GXSetVAT:	// Patch for __GXSetVAT, fixes the dungeon map freeze in Wind Waker
 						{
+							if(useipl == 1) break;
 							switch( TITLE_ID )
 							{
 								case 0x505A4C:	// The Legend of Zelda: Collector's Edition
@@ -2352,6 +2351,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_ARStartDMA:	//	ARStartDMA
 						{
+							if(useipl == 1)
+							{
+								memcpy( (void*)FOffset, ARStartDMA, ARStartDMA_size );
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								break;
+							}
 							if(GameNeedsHook())
 							{
 								u32 PatchOffset = 0x20;
@@ -2596,6 +2601,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE___DSPHandler:
 						{
+							if(useipl == 1) break;
 							if(read32(FOffset + 0xF8) == 0x2C000000)
 							{
 								PatchBL( __DSPHandlerAddr, (FOffset + 0xF8) );
@@ -2663,10 +2669,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							if( CurPatterns[j].Patch == (u8*)ARQPostRequest )
 							{
-								if (   (TITLE_ID) != 0x474D53  // Super Mario Sunshine
+								if ((  (TITLE_ID) != 0x474D53  // Super Mario Sunshine
 									&& (TITLE_ID) != 0x474C4D  // Luigis Mansion
 									&& (TITLE_ID) != 0x475049  // Pikmin
 									&& (TITLE_ID) != 0x474C56) // Chronicles of Narnia
+									|| useipl == 1)
 								{
 									#ifdef DEBUG_PATCH
 									dbgprintf("Patch:[ARQPostRequest] skipped (0x%08X)\r\n", FOffset);
@@ -2926,6 +2933,10 @@ void CheckPatchPrs()
 	}
 }
 
+void SetIPL()
+{
+	useipl = 1;
+}
 #define FLUSH_LEN (RESET_STATUS+4)
 #define FLUSH_ADDR (RESET_STATUS+8)
 void PatchGame()
@@ -2941,9 +2952,17 @@ void PatchGame()
 		GameEntry = 0x81300000;
 		AppLoaderSize = 0;
 	}
+	else if(useipl)
+	{
+		DOLMinOff = 0x01300000;
+		DOLMaxOff = 0x01600000;
+		GameEntry = 0x81300000;
+		sync_before_read((void*)0x1300000, 0x300000);
+	}
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
+	useipl = 0;
 	// Some games need special timings
 	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
 	// Init Cache if its a new ISO

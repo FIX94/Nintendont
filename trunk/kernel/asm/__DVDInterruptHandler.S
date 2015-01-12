@@ -28,28 +28,28 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 __DVDInterruptHandler:
 	#write back own status to clear its interrupts
 	lis		%r3,	DIP_STATUS@h
-	lwz		%r4,	DIP_STATUS@l(%r3)
-	stw		%r4,	DIP_STATUS@l(%r3)
+	lwz		%r5,	DIP_STATUS@l(%r3)
+	stw		%r5,	DIP_STATUS@l(%r3)
 
 	#save original dvd status to current status
 	lis		%r3,	DI_STATUS@h
-	stw		%r4,	DI_STATUS@l(%r3)
+	stw		%r5,	DI_STATUS@l(%r3)
 
 	#check if we need to flush data
-	lwz		%r4,	DI_SCONTROL@l(%r3)
-	cmpwi	%r4,	3	#DMA Read
+	lwz		%r5,	DI_SCONTROL@l(%r3)
+	cmpwi	%r5,	3	#DMA Read
 	bne		NoFlush
 
 	#load original address from shadow
-	lwz		%r4,	DI_SDMA_ADR@l(%r3)
-	lwz		%r5,	DI_SDMA_LEN@l(%r3)
+	lwz		%r5,	DI_SDMA_ADR@l(%r3)
+	lwz		%r6,	DI_SDMA_LEN@l(%r3)
 
-	clrrwi	%r3,	%r4,	5
-	subf	%r4,	%r3,	%r4
-	add		%r4,	%r4,	%r5
-	addi	%r4,	%r4,	0x1F
-	srwi	%r4,	%r4,	5
-	mtctr	%r4
+	clrrwi	%r3,	%r5,	5
+	subf	%r5,	%r3,	%r5
+	add		%r6,	%r5,	%r6
+	addi	%r6,	%r6,	0x1F
+	srwi	%r6,	%r6,	5
+	mtctr	%r6
 
 	li		%r0,	0
 InvalidateRange:

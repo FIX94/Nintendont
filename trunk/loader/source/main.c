@@ -43,6 +43,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "multidol_ldr_bin.h"
 #include "stub_bin.h"
 #include "titles.h"
+#include "ipl.h"
 
 extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
@@ -555,6 +556,29 @@ int main(int argc, char **argv)
 		else
 			fclose(f);
 	}
+	void *iplbuf = NULL;
+	bool useipl = false;
+	char iplchar[32];
+	if((ncfg->GameID & 0xFF) == 'E')
+		sprintf(iplchar, "%s:/iplusa.bin", GetRootDevice());
+	else if((ncfg->GameID & 0xFF) == 'J')
+		sprintf(iplchar, "%s:/ipljap.bin", GetRootDevice());
+	else
+		sprintf(iplchar, "%s:/iplpal.bin", GetRootDevice());
+	FILE *f = fopen(iplchar, "rb");
+	if(f != NULL)
+	{
+		fseek(f, 0, SEEK_END);
+		size_t fsize = ftell(f);
+		if(fsize == 2097152)
+		{
+			fseek(f, 0, SEEK_SET);
+			iplbuf = malloc(2097152);
+			fread(iplbuf, 1, 2097152, f);
+			useipl = true;
+		}
+		fclose(f);
+	}
 //sync changes
 	CloseDevices();
 
@@ -959,10 +983,25 @@ int main(int argc, char **argv)
 	__exception_closeall();
 	__lwp_thread_closeall();
 
-	memcpy((void*)0x81300000, multidol_ldr_bin, multidol_ldr_bin_size);
-	DCFlushRange((void*)0x81300000, multidol_ldr_bin_size);
-	ICInvalidateRange((void*)0x81300000, multidol_ldr_bin_size);
-
+	if(useipl)
+	{
+		load_ipl(iplbuf);
+		free(iplbuf);
+		*(vu32*)0xD3003420 = 0x5DEA;
+		while(*(vu32*)0xD3003420 == 0x5DEA) ;
+		/* Patches */
+		DCInvalidateRange((void*)0x80001800, 0x1800);
+		ICInvalidateRange((void*)0x80001800, 0x1800);
+		/* IPL */
+		DCInvalidateRange((void*)0x81300000, 0x300000);
+		ICInvalidateRange((void*)0x81300000, 0x300000);
+	}
+	else //use our own loader
+	{
+		memcpy((void*)0x81300000, multidol_ldr_bin, multidol_ldr_bin_size);
+		DCFlushRange((void*)0x81300000, multidol_ldr_bin_size);
+		ICInvalidateRange((void*)0x81300000, multidol_ldr_bin_size);
+	}
 	asm volatile (
 		"lis %r3, 0x8130\n"
 		"mtlr %r3\n"

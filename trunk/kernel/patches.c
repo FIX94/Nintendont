@@ -244,6 +244,7 @@ FuncPattern SIFPatterns[] =
 	{  0x2FC,   73,    8,   23,   16,   15,	NULL,				FCODE_PADRead,				"PADRead",				"B",		FGROUP_PADRead,				0 },
 	{  0x3B0,   87,   13,   27,   17,   25,	NULL,				FCODE_PADRead,				"PADRead",				"C",		FGROUP_PADRead,				0 },
 	{  0x334,   78,    7,   20,   17,   19,	NULL,				FCODE_PADRead,				"PADRead",				"D",		FGROUP_PADRead,				0 },
+	{  0x1FC,   49,    4,   10,   11,   11,	NULL,				FCODE_PADRead,				"PADRead",				"IPL",		FGROUP_PADRead,				0 },
 	{  0x2A8,   66,    4,   20,   17,   14,	NULL,				FCODE_PADRead,				"PADRead",				"DBG A",	FGROUP_PADRead,				0 },
 	{  0x2AC,   65,    3,   15,   16,   18,	NULL,				FCODE_PADRead,				"PADRead",				"DBG B",	FGROUP_PADRead,				0 },
 
@@ -275,6 +276,7 @@ FuncPattern EXIFPatterns[] =
 	{  0x248,   40,    3,    4,   13,   19,	EXILock,			EXILock_size,				"EXISync",				"B",		FGROUP_EXISync,				0 },
 	{  0x204,   31,    3,    3,   11,   17,	EXILock,			EXILock_size,				"EXISync",				"C",		FGROUP_EXISync,				0 },
 	{  0x234,   35,    3,    3,   12,   17,	EXILock,			EXILock_size,				"EXISync",				"D",		FGROUP_EXISync,				0 },
+	{  0x1CC,   27,    6,    2,   10,   17,	EXILock,			EXILock_size,				"EXISync",				"IPL",		FGROUP_EXISync,				0 },
 	{  0x16C,   26,    3,    3,    9,    7,	EXILock,			EXILock_size,				"EXISync",				"PKM",		FGROUP_EXISync,				0 },
 	{  0x1A8,   34,    2,    7,    9,    8,	EXILock,			EXILock_size,				"EXISync",				"DBG A",	FGROUP_EXISync,				0 },
 	{  0x13C,   25,    2,    6,    7,    7,	EXILock,			EXILock_size,				"EXISync",				"DBG B",	FGROUP_EXISync,				0 },
@@ -295,6 +297,7 @@ FuncPattern EXIFPatterns[] =
 
 	{  0x10C,   20,    8,    6,   12,    4,	EXILock,			EXILock_size,				"EXIDeselect",			"A",		FGROUP_EXIDeselect,			0 },
 	{  0x10C,   20,    8,    6,   12,    3,	EXILock,			EXILock_size,				"EXIDeselect",			"B",		FGROUP_EXIDeselect,			0 },
+	{  0x10C,   20,    8,    6,   11,    3,	EXILock,			EXILock_size,				"EXIDeselect",			"IPL",		FGROUP_EXIDeselect,			0 },
 	{  0x104,   17,    3,    6,   12,    4,	EXILock,			EXILock_size,				"EXIDeselect",			"PKM",		FGROUP_EXIDeselect,			0 },
 	{  0x130,   22,    3,    7,   14,    5,	EXILock,			EXILock_size,				"EXIDeselect",			"DBG A",	FGROUP_EXIDeselect,			0 },
 	{  0x12C,   21,    3,    7,   14,    5,	EXILock,			EXILock_size,				"EXIDeselect",			"DBG B",	FGROUP_EXIDeselect,			0 },
