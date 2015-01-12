@@ -51,6 +51,7 @@ enum EXICommands {
 	AMBB_IMR_WRITE,			// 0x87
   AMBB_LANCNT_WRITE,	// 0xFF
 
+	RTC_READ,
 	SRAM_READ,
 	SRAM_WRITE,
 

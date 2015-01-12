@@ -85,6 +85,7 @@ s32 Check_Cheats();
 
 void DoCardPatches( char *ptr, u32 size );
 void DoPatches( char *Buffer, u32 Length, u32 Offset );
+void SetIPL();
 
 void PatchInit();
 void PatchGame();

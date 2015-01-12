@@ -415,6 +415,11 @@ int _main( int argc, char *argv[] )
 		}
 		if(reset_status == 0x4DEA)
 			PatchGame();
+		if(reset_status == 0x5DEA)
+		{
+			SetIPL();
+			PatchGame();
+		}
 		CheckPatchPrs();
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
 		{

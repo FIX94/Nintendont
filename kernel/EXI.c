@@ -524,6 +524,15 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 					break;
 				}
 
+				if( (u32)Data == 0x20000000 )
+				{
+					EXICommand = RTC_READ;
+#ifdef DEBUG_SRAM
+					dbgprintf("EXI:RTCRead()\r\n");
+#endif
+					break;
+				}
+
 				if( (u32)Data == 0x20000100 )
 				{
 					EXICommand = SRAM_READ;
@@ -547,7 +556,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 				{
 					EXICommand = IPL_READ_FONT;
 #ifdef DEBUG_SRAM
-					//dbgprintf("EXI: IPLReadFont()\r\n");
+					dbgprintf("EXI: IPLReadFont()\r\n");
 #endif
 					IPLReadOffset = (u32)Data >> 6;
 					break;
@@ -562,10 +571,19 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 		{
 			case IPL_READ_FONT:
 			{
-#ifdef DEBUG_SRAM	
-				//dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
+#ifdef DEBUG_SRAM
+				dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
 #endif
 				EXIReadFontFile(Data, Length);
+			} break;
+			case RTC_READ:
+			{
+#ifdef DEBUG_SRAM
+				dbgprintf("EXI: RTCRead( %p, %u)\r\n", Data, Length );
+#endif			//???
+				Data = (u8*)P2C((u32)Data);
+				memset(Data, 0, Length);
+				sync_after_write( Data, Length );
 			} break;
 			case SRAM_READ:
 			{
@@ -753,7 +771,7 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 
 void EXIUpdateRegistersNEW( void )
 {
-	//uu32 chn, dev, frq, ret, data, len, mode;
+	//u32 chn, dev, frq, ret, data, len, mode;
 	u32 chn, dev, ret, data, len, mode;
 	u8 *ptr;
 	sync_before_read((void*)EXI_BASE, 0x20);
