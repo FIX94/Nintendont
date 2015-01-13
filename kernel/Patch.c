@@ -2817,7 +2817,26 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		memcpy((void*)0x2A65CC, OSReportDM, sizeof(OSReportDM));
 		sync_after_write((void*)0x2A65CC, sizeof(OSReportDM));
 	}*/
-	if( TITLE_ID == 0x474256 )	// Batman Vengeance
+	if(useipl == 1)
+	{
+		if(read32(0x136C9B4) == 0x38600001)
+		{
+			//Force no audio resampling to avoid crashing
+			write32(0x136C9B4, 0x38600000);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Gamecube PAL IPL v1.0\r\n");
+			#endif
+		}
+		else if(read32(0x1373618) == 0x38600001)
+		{
+			//Force no audio resampling to avoid crashing
+			write32(0x1373618, 0x38600000);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Gamecube PAL IPL v1.2\r\n");
+			#endif
+		}
+	}
+	else if( TITLE_ID == 0x474256 )	// Batman Vengeance
 	{
 		// Skip Usage of EXI Channel 2
 		if(write32A(0x0018B5DC, 0x60000000, 0x4801D6E1, 0))
