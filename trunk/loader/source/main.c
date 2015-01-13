@@ -986,7 +986,6 @@ int main(int argc, char **argv)
 	if(useipl)
 	{
 		load_ipl(iplbuf);
-		free(iplbuf);
 		*(vu32*)0xD3003420 = 0x5DEA;
 		while(*(vu32*)0xD3003420 == 0x5DEA) ;
 		/* Patches */
@@ -995,6 +994,12 @@ int main(int argc, char **argv)
 		/* IPL */
 		DCInvalidateRange((void*)0x81300000, 0x300000);
 		ICInvalidateRange((void*)0x81300000, 0x300000);
+		if(memcmp(iplbuf+0x55, "PAL", 3) == 0)
+		{
+			gprintf("Using 32kHz DSP (No Resample)\n");
+			write32(0xCD806C00, 0x68);
+		}
+		free(iplbuf);
 	}
 	else //use our own loader
 	{

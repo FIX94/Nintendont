@@ -29,6 +29,10 @@ static bool write64A( u32 Offset, u64 Value, u64 CurrentValue )
 	return true;
 }
 
+//Bus speed
+#define U32_TIMER_CLOCK_BUS_GC		0x09a7ec80
+#define U32_TIMER_CLOCK_BUS_WII		0x0e7be2c0
+
 //Processor speed
 #define U32_TIMER_CLOCK_CPU_GC		0x1cf7c580
 #define U32_TIMER_CLOCK_CPU_WII		0x2b73a840
@@ -148,6 +152,10 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 
 void PatchStaticTimers()
 {
+	sync_before_read((void*)0xE0, 0x20);
+	write32(0xF8, U32_TIMER_CLOCK_BUS_WII);
+	write32(0xFC, U32_TIMER_CLOCK_CPU_WII);
+	sync_after_write((void*)0xE0, 0x20);
 	if(write64A(0x001463E0, DBL_0_7716, DBL_1_1574))
 	{
 		#ifdef DEBUG_PATCH
