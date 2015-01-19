@@ -72,9 +72,9 @@ void EXIInit( void )
 	write32( EXI2CR, 0 );
 	write32( EXI2DATA, 0 );
 
+	u32 GameID = ConfigGetGameID();
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 	{
-		u32 GameID = ConfigGetGameID();
 		memset32(MemCardName, 0, 0x20);
 		memcpy(MemCardName, "/saves/", 7);
 		if ( ConfigGetConfig(NIN_CFG_MC_MULTI) )
@@ -126,26 +126,30 @@ void EXIInit( void )
 	}
 
 	GC_SRAM *sram = (GC_SRAM*)SRAM;
-	
+
 	for( i=0; i < 12; ++i )
 		sram->FlashID[0][i] = 0;
 
 	sram->FlashIDChecksum[0] = 0xFF;
 
+	sram->BootMode	&= ~0x40;	// Clear PAL60
+	sram->Flags		&= ~0x80;	// Clear Progmode
+	sram->Flags		&= ~3;		// Clear Videomode
+
 	sram->DisplayOffsetH = 0;
-	switch(ConfigGetGameID() & 0xFF)
+	switch(GameID & 0xFF)
 	{
 		case 'E':
 		case 'J':
-			sram->BootMode	&= ~0x40;	// Clear PAL60
+			//BMX XXX doesnt even boot on a real gc with component cables
+			if( (ConfigGetGameID() >> 8) != 0x474233 &&
+				(ConfigGetVideoMode() & NIN_VID_PROG) )
+				sram->Flags |= 0x80;	// Set Progmode
 			break;
 		default:
 			sram->BootMode	|= 0x40;	// Set PAL60
 			break;
 	}
-	sram->Flags		&= ~3;		// Clear Videomode
-	sram->Flags		&= ~0x80;	// Clear Progmode
-
 	sram->Language = ConfigGetLanguage();
 
 	if( ConfigGetVideoMode() & NIN_VID_FORCE )
@@ -194,13 +198,9 @@ void EXIInit( void )
 
 		} break;
 	}
-	if( ConfigGetVideoMode() & NIN_VID_PROG )
-		sram->Flags |= 0x80;
-	else
-		sram->Flags &= 0x7F;
-
 	SRAM_Checksum( (unsigned short *)SRAM, (unsigned short *)SRAM, (unsigned short *)( ((u8*)SRAM) + 2 ) );
 }
+
 extern vu32 TRIGame;
 void EXISetTimings(u32 TitleID, u32 Region)
 {
