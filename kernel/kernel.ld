@@ -7,15 +7,15 @@ __stack_size = 0x2000;
 __phy_stack_addr = 0x12F86000 + __stack_size;
 MEMORY {
 
-	code		: ORIGIN = 0x20F00000,	LENGTH = 0x20000
-	data		: ORIGIN = 0x20F20000,	LENGTH = 0x60000
+	code		: ORIGIN = 0x20F00000,	LENGTH = 0x28000
+	data		: ORIGIN = 0x20F28000,	LENGTH = 0x58000
 	stack		: ORIGIN = 0x20106000,	LENGTH = 0x09000
 }
 
 PHDRS
 {
 	code  PT_LOAD AT ( 0x12F00000 );
-	data  PT_LOAD AT ( 0x12F20000 );
+	data  PT_LOAD AT ( 0x12F28000 );
 	stack PT_LOAD AT ( 0x12F86000 );
 }
 
@@ -38,7 +38,7 @@ SECTIONS
 		. = ALIGN(4);
 	} >code :code
 
-	.rodata (0x20F20000) : AT( 0x12F20000 )
+	.rodata (0x20F28000) : AT( 0x12F28000 )
 	{
 		*(.rodata)
 		*all.rodata*(*)
@@ -48,7 +48,7 @@ SECTIONS
 		. = ALIGN(4);
 	} >data :data
 
-	.data (0x20F20000 + SIZEOF(.rodata)) : AT( 0x12F20000 + SIZEOF(.rodata) )
+	.data (0x20F28000 + SIZEOF(.rodata)) : AT( 0x12F28000 + SIZEOF(.rodata) )
 	{
 		*(.data)
 		*(.data.*)
@@ -56,7 +56,7 @@ SECTIONS
 		. = ALIGN(4);
 	} >data :data
 
-	.bss (0x20F20000 + SIZEOF(.rodata) + SIZEOF(.data)) : AT( 0x12F20000 + SIZEOF(.rodata) + SIZEOF(.data) )
+	.bss (0x20F28000 + SIZEOF(.rodata) + SIZEOF(.data)) : AT( 0x12F28000 + SIZEOF(.rodata) + SIZEOF(.data) )
 	{
 		__bss_start = . ;
 		*(.dynbss)

@@ -2,6 +2,9 @@
 
 .set	AR_DMA_CNT,			0xCC005028
 
+.set	OSReport,			0xC0001860
+.set	AR_DBG,				0x930028A0
+
 .set	AR_MRAM_TO_ARAM,	0
 .set	AR_ARAM_TO_MRAM,	1
 
@@ -15,6 +18,20 @@
 #	none
 
 ARStartDMA:
+#	lis		%r7,	OSReport@h
+#	ori		%r7,	%r7,	OSReport@l
+#	stw		%r4,	4(%r7)
+#	stw		%r5,	8(%r7)
+#	stw		%r6,	12(%r7)
+
+#	lis		%r8,	AR_DBG@h
+#	ori		%r8,	%r8,	AR_DBG@l
+#	stw		%r8,	0(%r7)
+#repeatprint:
+#	lwz		%r0,	0(%r7)
+#	cmpw	%r0,	%r8
+#	beq		repeatprint
+
 	cmpwi	%r6,	0
 	beq		FakeTransfer
 

@@ -53,15 +53,6 @@ extern u32 SystemRegion;
 
 extern int dbgprintf( const char *fmt, ...);
 
-unsigned char OSReportDM[] =
-{
-	0x7C, 0x08, 0x02, 0xA6, 0x90, 0x01, 0x00, 0x04, 0x90, 0xE1, 0x00, 0x08, 0x3C, 0xE0, 0xC0, 0x00, 
-	0x90, 0x67, 0x18, 0x60, 0x90, 0x87, 0x18, 0x64, 0x90, 0xA7, 0x18, 0x68, 0x90, 0xC7, 0x18, 0x6C, 
-	0x90, 0xE7, 0x18, 0x70, 0x91, 0x07, 0x18, 0x74, 0x80, 0x07, 0x18, 0x60, 0x7C, 0x00, 0x18, 0x00, 
-	0x41, 0x82, 0xFF, 0xF8, 0x80, 0xE1, 0x00, 0x08, 0x80, 0x01, 0x00, 0x04, 0x7C, 0x08, 0x03, 0xA6, 
-	0x4E, 0x80, 0x00, 0x20, 
-} ;
-
 const unsigned char DSPHashes[][0x14] =
 {
 	{
@@ -852,7 +843,12 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x474156 ||	// Avatar Last Airbender
 			(TITLE_ID) == 0x473442 ||	// Resident Evil 4
 			(TITLE_ID) == 0x474856 ||	// Disneys Hide and Sneak
-			(TITLE_ID) == 0x474353 );	// Street Racing Syndicate
+			(TITLE_ID) == 0x474353 ||	// Street Racing Syndicate
+			(TITLE_ID) == 0x474241 ||	// NBA 2k2
+			(TITLE_ID) == 0x47414D ||	// Army Men Sarges War
+			(TITLE_ID) == 0x474D4C ||	// ESPN MLS Extra Time 2002
+			(TITLE_ID) == 0x474D5A ||	// Monster 4x4: Masters Of Metal
+			(GAME_ID) == 0x4747504A);	// SD Gundam Gashapon Wars
 }
 
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
@@ -969,7 +965,7 @@ u32 DOLSize    = 0;
 u32 DOLMinOff  = 0;
 u32 DOLMaxOff  = 0;
 vu32 TRIGame   = TRI_NONE;
-vu32 GameEntry = 0;
+vu32 GameEntry = 0, FirstLine = 0;
 u32 AppLoaderSize = 0;
 
 int GotoFuncStart(int i, u32 Buffer)
@@ -1176,6 +1172,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			GameEntry = ehdr->e_entry;
 			ehdr->e_entry = PATCH_OFFSET_ENTRY + 0x80000000;
 			PatchState |= PATCH_STATE_LOAD;
+		}
+		else if(read32((u32)Buffer+0xC) == 0x7F454C46)
+		{
+			GameEntry = read32((u32)Buffer+0x20);
+			DOLMinOff = P2C(GameEntry);
+			DOLMaxOff = P2C(read32((u32)Buffer+0xA0));
+			u32 NewVal = (PATCH_OFFSET_ENTRY - P2C(GameEntry));
+			NewVal &= 0x03FFFFFC;
+			NewVal |= 0x48000000;
+			FirstLine = read32((u32)Buffer+0xB4);
+			write32((u32)Buffer+0xB4, NewVal);
+			dbgprintf("DIP:Hacked ELF FirstLine:0x%08X MinOff:0x%08X MaxOff:0x%08X\r\n", FirstLine, DOLMinOff, DOLMaxOff );
 		}
 	}
 
@@ -2819,9 +2827,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}*/
 	if(useipl == 1)
 	{
-		if(read32(0x136C9B4) == 0x38600001)
+		//Force no audio resampling to avoid crashing
+		if(read32(0x1341514) == 0x38600001)
 		{
-			//Force no audio resampling to avoid crashing
+			write32(0x1341514, 0x38600000);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Gamecube NTSC IPL\r\n");
+			#endif
+		}
+		else if(read32(0x136C9B4) == 0x38600001)
+		{
 			write32(0x136C9B4, 0x38600000);
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched Gamecube PAL IPL v1.0\r\n");
@@ -2829,7 +2844,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 		else if(read32(0x1373618) == 0x38600001)
 		{
-			//Force no audio resampling to avoid crashing
 			write32(0x1373618, 0x38600000);
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched Gamecube PAL IPL v1.2\r\n");
@@ -2977,6 +2991,14 @@ void PatchGame()
 		DOLMaxOff = 0x01600000;
 		GameEntry = 0x81300000;
 		sync_before_read((void*)0x1300000, 0x300000);
+	}
+	else if(FirstLine)
+	{
+		sync_before_read((void*)DOLMinOff, 0x20);
+		write32(DOLMinOff, FirstLine);
+		FirstLine = 0;
+		sync_after_write((void*)DOLMinOff, 0x20);
+		sync_before_read((void*)DOLMinOff, DOLMaxOff - DOLMinOff);
 	}
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);

@@ -493,7 +493,7 @@ int main(int argc, char **argv)
 			}
 		}
 		ISOShift = Offsets[PosX];
-		memcpy(&(ncfg->GameID), gi[PosX].ID, 6);
+		memcpy(&(ncfg->GameID), gi[PosX].ID, 4);
 	}
 	*(vu32*)0xD300300C = ISOShift; //multi-iso games
 
@@ -558,26 +558,29 @@ int main(int argc, char **argv)
 	}
 	void *iplbuf = NULL;
 	bool useipl = false;
-	char iplchar[32];
-	if((ncfg->GameID & 0xFF) == 'E')
-		sprintf(iplchar, "%s:/iplusa.bin", GetRootDevice());
-	else if((ncfg->GameID & 0xFF) == 'J')
-		sprintf(iplchar, "%s:/ipljap.bin", GetRootDevice());
-	else
-		sprintf(iplchar, "%s:/iplpal.bin", GetRootDevice());
-	FILE *f = fopen(iplchar, "rb");
-	if(f != NULL)
+	if(IsTRIGame(ncfg->GamePath) == false)
 	{
-		fseek(f, 0, SEEK_END);
-		size_t fsize = ftell(f);
-		if(fsize == 2097152)
+		char iplchar[32];
+		if((ncfg->GameID & 0xFF) == 'E')
+			sprintf(iplchar, "%s:/iplusa.bin", GetRootDevice());
+		else if((ncfg->GameID & 0xFF) == 'J')
+			sprintf(iplchar, "%s:/ipljap.bin", GetRootDevice());
+		else
+			sprintf(iplchar, "%s:/iplpal.bin", GetRootDevice());
+		FILE *f = fopen(iplchar, "rb");
+		if(f != NULL)
 		{
-			fseek(f, 0, SEEK_SET);
-			iplbuf = malloc(2097152);
-			fread(iplbuf, 1, 2097152, f);
-			useipl = true;
+			fseek(f, 0, SEEK_END);
+			size_t fsize = ftell(f);
+			if(fsize == 2097152)
+			{
+				fseek(f, 0, SEEK_SET);
+				iplbuf = malloc(2097152);
+				fread(iplbuf, 1, 2097152, f);
+				useipl = true;
+			}
+			fclose(f);
 		}
-		fclose(f);
 	}
 //sync changes
 	CloseDevices();
@@ -959,7 +962,7 @@ int main(int argc, char **argv)
 	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
 	memset((void*)0x93002700, 0, 0x200); //clears alot of pad stuff
 	memset((void*)0x93002C00, 0, 0x400); //clears alot of multidol stuff
-	//strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
+	strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
 	DCFlushRange((void*)0x93000000, 0x3000);
 
 	DCInvalidateRange((void*)0x93010010, 0x10000);
@@ -994,11 +997,9 @@ int main(int argc, char **argv)
 		/* IPL */
 		DCInvalidateRange((void*)0x81300000, 0x300000);
 		ICInvalidateRange((void*)0x81300000, 0x300000);
-		if(memcmp(iplbuf+0x55, "PAL", 3) == 0)
-		{
-			gprintf("Using 32kHz DSP (No Resample)\n");
-			write32(0xCD806C00, 0x68);
-		}
+		/* Seems to boot more stable this way */
+		//gprintf("Using 32kHz DSP (No Resample)\n");
+		write32(0xCD806C00, 0x68);
 		free(iplbuf);
 	}
 	else //use our own loader
