@@ -306,11 +306,12 @@ bool IsGCGame(u8 *Buffer)
 	u32 GCMagic = *(vu32*)(Buffer+0x1C);
 	return (AMB1 == 0x414D4231 || GCMagic == 0xC2339F3D);
 }
+
 u32 OffsetCheck[4] = {
 	0x210320, //GP1
 	0x25C0AC, //GP2
 	0x1821C4, //AX
-	0x210C08, //VS4
+	0x20D7E8, //VS4
 };
 
 bool IsTRIGame(char *Path)
