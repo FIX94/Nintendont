@@ -852,6 +852,14 @@ bool GameNeedsHook()
 			(GAME_ID) == 0x4747504A);	// SD Gundam Gashapon Wars
 }
 
+bool PADSwitchRequired()
+{
+	return( (TITLE_ID) == 0x47434F ||	// Call of Duty
+			(TITLE_ID) == 0x475449 ||	// Tiger Woods PGA Tour 2003
+			(TITLE_ID) == 0x475734 ||	// Tiger Woods PGA Tour 2004
+			(TITLE_ID) == 0x475853 );	// Sonic Adventure DX
+}
+
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
 {
 	u32 i;
@@ -2561,6 +2569,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								}
 							}
 						} break;
+						case FCODE_PADControlMotor:
+						{
+							if(read32(FOffset+0x24) != 0x3C008000)
+							{
+								CurPatterns[j].Found = 0; // False hit
+								break;
+							}
+							memcpy((void*)FOffset, PADControlMotor, PADControlMotor_size);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+						} break;
 						case FCODE_PADIsBarrel:
 						{
 							if(memcmp((void*)(FOffset), PADIsBarrelOri, sizeof(PADIsBarrelOri)) != 0)
@@ -2568,7 +2586,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0; // False hit
 								break;
 							}
-							memcpy((void*)(FOffset), PADIsBarrel, sizeof(PADIsBarrel));
+							memcpy((void*)(FOffset), PADIsBarrel, PADIsBarrel_size);
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
 						case FCODE___OSResetHandler:
@@ -2686,16 +2704,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								{
 									#ifdef DEBUG_PATCH
 									dbgprintf("Patch:[ARQPostRequest] skipped (0x%08X)\r\n", FOffset);
-									#endif
-									break;
-								}
-							}
-							if( CurPatterns[j].Patch == SIGetType )
-							{
-								if ((TITLE_ID) == 0x475853) // Sonic Adventure DX
-								{
-									#ifdef DEBUG_PATCH
-									dbgprintf("Patch:[SIGetType] skipped (0x%08X)\r\n", FOffset);
 									#endif
 									break;
 								}
@@ -3004,7 +3012,6 @@ void PatchGame()
 	PatchState = PATCH_STATE_PATCH;
 	u32 FullLength = (DOLMaxOff - DOLMinOff + 31) & (~31);
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
-	useipl = 0;
 	// Some games need special timings
 	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
 	// Init Cache if its a new ISO
@@ -3016,6 +3023,7 @@ void PatchGame()
 	if ((TITLE_ID) == 0x475032 || TRIGame) // PacMan World 2 and Triforce hack
 		SiInitSet = 1;
 	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
+	write32(0x13002744, PADSwitchRequired() && (useipl == 0));
 	sync_after_write((void*)0x13002740, 0x20);
 
 	/* Clear AR positions */
@@ -3032,6 +3040,8 @@ void PatchGame()
 	sync_after_write((void*)0x1800, 0x1800); //low patches
 	write32( RESET_STATUS, GameEntry );
 	sync_after_write((void*)RESET_STATUS, 0x20);
+	// in case we patched ipl remove status
+	useipl = 0;
 }
 
 s32 Check_Cheats()

@@ -22,6 +22,8 @@ struct BTPadCont *BTPad = (struct BTPadCont*)0x932F0000;
 static vu32* BTMotor = (u32*)0x93002720;
 static vu32* BTPadFree = (u32*)0x93002730;
 static vu32* SIInited = (u32*)0x93002740;
+static vu32* PADSwitchRequired = (u32*)0x93002744;
+
 
 static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
@@ -1208,12 +1210,18 @@ u32 _start()
 	memInvalidate = (u32)SIInited;
 	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
-	for(chan = 0; chan < 4; ++chan)
-		Pad[chan].err = ((used & (1<<chan)) && *SIInited) ? 0 : -1;
-
-	*PadUsed = (*SIInited ? used : 0);
-	if(*(vu32*)0xC0000000 == 0x47434F45 || *(vu32*)0xC0000000 == 0x47544945) //Call of Duty, Tiger Woods 2003
+	if(*PADSwitchRequired)
+	{
 		*(vu32*)0xD3026438 = (*(vu32*)0xD3026438 == 0) ? 0x20202020 : 0; //switch between new data and no data
+		for(chan = 0; chan < 4; ++chan)
+			Pad[chan].err = ((used & (1<<chan)) && *SIInited) ? ((*(vu32*)0xD3026438 == 0) ? -3 : 0) : -1;
+	}
+	else
+	{
+		for(chan = 0; chan < 4; ++chan)
+			Pad[chan].err = ((used & (1<<chan)) && *SIInited) ? 0 : -1;
+	}
+	*PadUsed = (*SIInited ? used : 0);
 
 	memFlush = (u32)HIDMotor;
 	asm volatile("dcbf 0,%0; sync; isync" : : "b"(memFlush) : "memory");
