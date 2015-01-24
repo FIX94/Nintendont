@@ -848,6 +848,7 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x47414D ||	// Army Men Sarges War
 			(TITLE_ID) == 0x474D4C ||	// ESPN MLS Extra Time 2002
 			(TITLE_ID) == 0x474D5A ||	// Monster 4x4: Masters Of Metal
+			(TITLE_ID) == 0x47504C ||	// Piglet's Big Game
 			(GAME_ID) == 0x4747504A);	// SD Gundam Gashapon Wars
 }
 
@@ -1072,7 +1073,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	{
 		if (Length == 0x100 || (PSOHack & PSO_STATE_LOAD))
 		{
-			if( read32( (u32)Buffer ) == 0x100 )
+			if( read32( (u32)Buffer ) == 0x100 && (((dolhdr*)Buffer)->entrypoint & 0xFE000000) == 0x80000000 )
 			{
 				ELFLoading = 0;
 				//quickly calc the size
