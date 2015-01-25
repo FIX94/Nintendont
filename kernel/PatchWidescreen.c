@@ -97,9 +97,15 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 	}
 	return false;
 }
-
+extern vu32 TRIGame;
 bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
+	if(TRIGame == TRI_AX)
+	{	//thanks CosmoCortney
+		dbgprintf("Patch:F-Zero AX Widescreen\r\n");
+		write32(0x445C34, read32(0x445C30));
+		return true;
+	}
 	u32 Buffer;
 	switch(TitleID)
 	{
