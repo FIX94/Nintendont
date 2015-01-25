@@ -1345,7 +1345,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x00790F4, 0x38C0000C );
 
 		//Disable Commentary (sets volume to 0 )
-		write32( 0x001B6510, 0x38800000 );
+		//write32( 0x001B6510, 0x38800000 );
 
 		//Patches the analog input count
 		write32( 0x000392F4, 0x38000003 );
@@ -2235,9 +2235,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									if( !(DOLSize == 3847012 || DOLSize == 3803812) )			// only patch the main.dol of the Zelda:ww game 
 										break;
 								case 0x475A4C:	// The Legend of Zelda: The Wind Waker
+								case 0x475352:	// Smugglers Run: Warezones
 								{
-									write32(FOffset, (read32(FOffset) & 0xff00ffff) | 0x00220000);
-									memcpy( (void *)(FOffset + 4), __GXSetVAT_patch, sizeof(__GXSetVAT_patch) );
+									u32 tmp1 = read32(FOffset) & 0x1FFFFF;
+									u32 tmp2 = read32(FOffset+0x18) & 0xFFFF;
+									memcpy( (void*)FOffset, __GXSetVAT, __GXSetVAT_size );
+									write32(FOffset, (read32(FOffset) & 0xFFE00000) | tmp1);
+									write32(FOffset+0x8, (read32(FOffset+0x8) & 0xFFFF0000) | tmp2);
+									write32(FOffset+0x78, (read32(FOffset+0x78) & 0xFFFF0000) | tmp2);
 									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 								} break;
 								default:
