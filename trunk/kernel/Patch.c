@@ -856,8 +856,7 @@ bool PADSwitchRequired()
 {
 	return( (TITLE_ID) == 0x47434F ||	// Call of Duty
 			(TITLE_ID) == 0x475449 ||	// Tiger Woods PGA Tour 2003
-			(TITLE_ID) == 0x475734 ||	// Tiger Woods PGA Tour 2004
-			(TITLE_ID) == 0x475853 );	// Sonic Adventure DX
+			(TITLE_ID) == 0x475734 );	// Tiger Woods PGA Tour 2004
 }
 
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
@@ -1350,6 +1349,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Patches the analog input count
 		write32( 0x000392F4, 0x38000003 );
+
+		//Remove some menu timers (thanks conanac)
+		write32( 0x001C1A08, 0x60000000 ); //select game mode
+		write32( 0x001C3380, 0x60000000 ); //select character
+		write32( 0x001D7594, 0x60000000 ); //select kart
+		write32( 0x001C7A7C, 0x60000000 ); //select cup
+		write32( 0x001C9ED8, 0x60000000 ); //select round
+		write32( 0x0024D35C, 0x60000000 ); //continue
+		write32( 0x0015F2F4, 0x60000000 ); //rewrite rank
+		write32( 0x001CF5DC, 0x60000000 ); //select course (time attack)
+		write32( 0x001BE248, 0x60000000 ); //enter name (time attack)
 
 		//Modify to regular GX pattern to patch later
 		write32( 0x3F1FD0, 0x00 ); //NTSC Interlaced
