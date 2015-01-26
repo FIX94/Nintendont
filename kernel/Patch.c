@@ -44,7 +44,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
-vu32 useipl = 0;
+vu32 useipl = 0, useipltri = 0;
 vu32 DisableSIPatch = 0, DisableEXIPatch = 0;
 extern vu32 TRIGame;
 extern u32 SystemRegion;
@@ -1195,12 +1195,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 	}
 
-	if( PatchState == PATCH_STATE_DONE && (u32)Buffer == 0x01300000 && *(u8*)Buffer == 0x48 )
+	if( PatchState == PATCH_STATE_DONE && (u32)Buffer == 0x01300000 && *(vu8*)Buffer == 0x48 )
 	{	/* Make sure to force patch that area */
 		PatchState = PATCH_STATE_PATCH;
 		DOLSize = Length;
 		DOLMinOff = (u32)Buffer;
 		DOLMaxOff = DOLMinOff + Length;
+	}
+
+	if( TRIGame == TRI_SB && Length == 0x1C0 && *((vu8*)Buffer+0x0F) == 0x06 )
+	{	/* Fixes Caution 51 */
+		*((vu8*)Buffer+0x0F) = 0x07;
+		//dbgprintf("TRI:Patched boot.id Video Mode\r\n");
 	}
 
 	if (!(PatchState & PATCH_STATE_PATCH))
@@ -1269,7 +1275,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	if( read32(0x023D240) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Mario kart GP1\n");
+		dbgprintf("TRI:Mario Kart GP1\r\n");
 		TRIGame = TRI_GP1;
 		SystemRegion = REGION_JAPAN;
 
@@ -1316,7 +1322,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	else if (read32(0x02856EC) == 0x386000A8)
 	{
-		dbgprintf("TRI:Mario kart GP2\r\n");
+		dbgprintf("TRI:Mario Kart GP2\r\n");
 		TRIGame = TRI_GP2;
 		SystemRegion = REGION_JAPAN;
 
@@ -1373,7 +1379,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	else if( read32(0x01851C4) == 0x386000A8 )
 	{
-		dbgprintf("TRI:FZero AX\n");
+		dbgprintf("TRI:F-Zero AX\r\n");
 		TRIGame = TRI_AX;
 		SystemRegion = REGION_JAPAN;
 		DISetDIMMVersion(0x12301777);
@@ -1431,12 +1437,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	else if( read32( 0x0210C08 ) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (EXPORT)\n");
+		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (EXPORT)\r\n");
 		TRIGame = TRI_VS4;
 		SystemRegion = REGION_USA;
 		DISetDIMMVersion(0xA3A479);
 
-		//BOOT/FIRM version mismatch patch
+		//BOOT/FIRM version mismatch patch (not needed with SegaBoot)
 		write32( 0x0051924, 0x60000000 );
 
 		//Modify to regular GX pattern to patch later
@@ -1449,8 +1455,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//memcpy( (void*)0x001C2B80, OSReportDM, sizeof(OSReportDM) );
 	}
-	else
-		TRIGame = TRI_NONE;
+	else if(useipltri)
+	{
+		dbgprintf("TRI:SegaBoot\r\n");
+		TRIGame = TRI_SB;
+	}
 
 	DisableEXIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false);
 	DisableSIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_NATIVE_SI));
@@ -2994,6 +3003,13 @@ void SetIPL()
 {
 	useipl = 1;
 }
+
+void SetIPL_TRI()
+{
+	dbgprintf("Setup SegaBoot\r\n");
+	useipltri = 1;
+}
+
 #define FLUSH_LEN (RESET_STATUS+4)
 #define FLUSH_ADDR (RESET_STATUS+8)
 void PatchGame()
@@ -3030,7 +3046,8 @@ void PatchGame()
 	// Some games need special timings
 	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
 	// Init Cache if its a new ISO
-	ISOSetupCache();
+	if(TRIGame != TRI_SB)
+		ISOSetupCache();
 	// Reset SI status
 	SIInit();
 	u32 SiInitSet = 0;

@@ -558,6 +558,7 @@ int main(int argc, char **argv)
 	}
 	void *iplbuf = NULL;
 	bool useipl = false;
+	bool useipltri = false;
 	if(IsTRIGame(ncfg->GamePath) == false)
 	{
 		char iplchar[32];
@@ -578,6 +579,26 @@ int main(int argc, char **argv)
 				iplbuf = malloc(2097152);
 				fread(iplbuf, 1, 2097152, f);
 				useipl = true;
+			}
+			fclose(f);
+		}
+	}
+	else
+	{
+		char iplchar[32];
+		sprintf(iplchar, "%s:/segaboot.bin", GetRootDevice());
+		FILE *f = fopen(iplchar, "rb");
+		if(f != NULL)
+		{
+			fseek(f, 0, SEEK_END);
+			size_t fsize = ftell(f);
+			if(fsize == 1048576)
+			{
+				fseek(f, 0x20, SEEK_SET);
+				void *iplbuf = (void*)0x92A80000;
+				fread(iplbuf, 1, 1048576 - 0x20, f);
+				DCFlushRange(iplbuf, 1048576);
+				useipltri = true;
 			}
 			fclose(f);
 		}
@@ -1004,6 +1025,11 @@ int main(int argc, char **argv)
 	}
 	else //use our own loader
 	{
+		if(useipltri)
+		{
+			*(vu32*)0xD3003420 = 0x6DEA;
+			while(*(vu32*)0xD3003420 == 0x6DEA) ;
+		}
 		memcpy((void*)0x81300000, multidol_ldr_bin, multidol_ldr_bin_size);
 		DCFlushRange((void*)0x81300000, multidol_ldr_bin_size);
 		ICInvalidateRange((void*)0x81300000, multidol_ldr_bin_size);
