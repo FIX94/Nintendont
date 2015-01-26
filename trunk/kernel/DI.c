@@ -65,7 +65,8 @@ u8 *DI_READ_BUFFER = (u8*)0x12E80000;
 u32 DI_READ_BUFFER_LENGTH = 0x80000;
 
 // Triforce
-extern u32 TRIGame;
+extern vu32 TRIGame;
+extern vu32 useipltri;
 
 u32 GCAMKeyA;
 u32 GCAMKeyB;
@@ -128,6 +129,21 @@ void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 {
 	DiscReadAsync(Buffer, Offset, Length, Mode);
 	DIFinishAsync();
+}
+
+//ISO Cache is disabled while SegaBoot runs
+u8 *SegaBoot = (u8*)0x12A80000;
+void ReadSegaBoot(u32 Buffer, u32 Offset, u32 Length)
+{
+	if(Offset > 0x100000) //set invalid
+		memset32((void*)Buffer, 0, Length);
+	else //part of actual ipl
+	{
+		sync_before_read(SegaBoot+Offset, Length);
+		memcpy((void*)Buffer, SegaBoot+Offset, Length);
+		DoPatches((void*)Buffer, Length, Offset);
+	}
+	sync_after_write((void*)Buffer, Length);
 }
 
 static u32 DVD_OFFSET = UINT_MAX;
@@ -652,7 +668,7 @@ void DIUpdateRegisters( void )
 							break;
 							// Media board serial
 							case 0x103:
-								memcpy( MediaBuffer + 4, "A89E28A48984511", 15 );
+								memcpy( MediaBuffer + 4, "A89E28A48984511", 16 );
 							break;
 							case 0x104:
 								MediaBuffer[4] = 1;
@@ -723,13 +739,22 @@ void DIUpdateRegisters( void )
 					u32 Length	= read32(DI_SCMD_2);
 					u32 Offset	= read32(DI_SCMD_1) << 2;
 
+					/* Part of SegaBoot Init */
+					if(TRIGame == TRI_SB && Offset == 0x420)
+					{
+						//dbgprintf("DIP:Switching to actual Triforce game\r\n");
+						useipltri = 0; //happens after the "setup", read actual disc
+					}
+
 					//dbgprintf( "DIP:DVDReadA8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, Buffer|0x80000000 );
 
 					if( TRIGame && Offset >= 0x1F000000 )
 					{
 						TRIReadMediaBoard( Buffer, Offset, Length );
 						DIOK = 2;
-					} else {
+					}
+					else
+					{
 						// Max GC disc offset
 						if( Offset >= 0x57058000 )
 						{
@@ -737,18 +762,14 @@ void DIUpdateRegisters( void )
 							dbgprintf("DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, Buffer|0x80000000 );
 							Shutdown();
 						}
-						/*if( Buffer == 0x01300000 && DICheckTGC(Buffer,Length))
-						{
-							//copy in our own apploader
-							memcpy( (void*)Buffer, multidol_ldr, multidol_ldr_size );
-							sync_after_write( (void*)Buffer, multidol_ldr_size );
-							DIOK = 2;
-						} else*/
 						if( Buffer < 0x01800000 )
 						{
-							DiscReadAsync(Buffer, Offset, Length, 0);
-							DIOK = 2;
+							if( useipltri )
+								ReadSegaBoot(Buffer, Offset, Length);
+							else
+								DiscReadAsync(Buffer, Offset, Length, 0);
 						}
+						DIOK = 2;
 					}
 				} break;
 				case 0xF8:
@@ -757,7 +778,15 @@ void DIUpdateRegisters( void )
 					u32 Length	= read32(DI_SCMD_2);
 					u32 Offset	= read32(DI_SCMD_1) << 2;
 
-					DiscReadSync(Buffer, Offset, Length, 0);
+					//dbgprintf( "DIP:DVDReadF8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, Buffer|0x80000000 );
+
+					if( Buffer < 0x01800000 )
+					{
+						if( useipltri )
+							ReadSegaBoot(Buffer, Offset, Length);
+						else
+							DiscReadSync(Buffer, Offset, Length, 0);
+					}
 					DIOK = 1;
 				} break;
 				case 0xF9:

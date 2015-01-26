@@ -180,7 +180,8 @@ enum
 	TRI_GP1,
 	TRI_GP2,
 	TRI_AX,
-	TRI_VS4
+	TRI_VS4,
+	TRI_SB,
 } TRIGames;
 
 typedef struct

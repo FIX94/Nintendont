@@ -420,6 +420,12 @@ int _main( int argc, char *argv[] )
 			SetIPL();
 			PatchGame();
 		}
+		if(reset_status == 0x6DEA)
+		{
+			SetIPL_TRI();
+			write32(RESET_STATUS, 0);
+			sync_after_write((void*)RESET_STATUS, 0x20);
+		}
 		CheckPatchPrs();
 		if(read32(HW_GPIO_IN) & GPIO_POWER)
 		{
