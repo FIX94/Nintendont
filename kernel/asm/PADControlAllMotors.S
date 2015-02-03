@@ -1,7 +1,7 @@
 #include <asm.h>
 
 PADControlAllMotors:
-	lis		%r4,	0xD300
+	lis		%r4,	0x9300
 	ori		%r4,	%r4,	0x3010 #chan0 base
 
 	li		%r5,	3

@@ -214,22 +214,22 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 
 				addDataByte(1);
 
-				//u32 buttons = *(vu32*)0x0d806404;
+				u32 buttons = read32(TRIButtons);//*(vu32*)0x0d806404;
 				//u32 sticks  = *(vu32*)0x0d806408;
 
 				// Test button
-				//if( (buttons >> 16) & PAD_BUTTON_X )
-				//	addDataByte(0x80);
-				//else
-				addDataByte(0x00);
+				if( buttons & PAD_TRIGGER_Z )
+					addDataByte(0x80);
+				else
+					addDataByte(0x00);
 
 				for( i=0; i < PlayerCount; ++i )
 				{
 					unsigned char PlayerData[3] = {0,0,0};
 
 					// Service button
-					//if( (buttons >> 16) & PAD_BUTTON_Y )
-					//	PlayerData[0] |= 0x40;
+					if( buttons & PAD_BUTTON_X )
+						PlayerData[0] |= 0x40;
 
 					for( j=0; j < PlayerByteCount; ++j )
 						addDataByte( PlayerData[j] );

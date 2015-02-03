@@ -528,7 +528,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 				{
 					EXICommand = RTC_READ;
 #ifdef DEBUG_SRAM
-					dbgprintf("EXI:RTCRead()\r\n");
+					dbgprintf("EXI: RTCRead()\r\n");
 #endif
 					break;
 				}
@@ -542,6 +542,15 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 					break;
 				}
 
+				if( (u32)Data == 0x20010000 )
+				{
+					EXICommand = UART_READ;
+#ifdef DEBUG_SRAM
+					dbgprintf("EXI: UARTRead()\r\n");
+#endif
+					break;
+				}
+
 				if( (u32)Data == 0xA0000100 || (u32)Data == 0xA0000600 )
 				{
 					EXICommand = SRAM_WRITE;
@@ -551,14 +560,14 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 #endif
 					break;
 				}
-
-				if( ((u32)Data >> 6 ) >= IPL_ROM_FONT_SJIS )
+				u32 PossibleIPLOffset = (u32)Data >> 6;
+				if( PossibleIPLOffset >= IPL_ROM_FONT_SJIS && PossibleIPLOffset < IPL_ROM_END_OFFSET )
 				{
 					EXICommand = IPL_READ_FONT;
 #ifdef DEBUG_SRAM
 					dbgprintf("EXI: IPLReadFont()\r\n");
 #endif
-					IPLReadOffset = (u32)Data >> 6;
+					IPLReadOffset = PossibleIPLOffset;
 					break;
 				}
 
@@ -578,28 +587,37 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 			} break;
 			case RTC_READ:
 			{
+				Data = (u8*)P2C((u32)Data); //too small size so do it manually
 #ifdef DEBUG_SRAM
 				dbgprintf("EXI: RTCRead( %p, %u)\r\n", Data, Length );
 #endif			//???
-				Data = (u8*)P2C((u32)Data);
-				memset(Data, 0, Length);
-				sync_after_write( Data, Length );
+				sync_before_read_align32( Data, Length );
+				memset( Data, 0, Length );
+				sync_after_write_align32( Data, Length );
 			} break;
 			case SRAM_READ:
 			{
-#ifdef DEBUG_SRAM	
+#ifdef DEBUG_SRAM
 				dbgprintf("EXI: SRAMRead(%p,%u)\r\n", Data, Length );
 #endif
 				memcpy( Data, SRAM, Length );
 				sync_after_write( Data, Length );
 			} break;
+			case UART_READ:
+			{
+				Data = (u8*)P2C((u32)Data); //too small size so do it manually
 #ifdef DEBUG_SRAM
+				dbgprintf("EXI: UARTRead( %p, %u)\r\n", Data, Length );
+#endif			//???
+				sync_before_read_align32( Data, Length );
+				memset( Data, 0, Length );
+				sync_after_write_align32( Data, Length );
+			} break;
 			default:
 			{
 				dbgprintf("EXI: Unknown:%08x Line:%u\r\n", (u32)Data, __LINE__ );
 				Shutdown();
 			} break;
-#endif
 		}
 	}
 
