@@ -1287,8 +1287,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x00790A0, 0x98650025 );
 
 		//Disable CARD
-		write32( 0x00790B4, 0x98650023 );
-		write32( 0x00790CC, 0x98650023 );
+		//write32( 0x00790B4, 0x98650023 );
+		//write32( 0x00790CC, 0x98650023 );
 
 		//Disable wheel/handle
 		write32( 0x007909C, 0x98650022 );
@@ -1335,8 +1335,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x007909C, 0x98650022 );
 
 		//Disable CARD
-		write32( 0x0073BF4, 0x98650023 );
-		write32( 0x0073C10, 0x98650023 );
+		//write32( 0x0073BF4, 0x98650023 );
+		//write32( 0x0073C10, 0x98650023 );
 
 		//Disable cam
 		write32( 0x0073BD8, 0x98650025 );
@@ -1346,10 +1346,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0085000, 0x60000000 );
 
 		//Game vol
-		write32( 0x00790E8, 0x39000009 );
+		//write32( 0x00790E8, 0x39000009 );
 
 		//Attract vol
-		write32( 0x00790F4, 0x38C0000C );
+		//write32( 0x00790F4, 0x38C0000C );
 
 		//Disable Commentary (sets volume to 0 )
 		//write32( 0x001B6510, 0x38800000 );
@@ -1358,6 +1358,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x000392F4, 0x38000003 );
 
 		//Remove some menu timers (thanks conanac)
+		write32( 0x001C1074, 0x60000000 ); //card check
 		write32( 0x001C1A08, 0x60000000 ); //select game mode
 		write32( 0x001C3380, 0x60000000 ); //select character
 		write32( 0x001D7594, 0x60000000 ); //select kart
@@ -2439,8 +2440,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								W16(GCAMSendCommandAddr+0x0E, R16(FOffset+0x1E));
 								W16(GCAMSendCommandAddr+0x12, R16(FOffset+0x22));
 								/* Callback */
-								W16(GCAMSendCommandAddr+0xA6, R16(FOffset+0x26));
-								W16(GCAMSendCommandAddr+0xAA, R16(FOffset+0x2A));
+								W16(GCAMSendCommandAddr+0x9A, R16(FOffset+0x26));
+								W16(GCAMSendCommandAddr+0x9E, R16(FOffset+0x2A));
 								PatchB(GCAMSendCommandAddr, FOffset);
 							}
 							else
