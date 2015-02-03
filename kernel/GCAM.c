@@ -79,6 +79,36 @@ void GCAMInit( void )
 	FirstCMD = 0;
 }
 
+static const char *CARD_NAME_GP1 = "/saves/GP1.bin";
+static const char *CARD_NAME_GP2 = "/saves/GP2.bin";
+static const char *CARD_NAME_AX = "/saves/AX.bin";
+static const char *CARD_NAME_VS4 = "/saves/VS4.bin";
+static const char *CARD_NAME_DEF = "csave.bin";
+
+const char *GCAMGetCARDName()
+{
+	const char *name;
+	switch(TRIGame)
+	{
+		case TRI_GP1:
+			name = CARD_NAME_GP1;
+			break;
+		case TRI_GP2:
+			name = CARD_NAME_GP2;
+			break;
+		case TRI_AX:
+			name = CARD_NAME_AX;
+			break;
+		case TRI_VS4:
+			name = CARD_NAME_VS4;
+			break;
+		default:
+			name = CARD_NAME_DEF;
+			break;
+	}
+	return name;
+}
+
 void GCAMCARDCommand( char *DataIn, char *DataOut )
 {
 	if( DataIn[DataPos] == 1 && DataIn[DataPos+1] == 0x05 )
@@ -86,7 +116,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 	//	dbgprintf("CARDGetReply(%02X)\n", CARDCommand );
 
 		if( CARDReadLength )
-		{										
+		{
 			res[resp++] = 0x32;
 
 			u32 ReadLength = CARDReadLength - CARDRead;
@@ -223,249 +253,251 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 
 		res[CMDLenO] = res[ChkStart] + 2;
 
-	} else {
+	}
+	else
+	{
 
 		memcpy( CARDBuffer + CARDOffset, DataIn+DataPos+1, DataIn[DataPos] );
 		CARDOffset += DataIn[DataPos];
-						
+
 		//Check if we got complete CMD
 
 		if( CARDBuffer[0] == 0x02 )
-		if( CARDBuffer[1] == CARDOffset - 2 )
 		{
-			if( CARDBuffer[CARDOffset-2] == 0x03 )
+			if( CARDBuffer[1] == CARDOffset - 2 )
 			{
-				u32 cmd = CARDBuffer[2] << 24;
-					cmd|= CARDBuffer[3] << 16;
-					cmd|= CARDBuffer[4] <<  8;
-					cmd|= CARDBuffer[5] <<  0;
-
-				switch(cmd)
+				if( CARDBuffer[CARDOffset-2] == 0x03 )
 				{
-					default:
-					{
-					//	dbgprintf("CARD:Unhandled cmd!\n");
-					//	dbgprintf("CARD:[%08X]\n", cmd );
-					//	hexdump( CARDBuffer, CARDOffset );
-					} break;
-					case 0x10000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDInit()\n");
-	#endif
-						CARDCommand = CARD_INIT;
+					u32 cmd = CARDBuffer[2] << 24;
+						cmd|= CARDBuffer[3] << 16;
+						cmd|= CARDBuffer[4] <<  8;
+						cmd|= CARDBuffer[5] <<  0;
 
-						CARDWriteLength		= 0;
-						CARDBit				= 0;
-						CARDMemorySize			= 0;
-						CARDStateCallCount	= 0;
-
-					} break;
-					case 0x20000000:
+					switch(cmd)
 					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDGetState(%02X)\n", CARDBit );
-	#endif
-						CARDCommand = CARD_GET_CARD_STATE;
-
-						if( TRIGame == TRI_AX && CARDMemorySize )
+						default:
 						{
-							CARDStateCallCount++;
-							if( CARDStateCallCount > 10 )
+						//	dbgprintf("CARD:Unhandled cmd!\n");
+						//	dbgprintf("CARD:[%08X]\n", cmd );
+						//	hexdump( CARDBuffer, CARDOffset );
+						} break;
+						case 0x10000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDInit()\n");
+		#endif
+							CARDCommand = CARD_INIT;
+
+							CARDWriteLength		= 0;
+							CARDBit				= 0;
+							CARDMemorySize			= 0;
+							CARDStateCallCount	= 0;
+
+						} break;
+						case 0x20000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDGetState(%02X)\n", CARDBit );
+		#endif
+							CARDCommand = CARD_GET_CARD_STATE;
+
+							if( TRIGame == TRI_AX && CARDMemorySize )
 							{
-								if( CARDBit & 2 )
-									CARDBit &= ~2;
-								else
-									CARDBit |= 2;
-
-								CARDStateCallCount = 0;
-							}
-						}
-
-						if( CARDClean == 1 )
-						{
-							CARDClean = 2;
-						} else if( CARDClean == 2 )
-						{
-							FIL fi;
-							if( f_open( &fi, "csave.bin", FA_READ|FA_OPEN_EXISTING ) == FR_OK )
-							{
-								if( fi.fsize > 0 )
+								CARDStateCallCount++;
+								if( CARDStateCallCount > 10 )
 								{
-									CARDMemorySize = fi.fsize;
-									if( TRIGame == TRI_AX )
-										CARDBit = 2;
+									if( CARDBit & 2 )
+										CARDBit &= ~2;
 									else
-										CARDBit = 1;
+										CARDBit |= 2;
+
+									CARDStateCallCount = 0;
 								}
-								f_close(&fi);
 							}
-							CARDClean = 0;
-						}
-					} break;
-					case 0x40000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDIsPresent()\n");
-	#endif
-						CARDCommand = CARD_IS_PRESENT;
-					} break;
-					case 0x7A000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDUnknown7A()\n");
-	#endif
-						CARDCommand = CARD_7A;
-						//hexdump( CARDBuffer+2, CARDOffset-2 );
-					} break;
-					case 0xB0000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDLoadCard()\n");
-	#endif
-						CARDCommand = CARD_LOAD_CARD;
-					} break;
-					case 0xA0000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDIsCleanCard?()\n");
-	#endif
-						CARDCommand = CARD_CLEAN_CARD;
-						CARDClean = 1;
-					} break;
-					case 0x33000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDRead()\n");
-	#endif
-						CARDCommand		= CARD_READ;
 
-						//Prepare read packet
-						memset( CARDReadPacket, 0, 0xDB );
-						u32 POff=0;
-											
-						FIL cf;
-						if( f_open( &cf, "csave.bin", FA_READ|FA_OPEN_EXISTING ) == FR_OK )
+							if( CARDClean == 1 )
+							{
+								CARDClean = 2;
+							} else if( CARDClean == 2 )
+							{
+								FIL fi;
+								if( f_open( &fi, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
+								{
+									if( fi.fsize > 0 )
+									{
+										CARDMemorySize = fi.fsize;
+										if( TRIGame == TRI_AX )
+											CARDBit = 2;
+										else
+											CARDBit = 1;
+									}
+									f_close(&fi);
+								}
+								CARDClean = 0;
+							}
+						} break;
+						case 0x40000000:
 						{
-							if( CARDMemorySize == 0 )
-								CARDMemorySize = cf.fsize;
-
-							u32 read;
-							f_read( &cf, CARDMemory, CARDMemorySize, &read );
-							f_close( &cf );
-
-							CARDIsInserted = 1;
-						}
-
-						CARDReadPacket[POff++] = 0x02;	// SUB CMD
-						CARDReadPacket[POff++] = 0x00;	// SUB CMDLen
-											
-						CARDReadPacket[POff++] = 0x33;	// CARD CMD
-
-						if( CARDIsInserted )
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDIsPresent()\n");
+		#endif
+							CARDCommand = CARD_IS_PRESENT;
+						} break;
+						case 0x7A000000:
 						{
-							CARDReadPacket[POff++] = '1';	// CARD Status
-						} else {
-							CARDReadPacket[POff++] = '0';	// CARD Status
-						}
-
-						CARDReadPacket[POff++] = '0';		// 
-						CARDReadPacket[POff++] = '0';		// 
-
-
-						//Data reply
-						memcpy( CARDReadPacket + POff, CARDMemory, CARDMemorySize );
-						POff += CARDMemorySize;
-
-						CARDReadPacket[POff++] = 0x03;
-											
-						CARDReadPacket[1] = POff-1;	// SUB CMDLen
-
-						u32 i;
-						for( i=0; i < POff-1; ++i )
-							CARDReadPacket[POff] ^= CARDReadPacket[1+i];
-
-						POff++;
-
-					//	hexdump( CARDReadPacket, POff );
-
-						CARDReadLength	= POff;
-						CARDRead	= 0;
-					} break;
-					case 0x53000000:
-					{
-						CARDCommand		= CARD_WRITE;
-
-						CARDMemorySize		= CARDBuffer[1] - 9;
-
-						memcpy( CARDMemory, CARDBuffer+9, CARDMemorySize );										
-										
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDWrite: %u\n", CARDMemorySize );
-	#endif
-										
-						FIL cf;
-						if( f_open( &cf, "csave.bin", FA_WRITE|FA_CREATE_ALWAYS ) == FR_OK )
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDUnknown7A()\n");
+		#endif
+							CARDCommand = CARD_7A;
+							//hexdump( CARDBuffer+2, CARDOffset-2 );
+						} break;
+						case 0xB0000000:
 						{
-							u32 wrote;
-							f_write( &cf, CARDMemory, CARDMemorySize, &wrote );
-							f_close( &cf );
-						}
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDLoadCard()\n");
+		#endif
+							CARDCommand = CARD_LOAD_CARD;
+						} break;
+						case 0xA0000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDIsCleanCard?()\n");
+		#endif
+							CARDCommand = CARD_CLEAN_CARD;
+							CARDClean = 1;
+						} break;
+						case 0x33000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDRead()\n");
+		#endif
+							CARDCommand		= CARD_READ;
 
-						CARDBit = 2;
+							//Prepare read packet
+							memset( CARDReadPacket, 0, 0xDB );
+							u32 POff=0;
 
-						CARDStateCallCount = 0;
+							FIL cf;
+							if( f_open( &cf, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
+							{
+								if( CARDMemorySize == 0 )
+									CARDMemorySize = cf.fsize;
 
-					} break;
-					case 0x78000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDUnknown78()\n");
-	#endif
-						CARDCommand	= CARD_78;
-					} break;
-					case 0x7C000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDWriteCardInfo()\n");
-	#endif
-						CARDCommand	= CARD_WRITE_INFO;
-					//	hexdump( CARDBuffer, CARDOffset );
-					} break;
-					case 0x7D000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDPrint?()\n");
-	#endif
-						CARDCommand	= CARD_7D;
-					} break;
-					case 0x80000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDUnknown80()\n");
-	#endif
-						CARDCommand	= CARD_80;
+								u32 read;
+								f_read( &cf, CARDMemory, CARDMemorySize, &read );
+								f_close( &cf );
 
-						if( TRIGame != TRI_AX )
-							CARDBit = 0;
-					} break;
-					case 0xD0000000:
-					{
-	#ifdef DEBUG_CARD
-						dbgprintf("CARDUnknownD0()\n");
-	#endif
-						CARDCommand	= CARD_D0;
+								CARDIsInserted = 1;
+							}
 
-						if( TRIGame != TRI_AX )
-							CARDBit = 0;
-					} break;
+							CARDReadPacket[POff++] = 0x02;	// SUB CMD
+							CARDReadPacket[POff++] = 0x00;	// SUB CMDLen
+												
+							CARDReadPacket[POff++] = 0x33;	// CARD CMD
+
+							if( CARDIsInserted )
+							{
+								CARDReadPacket[POff++] = '1';	// CARD Status
+							} else {
+								CARDReadPacket[POff++] = '0';	// CARD Status
+							}
+
+							CARDReadPacket[POff++] = '0';		// 
+							CARDReadPacket[POff++] = '0';		// 
+
+
+							//Data reply
+							memcpy( CARDReadPacket + POff, CARDMemory, CARDMemorySize );
+							POff += CARDMemorySize;
+
+							CARDReadPacket[POff++] = 0x03;
+												
+							CARDReadPacket[1] = POff-1;	// SUB CMDLen
+
+							u32 i;
+							for( i=0; i < POff-1; ++i )
+								CARDReadPacket[POff] ^= CARDReadPacket[1+i];
+
+							POff++;
+
+						//	hexdump( CARDReadPacket, POff );
+
+							CARDReadLength	= POff;
+							CARDRead	= 0;
+						} break;
+						case 0x53000000:
+						{
+							CARDCommand		= CARD_WRITE;
+
+							CARDMemorySize		= CARDBuffer[1] - 9;
+
+							memcpy( CARDMemory, CARDBuffer+9, CARDMemorySize );
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDWrite: %u\n", CARDMemorySize );
+		#endif
+							FIL cf;
+							if( f_open( &cf, GCAMGetCARDName(), FA_WRITE|FA_CREATE_ALWAYS ) == FR_OK )
+							{
+								u32 wrote;
+								f_write( &cf, CARDMemory, CARDMemorySize, &wrote );
+								f_close( &cf );
+							}
+
+							CARDBit = 2;
+
+							CARDStateCallCount = 0;
+
+						} break;
+						case 0x78000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDUnknown78()\n");
+		#endif
+							CARDCommand	= CARD_78;
+						} break;
+						case 0x7C000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDWriteCardInfo()\n");
+		#endif
+							CARDCommand	= CARD_WRITE_INFO;
+						//	hexdump( CARDBuffer, CARDOffset );
+						} break;
+						case 0x7D000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDPrint?()\n");
+		#endif
+							CARDCommand	= CARD_7D;
+						} break;
+						case 0x80000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDUnknown80()\n");
+		#endif
+							CARDCommand	= CARD_80;
+
+							if( TRIGame != TRI_AX )
+								CARDBit = 0;
+						} break;
+						case 0xD0000000:
+						{
+		#ifdef DEBUG_CARD
+							dbgprintf("CARDUnknownD0()\n");
+		#endif
+							CARDCommand	= CARD_D0;
+
+							if( TRIGame != TRI_AX )
+								CARDBit = 0;
+						} break;
+					}
+
+				//	hexdump( CARDBuffer, CARDOffset );
+
+					CARDOffset = 0;
 				}
-
-			//	hexdump( CARDBuffer, CARDOffset );
-
-				CARDOffset = 0;
 			}
-		}		
+		}
 
 		res[resp++] = 0x32;
 		res[resp++] = 0x01;	// len
@@ -743,14 +775,14 @@ void GCAMUpdateRegisters( void )
 			return;
 		}
 
-		write32( GCAM_SCONTROL, read32(GCAM_CONTROL) & 3 );
+		/*write32( GCAM_SCONTROL, read32(GCAM_CONTROL) & 3 );
 		clear32( GCAM_SSTATUS, 0x14 );
 
 		write32( GCAM_CONTROL, 0xdeadbeef );
 		write32( GCAM_RETURN, 0xdeadbeef );
 		write32( GCAM_STATUS, 0xdeadbeef );
 
-		sync_after_write( (void*)GCAM_BASE, 0x40 );
+		sync_after_write( (void*)GCAM_BASE, 0x40 );*/
 		
 		for( i=0; i < 5; ++i )
 		{
@@ -809,7 +841,7 @@ void GCAMUpdateRegisters( void )
 				//	clear32( GCAM_CONTROL, 1 );
 				
 				//while( (read32(GCAM_SSTATUS) & 0x10) != 0x10 )
-					set32( GCAM_SSTATUS, 0x10 );
+				//	set32( GCAM_SSTATUS, 0x10 );
 
 			} break;
 			case 0x70:
@@ -842,7 +874,7 @@ void GCAMUpdateRegisters( void )
 				//	clear32( GCAM_CONTROL, 1 );
 				
 				//while( (read32(GCAM_SSTATUS) & 0x10) != 0x10 )
-					set32( GCAM_SSTATUS, 0x10 );
+				//	set32( GCAM_SSTATUS, 0x10 );
 			} break;
 			default:
 			{
@@ -850,7 +882,8 @@ void GCAMUpdateRegisters( void )
 				Shutdown();
 			} break;
 		}
-
+		//to be 100% sure we dont ever read a still cached block in ppc
+		write32( GCAM_CONTROL, 0xdeadbeef );
 		sync_after_write( (void*)GCAM_BASE, 0x40 );
 	}
 }

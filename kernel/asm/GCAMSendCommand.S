@@ -39,11 +39,6 @@ ready_loop:
 	cmpwi	%r0,	3
 	beq		ready_loop
 
-wait_loop:
-	lwz		%r0,	0x2F9C(%r7)
-	andi.	%r0,	%r0,	0x14
-	beq		wait_loop
-
 #invalidate DataOut
 	clrrwi	%r3,	%r6,	5
 	subf	%r5,	%r3,	%r6
