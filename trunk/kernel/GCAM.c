@@ -25,7 +25,7 @@ u8	*CARDMemory;
 u8	*CARDReadPacket;
 u8	*CARDBuffer;
 
-u32	CARDMemorySize;
+u32 CARDMemorySize;
 u32 CARDIsInserted;
 u32 CARDCommand;
 u32 CARDClean;
@@ -36,18 +36,23 @@ u32 CARDRead;
 u32 CARDBit;
 u32 CARDStateCallCount;
 u32 CARDOffset;
+u32 FirstCMD;
 
+static u32 BufsAllocated = 0;
 void GCAMInit( void )
 {
-	Bufo= (char*)malloca( 0x80, 32 );
-	Bufi= (char*)malloca( 0x80, 32 );
-	Buf = (char*)malloca( 0x80, 32 );
-	res = (u8*)  malloca( 0x80, 32 );
+	if(BufsAllocated == 0)
+	{
+		Bufo= (char*)malloca( 0x80, 32 );
+		Bufi= (char*)malloca( 0x80, 32 );
+		Buf = (char*)malloca( 0x80, 32 );
+		res = (u8*)  malloca( 0x80, 32 );
 
-	CARDMemory = (u8*)malloca( 0xD0, 32 );
-	CARDReadPacket = (u8*)malloca( 0xDB, 32 );
-	CARDBuffer = (u8*)malloca( 0x100, 32 );
-
+		CARDMemory = (u8*)malloca( 0xD0, 32 );
+		CARDReadPacket = (u8*)malloca( 0xDB, 32 );
+		CARDBuffer = (u8*)malloca( 0x100, 32 );
+		BufsAllocated = 1;
+	}
 	memset32( Bufo, 0, 0x80 );
 	memset32( Bufi, 0, 0x80 );
 	memset32( Buf,  0, 0x80 );
@@ -60,18 +65,20 @@ void GCAMInit( void )
 	memset32( (void*)GCAM_BASE, 0xdeadbeef, 0x40 );
 	sync_after_write( (void*)GCAM_BASE, 0x40 );
 
-	CARDMemorySize		= 0;
-	CARDIsInserted		= 0;
-	CARDOffset				= 0;
-	CARDCommand				= 0;
-	CARDWriteLength		= 0;
-	CARDWrote					= 0;
-	CARDReadLength		= 0;
-	CARDRead					= 0;
-	CARDBit						= 0;
-	CARDStateCallCount= 0;
-
+	CARDMemorySize = 0;
+	CARDIsInserted = 0;
+	CARDCommand = 0;
+	CARDClean = 0;
+	CARDWriteLength = 0;
+	CARDWrote = 0;
+	CARDReadLength = 0;
+	CARDRead = 0;
+	CARDBit = 0;
+	CARDStateCallCount = 0;
+	CARDOffset = 0;
+	FirstCMD = 0;
 }
+
 void GCAMCARDCommand( char *DataIn, char *DataOut )
 {
 	if( DataIn[DataPos] == 1 && DataIn[DataPos+1] == 0x05 )
@@ -506,16 +513,16 @@ void GCAMCommand( char *DataIn, char *DataOut )
 		
 				d10_0 = 0xFF;
 
-				//u32 buttons = *(vu32*)0x0d806404;
+				u32 buttons = read32(TRIButtons);//*(vu32*)0x0d806404;
 				//u32 sticks  = *(vu32*)0x0d806408;
 
-				// Test button
-				//if( (buttons >> 16) & PAD_BUTTON_X )
-				//	d10_0 &= ~0x80;
-
 				// Service button
-				//if( (buttons >> 16) & PAD_BUTTON_Y )
-				//	d10_0 &= ~0x40;
+				if( buttons & PAD_BUTTON_X )
+					d10_0 &= ~0x80;
+
+				// Test button
+				if( buttons & PAD_TRIGGER_Z )
+					d10_0 &= ~0x40;
 
 				//Switch Status
 				res[resp++] = d10_0;
@@ -578,13 +585,32 @@ void GCAMCommand( char *DataIn, char *DataOut )
 			{
 				dbgprintf("GetRegion(%02X,%02X,%02X,%02X,%02X)\n", DataIn[DataPos], DataIn[DataPos+1], DataIn[DataPos+2], DataIn[DataPos+3], DataIn[DataPos+4] );
 
-				unsigned char string[] =  
-					"\x00\x00\x30\x00"
-					"\x01\xfe\x00\x00" // JAPAN
-					//"\x02\xfd\x00\x00" // USA
-					//"\x03\xfc\x00\x00" // export
-					"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff";
+				unsigned char string[0x14];
 
+				switch(SystemRegion)
+				{
+					case REGION_USA:
+						memcpy(string,
+							"\x00\x00\x30\x00"
+							"\x02\xfd\x00\x00" // USA
+							"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff",
+								0x14);
+						break;
+					case REGION_EXPORT:
+						memcpy(string,
+							"\x00\x00\x30\x00"
+							"\x03\xfc\x00\x00" // export
+							"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff",
+								0x14);
+						break;
+					default:
+						memcpy(string,
+							"\x00\x00\x30\x00"
+							"\x01\xfe\x00\x00" // JAPAN
+							"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff",
+								0x14);
+						break;
+				}
 				res[resp++] = 0x1F;
 				res[resp++] = 0x14;
 
@@ -702,7 +728,6 @@ void GCAMCommand( char *DataIn, char *DataOut )
 void GCAMUpdateRegisters( void )
 {
 	u32 i;
-	static u32 FirstCMD = 0;
 
 	u32 *GInterface	 = (u32*)(GCAM_BASE);
 	u32 *GInterfaceS = (u32*)(GCAM_SHADOW);

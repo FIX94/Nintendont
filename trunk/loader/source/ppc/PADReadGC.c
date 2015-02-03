@@ -9,10 +9,11 @@ static vu32 *stubdest = (u32*)0x81330000;
 static vu32 *stubsrc = (u32*)0x93011810;
 static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* const _siReg = (u32*)0xCD006400;
-static vu32* const MotorCommand = (u32*)0xD3003010;
+static vu32* const MotorCommand = (u32*)0x93003010;
 static vu32* RESET_STATUS = (u32*)0xD3003420;
 static vu32* HIDMotor = (u32*)0x93002700;
 static vu32* PadUsed = (u32*)0x93002704;
+static vu32* TRIButtons = (u32*)0x93002708;
 
 static vu32* PADIsBarrel = (u32*)0xD3002830;
 static vu32* PADBarrelEnabled = (u32*)0xD3002840;
@@ -54,11 +55,11 @@ u32 _start()
 	u32 used = 0;
 
 	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
-	u32 MaxPads = ((NIN_CFG*)0xD3002900)->MaxPads;
+	u32 MaxPads = ((NIN_CFG*)0x93002900)->MaxPads;
 	if (MaxPads > NIN_CFG_MAXPAD)
 		MaxPads = NIN_CFG_MAXPAD;
 
-	u32 HIDPad = ((((NIN_CFG*)0xD3002900)->Config) & NIN_CFG_HID) == 0 ? HID_PAD_NONE : HID_PAD_NOT_SET;
+	u32 HIDPad = ((((NIN_CFG*)0x93002900)->Config) & NIN_CFG_HID) == 0 ? HID_PAD_NONE : HID_PAD_NOT_SET;
 	u32 chan;
 	for (chan = 0; (chan < MaxPads); ++chan)
 	{
@@ -198,7 +199,7 @@ u32 _start()
 			HID_Packet = (u8*)0x930050F0;	//reset back to default offset
 
 		memInvalidate = (u32)HID_Packet;
-		asm volatile("dcbi 0,%0; sync; isync" : : "b"(memInvalidate) : "memory");
+		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
 		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
 		{
@@ -514,7 +515,7 @@ u32 _start()
 		BTPadFree[chan] = 1;
 
 		memInvalidate = (u32)&BTPad[chan];
-		asm volatile("dcbi 0,%0; sync ; isync" : : "b"(memInvalidate) : "memory");
+		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
 		if(BTPad[chan].used == C_NOT_SET)
 			continue;
@@ -1222,11 +1223,15 @@ u32 _start()
 			Pad[chan].err = ((used & (1<<chan)) && *SIInited) ? 0 : -1;
 	}
 	*PadUsed = (*SIInited ? used : 0);
+	//Test and Service Button
+	*TRIButtons = Pad[0].button & (PAD_TRIGGER_Z | PAD_BUTTON_X);
 
 	memFlush = (u32)HIDMotor;
-	asm volatile("dcbf 0,%0; sync; isync" : : "b"(memFlush) : "memory");
+	asm volatile("dcbf 0,%0" : : "b"(memFlush) : "memory");
 	memFlush = (u32)BTMotor;
-	asm volatile("dcbf 0,%0; sync; isync" : : "b"(memFlush) : "memory");
+	asm volatile("dcbf 0,%0" : : "b"(memFlush) : "memory");
+	//make sure its actually sent
+	asm volatile("sync");
 
 	return Rumble;
 
@@ -1242,14 +1247,14 @@ Shutdown:
 	for ( ; memFlush < end; memFlush += 32)
 	{
 		memInvalidate = (u32)stubsrc;
-		asm volatile("dcbi 0,%0; sync; isync" : : "b"(memInvalidate) : "memory");
+		asm volatile("dcbi 0,%0 ; sync" : : "b"(memInvalidate) : "memory");
 		u8 b;
 		for(b = 0; b < 8; ++b)
 			*stubdest++ = *stubsrc++;
-		asm volatile("dcbst 0,%0; sync ; icbi 0,%0; isync" : : "b"(memFlush));
+		asm volatile("dcbst 0,%0; sync ; icbi 0,%0" : : "b"(memFlush));
 	}
 	asm volatile(
-		"sync; isync\n"
+		"isync\n"
 		"lis %r3, 0x8133\n"
 		"mtlr %r3\n"
 		"blr\n"

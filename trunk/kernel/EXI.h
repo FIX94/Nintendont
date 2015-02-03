@@ -53,6 +53,8 @@ enum EXICommands {
 
 	RTC_READ,
 	SRAM_READ,
+	UART_READ,
+
 	SRAM_WRITE,
 
 	IPL_READ_FONT,
@@ -60,6 +62,7 @@ enum EXICommands {
 
 #define IPL_ROM_FONT_SJIS				0x1AFF00
 #define IPL_ROM_FONT_ANSI				0x1FCF00
+#define IPL_ROM_END_OFFSET				0x200000
 
 #define MC_STATUS_BUSY					0x80
 #define MC_STATUS_UNLOCKED			0x40

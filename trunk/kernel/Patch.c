@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ISO.h"
 #include "SI.h"
 #include "EXI.h"
-
+#include "GCAM.h"
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
 #define GAME_ID		(read32(0))
@@ -995,7 +995,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 {
 	if( (u32)Buffer == 0x01200000 && *(u8*)Buffer == 0x7C )
 	{	/* Game can reset at any time */
-		PatchState = PATCH_STATE_NONE;
+		PatchState = PATCH_STATE_DONE;
 		return;
 	}
 
@@ -1192,6 +1192,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			FirstLine = read32((u32)Buffer+0xB4);
 			write32((u32)Buffer+0xB4, NewVal);
 			dbgprintf("DIP:Hacked ELF FirstLine:0x%08X MinOff:0x%08X MaxOff:0x%08X\r\n", FirstLine, DOLMinOff, DOLMaxOff );
+			PatchState |= PATCH_STATE_LOAD;
 		}
 	}
 
@@ -1298,7 +1299,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//cam loop
 		write32( 0x009F1E0, 0x60000000 );
 
-		//Skip device test
+		//Skip device test (skips test menu as well)
 		write32( 0x0031BF0, 0x60000000 );
 		write32( 0x0031BFC, 0x60000000 );
 
@@ -1326,7 +1327,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		TRIGame = TRI_GP2;
 		SystemRegion = REGION_JAPAN;
 
-		//Skip device test
+		//Skip device test (skips test menu as well)
 		write32( 0x002E340, 0x60000000 );
 		write32( 0x002E34C, 0x60000000 );
 
@@ -3051,6 +3052,8 @@ void PatchGame()
 	// Reset SI status
 	SIInit();
 	u32 SiInitSet = 0;
+	//Reset GCAM status
+	GCAMInit();
 	// Didn't look for why PMW2 requires this.  ToDo
 	if ((TITLE_ID) == 0x475032 || TRIGame) // PacMan World 2 and Triforce hack
 		SiInitSet = 1;

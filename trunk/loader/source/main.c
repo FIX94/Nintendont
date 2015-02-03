@@ -559,7 +559,7 @@ int main(int argc, char **argv)
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-	if(IsTRIGame(ncfg->GamePath) == false)
+	if(IsTRIGame(ncfg->GamePath) == false && (ncfg->Config & NIN_CFG_MEMCARDEMU))
 	{
 		char iplchar[32];
 		if((ncfg->GameID & 0xFF) == 'E')
@@ -583,7 +583,7 @@ int main(int argc, char **argv)
 			fclose(f);
 		}
 	}
-	else
+	else if(IsTRIGame(ncfg->GamePath) == true)
 	{
 		char iplchar[32];
 		sprintf(iplchar, "%s:/segaboot.bin", GetRootDevice());
