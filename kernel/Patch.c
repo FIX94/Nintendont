@@ -1327,6 +1327,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		TRIGame = TRI_GP2;
 		SystemRegion = REGION_JAPAN;
 
+		//Unlimited CARD uses
+		write32( 0x00A02F8, 0x60000000 );
+
 		//Skip device test (skips test menu as well)
 		write32( 0x002E340, 0x60000000 );
 		write32( 0x002E34C, 0x60000000 );
