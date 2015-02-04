@@ -106,7 +106,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 		write32(0x445C34, read32(0x445C30));
 		return true;
 	}
-	u32 Buffer;
+	u32 Buffer, PatchedWide = 0;
 	switch(TitleID)
 	{
 		case 0x474D34: //Mario Kart Double Dash
@@ -141,6 +141,39 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				{
 					dbgprintf("Patch:Patched SSBM Widescreen (0x%08X)\r\n", Buffer+4);
 					PatchWideMulti(Buffer+4, 1);
+					return true;
+				}
+			}
+			return false;
+		case 0x475445: //1080 Avalanche
+			for(Buffer = 0x64000; Buffer < 0x66000; Buffer+=4)
+			{
+				if(read32(Buffer) == 0xEC000828 && (read32(Buffer+4) == 0xD00302A0 || read32(Buffer+4) == 0xD01C02A0))
+				{
+					dbgprintf("Patch:Patched 1080 Avalanche Widescreen (0x%08X)\r\n", Buffer);
+					PatchWideMulti(Buffer, 0);
+					PatchedWide = 1; //patching 2 areas
+				}
+			}
+			return PatchedWide;
+		case 0x475049: //Pikmin
+			for(Buffer = 0x59000; Buffer < 0x5B000; Buffer+=4)
+			{
+				if(read32(Buffer) == 0x80BF030C)
+				{
+					dbgprintf("Patch:Patched Pikmin Widescreen (0x%08X)\r\n", Buffer);
+					write32(Buffer, 0x38A003AC);
+					return true;
+				}
+			}
+			return false;
+		case 0x475056: //Pikmin 2
+			for(Buffer = 0x424000; Buffer < 0x426000; Buffer+=4)
+			{
+				if(read32(Buffer) == 0xEC011824 && read32(Buffer+12) == 0xC0040000)
+				{
+					dbgprintf("Patch:Patched Pikmin 2 Widescreen (0x%08X)\r\n", Buffer);
+					PatchWideMulti(Buffer, 0);
 					return true;
 				}
 			}

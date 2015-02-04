@@ -1362,15 +1362,21 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Remove some menu timers (thanks conanac)
 		write32( 0x001C1074, 0x60000000 ); //card check
+		write32( 0x001C0174, 0x60000000 ); //want to make a card
+		write32( 0x00232818, 0x60000000 ); //card view
 		write32( 0x001C1A08, 0x60000000 ); //select game mode
 		write32( 0x001C3380, 0x60000000 ); //select character
 		write32( 0x001D7594, 0x60000000 ); //select kart
 		write32( 0x001C7A7C, 0x60000000 ); //select cup
 		write32( 0x001C9ED8, 0x60000000 ); //select round
+		write32( 0x00237B3C, 0x60000000 ); //select item (card)
 		write32( 0x0024D35C, 0x60000000 ); //continue
 		write32( 0x0015F2F4, 0x60000000 ); //rewrite rank
 		write32( 0x001CF5DC, 0x60000000 ); //select course (time attack)
-		write32( 0x001BE248, 0x60000000 ); //enter name (time attack)
+		write32( 0x001BE248, 0x60000000 ); //enter name (time attack, card)
+
+		//Make some menu timers invisible
+		write32( 0x001B7D2C, 0x60000000 );
 
 		//Modify to regular GX pattern to patch later
 		write32( 0x3F1FD0, 0x00 ); //NTSC Interlaced
