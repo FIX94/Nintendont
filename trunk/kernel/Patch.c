@@ -1303,6 +1303,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0031BF0, 0x60000000 );
 		write32( 0x0031BFC, 0x60000000 );
 
+
+		//Remove some menu timers
+		write32( 0x0019BFF8, 0x60000000 ); //card check
+		write32( 0x001BCAA8, 0x60000000 ); //want to make a card
+		write32( 0x00195748, 0x60000000 ); //card view
+		write32( 0x000CFABC, 0x60000000 ); //select game mode
+		write32( 0x000D9F14, 0x60000000 ); //select character
+		write32( 0x001A8CF8, 0x60000000 ); //select cup
+		write32( 0x001A89B8, 0x60000000 ); //select round
+		write32( 0x001A2A10, 0x60000000 ); //select item (card)
+		write32( 0x001B9724, 0x60000000 ); //continue
+		write32( 0x001E61B4, 0x60000000 ); //rewrite rank
+		write32( 0x001A822C, 0x60000000 ); //select course p1 (time attack)
+		write32( 0x001A7F0C, 0x60000000 ); //select course p2 (time attack)
+		write32( 0x000D6234, 0x60000000 ); //enter name (time attack, card)
+		write32( 0x001BF1DC, 0x60000000 ); //save record p1 (time attack on card)
+		write32( 0x001BF1DC, 0x60000000 ); //save record p2 (time attack on card)
+		write32( 0x000E01B4, 0x60000000 ); //select record place (time attack on card)
+
 		//Modify to regular GX pattern to patch later
 		write32( 0x363660, 0x00 ); //NTSC Interlaced
 

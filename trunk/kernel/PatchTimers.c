@@ -174,4 +174,12 @@ void PatchStaticTimers()
 		dbgprintf("Patch:[Majoras Mask PAL] applied\r\n");
 		#endif
 	}
+	else if(read32(0x1E71AC) == 0x3CE0000A && read32(0x1E71B8) == 0x39074CB8)
+	{
+		write32(0x1E71AC, 0x3CE0000F);
+		write32(0x1E71B8, 0x39077314);
+		#ifdef DEBUG_PATCH
+		dbgprintf("Patch:[Killer7 PAL] applied\r\n");
+		#endif
+	}
 }
