@@ -100,7 +100,19 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 extern vu32 TRIGame;
 bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
-	if(TRIGame == TRI_AX)
+	if(TRIGame == TRI_GP1)
+	{
+		dbgprintf("Patch:Mario Kart GP1 Widescreen\r\n");
+		PatchWideMulti(0x28C800, 1);
+		return true;
+	}
+	else if(TRIGame == TRI_GP2)
+	{
+		dbgprintf("Patch:Mario Kart GP2 Widescreen\r\n");
+		PatchWideMulti(0x2C80D4, 1);
+		return true;
+	}
+	else if(TRIGame == TRI_AX)
 	{	//thanks CosmoCortney
 		dbgprintf("Patch:F-Zero AX Widescreen\r\n");
 		write32(0x445C34, read32(0x445C30));
