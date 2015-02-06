@@ -545,16 +545,16 @@ void GCAMCommand( char *DataIn, char *DataOut )
 		
 				d10_0 = 0xFF;
 
-				u32 buttons = read32(TRIButtons);//*(vu32*)0x0d806404;
+				//u32 buttons = read32(TRIButtons);//*(vu32*)0x0d806404;
 				//u32 sticks  = *(vu32*)0x0d806408;
 
 				// Service button
-				if( buttons & PAD_BUTTON_X )
-					d10_0 &= ~0x80;
+				//if( buttons & PAD_BUTTON_X )
+				//	d10_0 &= ~0x80;
 
 				// Test button
-				if( buttons & PAD_TRIGGER_Z )
-					d10_0 &= ~0x40;
+				//if( buttons & PAD_TRIGGER_Z )
+				//	d10_0 &= ~0x40;
 
 				//Switch Status
 				res[resp++] = d10_0;

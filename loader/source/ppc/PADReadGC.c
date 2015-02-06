@@ -1224,7 +1224,7 @@ u32 _start()
 	}
 	*PadUsed = (*SIInited ? used : 0);
 	//Test and Service Button
-	*TRIButtons = Pad[0].button & (PAD_TRIGGER_Z | PAD_BUTTON_X);
+	*TRIButtons = Pad[0].button;
 
 	memFlush = (u32)HIDMotor;
 	asm volatile("dcbf 0,%0" : : "b"(memFlush) : "memory");
