@@ -58,6 +58,10 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			write32( 0x00400DE8, TRI_DefaultCoinCount ); // FZeroAX credits
 			sync_after_write( (void*)0x00400DE0, 0x20 );
 
+			sync_before_read( (void*)0x003CD6A0, 0x20 );
+			write32( 0x003CD6A0, 0x00001734 );	// FZeroAX menu timer to 99
+			sync_after_write( (void*)0x003CD6A0, 0x20 );
+
 			sync_before_read( (void*)0x003BC400, 0x20 );
 			write32( 0x003BC400, 0x803BB940 );	// Crash hack
 			sync_after_write( (void*)0x003BC400, 0x20 );
@@ -230,6 +234,21 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					// Service button
 					if( buttons & PAD_BUTTON_X )
 						PlayerData[0] |= 0x40;
+
+					switch(TRIGame)
+					{
+						case TRI_GP1:
+						case TRI_GP2:
+							// Item button
+							if( buttons & PAD_BUTTON_A )
+								PlayerData[1] |= 0x10;
+							// Cancel button
+							if( buttons & PAD_BUTTON_B )
+								PlayerData[1] |= 0x02;
+							break;
+						default:
+							break;
+					}
 
 					for( j=0; j < PlayerByteCount; ++j )
 						addDataByte( PlayerData[j] );

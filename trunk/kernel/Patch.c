@@ -1303,7 +1303,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0031BF0, 0x60000000 );
 		write32( 0x0031BFC, 0x60000000 );
 
-
 		//Remove some menu timers
 		write32( 0x0019BFF8, 0x60000000 ); //card check
 		write32( 0x001BCAA8, 0x60000000 ); //want to make a card
@@ -1328,8 +1327,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//Test Menu Interlaced
 		//memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
 
-		PatchB( PatchCopy(PADReadB, PADReadB_size), 0x003C6F0 );
-		memcpy( (void*)0x024E4B0, PADReadSteer, PADReadSteer_size );
+		//Buttons get handled in JVSIO.c
+		PatchB( PatchCopy(PADReadGP, PADReadGP_size), 0x024E4B0 );
 
 		//some report check skip
 		//write32( 0x00307CC, 0x60000000 );
@@ -1393,15 +1392,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0015F2F4, 0x60000000 ); //rewrite rank
 		write32( 0x001CF5DC, 0x60000000 ); //select course (time attack)
 		write32( 0x001BE248, 0x60000000 ); //enter name (time attack, card)
+		write32( 0x0021DFF0, 0x60000000 ); //save record (time attack on card)
 
 		//Make some menu timers invisible
 		write32( 0x001B7D2C, 0x60000000 );
+		write32( 0x00231CA0, 0x60000000 );
 
 		//Modify to regular GX pattern to patch later
 		write32( 0x3F1FD0, 0x00 ); //NTSC Interlaced
 
-		PatchB( PatchCopy(PADReadB, PADReadB_size), 0x0038EF4 );
-		memcpy( (void*)0x028A128, PADReadSteer, PADReadSteer_size );
+		//Buttons get handled in JVSIO.c
+		PatchB( PatchCopy(PADReadGP, PADReadGP_size), 0x028A128 );
 
 		//memcpy( (void*)0x002CE3C, OSReportDM, sizeof(OSReportDM) );
 		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
@@ -1442,8 +1443,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0024E034, 0x80180D5C );
 		write32( 0x0024E038, 0x80180BC0 );
 
-		//English 
+		//English
 		write32( 0x000DF698, 0x38000000 );
+
+		//Remove some menu timers (thanks dj_skual)
+		// (menu gets constantly removed in JVSIO.c)
+		write32( 0x0015B148, 0x60000000 ); //after race
+
+		//Make some menu timers invisible (thanks dj_skual)
+		write32( 0x0023759C, 0x40200000 ); //menu inner
+		write32( 0x002375D4, 0x40200000 ); //menu outer
+		write32( 0x00237334, 0x00000000 ); //after race inner
+		write32( 0x0023736C, 0x00000000 ); //after race outer
 
 		//Modify to regular GX pattern to patch later
 		u32 NTSC480ProgTri = 0x21D3EC;
