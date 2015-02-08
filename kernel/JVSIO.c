@@ -22,6 +22,8 @@ static const char *TRI_SegaChar = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ve
 static const char *TRI_NamcoChar = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
 static const u32 TRI_DefaultCoinCount = 9;
 
+static const PADStatus *PadBuff = (PADStatus*)0x13002800;
+
 static vu8 jvs_io_buffer[0x80];
 
 void JVSIOCommand( char *DataIn, char *DataOut )
@@ -178,8 +180,8 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					} break;
 					case TRI_AX:
 					{
-						// 1 Player (12-bits), 1 Coin slot, 6 Analog-in
-						addDataBuffer((void *)"\x01\x01\x0c\x00", 4);
+						// 2 Player (p2=paddles), 1 Coin slot, 6 Analog-in
+						addDataBuffer((void *)"\x01\x02\x0c\x00", 4);
 						addDataBuffer((void *)"\x02\x01\x00\x00", 4);
 						addDataBuffer((void *)"\x03\x06\x00\x00", 4);
 						addDataBuffer((void *)"\x00\x00\x00\x00", 4);
@@ -213,16 +215,14 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			{
 				//dbgprintf("JVS-IO:Read Switch Input\n");
 
-				u32 PlayerCount			= *jvs_io++;
+				u32 PlayerCount		= *jvs_io++;
 				u32 PlayerByteCount	= *jvs_io++;
-
 				addDataByte(1);
 
-				u32 buttons = read32(TRIButtons);//*(vu32*)0x0d806404;
-				//u32 sticks  = *(vu32*)0x0d806408;
+				sync_before_read((void*)PadBuff, 0x20);
 
 				// Test button
-				if( buttons & PAD_TRIGGER_Z )
+				if( PadBuff[0].button & PAD_TRIGGER_Z )
 					addDataByte(0x80);
 				else
 					addDataByte(0x00);
@@ -231,20 +231,62 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 				{
 					unsigned char PlayerData[3] = {0,0,0};
 
-					// Service button
-					if( buttons & PAD_BUTTON_X )
-						PlayerData[0] |= 0x40;
-
 					switch(TRIGame)
 					{
 						case TRI_GP1:
 						case TRI_GP2:
-							// Item button
-							if( buttons & PAD_BUTTON_A )
-								PlayerData[1] |= 0x10;
-							// Cancel button
-							if( buttons & PAD_BUTTON_B )
-								PlayerData[1] |= 0x02;
+							if( PadBuff[0].button & PAD_BUTTON_X )
+								PlayerData[0] |= 0x40; // Service button
+							if( PadBuff[0].button & PAD_BUTTON_A )
+								PlayerData[1] |= 0x10; // Item button
+							if( PadBuff[0].button & PAD_BUTTON_B )
+								PlayerData[1] |= 0x02; // Cancel button
+							break;
+						case TRI_AX:
+							if(i == 0)
+							{
+								if( PadBuff[0].button & PAD_BUTTON_START )
+									PlayerData[0] |= 0x80; // Start
+								if( PadBuff[0].button & PAD_BUTTON_X )
+									PlayerData[0] |= 0x40; // Service button
+								if( PadBuff[0].button & PAD_BUTTON_UP )
+									PlayerData[0] |= 0x20; // View Change 1
+								if( PadBuff[0].button & PAD_BUTTON_DOWN )
+									PlayerData[0] |= 0x10; // View Change 2
+								if( PadBuff[0].button & PAD_BUTTON_LEFT )
+									PlayerData[0] |= 0x08; // View Change 3
+								if( PadBuff[0].button & PAD_BUTTON_RIGHT )
+									PlayerData[0] |= 0x04; // View Change 4
+								if( PadBuff[0].button & PAD_BUTTON_Y )
+									PlayerData[0] |= 0x02; // Boost
+							}
+							else if(i == 1)
+							{
+								if( PadBuff[0].triggerLeft > 0x44 )
+									PlayerData[0] |= 0x20; // Paddle Left
+								if( PadBuff[0].triggerRight > 0x44 )
+									PlayerData[0] |= 0x10; // Paddle Right
+							}
+							break;
+						case TRI_VS4:
+							if( PadBuff[i].button & PAD_BUTTON_START )
+								PlayerData[0] |= 0x80; // Start
+							if( PadBuff[i].triggerRight > 0x44 )
+								PlayerData[0] |= 0x40; // Service button
+							if( PadBuff[i].button & PAD_BUTTON_UP )
+								PlayerData[0] |= 0x20; // Tactics (U)
+							if( PadBuff[i].button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT) )
+								PlayerData[0] |= 0x08; // Tactics (M)
+							if( PadBuff[i].button & PAD_BUTTON_DOWN )
+								PlayerData[0] |= 0x04; // Tactics (D)
+							if( PadBuff[i].button & PAD_BUTTON_Y )
+								PlayerData[0] |= 0x02; // Short Pass
+							if( PadBuff[i].button & PAD_BUTTON_X )
+								PlayerData[0] |= 0x01; // Long Pass
+							if( PadBuff[i].button & PAD_BUTTON_A )
+								PlayerData[1] |= 0x80; // Shoot
+							if( PadBuff[i].button & PAD_BUTTON_B )
+								PlayerData[1] |= 0x40; // Dash
 							break;
 						default:
 							break;
@@ -279,16 +321,50 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 
 				for( i=0; i < players; ++i )
 				{
-					int val = 0;
+					int val1 = 0, val2 = 0;
+					switch(TRIGame)
+					{
+						case TRI_GP1:
+						case TRI_GP2:
+							if(i == 0)
+								val1 = PadBuff[0].stickX + 0x80; // Steering
+							else if(i == 1)
+								val1 = PadBuff[0].triggerRight >> 1; //Gas
+							else if(i == 2)
+								val1 = PadBuff[0].triggerLeft >> 1; //Brake
+							break;
+						case TRI_AX:
+							if(i == 0)
+								val1 = PadBuff[0].stickX + 0x80; // Steering X
+							else if(i == 1)
+								val1 = PadBuff[0].stickY + 0x80; // Steering Y
+							else if(i == 4) {
+								if(PadBuff[0].button & PAD_BUTTON_A) val1 = 0x7F; //Gas
+							} else if(i == 5) {
+								if(PadBuff[0].button & PAD_BUTTON_B) val1 = 0x7F; //Brake
+							}
+							break;
+						case TRI_VS4:
+							if(i == 0)
+								val1 = -PadBuff[0].stickY + 0x7F; // Analog Y
+							else if(i == 1)
+								val1 = PadBuff[0].stickX + 0x80; // Analog X
+							else if(i == 2)
+								val1 = -PadBuff[1].stickY + 0x7F; // Analog Y (P2)
+							else if(i == 3)
+								val1 = PadBuff[1].stickX + 0x80; // Analog X (P2)
+							break;
+						default:
+							break;
+					}
+					/*if (i < 4)
+						val = 0x7FFF;
+					else if (i < 6)
+						val = 42 * 0x101;
+					else
+						val = 0;*/
 
-						if (i < 4)
-							val = 0x7FFF;
-						else if (i < 6)
-							val = 42 * 0x101;
-						else
-							val = 0;
-
-					unsigned char player_data[2] = {val >> 8, val};
+					unsigned char player_data[2] = {val1, val2};
 
 					addDataByte( player_data[0] );
 					addDataByte( player_data[1] );
@@ -327,7 +403,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 #else
 				u8 a = *jvs_io++;
 				u8 b = *jvs_io++;
-				dbgprintf("JVS-IO:Gernal Output (%02X,%02X)\n", a, b );
+				//dbgprintf("JVS-IO:Gernal Output (%02X,%02X)\n", a, b );
 #endif
 
 				addDataByte(1);

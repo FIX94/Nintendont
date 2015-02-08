@@ -1299,9 +1299,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//cam loop
 		write32( 0x009F1E0, 0x60000000 );
 
-		//Skip device test (skips test menu as well)
+		//Enter test mode (anti-freeze)
 		write32( 0x0031BF0, 0x60000000 );
-		write32( 0x0031BFC, 0x60000000 );
+		write32( 0x0031BF4, 0x60000000 ); //allows test menu if requested
 
 		//Remove some menu timers
 		write32( 0x0019BFF8, 0x60000000 ); //card check
@@ -1327,8 +1327,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//Test Menu Interlaced
 		//memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
 
-		//Buttons get handled in JVSIO.c
-		PatchB( PatchCopy(PADReadGP, PADReadGP_size), 0x024E4B0 );
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadGP, PADReadGP_size), 0x3C2A0 );
 
 		//some report check skip
 		//write32( 0x00307CC, 0x60000000 );
@@ -1348,9 +1348,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//Unlimited CARD uses
 		write32( 0x00A02F8, 0x60000000 );
 
-		//Skip device test (skips test menu as well)
+		//Enter test mode (anti-freeze)
 		write32( 0x002E340, 0x60000000 );
-		write32( 0x002E34C, 0x60000000 );
+		write32( 0x002E344, 0x60000000 ); //allows test menu if requested
 
 		//Disable wheel
 		write32( 0x007909C, 0x98650022 );
@@ -1401,8 +1401,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//Modify to regular GX pattern to patch later
 		write32( 0x3F1FD0, 0x00 ); //NTSC Interlaced
 
-		//Buttons get handled in JVSIO.c
-		PatchB( PatchCopy(PADReadGP, PADReadGP_size), 0x028A128 );
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadGP, PADReadGP_size), 0x38A34 );
 
 		//memcpy( (void*)0x002CE3C, OSReportDM, sizeof(OSReportDM) );
 		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
@@ -1465,8 +1465,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
 		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
 
-		memcpy( (void*)0x001B3D10, PADReadSteerF, PADReadSteerF_size );
-		memcpy( (void*)0x001B4340, PADReadF, PADReadF_size );
+		//PAD Hook for control updates
+		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4368 );
 
 		//memcpy( (void*)0x01CAACC, patch_fwrite_GC, sizeof(patch_fwrite_GC) );
 		//memcpy( (void*)0x01882C0, OSReportDM, sizeof(OSReportDM) );
@@ -1486,13 +1486,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//BOOT/FIRM version mismatch patch (not needed with SegaBoot)
 		write32( 0x0051924, 0x60000000 );
 
+		//Remove some menu timers
+		write32( 0x0051E24, 0x60000000 );
+
 		//Modify to regular GX pattern to patch later
 		write32( 0x26DD38, 0x00 ); //NTSC Interlaced
 
-		memcpy( (void*)0x0208314, PADReadSteerVS, PADReadSteerVS_size );
-		//its a bit too big to just be copied and I dont feel like optimizing
-		PatchB( PatchCopy(PADReadVS, PADReadVS_size), 0x0208968 );
-		//memcpy( (void*)0x0208968, PADReadVS, PADReadVS_size );
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3C504 );
 
 		//memcpy( (void*)0x001C2B80, OSReportDM, sizeof(OSReportDM) );
 	}
