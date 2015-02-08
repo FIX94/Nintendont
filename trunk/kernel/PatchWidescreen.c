@@ -112,6 +112,13 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 		PatchWideMulti(0x2C80D4, 1);
 		return true;
 	}
+	else if(TRIGame == TRI_VS4)
+	{
+		dbgprintf("Patch:Virtua Striker 4 Widescreen\r\n");
+		PatchWideMulti(0x5E418, 0); //clipping
+		PatchWideMulti(0x7FA58, 0); //widescreen
+		return true;
+	}
 	else if(TRIGame == TRI_AX)
 	{	//thanks CosmoCortney
 		dbgprintf("Patch:F-Zero AX Widescreen\r\n");
