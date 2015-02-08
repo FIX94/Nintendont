@@ -1486,8 +1486,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//BOOT/FIRM version mismatch patch (not needed with SegaBoot)
 		write32( 0x0051924, 0x60000000 );
 
-		//Remove some menu timers
-		write32( 0x0051E24, 0x60000000 );
+		//Set menu timer to about 51 days
+		write32( 0x00CBB7C, 0x3C800FFF );
 
 		//Modify to regular GX pattern to patch later
 		write32( 0x26DD38, 0x00 ); //NTSC Interlaced
