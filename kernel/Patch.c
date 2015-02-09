@@ -1422,7 +1422,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x01BEF38, 0x60000000 );
 
 		//Disable CARD
-		write32( 0x017B2BC, 0x38C00000 );
+		//write32( 0x017B2BC, 0x38C00000 );
 
 		//Motor init patch
 		write32( 0x0175710, 0x60000000 );
@@ -1499,7 +1499,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	else if(useipltri)
 	{
-		dbgprintf("TRI:SegaBoot\r\n");
+		if( read32( 0x00055F98 ) == 0x386000A8 )
+		{
+			write32(0x000627A4, 0x3C808006); //lis r4, 0x8006
+			write32(0x000627AC, 0x6084E93C); //ori r4, r4, 0xE93C
+			write32(0x0006E93C, 0x01010A01); //modify 0x8006E93C for Free Play
+			dbgprintf("TRI:SegaBoot (Patched Free Play)\r\n");
+		}
+		else
+			dbgprintf("TRI:SegaBoot\r\n");
 		TRIGame = TRI_SB;
 	}
 

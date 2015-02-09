@@ -462,7 +462,7 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 			case MEM_READ_ID_NINTENDO:
 			case MEM_READ_ID:
 			{
-				if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
+				if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) && (TRIGame == TRI_NONE) )
 				{
 					write32( EXI_CMD_1, ConfigGetMemcardCode() );
 				} else {
