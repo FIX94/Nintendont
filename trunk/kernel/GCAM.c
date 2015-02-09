@@ -1,7 +1,7 @@
 #include "GCAM.h"
 #include "JVSIO.h"
 #include "Config.h"
-
+#include "DI.h"
 #ifndef DEBUG_GCAM
 #define dbgprintf(...)
 #else
@@ -320,6 +320,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 								CARDClean = 2;
 							} else if( CARDClean == 2 )
 							{
+								DIFinishAsync(); //DONT ever try todo file i/o async
 								FIL fi;
 								if( f_open( &fi, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 								{
@@ -377,6 +378,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 							memset( CARDReadPacket, 0, 0xDB );
 							u32 POff=0;
 
+							DIFinishAsync(); //DONT ever try todo file i/o async
 							FIL cf;
 							if( f_open( &cf, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 							{
@@ -435,6 +437,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 		#ifdef DEBUG_CARD
 							dbgprintf("CARDWrite: %u\n", CARDMemorySize );
 		#endif
+							DIFinishAsync(); //DONT ever try todo file i/o async
 							FIL cf;
 							if( f_open( &cf, GCAMGetCARDName(), FA_WRITE|FA_CREATE_ALWAYS ) == FR_OK )
 							{
