@@ -328,7 +328,7 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
-		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 9) /* Read random sector after about 10 seconds */
+		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 239) /* Read random sector after about 4 minutes */
 		{
 			DIFinishAsync(); //if something is still running
 			DI_CallbackMsg.result = -1;
