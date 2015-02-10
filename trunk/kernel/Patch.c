@@ -849,6 +849,7 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x474D4C ||	// ESPN MLS Extra Time 2002
 			(TITLE_ID) == 0x474D5A ||	// Monster 4x4: Masters Of Metal
 			(TITLE_ID) == 0x47504C ||	// Piglet's Big Game
+			(TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 			(GAME_ID) == 0x4747504A);	// SD Gundam Gashapon Wars
 }
 
@@ -973,6 +974,7 @@ u32 DOLSize    = 0;
 u32 DOLMinOff  = 0;
 u32 DOLMaxOff  = 0;
 vu32 TRIGame   = TRI_NONE;
+vu32 TRI_BackupAvailable = 0;
 vu32 GameEntry = 0, FirstLine = 0;
 u32 AppLoaderSize = 0;
 
@@ -989,6 +991,42 @@ int GotoFuncEnd(int i, u32 Buffer)
 		i += 4; //known function, skip over it
 	} while( read32(Buffer + i) != 0x4E800020 );
 	return i;
+}
+void *OurBase = (void*)0x13002780;
+void TRIWriteSettings(char *name, void *GameBase, u32 size)
+{
+	sync_before_read_align32(GameBase, size);
+	sync_before_read_align32(OurBase, size);
+	if(memcmp(OurBase, GameBase, size) != 0)
+	{
+		dbgprintf("TRI:Writing Settings\r\n");
+		memcpy(OurBase, GameBase, size);
+		FIL backup;
+		if(f_open(&backup, name, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
+		{
+			u32 wrote;
+			f_write(&backup, OurBase, size, &wrote);
+			f_close(&backup);
+		}
+		sync_after_write_align32(OurBase, size);
+		TRI_BackupAvailable = 1;
+	}
+}
+void TRIReadSettings(char *name, u32 size)
+{
+	FIL backup;
+	if (f_open(&backup, name, FA_OPEN_EXISTING | FA_READ) == FR_OK)
+	{
+		if(backup.fsize == size)
+		{
+			dbgprintf("TRI:Reading Settings\r\n");
+			u32 read;
+			f_read(&backup, OurBase, size, &read);
+			sync_after_write_align32(OurBase, size);
+			TRI_BackupAvailable = 1;
+		}
+		f_close(&backup);
+	}
 }
 
 void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
@@ -1202,6 +1240,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		DOLSize = Length;
 		DOLMinOff = (u32)Buffer;
 		DOLMaxOff = DOLMinOff + Length;
+		/* Make sure to backup ingame settings */
+		if(TRIGame == TRI_VS4)
+			TRIWriteSettings("/saves/VS4settings.bin", (void*)0x69E4E0, 0x2B);
+		else if(TRIGame == TRI_AX)
+			TRIWriteSettings("/saves/AXsettings.bin", (void*)0x3CFBD0, 0x2A);
 	}
 
 	if( TRIGame == TRI_SB && Length == 0x1C0 && *((vu8*)Buffer+0x0F) == 0x06 )
@@ -1301,7 +1344,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Enter test mode (anti-freeze)
 		write32( 0x0031BF0, 0x60000000 );
-		write32( 0x0031BF4, 0x60000000 ); //allows test menu if requested
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenu, CheckTestMenu_size), 0x31BF4 );
 
 		//Remove some menu timers
 		write32( 0x0019BFF8, 0x60000000 ); //card check
@@ -1350,7 +1394,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Enter test mode (anti-freeze)
 		write32( 0x002E340, 0x60000000 );
-		write32( 0x002E344, 0x60000000 ); //allows test menu if requested
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenu, CheckTestMenu_size), 0x2E344 );
 
 		//Disable wheel
 		write32( 0x007909C, 0x98650022 );
@@ -1437,7 +1482,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0180FD8, 0x4800004C );
 
 		//Goto Test menu
-		//write32( 0x00DF3D0, 0x60000000 );
+		write32( 0x00DF3D0, 0x60000000 );
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenu, CheckTestMenu_size), 0xDF3D4 );
 
 		//Replace Motor Init with Controller Setup
 		write32( 0x0024E034, 0x80180D5C );
@@ -1455,6 +1502,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x002375D4, 0x40200000 ); //menu outer
 		write32( 0x00237334, 0x00000000 ); //after race inner
 		write32( 0x0023736C, 0x00000000 ); //after race outer
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings("/saves/AXsettings.bin", 0x2A);
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchB(PatchCopy(RestoreSettingsGP, RestoreSettingsGP_size), 0x17B490);
 
 		//Modify to regular GX pattern to patch later
 		u32 NTSC480ProgTri = 0x21D3EC;
@@ -1488,6 +1542,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Set menu timer to about 51 days
 		write32( 0x00CBB7C, 0x3C800FFF );
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3B804 );
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings("/saves/VS4settings.bin", 0x2B);
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchB(PatchCopy(RestoreSettingsVS, RestoreSettingsVS_size), 0x12BD4);
 
 		//Modify to regular GX pattern to patch later
 		write32( 0x26DD38, 0x00 ); //NTSC Interlaced
@@ -2463,7 +2527,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								break;
 							}
 							else if( (TITLE_ID) == 0x47384D ||	// Paper Mario
-									 (TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 									 (TITLE_ID) == 0x474154 ||	// ATV Quad Power Racing 2
 									 (TITLE_ID) == 0x47504E ||	// P.N.03
 									 (TITLE_ID) == 0x474D4F ||	// Micro Machines

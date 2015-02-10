@@ -32,6 +32,10 @@ void SIInit()
 	memset((void*)SI_BASE, 0, 0x120);
 	sync_after_write((void*)SI_BASE, 0x120);
 
+	sync_before_read((void*)PAD_BUFF, 0x40);
+	memset((void*)PAD_BUFF, 0, 0x30); //For Triforce to not instantly reset
+	sync_after_write((void*)PAD_BUFF, 0x40);
+
 	SI_IRQ = 0;
 	complete = true;
 	cur_control = 0;
