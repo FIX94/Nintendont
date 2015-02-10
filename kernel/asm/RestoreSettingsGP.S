@@ -26,10 +26,10 @@ RestoreSettingsGP:
 	ori		%r3,	%r3,	AX_BACKUP@l
 	lis		%r4,	AX_DEST@h
 	ori		%r4,	%r4,	AX_DEST@l
-	li		%r6,	0x2A
+	li		%r5,	0x2B
 memcpy:
-	subic.	%r6,	%r6,	1
-	lbzx	%r0,	%r3,	%r6
-	stbx	%r0,	%r4,	%r6
+	subic.	%r5,	%r5,	1
+	lbzx	%r0,	%r3,	%r5
+	stbx	%r0,	%r4,	%r5
 	bne		memcpy
 	blr

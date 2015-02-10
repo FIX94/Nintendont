@@ -1244,7 +1244,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if(TRIGame == TRI_VS4)
 			TRIWriteSettings("/saves/VS4settings.bin", (void*)0x69E4E0, 0x2B);
 		else if(TRIGame == TRI_AX)
-			TRIWriteSettings("/saves/AXsettings.bin", (void*)0x3CFBD0, 0x2A);
+			TRIWriteSettings("/saves/AXsettings.bin", (void*)0x3CFBD0, 0x2B);
 	}
 
 	if( TRIGame == TRI_SB && Length == 0x1C0 && *((vu8*)Buffer+0x0F) == 0x06 )
@@ -1505,7 +1505,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		//Check for already existing settings
 		if(TRI_BackupAvailable == 0)
-			TRIReadSettings("/saves/AXsettings.bin", 0x2A);
+			TRIReadSettings("/saves/AXsettings.bin", 0x2B);
 		//Custom backup handler
 		if(TRI_BackupAvailable == 1)
 			PatchB(PatchCopy(RestoreSettingsGP, RestoreSettingsGP_size), 0x17B490);
