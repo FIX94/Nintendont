@@ -1,5 +1,5 @@
 /*
-RestoreSettingsGP.S for Nintendont (Kernel)
+RestoreSettingsAX.S for Nintendont (Kernel)
 
 Copyright (C) 2015 FIX94
 
@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .set AX_BACKUP,		0xD3002780
 .set AX_DEST,		0x803CFBD0
 
-RestoreSettingsGP:
+RestoreSettingsAX:
 	lis		%r3,	AX_BACKUP@h
 	ori		%r3,	%r3,	AX_BACKUP@l
 	lis		%r4,	AX_DEST@h
