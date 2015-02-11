@@ -47,6 +47,7 @@ enum CARDCommands
 };
 
 void GCAMInit( void );
+void GCAMCARDCleanStatus( u32 status );
 void GCAMUpdateRegisters( void );
 
 #endif

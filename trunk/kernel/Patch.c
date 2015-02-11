@@ -46,7 +46,7 @@ u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
 vu32 useipl = 0, useipltri = 0;
 vu32 DisableSIPatch = 0, DisableEXIPatch = 0;
-extern vu32 TRIGame;
+vu32 TRIGame = TRI_NONE;
 extern u32 SystemRegion;
 #define PRS_DOL     0x131C0000
 #define PRS_EXTRACT 0x131C0020
@@ -973,7 +973,6 @@ u32 ELFLoading = 0;
 u32 DOLSize    = 0;
 u32 DOLMinOff  = 0;
 u32 DOLMaxOff  = 0;
-vu32 TRIGame   = TRI_NONE;
 vu32 TRI_BackupAvailable = 0;
 vu32 GameEntry = 0, FirstLine = 0;
 u32 AppLoaderSize = 0;
@@ -997,7 +996,7 @@ void TRIWriteSettings(char *name, void *GameBase, u32 size)
 {
 	sync_before_read_align32(GameBase, size);
 	sync_before_read_align32(OurBase, size);
-	if(memcmp(OurBase, GameBase, size) != 0)
+	if((memcmp(OurBase, GameBase, size) != 0) && (memcmp(GameBase, "SB", 2) == 0))
 	{
 		dbgprintf("TRI:Writing Settings\r\n");
 		memcpy(OurBase, GameBase, size);
@@ -1508,7 +1507,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			TRIReadSettings("/saves/AXsettings.bin", 0x2B);
 		//Custom backup handler
 		if(TRI_BackupAvailable == 1)
-			PatchB(PatchCopy(RestoreSettingsGP, RestoreSettingsGP_size), 0x17B490);
+			PatchB(PatchCopy(RestoreSettingsAX, RestoreSettingsAX_size), 0x17B490);
 
 		//Modify to regular GX pattern to patch later
 		u32 NTSC480ProgTri = 0x21D3EC;
@@ -3166,6 +3165,12 @@ void PatchGame()
 	u32 SiInitSet = 0;
 	//Reset GCAM status
 	GCAMInit();
+	//F-Zero AX uses Clean CARD after 150 uses
+	if(TRIGame == TRI_AX && TRI_BackupAvailable == 1)
+	{
+		sync_before_read(OurBase, 0x20);
+		GCAMCARDCleanStatus(R16((u32)OurBase+0x16));
+	}
 	// Didn't look for why PMW2 requires this.  ToDo
 	if ((TITLE_ID) == 0x475032 || TRIGame) // PacMan World 2 and Triforce hack
 		SiInitSet = 1;

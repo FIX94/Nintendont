@@ -109,6 +109,17 @@ const char *GCAMGetCARDName()
 	return name;
 }
 
+void GCAMCARDCleanStatus( u32 status )
+{
+	if(status < 0x96)
+		CARDClean = 2;
+	else
+		CARDClean = 0;
+#ifdef DEBUG_CARD
+	dbgprintf("CARDClean=%d\r\n", CARDClean);
+#endif
+}
+
 void GCAMCARDCommand( char *DataIn, char *DataOut )
 {
 	if( DataIn[DataPos] == 1 && DataIn[DataPos+1] == 0x05 )
@@ -437,15 +448,31 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 		#ifdef DEBUG_CARD
 							dbgprintf("CARDWrite: %u\n", CARDMemorySize );
 		#endif
-							DIFinishAsync(); //DONT ever try todo file i/o async
-							FIL cf;
-							if( f_open( &cf, GCAMGetCARDName(), FA_WRITE|FA_CREATE_ALWAYS ) == FR_OK )
+							u32 CARDIsValid;
+							switch(TRIGame)
 							{
-								u32 wrote;
-								f_write( &cf, CARDMemory, CARDMemorySize, &wrote );
-								f_close( &cf );
+								case TRI_GP1:
+								case TRI_GP2:
+									CARDIsValid = (memcmp(CARDMemory, "MKA", 3) == 0);
+									break;
+								case TRI_AX:
+									CARDIsValid = (memcmp(CARDMemory+0x8A, "SEGABGG", 7) == 0);
+									break;
+								default:
+									CARDIsValid = 0;
+									break;
 							}
-
+							if(CARDIsValid)
+							{
+								DIFinishAsync(); //DONT ever try todo file i/o async
+								FIL cf;
+								if( f_open( &cf, GCAMGetCARDName(), FA_WRITE|FA_CREATE_ALWAYS ) == FR_OK )
+								{
+									u32 wrote;
+									f_write( &cf, CARDMemory, CARDMemorySize, &wrote );
+									f_close( &cf );
+								}
+							}
 							CARDBit = 2;
 
 							CARDStateCallCount = 0;

@@ -42,7 +42,7 @@
 #include "asm/PADReadVS.h"
 #include "asm/CheckTestMenu.h"
 #include "asm/CheckTestMenuVS.h"
-#include "asm/RestoreSettingsGP.h"
+#include "asm/RestoreSettingsAX.h"
 #include "asm/RestoreSettingsVS.h"
 #include "asm/patch_fwrite_Log.h"
 #include "asm/patch_fwrite_GC.h"
