@@ -1406,6 +1406,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//Disable cam
 		write32( 0x0073BD8, 0x98650025 );
 
+		//Disable red item button
+		write32( 0x0073C98, 0x98BF0045 );
+
 		//VS wait patch 
 		write32( 0x0084FC4, 0x4800000C );
 		write32( 0x0085000, 0x60000000 );

@@ -26,7 +26,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/dsp.h>
 #include <ogc/es.h>
 #include <ogc/gx_struct.h>
-#include <ogc/ipc.h>
 #include <ogc/lwp_threads.h>
 #include <ogc/system.h>
 #include <ogc/video.h>
@@ -171,11 +170,38 @@ static void (*stub)() = (void*)0x80001800;
 inline void DrawBuffer(void) {
 	GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF);
 }
+
 inline void UpdateScreen(void) {
 	GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE);
 	GRRLIB_Render();
 	DrawBuffer();
 }
+
+raw_irq_handler_t BeforeIOSReload()
+{
+	write32(0x80003140, 0);
+	__MaskIrq(IRQ_PI_ACR);
+	return IRQ_Free(IRQ_PI_ACR);
+}
+extern void udelay(u32 us);
+void AfterIOSReload(raw_irq_handler_t handle, u32 rev)
+{
+	while((read32(0x80003140)) != rev)
+		udelay(1000);
+
+	u32 counter;
+	for (counter = 0; !(read32(0x0d000004) & 2); counter++)
+	{
+		udelay(1000);
+		if (counter >= 40000)
+			break;
+	}
+	IRQ_Request(IRQ_PI_ACR, handle, NULL);
+	__UnmaskIrq(IRQ_PI_ACR);
+	__IPC_Reinitialize();
+}
+
+extern vu32 KernelLoaded, FoundVersion;
 void ExitToLoader(int ret)
 {
 	UpdateScreen();
@@ -188,6 +214,12 @@ void ExitToLoader(int ret)
 	GRRLIB_FreeTTF(myFont);
 	GRRLIB_Exit();
 	CloseDevices();
+	if(KernelLoaded)
+	{
+		raw_irq_handler_t irq_handler = BeforeIOSReload();
+		*(vu32*)0xD3003420 = 0x1DEA; //Kernel Reset
+		AfterIOSReload(irq_handler, FoundVersion);
+	}
 	memset( (void*)0x92f00000, 0, 0x100000 );
 	DCFlushRange( (void*)0x92f00000, 0x100000 );
 	if(*(vu32*)0x80001804 == 0x53545542 && *(vu32*)0x80001808 == 0x48415858) //stubhaxx
@@ -254,15 +286,17 @@ inline void ClearScreen()
 	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 }
 extern bool sdio_Deinitialize();
-extern void USBStorage_Deinitialize();
+extern void USBStorageOGC_Deinitialize();
+#include "usb_ogc.h"
+
 void CloseDevices()
 {
 	closeLog();
 	fatUnmount("sd");
 	sdio_Deinitialize();
 	fatUnmount("usb");
-	USBStorage_Deinitialize();
-	USB_Deinitialize();
+	USBStorageOGC_Deinitialize();
+	USB_OGC_Deinitialize();
 }
 static char ascii(char s)
 {

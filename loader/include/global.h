@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <gctypes.h>
 #include <stdio.h>
+#include <ogc/ipc.h>
 #include "background_png.h"
 #include "Config.h"
 #include "grrlib.h"
@@ -146,6 +147,8 @@ void *memalign( u32 Align, u32 Size );
 void DrawBuffer(void);
 void UpdateScreen(void);
 void Screenshot(void);
+raw_irq_handler_t BeforeIOSReload();
+void AfterIOSReload(raw_irq_handler_t handle, u32 rev);
 
 #endif
 

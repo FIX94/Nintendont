@@ -4,13 +4,18 @@
 
 NIN_CFG *ncfg = (NIN_CFG*)0x13002900;
 
+void ConfigSyncBeforeRead( void )
+{
+	sync_before_read(ncfg, sizeof(NIN_CFG));
+}
+
 void ConfigInit( void )
 {
 	FIL cfg;
 	u32 read;
 
 	dbgprintf("CFGInit()\r\n");
-	sync_before_read(ncfg, sizeof(NIN_CFG));
+	ConfigSyncBeforeRead();
 	if (ncfg->Magicbytes != 0x01070CF6)
 	{
 		dbgprintf("Cfg not in memory, trying file\r\n");

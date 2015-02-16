@@ -174,18 +174,11 @@ s32 LoadModules( u32 IOSVersion )
 		//Don't load boot module
 		if( TMD->BootIndex == TMD->Contents[i].Index )
 			continue;
-		
 
-		if( TMD->Contents[i].Index != 3 &&	// OH1
-			TMD->Contents[i].Index != 4 &&	// OHCI0
-			TMD->Contents[i].Index != 13&&	// USB
-			TMD->Contents[i].Index != 14&&	// HID
-			TMD->Contents[i].Index != 15&&	// HUB
-			( ( ConfigGetConfig(NIN_CFG_USB) &&
-			TMD->Contents[i].Index != 1 &&	// EHCI
-			TMD->Contents[i].Index != 16 )	// VEN
-			|| ( !ConfigGetConfig(NIN_CFG_USB) &&
-			TMD->Contents[i].Index != 5)))	// SDI
+		if( TMD->Contents[i].Index == 0 ||	// ???
+			TMD->Contents[i].Index == 4 ||	// OHCI0 (We use EHCI)
+			TMD->Contents[i].Index == 12||	// SSL (We dont use HTTPS)
+			TMD->Contents[i].Index == 15 )	// HUB (Seems to be unused)
 			continue;
 		//check if shared!
 		if( TMD->Contents[i].Type & CONTENT_SHARED )

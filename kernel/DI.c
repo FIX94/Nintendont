@@ -86,7 +86,7 @@ void DIRegister(void)
 {
 	DI_MessageHeap = malloca(0x20, 0x20);
 	DI_MessageQueue = mqueue_create( DI_MessageHeap, 8 );
-	device_register( "/dev/di", DI_MessageQueue );
+	device_register( "/dev/mydi", DI_MessageQueue );
 }
 
 void DIUnregister(void)
@@ -278,6 +278,11 @@ void DIinit( bool FirstTime )
 			write32( DIP_STATUS, 0x7E ); //clear interrupts and reset
 			write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
 		}
+		else
+		{
+			write32( DIP_STATUS, 0x54 ); //mask and clear interrupts
+			write32( DIP_COVER, 4 ); //disable cover irq which DIP enabled
+		}
 		sync_before_read((void*)0x13003000, 0x20);
 		ISOShift = read32(0x1300300C);
 
@@ -295,7 +300,7 @@ void DIinit( bool FirstTime )
 
 		sync_after_write( (void*)DI_BASE, 0x60 );
 	}
-	DI_Handle = IOS_Open( "/dev/di", 0 );
+	DI_Handle = IOS_Open( "/dev/mydi", 0 );
 	if(RealDiscCMD)
 	{
 		DiscReadSync((u32)TmpBuffer, 0, 0x20, 0);
@@ -824,7 +829,7 @@ u32 DIReadThread(void *arg)
 		switch( di_msg->command )
 		{
 			case IOS_OPEN:
-				if( strncmp("/dev/di", di_msg->open.device, 8 ) != 0 )
+				if( strncmp("/dev/mydi", di_msg->open.device, 8 ) != 0 )
 				{	//this should never happen
 					mqueue_ack( di_msg, -6 );
 					break;

@@ -483,8 +483,9 @@ s32 USB_GetDeviceList(usb_device_entry *descr_buffer,u8 num_descr,u8 interface_c
 
 	// for ven_host, we can only exclude usb_hid class devices
 	if (interface_class != USB_CLASS_HID && ven_host) {
-		//this call is normally async, we can do it just over and over again
-		IOS_Ioctl(ven_host->fd, USBV5_IOCTL_GETDEVICECHANGE, NULL, 0, ven_host->attached_devices, 0x180);
+		//since its not actually a new IOS we cant actually ask for the device changes
+		sync_before_read((void*)0x132C1000, sizeof(usb_device_entry)*USB_MAX_DEVICES);
+		memcpy(ven_host->attached_devices, (void*)0x132C1000, sizeof(usb_device_entry)*USB_MAX_DEVICES);
 		i=0;
 		while (cntdevs<num_descr && ven_host->attached_devices[i].device_id) {
 			descr_buffer[cntdevs++] = ven_host->attached_devices[i++];

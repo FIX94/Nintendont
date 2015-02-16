@@ -63,9 +63,8 @@ int _main( int argc, char *argv[] )
 
 	s32 ret = 0;
 	u32 DI_Thread = 0;
-	
+
 	u8 MessageHeap[0x10];
-	//u32 MessageQueue=0xFFFFFFFF;
 
 	BootStatus(0, 0, 0);
 
@@ -73,10 +72,29 @@ int _main( int argc, char *argv[] )
 	thread_set_priority( 0, 0x50 );
 	thread_set_priority( 0, 0x79 );
 
-	//MessageQueue = ES_Init( MessageHeap );
-	ES_Init( MessageHeap );
+//Disable AHBPROT
+	EnableAHBProt(-1);
+//Enable DVD Access
+	write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
 
+//Load IOS Modules
+	ES_Init( MessageHeap );
+	mdelay( 300 ); //give modules time
+	dbgprintf("Sending signal to loader\r\n");
 	BootStatus(1, 0, 0);
+
+//Loader running, selects games
+	while(1)
+	{
+		sync_before_read((void*)RESET_STATUS, 0x20);
+		vu32 reset_status = read32(RESET_STATUS);
+		if(reset_status == 0x0DEA)
+			break; //game selected
+		else if(reset_status == 0x1DEA)
+			goto DoIOSBoot; //exit
+		mdelay(10);
+	}
+	ConfigSyncBeforeRead();
 
 	u32 UseUSB = ConfigGetConfig(NIN_CFG_USB);
 	SetDiskFunctions(UseUSB);
@@ -278,7 +296,6 @@ int _main( int argc, char *argv[] )
 	clear32(HW_GPIO_OWNER, GPIO_SENSOR_BAR);
 	set32(HW_GPIO_OUT, GPIO_SENSOR_BAR);	//turn on sensor bar
 
-	EnableAHBProt(-1); //disable AHBPROT
 	u32 ori_widesetting = read32(0xd8006a0);
 	if(IsWiiU)
 	{
@@ -328,7 +345,7 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
-		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 239) /* Read random sector after about 4 minutes */
+		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 149) /* Read random sector every 2 mins 30 secs */
 		{
 			DIFinishAsync(); //if something is still running
 			DI_CallbackMsg.result = -1;
@@ -499,7 +516,7 @@ int _main( int argc, char *argv[] )
 		write32(0xd8006a0, ori_widesetting);
 		mask32(0xd8006a8, 0, 2);
 	}
-
+DoIOSBoot:
 	sync_before_read((void*)0x13003000, 0x420);
 	IOSBoot((char*)0x13003020, 0, read32(0x13003000));
 	return 0;

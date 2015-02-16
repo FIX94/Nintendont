@@ -40,6 +40,7 @@ enum SystemLanguage {	Japanese,
 						Korean
 };
 
+void ConfigSyncBeforeRead( void );
 void ConfigInit( void );
 char *ConfigGetGamePath( void );
 char *ConfigGetCheatPath( void );

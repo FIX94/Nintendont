@@ -118,6 +118,7 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define		HW_IPC_ARMMSG		(HW_REG_BASE + 0x008)
 #define		HW_TIMER			(HW_REG_BASE + 0x010) //increments around every 526.7 nanoseconds
 #define		HW_PPCSPEED			(HW_REG_BASE + 0x018)
+#define		HW_DIFLAGS			(HW_REG_BASE + 0x180)
 #define		HW_VERSION			(HW_REG_BASE + 0x214)
 
 #define		MEM_REG_BASE		0xd8b4000
@@ -166,6 +167,8 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define GPIO_SLOT_LED	(1<<5)
 #define GPIO_SENSOR_BAR (1<<8)
 #define P2C(x)			((x)&0x7FFFFFFF)
+
+#define DI_DISABLEDVD	(1<<21)
 
 enum Gameregion
 {

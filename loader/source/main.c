@@ -59,8 +59,6 @@ extern u32 __SYS_GetRTC(u32 *gctime);
 #define HW_DIFLAGS		0xD800180
 #define MEM_PROT		0xD8B420A
 
-#define DI_DISABLEDVD	(1<<21)
-
 static GXRModeObj *vmode = NULL;
 
 static const unsigned char Boot2Patch[] =
@@ -95,11 +93,11 @@ s32 __IOS_LoadStartupIOS(void)
 
 	return 0;
 }
-
+extern vu32 FoundVersion;
+vu32 KernelLoaded = 0;
 u32 entrypoint = 0;
 char launch_dir[MAXPATHLEN] = {0};
 extern void __exception_closeall();
-extern void udelay(u32 us);
 static u8 loader_stub[0x1800]; //save internally to prevent overwriting
 static ioctlv IOCTL_Buf ALIGNED(32);
 static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
@@ -113,75 +111,15 @@ int main(int argc, char **argv)
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
 	DCFlushRange(loader_stub, 0x1800);
 
-	u32 u;
-	//Try to reload to IOS58
-	if( *(vu32*)(0xCd800064) == -1 && *(vu16*)0x80003140 != 58 )
-	{
-		//Disables MEMPROT for patches
-		write16(MEM_PROT, 0);
-		//Patches HW access for the next IOS
-		for( u = 0x938F0000; u < 0x93A00000; u+=2 )
-		{
-			if( memcmp( (void*)(u), AHBAccessPattern, sizeof(AHBAccessPattern) ) == 0 )
-			{
-			//	gprintf("HWAccessPatch:%08X\r\n", u );
-				memcpy( (void*)u, AHBAccessPatch, sizeof(AHBAccessPatch) );
-				DCFlushRange((void*)u, sizeof(AHBAccessPatch));
-				//Loads IOS58 with AHBPROT disabled
-				IOS_ReloadIOS(58);
-				break;
-			}
-		}
-	}
-
-	u32 currev = *(vu32*)0x80003140;
 	RAMInit();
 
 	STM_RegisterEventHandler(HandleSTMEvent);
 
 	Initialise();
 
-	char* first_slash = strrchr(argv[0], '/');
-	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
-	gprintf("launch_dir = %s\r\n", launch_dir);
-	
-	FPAD_Init();
-
-	PrintInfo();
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*1, "Home: Exit");
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*2, "A   : Select");
-	GRRLIB_Render();
-	ClearScreen();
-
-	if( *(vu32*)(0xCd800064) != -1 )
-	{
-		ClearScreen();
-		gprintf("Please load Nintendont with AHBProt disabled!\r\n");
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "Please load Nintendont with AHBProt disabled!" );
-		ExitToLoader(1);
-	}
-
-	u8 fw = *(vu8*)0x80003142;
-	if( *(vu16*)0x80003140 != 58 || (IsWiiU() ? (fw != 25) : (fw != 24 && fw != 25)) || *(vu8*)0x80003143 != 32 )
-	{
-		ClearScreen();
-		gprintf("This version of IOS58 is not supported!\r\n");
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "This version of IOS58 is not supported!" );
-		ExitToLoader(1);
-	}
-
-	/* Read IPL Font before doing any patches */
-	void *fontbuffer = memalign(32, 0x50000);
-	__SYS_ReadROM((void*)fontbuffer,0x50000,0x1AFF00);
-	memcpy((void*)0xD3100000, fontbuffer, 0x50000);
-	DCInvalidateRange( (void*)0x93100000, 0x50000 );
-	free(fontbuffer);
-	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
-
+	u32 u;
 	//Disables MEMPROT for patches
 	write16(MEM_PROT, 0);
-	//Enables DVD access
-	write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
 	//Patches FS access
 	for( u = 0x93A00000; u < 0x94000000; u+=2 )
 	{
@@ -194,7 +132,78 @@ int main(int argc, char **argv)
 		}
 	}
 
-	fatInitDefault();
+	//for BT.c
+	CONF_GetPadDevices((conf_pads*)0x932C0000);
+	DCFlushRange((void*)0x932C0000, sizeof(conf_pads));
+	*(vu32*)0x932C0490 = CONF_GetIRSensitivity();
+	*(vu32*)0x932C0494 = CONF_GetSensorBarPosition();
+	DCFlushRange((void*)0x932C0490, 8);
+
+	if(LoadKernel() < 0)
+	{
+		ClearScreen();
+		gprintf("Failed to load kernel from NAND!\r\n");
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "Failed to load kernel from NAND!" );
+		ExitToLoader(1);
+	}
+	InsertModule((char*)kernel_bin, kernel_bin_size);
+
+	memset( (void*)0x92f00000, 0, 0x100000 );
+	DCFlushRange( (void*)0x92f00000, 0x100000 );
+
+	DCInvalidateRange( (void*)0x939F02F0, 0x20 );
+
+	memcpy( (void*)0x939F02F0, Boot2Patch, sizeof(Boot2Patch) );
+
+	DCFlushRange( (void*)0x939F02F0, 0x20 );
+
+	s32 fd = IOS_Open( "/dev/es", 0 );
+
+	memset( STATUS, 0xFFFFFFFF, 0x20  );
+	DCFlushRange( STATUS, 0x20 );
+
+	memset( (void*)0x91000000, 0xFFFFFFFF, 0x20  );
+	DCFlushRange( (void*)0x91000000, 0x20 );
+
+	*(vu32*)0xD3003420 = 0; //make sure kernel doesnt reload
+
+	raw_irq_handler_t irq_handler = BeforeIOSReload();
+	IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
+	AfterIOSReload( irq_handler, FoundVersion );
+
+	while(1)
+	{
+		DCInvalidateRange( STATUS, 0x20 );
+		if((STATUS_LOADING > 0 || abs(STATUS_LOADING) > 1) && STATUS_LOADING < 20)
+		{
+			gprintf("Kernel sent signal\n");
+			fatInitDefault();
+			break;
+		}
+	}
+
+	gprintf("Nintendont at your service!\r\n");
+	KernelLoaded = 1;
+
+	char* first_slash = strrchr(argv[0], '/');
+	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
+	gprintf("launch_dir = %s\r\n", launch_dir);
+
+	FPAD_Init();
+
+	PrintInfo();
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*1, "Home: Exit");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*2, "A   : Select");
+	GRRLIB_Render();
+	ClearScreen();
+
+	/* Read IPL Font before doing any patches */
+	void *fontbuffer = memalign(32, 0x50000);
+	__SYS_ReadROM((void*)fontbuffer,0x50000,0x1AFF00);
+	memcpy((void*)0xD3100000, fontbuffer, 0x50000);
+	DCInvalidateRange( (void*)0x93100000, 0x50000 );
+	free(fontbuffer);
+	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
 
 	// Simple code to autoupdate the meta.xml in Nintendont's folder
 	FILE *meta = fopen("meta.xml", "w");
@@ -312,18 +321,6 @@ int main(int argc, char **argv)
 		ClearScreen();
 	}
 
-	if(LoadKernel() < 0)
-	{
-		ClearScreen();
-		gprintf("Failed to load kernel from NAND!\r\n");
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "Failed to load kernel from NAND!" );
-		ExitToLoader(1);
-	}
-	InsertModule((char*)kernel_bin, kernel_bin_size);
-
-	memset( (void*)0x92f00000, 0, 0x100000 );
-	DCFlushRange( (void*)0x92f00000, 0x100000 );
-
 	/*FILE *out = fopen("/kernel.bin", "wb");
 	fwrite( (char*)0x90100000, 1, NKernelSize, out );
 	fclose(out);*/
@@ -347,6 +344,7 @@ int main(int argc, char **argv)
 		GRRLIB_Render();
 		ClearScreen();
 
+		DI_UseCache(false);
 		DI_Init();
 		DI_Mount();
 		while (DI_GetStatus() & DVD_INIT)
@@ -358,6 +356,7 @@ int main(int argc, char **argv)
 			ExitToLoader(1);
 		}
 		DI_Close();
+
 		u8 *DIBuf = memalign(32,0x800);
 		memset(DIBuf, 0, 0x20);
 		DCFlushRange(DIBuf, 0x20);
@@ -614,67 +613,23 @@ int main(int argc, char **argv)
 	WUPC_Shutdown();
 	WPAD_Shutdown();
 
-	//for BT.c
-	CONF_GetPadDevices((conf_pads*)0x932C0000);
-	DCFlushRange((void*)0x932C0000, sizeof(conf_pads));
-	*(vu32*)0x932C0490 = CONF_GetIRSensitivity();
-	*(vu32*)0x932C0494 = CONF_GetSensorBarPosition();
-	DCFlushRange((void*)0x932C0490, 8);
+//make sure the cfg gets to the kernel
+	DCStoreRange((void*)ncfg, sizeof(NIN_CFG));
 
-	DCInvalidateRange( (void*)0x939F02F0, 0x20 );
-
-	memcpy( (void*)0x939F02F0, Boot2Patch, sizeof(Boot2Patch) );
-
-	DCFlushRange( (void*)0x939F02F0, 0x20 );
-
-	s32 fd = IOS_Open( "/dev/es", 0 );
-
-	memset( STATUS, 0xFFFFFFFF, 0x20  );
-	DCFlushRange( STATUS, 0x20 );
-
-	memset( (void*)0x91000000, 0xFFFFFFFF, 0x20  );
-	DCFlushRange( (void*)0x91000000, 0x20 );
-
-	//make sure the cfg gets to the kernel
-	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
-
-	gprintf("ES_ImportBoot():");
-
-	write32(0x80003140, 0);
-	__MaskIrq(IRQ_PI_ACR);
-	raw_irq_handler_t irq_handler = IRQ_Free(IRQ_PI_ACR);
-
-	u32 ret = IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
-	gprintf("%d\r\n", ret );
-	gprintf("Waiting ...\r\n");
-
-	while((read32(0x80003140)) != 0x00000D25)
-		udelay(1000);
-	u32 counter;
-	for (counter = 0; !(read32(0x0d000004) & 2); counter++)
-	{
-		udelay(1000);
-		if (counter >= 40000)
-			break;
-	}
-	gprintf("IPC started (%u)\r\n", counter);
-	IRQ_Request(IRQ_PI_ACR, irq_handler, NULL);
-	__UnmaskIrq(IRQ_PI_ACR);
-	__IPC_Reinitialize();
-
+	*(vu32*)0xD3003420 = 0x0DEA;
 	while(1)
 	{
 		DCInvalidateRange( STATUS, 0x20 );
 		if( STATUS_LOADING == 0xdeadbeef )
 			break;
-		
+
 		PrintInfo();
-		
+
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel... %d", STATUS_LOADING);
 		if(STATUS_LOADING == 0)
 		{
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init...");
-		// Cleans the -1 when it's past it to avoid confusion if another error happens. e.g. before it showed "81" instead of "8" if the controller was unplugged.
+			// Cleans the -1 when it's past it to avoid confusion if another error happens. e.g. before it showed "81" instead of "8" if the controller was unplugged.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 163, MENU_POS_Y + 20*6, " ");
 		}
 		if((STATUS_LOADING > 0 || abs(STATUS_LOADING) > 1) && STATUS_LOADING < 20)
@@ -692,7 +647,7 @@ int main(int argc, char **argv)
 		if(STATUS_LOADING == -3)
 			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Error! %d  Shutting down", STATUS_ERROR);
 		if(STATUS_LOADING == 5) {
-/*			if (timeout == 0)
+/* 			if (timeout == 0)
 				timeout = ticks_to_secs(gettime()) + 20; // Set timer for 20 seconds
 			else if (timeout <= ticks_to_secs(gettime())) {
 				STATUS_ERROR = -7;
@@ -701,8 +656,7 @@ int main(int argc, char **argv)
 				//memset( (void*)0x92f00000, 0, 0x100000 );
 				//DCFlushRange( (void*)0x92f00000, 0x100000 );
 				//ExitToLoader(1);
-			}
-*/
+			}*/
 			PrintFormat(DEFAULT_SIZE, (STATUS_ERROR == -7) ? MAROON:BLACK, MENU_POS_X, MENU_POS_Y + 20*10, (STATUS_ERROR == -7) ? "Checking FS... Timeout!" : "Checking FS...");
 		}
 		if(abs(STATUS_LOADING) > 5 && abs(STATUS_LOADING) < 20)
@@ -754,28 +708,28 @@ int main(int argc, char **argv)
 			{
 				case -1:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "No Controller plugged in! %25s", " ");
-					break;	
+					break;
 				case -2:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Missing %s:/controller.ini %20s", GetRootDevice(), " ");
-					break;	
+					break;
 				case -3:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Controller does not match %s:/controller.ini %6s", GetRootDevice(), " ");
-					break;	
+					break;
 				case -4:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Invalid Polltype in %s:/controller.ini %12s", GetRootDevice(), " ");
-					break;	
+					break;
 				case -5:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Invalid DPAD value in %s:/controller.ini %9s", GetRootDevice(), " ");
-					break;	
+					break;
 				case -6:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "PS3 controller init error %25s", " ");
-					break;	
+					break;
 				case -7:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Gamecube adapter for Wii u init error %13s", " ");
-					break;	
+					break;
 				default:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Unknown error %d %35s", STATUS_ERROR, " ");
-					break;	
+					break;
 			}
 		}
 		if(STATUS_LOADING == 9)
@@ -793,34 +747,30 @@ int main(int argc, char **argv)
 			{
 				case -1:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/sneek/kenobiwii.bin", GetRootDevice());
-					break;	
+					break;
 				case -2:
 					if (ncfg->Config & NIN_CFG_CHEAT_PATH)
 						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/%s", GetRootDevice(), ncfg->CheatPath);
 					else
-//						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/games/%.6s/%.6s.gct", GetRootDevice(), ncfg->GameID, ncfg->GameID);
 						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/games/GAMEID/GAMEID.gct", GetRootDevice());
-					break;	
+					break;
 				case -3:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Cheat file to large", GetRootDevice());
-					break;	
+					break;
 				case -4:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Cheat path is empty", GetRootDevice());
-					break;	
+					break;
 				default:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Unknown error %d %35s", STATUS_ERROR, " ");
-					break;	
+					break;
 			}
 		}
 		GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE); // Copy all status messages
 		GRRLIB_Render();
 		ClearScreen();
-		while ((STATUS_LOADING < -1) && (STATUS_LOADING > -20))	//displaying a fatal error
-			{ }	//do nothing wait for shutdown
+		while((STATUS_LOADING < -1) && (STATUS_LOADING > -20)) //displaying a fatal error
+				; //do nothing wait for shutdown
 	}
-
-	gprintf("Nintendont at your service!\r\n");
-
 	DrawBuffer(); // Draw all status messages
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*17, "Nintendont kernel looping, loading game...");
 	GRRLIB_Render();
@@ -831,7 +781,6 @@ int main(int argc, char **argv)
 	GRRLIB_FreeTexture(screen_buffer);
 	GRRLIB_FreeTTF(myFont);
 	GRRLIB_Exit();
-	
 
 	gprintf("GameRegion:");
 
@@ -948,7 +897,7 @@ int main(int argc, char **argv)
 		VIDEO_WaitVSync();
 	else while(VIDEO_GetNextField())
 		VIDEO_WaitVSync();
-	
+
 	*(u16*)(0xCC00501A) = 156;	// DSP refresh rate
 	/* from libogc, get all gc pads to work */
 	u32 buf[2];
@@ -996,7 +945,7 @@ int main(int argc, char **argv)
 	DCFlushRange((void*)0x93020000, 0x10000);
 
 	DCInvalidateRange((void*)0x93003000, 0x20);
-	*(vu32*)0x93003000 = currev; //set kernel rev
+	//*(vu32*)0x93003000 = currev; //set kernel rev (now in LoadKernel)
 	*(vu32*)0x93003008 = 0x80000004; //just some address for SIGetType
 	//0x9300300C is already used for multi-iso
 	memset((void*)0x93003010, 0, 0x10); //disable rumble on bootup
