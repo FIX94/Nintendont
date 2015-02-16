@@ -107,20 +107,31 @@ s32 HIDInit( void )
 	struct _usbv5_host *hid_host = (struct _usbv5_host*)malloca(sizeof(*hid_host),32);
 	memset(hid_host, 0, sizeof(*hid_host));
 	hid_host->fd = HIDHandle;
-	u32 tmp = read32(HW_TIMER);
-	while(TimerDiffSeconds(tmp) < 5) //5 seconds timeout
+	//since its not actually a new IOS we cant actually ask for the device changes
+	sync_before_read((void*)0x132C2000, sizeof(usb_device_entry)*USB_MAX_DEVICES);
+	memcpy(hid_host->attached_devices, (void*)0x132C2000, sizeof(usb_device_entry)*USB_MAX_DEVICES);
+
+	u32 i;
+	u32 DeviceVID = 0, DevicePID = 0;
+	for(i = 0; i < USB_MAX_DEVICES; ++i)
 	{
-		ret = IOS_Ioctl( HIDHandle, GetDeviceChange, NULL, 0, hid_host->attached_devices, 0x180 );
-		if(hid_host->attached_devices[0].device_id > 0) //HID found
+		if(hid_host->attached_devices[i].vid != 0)
+		{
+			DeviceID = hid_host->attached_devices[i].device_id;
+			DeviceVID = hid_host->attached_devices[i].vid;
+			DevicePID = hid_host->attached_devices[i].pid;
 			break;
-		mdelay(50);
+		}
 	}
-	DeviceID	= hid_host->attached_devices[0].device_id;
-	u32 DeviceVID = hid_host->attached_devices[0].vid;
-	u32 DevicePID = hid_host->attached_devices[0].pid;
+	free(hid_host);
+	if( DeviceVID == 0 )
+	{
+		dbgprintf("HID:GetDeviceChange():%d\r\n", ret );
+		return -1;
+	}
+
 	dbgprintf("HID:DeviceID:%u\r\n", DeviceID );
 	dbgprintf("HID:VID:%04X PID:%04X\r\n", DeviceVID, DevicePID );
-	free(hid_host);
 
 	s32 *io_buffer = (s32*)malloca(0x20, 32);
 	memset32(io_buffer, 0, 0x20);
@@ -137,13 +148,6 @@ s32 HIDInit( void )
 	IOS_Ioctl(HIDHandle, GetDeviceParameters, io_buffer, 0x20, HIDHeap, 0x60);
 	free(io_buffer);
 	BootStatusError(8, 0);
-
-	if( ret < 0 )
-	{
-		dbgprintf("HID:GetDeviceChange():%d\r\n", ret );
-		free(HIDHeap);
-		return -1;
-	}
 
 	u32 Offset = 36;
 

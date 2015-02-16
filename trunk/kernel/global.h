@@ -13,7 +13,7 @@
 #define PATCHALL	1
 
 //#define DEBUG_ES	1
-//#define DEBUG_HID	1
+#define DEBUG_HID	1
 //#define DEBUG_DI	1
 //#define DEBUG_JVSIO 1
 //#define DEBUG_GCAM 1

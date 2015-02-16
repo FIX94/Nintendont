@@ -329,6 +329,7 @@ int dbgprintf( const char *fmt, ...)
 		}
 			
 		if (file_opened == FR_OK) {
+			sync_after_write(buffer, strlen(buffer));
 			f_lseek(&dbgfile, dbgfile.fsize);
 			f_write(&dbgfile, buffer, strlen(buffer), &read);
 			f_sync(&dbgfile);
