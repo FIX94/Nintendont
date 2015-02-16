@@ -176,9 +176,7 @@ s32 LoadModules( u32 IOSVersion )
 			continue;
 
 		if( TMD->Contents[i].Index == 0 ||	// ???
-			TMD->Contents[i].Index == 4 ||	// OHCI0 (We use EHCI)
-			TMD->Contents[i].Index == 12||	// SSL (We dont use HTTPS)
-			TMD->Contents[i].Index == 15 )	// HUB (Seems to be unused)
+			TMD->Contents[i].Index == 12 )	// SSL (We dont use HTTPS)
 			continue;
 		//check if shared!
 		if( TMD->Contents[i].Type & CONTENT_SHARED )

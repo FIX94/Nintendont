@@ -116,6 +116,7 @@ static s32 __send_cbw(usbstorage_handle *dev, u8 lun, u32 len, u8 flags, const u
 	cbw_buffer[14] = (cbLen > 6 ? 10 : 6);
 
 	memcpy(cbw_buffer + 15, cb, cbLen);
+	sync_after_write(cbw_buffer, 32);
 
 	if(dev->suspended == 1)
 	{
@@ -140,6 +141,7 @@ static s32 __read_csw(usbstorage_handle *dev, u8 *status, u32 *dataResidue)
 	if(retval > 0 && retval != CSW_SIZE) return USBSTORAGE_ESHORTREAD;
 	else if(retval < 0) return retval;
 
+	sync_before_read(cbw_buffer, 32);
 	signature = bswap32(read32(((u32)cbw_buffer)));
 	tag = bswap32(read32(((u32)cbw_buffer)+4));
 	_dataResidue = bswap32(read32(((u32)cbw_buffer)+8));
@@ -182,15 +184,29 @@ static s32 __cycle(usbstorage_handle *dev, u8 lun, u8 *buffer, u32 len, u8 *cb, 
 		{
 			u32 thisLen = _len > max_size ? max_size : _len;
 
-			if ((u32)_buffer&0x1F || !((u32)_buffer&0x10000000)) {
-				if (write) memcpy(dev->buffer, _buffer, thisLen);
+			if ((u32)_buffer&0x1F || !((u32)_buffer&0x10000000))
+			{
+				if(write)
+				{
+					sync_before_read(_buffer, thisLen);
+					memcpy(dev->buffer, _buffer, thisLen);
+					sync_after_write(dev->buffer, thisLen);
+				}
 				retval = USB_WriteBlkMsg(dev->usb_fd, ep, thisLen, dev->buffer);
 				if (!write && retval > 0)
+				{
+					sync_before_read(dev->buffer, retval);
 					memcpy(_buffer, dev->buffer, retval);
-			} else
+				}
+			}
+			else
+			{
+				if(write) sync_after_write(_buffer, thisLen);
 				retval = USB_WriteBlkMsg(dev->usb_fd, ep, thisLen, _buffer);
-
-			if (retval == thisLen) {
+				if(!write && retval > 0) sync_before_read(_buffer, retval);
+			}
+			if (retval == thisLen)
+			{
 				_len -= retval;
 				_buffer += retval;
 			}
@@ -483,9 +499,8 @@ s32 USBStorage_MountLUN(usbstorage_handle *dev, u8 lun)
 	{
 		USBStorage_Reset(dev);
 		retval = __usbstorage_clearerrors(dev, lun);
-	}*/
-
-	retval = USBStorage_Inquiry(dev,  lun);
+	}
+	retval = USBStorage_Inquiry(dev,  lun);*/
 
 	retval = USBStorage_ReadCapacity(dev, lun, &dev->sector_size[lun], &n_sectors);
 	if(retval >= 0 && (dev->sector_size[lun]<512 || n_sectors==0))

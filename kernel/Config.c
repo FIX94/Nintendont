@@ -34,6 +34,7 @@ void ConfigInit( void )
 			dbgprintf("CFG:Failed to read config\r\n");
 			Shutdown();
 		}
+		ConfigSyncBeforeRead();
 	}
 
 	if( IsWiiU )

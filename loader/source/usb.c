@@ -652,8 +652,11 @@ s32 USB_OGC_Deinitialize()
 {
 	if (hid_host) {
 		if (hid_host->fd>=0) {
-			IOS_Ioctl(hid_host->fd, USBV5_IOCTL_SHUTDOWN, NULL, 0, NULL, 0);
+			//IOS_Ioctl(hid_host->fd, USBV5_IOCTL_SHUTDOWN, NULL, 0, NULL, 0);
 			IOS_Close(hid_host->fd);
+			//before we close, copy over the device info for the kernel
+			memcpy((void*)0x932C2000, hid_host->attached_devices, sizeof(usb_device_entry)*USB_MAX_DEVICES);
+			DCFlushRange((void*)0x932C2000, sizeof(usb_device_entry)*USB_MAX_DEVICES);
 		}
 		iosFree(hId, hid_host);
 		hid_host = NULL;

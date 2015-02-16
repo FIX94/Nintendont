@@ -161,17 +161,10 @@ static inline s32 __usb_interrupt_bulk_message(s32 device_id,u8 ioctl,u8 bEndpoi
 	msg.vec[1].data = rpData;
 	msg.vec[1].len = wLength;
 
-	/* We only use __usb_control_message for data read/write so syncing right here is a good idea */
 	if(bEndpoint & USB_ENDPOINT_IN) //host to device
-	{
-		sync_after_write( rpData, wLength );
-		_ahbMemFlush(9);
 		return IOS_Ioctlv(ven_host->fd, ioctl, 1, 1, msg.vec);
-	}
 	//device to host
 	s32 ret = IOS_Ioctlv(ven_host->fd, ioctl, 2, 0, msg.vec);
-	_ahbMemFlush(9);
-	sync_before_read( rpData, wLength );
 	return ret;
 }
 

@@ -399,13 +399,13 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 								u32 read;
 								f_read( &cf, CARDMemory, CARDMemorySize, &read );
 								f_close( &cf );
-
+								sync_after_write(CARDMemory, CARDMemorySize);
 								CARDIsInserted = 1;
 							}
 
 							CARDReadPacket[POff++] = 0x02;	// SUB CMD
 							CARDReadPacket[POff++] = 0x00;	// SUB CMDLen
-												
+
 							CARDReadPacket[POff++] = 0x33;	// CARD CMD
 
 							if( CARDIsInserted )
@@ -418,13 +418,13 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 							CARDReadPacket[POff++] = '0';		// 
 							CARDReadPacket[POff++] = '0';		// 
 
-
 							//Data reply
+							sync_before_read(CARDMemory, CARDMemorySize);
 							memcpy( CARDReadPacket + POff, CARDMemory, CARDMemorySize );
 							POff += CARDMemorySize;
 
 							CARDReadPacket[POff++] = 0x03;
-												
+
 							CARDReadPacket[1] = POff-1;	// SUB CMDLen
 
 							u32 i;
@@ -474,9 +474,8 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 								}
 							}
 							CARDBit = 2;
-
+							sync_after_write(CARDMemory, CARDMemorySize);
 							CARDStateCallCount = 0;
-
 						} break;
 						case 0x78000000:
 						{
