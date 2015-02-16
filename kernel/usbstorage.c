@@ -188,7 +188,6 @@ static s32 __cycle(usbstorage_handle *dev, u8 lun, u8 *buffer, u32 len, u8 *cb, 
 			{
 				if(write)
 				{
-					sync_before_read(_buffer, thisLen);
 					memcpy(dev->buffer, _buffer, thisLen);
 					sync_after_write(dev->buffer, thisLen);
 				}
