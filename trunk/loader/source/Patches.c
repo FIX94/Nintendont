@@ -255,7 +255,7 @@ done:
 	}
 	DCFlushRange(Kernel, KernelSize);
 }
-
+vu32 FoundVersion = 0;
 s32 LoadKernel()
 {
 	u32 TMDSize;
@@ -314,17 +314,24 @@ s32 LoadKernel()
 		if( memcmp( (char*)(Entry+8), TMD->Contents[i].SHA1, 0x14 ) == 0 )
 			break;
 	}
+	FoundVersion = ((TMD->TitleID & 0xFFFF) << 16) | (TMD->TitleVersion);
 	free(TMD);
 
 	IOS_Close( cfd );
+
+	u32 *IOSVersion = (u32*)0x93003000;
+	DCInvalidateRange(IOSVersion, 0x20);
+	*IOSVersion = FoundVersion;
+	gprintf("IOS Version: 0x%08X\n", FoundVersion);
+	DCFlushRange(IOSVersion, 0x20);
 
 	//char Path[32];
 	char *Path = (char*)0x93003020;
 	DCInvalidateRange(Path, 1024);
 	memset(Path, 0, 1024);
 	sprintf( Path, "/shared1/%.8s.app", Entry );
-	DCFlushRange(Path, 1024);
 	gprintf("Kernel:\"%s\"\r\n", Path );
+	DCFlushRange(Path, 1024);
 
 	s32 kfd = IOS_Open( Path, 1 );
 	if( kfd < 0 )

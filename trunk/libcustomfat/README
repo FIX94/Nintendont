@@ -1,0 +1,22 @@
+This is pretty much just libfat-1.0.13, only 2 things were modified,
+partition.c line 183 from:
+
+if ( (sectorBuffer[BPB_bootSig_55] != 0x55) || (sectorBuffer[BPB_bootSig_AA] != 0xAA)) {
+
+to:
+
+if ( (sectorBuffer[BPB_bootSig_55] != 0x55) || (sectorBuffer[BPB_bootSig_AA] != 0xAA && sectorBuffer[BPB_bootSig_AA] != 0xAB) ) {
+
+in order to support ustealth as well as
+disc.c line 50 from:
+
+static const DISC_INTERFACE* get_io_usbstorage (void) {
+	return &__io_usbstorage;
+
+to:
+
+extern DISC_INTERFACE __io_custom_usbstorage;
+static const DISC_INTERFACE* get_io_usbstorage (void) {
+	return &__io_custom_usbstorage;
+
+to run via nintendonts custom usbstorage.c.

@@ -96,7 +96,7 @@ static u16 __pid = 0;
 static bool usb2_mode=true;
 
 static s32 __usbstorage_reset(usbstorage_handle *dev);
-static s32 __usbstorage_clearerrors(usbstorage_handle *dev, u8 lun);
+//static s32 __usbstorage_clearerrors(usbstorage_handle *dev, u8 lun);
 s32 USBStorage_Inquiry(usbstorage_handle *dev, u8 lun);
 
 static u8 *cbw_buffer=NULL;
@@ -215,7 +215,7 @@ static s32 __cycle(usbstorage_handle *dev, u8 lun, u8 *buffer, u32 len, u8 *cb, 
 	return retval;
 }
 
-static s32 __usbstorage_clearerrors(usbstorage_handle *dev, u8 lun)
+/*static s32 __usbstorage_clearerrors(usbstorage_handle *dev, u8 lun)
 {
 	s32 retval;
 	u8 cmd[6];
@@ -247,7 +247,7 @@ static s32 __usbstorage_clearerrors(usbstorage_handle *dev, u8 lun)
 	}
 
 	return retval;
-}
+}*/
 
 static s32 __usbstorage_reset(usbstorage_handle *dev)
 {
@@ -477,15 +477,16 @@ s32 USBStorage_MountLUN(usbstorage_handle *dev, u8 lun)
 		return IPC_EINVAL;
 
 	udelay(50);
-	retval = __usbstorage_clearerrors(dev, lun);
+	//This part breaks quite a few devices
+	/*retval = __usbstorage_clearerrors(dev, lun);
 	if (retval<0)
 	{
 		USBStorage_Reset(dev);
 		retval = __usbstorage_clearerrors(dev, lun);
-	}
-	
+	}*/
+
 	retval = USBStorage_Inquiry(dev,  lun);
-	
+
 	retval = USBStorage_ReadCapacity(dev, lun, &dev->sector_size[lun], &n_sectors);
 	if(retval >= 0 && (dev->sector_size[lun]<512 || n_sectors==0))
 		return INVALID_LUN;
