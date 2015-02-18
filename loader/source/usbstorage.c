@@ -547,8 +547,41 @@ free_and_return:
 	return 0;
 }
 
+u32 __sector_size = 0, __sector_count = 0;
+
+typedef struct
+{
+	u32 sector_size;
+	u32 sector_count;
+
+	u32 lun;
+	u32 vid;
+	u32 pid;
+	u32 tag;
+	u32 interface;
+	s32 usb_fd;
+
+	u8 ep_in;
+	u8 ep_out;
+} important_storage_data;
+
 s32 USBStorageOGC_Close(usbstorage_handle *dev)
 {
+	if(dev != NULL)
+	{
+		important_storage_data *d = (important_storage_data*)0x932C1000;
+		d->sector_size = __sector_size;
+		d->sector_count = __sector_count;
+		d->lun = __lun;
+		d->vid = __vid;
+		d->pid = __pid;
+		d->tag = dev->tag;
+		d->interface = dev->interface;
+		d->usb_fd = dev->usb_fd;
+		d->ep_in = dev->ep_in;
+		d->ep_out = dev->ep_out;
+		DCFlushRange((void*)0x932C1000, sizeof(important_storage_data));
+	}
 	__mounted = false;
 	__lun = 0;
 	__vid = 0;
@@ -608,6 +641,9 @@ s32 USBStorageOGC_MountLUN(usbstorage_handle *dev, u8 lun)
 	retval = USBStorageOGC_ReadCapacity(dev, lun, &dev->sector_size[lun], &n_sectors);
 	if(retval >= 0 && (dev->sector_size[lun]<512 || n_sectors==0))
 		return INVALID_LUN;
+
+	__sector_size = dev->sector_size[lun];
+	__sector_count = n_sectors;
 
 	return retval;
 }

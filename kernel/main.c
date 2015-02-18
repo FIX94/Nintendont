@@ -102,17 +102,8 @@ int _main( int argc, char *argv[] )
 	BootStatus(2, 0, 0);
 	if(UseUSB)
 	{
-		u32 tmp = read32(HW_TIMER);
-		while(TimerDiffSeconds(tmp) < 20)
-		{
-			if(USBStorage_Startup() && USBStorage_IsInserted()) //sets s_size and s_cnt
-			{
-				dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
-				ret = 1;
-				break;
-			}
-			mdelay(50);
-		}
+		ret = USBStorage_Startup();
+		dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
 	}
 	else
 	{

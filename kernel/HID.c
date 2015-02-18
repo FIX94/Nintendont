@@ -104,26 +104,24 @@ s32 HIDInit( void )
 
 	BootStatusError(8, 1);
 
-	struct _usbv5_host *hid_host = (struct _usbv5_host*)malloca(sizeof(*hid_host),32);
-	memset(hid_host, 0, sizeof(*hid_host));
-	hid_host->fd = HIDHandle;
+	usb_device_entry attached_devices[USB_MAX_DEVICES];
 	//since its not actually a new IOS we cant actually ask for the device changes
 	sync_before_read((void*)0x132C2000, sizeof(usb_device_entry)*USB_MAX_DEVICES);
-	memcpy(hid_host->attached_devices, (void*)0x132C2000, sizeof(usb_device_entry)*USB_MAX_DEVICES);
+	memcpy(attached_devices, (void*)0x132C2000, sizeof(usb_device_entry)*USB_MAX_DEVICES);
 
 	u32 i;
 	u32 DeviceVID = 0, DevicePID = 0;
 	for(i = 0; i < USB_MAX_DEVICES; ++i)
 	{
-		if(hid_host->attached_devices[i].vid != 0)
+		if(attached_devices[i].vid != 0)
 		{
-			DeviceID = hid_host->attached_devices[i].device_id;
-			DeviceVID = hid_host->attached_devices[i].vid;
-			DevicePID = hid_host->attached_devices[i].pid;
+			DeviceID = attached_devices[i].device_id;
+			DeviceVID = attached_devices[i].vid;
+			DevicePID = attached_devices[i].pid;
 			break;
 		}
 	}
-	free(hid_host);
+
 	if( DeviceVID == 0 )
 	{
 		dbgprintf("HID:GetDeviceChange():%d\r\n", ret );

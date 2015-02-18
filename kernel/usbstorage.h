@@ -14,31 +14,6 @@
 #define	USBSTORAGE_EINIT		-10009
 #define USBSTORAGE_PROCESSING	-10010
 
-typedef struct
-{
-	u8 configuration;
-	u32 interface;
-	u32 altInterface;
-	u8 bInterfaceSubClass;
-
-	u8 ep_in;
-	u8 ep_out;
-
-	u8 max_lun;
-	u32 *sector_size;
-
-	s32 usb_fd;
-
-	//mutex_t lock;
-	//syswd_t alarm;
-	s32 retval;
-
-	u32 tag;
-	u8 suspended;
-
-	u8 *buffer;
-} usbstorage_handle;
-
 #define B_RAW_DEVICE_DATA_IN 0x01
 #define B_RAW_DEVICE_COMMAND 0
 
@@ -52,7 +27,6 @@ typedef struct {
 } raw_device_command;
 
 bool USBStorage_Startup(void);
-bool USBStorage_IsInserted(void);
 bool USBStorage_ReadSectors(u32 sector, u32 numSectors, void *buffer);
 bool USBStorage_WriteSectors(u32 sector, u32 numSectors, const void *buffer);
 void USBStorage_Shutdown(void);
