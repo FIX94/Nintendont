@@ -89,78 +89,7 @@
 #define USB_OH0_DEVICE_ID				0x00000000				// for completion
 #define USB_OH1_DEVICE_ID				0x00200000
 
-#define USB_MAX_DEVICES                         32
-
-typedef struct _usbendpointdesc
-{
-	u8 bLength;
-	u8 bDescriptorType;
-	u8 bEndpointAddress;
-	u8 bmAttributes;
-	u16 wMaxPacketSize;
-	u8 bInterval;
-} __attribute__((packed)) usb_endpointdesc;
-
-typedef struct _usbinterfacedesc
-{
-	u8 bLength;
-	u8 bDescriptorType;
-	u8 bInterfaceNumber;
-	u8 bAlternateSetting;
-	u8 bNumEndpoints;
-	u8 bInterfaceClass;
-	u8 bInterfaceSubClass;
-	u8 bInterfaceProtocol;
-	u8 iInterface;
-	u8 *extra;
-	u16 extra_size;
-	struct _usbendpointdesc *endpoints;
-} __attribute__((packed)) usb_interfacedesc;
-
-typedef struct _usbconfdesc
-{
-	u8 bLength;
-	u8 bDescriptorType;
-	u16 wTotalLength;
-	u8 bNumInterfaces;
-	u8 bConfigurationValue;
-	u8 iConfiguration;
-	u8 bmAttributes;
-	u8 bMaxPower;
-	struct _usbinterfacedesc *interfaces;
-} __attribute__((packed)) usb_configurationdesc;
-
-typedef struct _usbdevdesc
-{
-	u8  bLength;
-	u8  bDescriptorType;
-	u16 bcdUSB;
-	u8  bDeviceClass;
-	u8  bDeviceSubClass;
-	u8  bDeviceProtocol;
-	u8  bMaxPacketSize0;
-	u16 idVendor;
-	u16 idProduct;
-	u16 bcdDevice;
-	u8  iManufacturer;
-	u8  iProduct;
-	u8  iSerialNumber;
-	u8  bNumConfigurations;
-	struct _usbconfdesc *configurations;
-} __attribute__((packed)) usb_devdesc;
-
-typedef struct _usbhiddesc
-{
-	u8 bLength;
-	u8 bDescriptorType;
-	u16 bcdHID;
-	u8 bCountryCode;
-	u8 bNumDescriptors;
-	struct {
-		u8 bDescriptorType;
-		u16 wDescriptorLength;
-	} __attribute__((packed)) descr[1];
-} __attribute__((packed)) usb_hiddesc;
+#define USB_MAX_DEVICES					32
 
 typedef struct _usb_device_entry {
 	s32 device_id;
@@ -168,24 +97,6 @@ typedef struct _usb_device_entry {
 	u16 pid;
 	u32 token;
 } usb_device_entry;
-
-typedef s32 (*usbcallback)(s32 result,void *usrdata);
-
-typedef struct _usb_cb_list {
-	usbcallback cb;
-	void *userdata;
-	union {
-		s32 device_id;
-		struct _usb_cb_list *next;
-	};
-} _usb_cb_list;
-
-struct _usbv5_host {
-	usb_device_entry attached_devices[USB_MAX_DEVICES];
-	_usb_cb_list remove_cb[USB_MAX_DEVICES];
-	s32 fd;
-	_usb_cb_list *device_change_notify;
-};
 
 struct _usb_msg {
 	s32 fd;
@@ -228,63 +139,22 @@ struct _usb_msg {
 		u8 class;
 		u32 hid_intr_dir;
 
-		u32 align_pad[4]; // pad to 24 bytes
+		u32 align_pad[6]; // pad to 32 bytes
 	};
-	usbcallback cb;
-	void *userdata;
 	ioctlv vec[7];
 };
 
 s32 USB_Initialize();
 s32 USB_Deinitialize();
 
-s32 USB_OpenDevice(s32 device_id,u16 vid,u16 pid,s32 *fd);
-s32 USB_CloseDevice(s32 *fd);
-s32 USB_CloseDeviceAsync(s32 *fd,usbcallback cb,void *usrdata);
-
-s32 USB_GetDescriptors(s32 fd, usb_devdesc *udd);
-void USB_FreeDescriptors(usb_devdesc *udd);
-
-s32 USB_GetGenericDescriptor(s32 fd,u8 type,u8 index,u8 interface,void *data,u32 size);
-s32 USB_GetHIDDescriptor(s32 fd,u8 interface,usb_hiddesc *uhd,u32 size);
-
-s32 USB_GetDeviceDescription(s32 fd,usb_devdesc *devdesc);
-s32 USB_DeviceRemovalNotifyAsync(s32 fd,usbcallback cb,void *userdata);
-s32 USB_DeviceChangeNotifyAsync(u8 interface_class,usbcallback cb,void *userdata);
-
-s32 USB_SuspendDevice(s32 fd);
-s32 USB_ResumeDevice(s32 fd);
-
-s32 USB_ReadIsoMsg(s32 fd,u8 bEndpoint,u8 bPackets,u16 *rpPacketSizes,void *rpData);
-s32 USB_ReadIsoMsgAsync(s32 fd,u8 bEndpoint,u8 bPackets,u16 *rpPacketSizes,void *rpData,usbcallback cb,void *userdata);
-
 s32 USB_ReadIntrMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
-s32 USB_ReadIntrMsgAsync(s32 fd,u8 bEndpoint,u16 wLength,void *rpData,usbcallback cb,void *usrdata);
-
 s32 USB_ReadBlkMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
-s32 USB_ReadBlkMsgAsync(s32 fd,u8 bEndpoint,u16 wLength,void *rpData,usbcallback cb,void *usrdata);
-
 s32 USB_ReadCtrlMsg(s32 fd,u8 bmRequestType,u8 bmRequest,u16 wValue,u16 wIndex,u16 wLength,void *rpData);
-s32 USB_ReadCtrlMsgAsync(s32 fd,u8 bmRequestType,u8 bmRequest,u16 wValue,u16 wIndex,u16 wLength,void *rpData,usbcallback cb,void *usrdata);
-
-s32 USB_WriteIsoMsg(s32 fd,u8 bEndpoint,u8 bPackets,u16 *rpPacketSizes,void *rpData);
-s32 USB_WriteIsoMsgAsync(s32 fd,u8 bEndpoint,u8 bPackets,u16 *rpPacketSizes,void *rpData,usbcallback cb,void *userdata);
 
 s32 USB_WriteIntrMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
-s32 USB_WriteIntrMsgAsync(s32 fd,u8 bEndpoint,u16 wLength,void *rpData,usbcallback cb,void *usrdata);
-
 s32 USB_WriteBlkMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
-s32 USB_WriteBlkMsgAsync(s32 fd,u8 bEndpoint,u16 wLength,void *rpData,usbcallback cb,void *usrdata);
-
 s32 USB_WriteCtrlMsg(s32 fd,u8 bmRequestType,u8 bmRequest,u16 wValue,u16 wIndex,u16 wLength,void *rpData);
-s32 USB_WriteCtrlMsgAsync(s32 fd,u8 bmRequestType,u8 bmRequest,u16 wValue,u16 wIndex,u16 wLength,void *rpData,usbcallback cb,void *usrdata);
 
-s32 USB_GetConfiguration(s32 fd, u8 *configuration);
-s32 USB_SetConfiguration(s32 fd, u8 configuration);
-s32 USB_SetAlternativeInterface(s32 fd, u8 interface, u8 alternateSetting);
 s32 USB_ClearHalt(s32 fd, u8 endpointAddress);
-s32 USB_GetDeviceList(usb_device_entry *descr_buffer,u8 num_descr,u8 interface_class,u8 *cnt_descr);
-
-s32 USB_GetAsciiString(s32 fd,u8 bIndex,u16 wLangID,u16 wLength,void *rpData);
 
 #endif
