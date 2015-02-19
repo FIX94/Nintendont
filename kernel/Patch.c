@@ -51,6 +51,9 @@ extern u32 SystemRegion;
 #define PRS_DOL     0x131C0000
 #define PRS_EXTRACT 0x131C0020
 
+extern u32 prs_decompress(void* source,void* dest);
+extern u32 prs_decompress_size(void* source);
+
 extern int dbgprintf( const char *fmt, ...);
 
 const unsigned char DSPHashes[][0x14] =
@@ -966,6 +969,7 @@ static inline void printpatchfound(const char *name, const char *type, u32 offse
 #define PSO_STATE_LOAD    1
 #define PSO_STATE_PSR     2
 #define PSO_STATE_NOENTRY 4
+#define PSO_STATE_SWITCH  8
 
 u32 PatchState = PATCH_STATE_NONE;
 u32 PSOHack    = PSO_STATE_NONE;
@@ -1043,43 +1047,35 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	// PSO 1&2 / III
 	if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
 	{
-		switch( DiscOffset )
+		if((PSOHack & PSO_STATE_SWITCH) && DiscOffset > 0)
 		{
-			case 0x56B8E7E0:	// AppSwitcher	[EUR]
-//?			case 0x56C49020:	// [USA] v1.2 switcher.dol
-//?			case 0x56C7AEE0:	// [USA] v1.2 switcherD.dol
-			case 0x56C49600:	// [USA] v1.1
-			case 0x56C4C980:	// [USA] v1.0
-			{
-				PatchState	= PATCH_STATE_PATCH;
-				DOLSize		= Length;
-				#ifdef DEBUG_PATCH
-				dbgprintf("Patch:PSO 1&2 loading AppSwitcher:0x%p %u\r\n", Buffer, Length );
-				#endif
-			} break;
-			case 0x5668FE20:	// psov3.dol [EUR]
-			case 0x5674B660:	// [USA] v1.2
-			case 0x56750660:	// [USA] v1.1
-			case 0x56753EC0:	// [USA] v1.0
-			case 0x56713C80:	// [USA] III
-			{
-				#ifdef DEBUG_PATCH
-				dbgprintf("Patch:PSO 1&2 loading psov3.dol:0x%p %u\r\n", Buffer, Length );
-				#endif
-
-				PSOHack = PSO_STATE_LOAD;
-				if ((DiscOffset == 0x5674B660) || (DiscOffset == 0x56713C80))
-					PSOHack |= PSO_STATE_NOENTRY;
-			} break;
-			case 0x41FA5570:	// [USA] v1.2 switcher.prs
-			case 0x26B7B5F8:	// [USA] III switcher.prs
-			{
-				#ifdef DEBUG_PATCH
-				dbgprintf("Patch:PSO 1&2 loading switcher.prs:0x%p %u\r\n", Buffer, Length );
-				#endif
-				
-				PSOHack = PSO_STATE_PSR;
-			} break;
+			#ifdef DEBUG_PATCH
+			dbgprintf("PSO:psov3.dol\r\n");
+			#endif
+			PSOHack = PSO_STATE_LOAD | PSO_STATE_NOENTRY;
+		}
+		if(Length == 0x318E0 && read32((u32)Buffer+0x318B0) == 0x4CBEBC20)
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("PSO:switcher.dol\r\n");
+			#endif
+			PSOHack = PSO_STATE_LOAD | PSO_STATE_SWITCH;
+		}
+		else if(Length == 0x1B8A0 && read32((u32)Buffer+0x12E0C) == 0x7FA4E378)
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("PSO:switcherD.dol\r\n");
+			#endif
+			PSOHack = PSO_STATE_LOAD | PSO_STATE_SWITCH;
+		}
+		else if((Length == 0x19580 && read32((u32)Buffer+0x19560) == 0xC8BFAF78) || //PSO Plus
+				(Length == 0x19EA0 && read32((u32)Buffer+0x19E80) == 0x24C7E996) || //PSO 3 PAL
+				(Length == 0x1A2C0 && read32((u32)Buffer+0x1A2A0) == 0xE2BEE1FF))   //PSO 3 NTSC
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("PSO:switcher.prs\r\n");
+			#endif
+			PSOHack = PSO_STATE_LOAD | PSO_STATE_PSR | PSO_STATE_SWITCH;
 		}
 	}
 
@@ -1117,6 +1113,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	{
 		if (Length == 0x100 || (PSOHack & PSO_STATE_LOAD))
 		{
+			PSOHack &= (~PSO_STATE_LOAD);
+			void *tmpbuf = NULL;
+			if(PSOHack & PSO_STATE_PSR)
+			{
+				u32 tmpsize = prs_decompress_size(Buffer);
+				dbgprintf("PSO:Decompressing PRS with size %08x\r\n",tmpsize);
+				tmpbuf = malloc(tmpsize); //not too big
+				prs_decompress(Buffer,tmpbuf);
+				Buffer = tmpbuf; //better than writing the stuff below again
+			}
 			if( read32( (u32)Buffer ) == 0x100 && (((dolhdr*)Buffer)->entrypoint & 0xFE000000) == 0x80000000 )
 			{
 				ELFLoading = 0;
@@ -1171,14 +1177,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				GameEntry = dol->entrypoint;
 				if (!(PSOHack & PSO_STATE_NOENTRY))
 					dol->entrypoint = PATCH_OFFSET_ENTRY + 0x80000000;
+				else
+					PSOHack &= (~PSO_STATE_NOENTRY);
 				dbgprintf("DIP:DOL EntryPoint::0x%08X, GameEntry::0x%08X\r\n", dol->entrypoint, GameEntry);
 				PatchState |= PATCH_STATE_LOAD;
 			}
-			PSOHack = PSO_STATE_NONE;
-		}
-		else if (PSOHack == PSO_STATE_PSR)
-		{
-			PSOHack |= PSO_STATE_LOAD;
+			if(PSOHack & PSO_STATE_PSR)
+			{
+				free(tmpbuf);
+				/* Let it patch on PPC side */
+				write32(PRS_DOL, PATCH_OFFSET_ENTRY + 0x80000000);
+				sync_after_write((void*)PRS_DOL, 0x20);
+				PSOHack &= (~PSO_STATE_PSR);
+				return;
+			}
 		}
 		else if (read32((u32)Buffer) == 0x7F454C46 && ((Elf32_Ehdr*)Buffer)->e_phnum)
 		{
@@ -2790,8 +2802,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								u32 BaseAddr = (Orig & 0x3FFFFFC);
 								if (BaseAddr & 0x2000000) BaseAddr |= 0xFC000000;
 								u32 NewAddr = (((s32)BaseAddr) + OrigAddr) | 0x80000000;
+								dbgprintf("PSO:Extract Addr:0x%08X\r\n", NewAddr);
 								write32(PRS_EXTRACT, NewAddr);
-								sync_after_write((void*)PRS_EXTRACT, 0x4);
+								sync_after_write((void*)PRS_EXTRACT, 0x20);
 #ifdef DEBUG_PATCH
 								printpatchfound("SwitcherPrs", NULL, OrigAddr);
 #endif
@@ -3096,22 +3109,6 @@ void PatchInit()
 	sync_after_write((void*)PATCH_OFFSET_ENTRY, FakeEntryLoad_size);
 	write32(PRS_DOL, 0);
 	sync_after_write((void*)PRS_DOL, 0x4);
-}
-
-void CheckPatchPrs()
-{
-	if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
-	{
-		sync_before_read((void*)PRS_DOL, 0x4);
-		u32 PrsAddr = read32(PRS_DOL);
-		if (PrsAddr != 0)
-		{
-			PrsAddr = PrsAddr & 0x7FFFFFFF;
-			DoPatches((char *)PrsAddr, 0, 0);
-			write32(PRS_DOL, 0);
-			sync_after_write((void*)PRS_DOL, 0x4);
-		}
-	}
 }
 
 void SetIPL()
