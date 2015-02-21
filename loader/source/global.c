@@ -179,6 +179,8 @@ inline void UpdateScreen(void) {
 
 raw_irq_handler_t BeforeIOSReload()
 {
+	__STM_Close();
+
 	write32(0x80003140, 0);
 	__MaskIrq(IRQ_PI_ACR);
 	return IRQ_Free(IRQ_PI_ACR);
@@ -199,6 +201,8 @@ void AfterIOSReload(raw_irq_handler_t handle, u32 rev)
 	IRQ_Request(IRQ_PI_ACR, handle, NULL);
 	__UnmaskIrq(IRQ_PI_ACR);
 	__IPC_Reinitialize();
+
+	__STM_Init();
 }
 
 extern vu32 KernelLoaded, FoundVersion;

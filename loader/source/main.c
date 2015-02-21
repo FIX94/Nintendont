@@ -59,6 +59,8 @@ extern u32 __SYS_GetRTC(u32 *gctime);
 #define HW_DIFLAGS		0xD800180
 #define MEM_PROT		0xD8B420A
 
+#define IOCTL_ExecSuspendScheduler	1
+
 static GXRModeObj *vmode = NULL;
 
 static const unsigned char Boot2Patch[] =
@@ -93,6 +95,7 @@ s32 __IOS_LoadStartupIOS(void)
 
 	return 0;
 }
+extern DISC_INTERFACE __io_custom_usbstorage;
 extern vu32 FoundVersion;
 vu32 KernelLoaded = 0;
 u32 entrypoint = 0;
@@ -113,7 +116,8 @@ int main(int argc, char **argv)
 
 	RAMInit();
 
-	STM_RegisterEventHandler(HandleSTMEvent);
+	//Meh, doesnt do anything anymore anyways
+	//STM_RegisterEventHandler(HandleSTMEvent);
 
 	Initialise();
 
@@ -157,6 +161,8 @@ int main(int argc, char **argv)
 
 	DCFlushRange( (void*)0x939F02F0, 0x20 );
 
+	//libogc still has that, lets close it
+	__ES_Close();
 	s32 fd = IOS_Open( "/dev/es", 0 );
 
 	memset( STATUS, 0xFFFFFFFF, 0x20  );
@@ -177,10 +183,19 @@ int main(int argc, char **argv)
 		if((STATUS_LOADING > 0 || abs(STATUS_LOADING) > 1) && STATUS_LOADING < 20)
 		{
 			gprintf("Kernel sent signal\n");
-			fatInitDefault();
 			break;
 		}
 	}
+
+	/* For slow USB HDDs */
+	time_t timeout = time(NULL);
+	while(time(NULL) - timeout < 10)
+	{
+		if(__io_custom_usbstorage.startup() && __io_custom_usbstorage.isInserted())
+			break;
+		usleep(50000);
+	}
+	fatInitDefault();
 
 	gprintf("Nintendont at your service!\r\n");
 	KernelLoaded = 1;
@@ -950,6 +965,16 @@ int main(int argc, char **argv)
 	//0x9300300C is already used for multi-iso
 	memset((void*)0x93003010, 0, 0x10); //disable rumble on bootup
 	DCFlushRange((void*)0x93003000, 0x20);
+
+	//lets prevent weird events
+	__STM_Close();
+
+	//THIS thing right here, it interrupts some games and breaks them
+	//To fix that, call ExecSuspendScheduler so WC24 just sleeps
+	u32 out = 0;
+	fd = IOS_Open("/dev/net/kd/request", 0);
+	IOS_Ioctl(fd, IOCTL_ExecSuspendScheduler, NULL, 0, &out, 4);
+	IOS_Close(fd);
 
 	write16(0xD8B420A, 0); //disable MEMPROT again after reload
 	//u32 level = IRQ_Disable();
