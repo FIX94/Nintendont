@@ -37,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "usbstorage.h"
 #include "SDI.h"
 
-#define DI_STACK_SIZE 0x400
 //#undef DEBUG
 
 u32 RealDiscCMD = 0;
@@ -54,6 +53,7 @@ extern struct ipcmessage DI_CallbackMsg;
 extern u32 DI_MessageQueue;
 extern vu32 DisableSIPatch;
 extern char __bss_start, __bss_end;
+extern char __di_stack_addr, __di_stack_size;
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
@@ -74,12 +74,14 @@ int _main( int argc, char *argv[] )
 
 //Disable AHBPROT
 	EnableAHBProt(-1);
-//Enable DVD Access
-	write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
 
 //Load IOS Modules
 	ES_Init( MessageHeap );
 	mdelay( 300 ); //give modules time
+
+//Enable DVD Access
+	write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
+
 	dbgprintf("Sending signal to loader\r\n");
 	BootStatus(1, 0, 0);
 
@@ -227,8 +229,8 @@ int _main( int argc, char *argv[] )
 	BootStatus(9, s_size, s_cnt);
 
 	DIRegister();
-	u32 *theDIStack = (u32*)malloca(DI_STACK_SIZE * sizeof(u32), 32); //yes, it seems like thats how it works
-	DI_Thread = thread_create(DIReadThread, NULL, theDIStack, DI_STACK_SIZE, 0x78, 1); //simply because its a stack
+	dbgprintf("DI Thread Start:%08x %08x\r\n", &__di_stack_addr, &__di_stack_size);
+	DI_Thread = thread_create(DIReadThread, NULL, ((u32*)&__di_stack_addr), ((u32)(&__di_stack_size)) / sizeof(u32), 0x78, 1);
 	thread_continue(DI_Thread);
 
 	DIinit(true);

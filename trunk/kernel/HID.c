@@ -74,7 +74,6 @@ HIDReadFunc HIDRead;
 typedef void (*RumbleFunc)(u32 Enable);
 RumbleFunc HIDRumble;
 
-static u32 *hidreadstack = NULL;
 static struct ipcmessage *hidreadmsg = NULL;
 static u32 HIDRead_Thread = 0;
 u8 *hidreadheap = NULL;
@@ -83,7 +82,7 @@ vu32 hidread = 0;
 static u32 HIDReadAlarm();
 static s32 HIDInterruptMessage(u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueue, struct ipcmessage *asyncmsg);
 static s32 HIDControlMessage(u8 *Data, u32 Length, u32 RequestType, u32 Request, u32 Value, s32 asyncqueue, struct ipcmessage *asyncmsg);
-
+extern char __hid_stack_addr, __hid_stack_size;
 s32 HIDInit( void )
 {
 	s32 ret = -1;
@@ -414,8 +413,7 @@ s32 HIDInit( void )
 	hidreadheap = (u8*)malloca(32,32);
 	hidreadqueue = mqueue_create(hidreadheap, 1);
 	hidreadmsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
-	hidreadstack = (u32*)malloca(0x100 * sizeof(u32), 32);
-	HIDRead_Thread = thread_create(HIDReadAlarm, NULL, hidreadstack, 0x100, 0x78, 1);
+	HIDRead_Thread = thread_create(HIDReadAlarm, NULL, ((u32*)&__hid_stack_addr), ((u32)(&__hid_stack_size)) / sizeof(u32), 0x78, 1);
 	thread_continue(HIDRead_Thread);
 	mdelay(100);
 

@@ -5,6 +5,19 @@ ENTRY(_start)
 
 __stack_size = 0x2000;
 __phy_stack_addr = 0x12F86000 + __stack_size;
+
+__di_stack_size = 0x1000;
+__di_stack_addr = __phy_stack_addr + __di_stack_size;
+
+__hid_stack_size = 0x400;
+__hid_stack_addr = __di_stack_addr + __hid_stack_size;
+
+__intr_stack_size = 0x400;
+__intr_stack_addr = __hid_stack_addr + __intr_stack_size;
+
+__blk_stack_size = 0x400;
+__blk_stack_addr = __intr_stack_addr + __blk_stack_size;
+
 MEMORY {
 
 	code		: ORIGIN = 0x20F00000,	LENGTH = 0x28000
