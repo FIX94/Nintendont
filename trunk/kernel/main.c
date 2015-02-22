@@ -45,7 +45,8 @@ extern u32 s_size;
 extern u32 s_cnt;
 
 static FATFS *fatfs = NULL;
-static const char *fatDevName = "/";
+//this is just a single / as u16, easier to write in hex
+static const WCHAR fatDevName[2] = { 0x002F, 0x0000 };
 
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
@@ -159,36 +160,26 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(5, 0, 0);
 
-	s32 fres = -1;
 	FIL fp;
-	while(fres != FR_OK)
+	s32 fres = f_open_char(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
+	switch(fres)
 	{
-		fres = f_open(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
-		switch(fres)
+		case FR_OK:
+			f_close(&fp);
+		case FR_NO_PATH:
+		case FR_NO_FILE:
 		{
-			case FR_OK:
-				f_close(&fp);
-			case FR_NO_PATH:
-			case FR_NO_FILE:
-			{
-				fres = FR_OK;
-			} break;
-			default:
-			case FR_DISK_ERR:
-			{
-				BootStatusError(-5, fres);
-				mdelay(4000);
-				Shutdown();
-			} break;
-		}
-/*	//will nenver get here when timeout occures this loop is what is hung
-		if(STATUS_ERROR == -7) { // FS check timed out on PPC side
-			dbgprintf("FS check timed out\r\n");
-			mdelay(3000);
+			fres = FR_OK;
+		} break;
+		default:
+		case FR_DISK_ERR:
+		{
+			BootStatusError(-5, fres);
+			mdelay(4000);
 			Shutdown();
-		}
-*/
+		} break;
 	}
+
 	if(!UseUSB) //Use FAT values for SD
 		s_cnt = fatfs->n_fatent * fatfs->csize;
 

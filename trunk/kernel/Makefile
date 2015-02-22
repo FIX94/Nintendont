@@ -24,7 +24,7 @@ all: $(TARGET)
 
 $(TARGET) : kernel.ld $(OBJECTS)
 	@echo  "LD	$@"
-	@$(LD) $(LDFLAGS) $(OBJECTS) be/libgcc.a -o $@
+	@$(LD) $(LDFLAGS) $(OBJECTS) be/libgcc.a be/libc.a -o $@
 	@$(STRIP) -s -g kernel.elf -o $(BINFILE)
 
 %.o : %.s
@@ -52,4 +52,4 @@ $(TARGET) : kernel.ld $(OBJECTS)
 -include $(OBJECTS:.o=.d)
 
 clean:
-	-rm -f *.elf *.o *.bin *.d *.map lwbt/*.d lwbt/*.o
+	-rm -f *.elf *.o *.bin *.d *.map lwbt/*.d lwbt/*.o option/*.d option/*.o

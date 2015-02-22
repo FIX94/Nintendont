@@ -269,7 +269,7 @@ void DIinit( bool FirstTime )
 
 			_sprintf(TempDiscName+i, "disc2.iso");
 			FIL ExistsFile;
-			s32 ret = f_open(&ExistsFile, TempDiscName, FA_READ);
+			s32 ret = f_open_char(&ExistsFile, TempDiscName, FA_READ);
 			if (ret != FR_OK)
 				MultipleDiscs = false;
 			else

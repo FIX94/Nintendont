@@ -86,6 +86,9 @@ typedef s32 size_t;
 
 typedef u32 u_int32_t;
 
+//libraries are built like that
+typedef s32 wchar_t;
+
 typedef s32(*ipccallback)(s32 result,void *usrdata);
 
 #include "ipc.h"

@@ -54,7 +54,7 @@ bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
-static TCHAR MemCardName[0x20];
+static char MemCardName[0x20];
 
 static u32 TRIBackupOffset= 0;
 static u32 EXI2IRQ			= 0;
@@ -92,7 +92,7 @@ void EXIInit( void )
 		sync_after_write(MemCardName, 0x20);
 
 		dbgprintf("Trying to open %s\r\n", MemCardName);
-		ret = f_open( &MemCard, MemCardName, FA_READ );
+		ret = f_open_char( &MemCard, MemCardName, FA_READ );
 		if( ret != FR_OK || MemCard.fsize == 0 )
 		{
 #ifdef DEBUG_EXI
@@ -259,7 +259,7 @@ void EXISaveCard(void)
 //#ifdef DEBUG_EXI
 		//dbgprintf("EXI: Saving memory card...");
 //#endif
-		s32 ret = f_open( &MemCard, MemCardName, FA_WRITE );
+		s32 ret = f_open_char( &MemCard, MemCardName, FA_WRITE );
 		if( ret == FR_OK )
 		{
 			sync_before_read(MCard, ConfigGetMemcardSize());
@@ -289,7 +289,7 @@ void EXIShutdown( void )
 //#endif
 
 	sync_before_read( MCard, ConfigGetMemcardSize() );
-	s32 ret = f_open( &MemCard, MemCardName, FA_WRITE );
+	s32 ret = f_open_char( &MemCard, MemCardName, FA_WRITE );
 	if( ret == FR_OK )
 	{
 		f_lseek( &MemCard, 0 );

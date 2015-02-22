@@ -316,7 +316,7 @@ int dbgprintf( const char *fmt, ...)
 	{
 		if(file_opened != FR_OK)	//if log not open yet
 		{
-			file_opened = f_open(&dbgfile, "/ndebug.log", FA_OPEN_ALWAYS|FA_WRITE);
+			file_opened = f_open_char(&dbgfile, "/ndebug.log", FA_OPEN_ALWAYS|FA_WRITE);
 
 			if (file_opened == FR_OK)	//new log opened write header
 			{

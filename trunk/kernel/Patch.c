@@ -1005,7 +1005,7 @@ void TRIWriteSettings(char *name, void *GameBase, u32 size)
 		dbgprintf("TRI:Writing Settings\r\n");
 		memcpy(OurBase, GameBase, size);
 		FIL backup;
-		if(f_open(&backup, name, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
+		if(f_open_char(&backup, name, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
 		{
 			u32 wrote;
 			f_write(&backup, OurBase, size, &wrote);
@@ -1018,7 +1018,7 @@ void TRIWriteSettings(char *name, void *GameBase, u32 size)
 void TRIReadSettings(char *name, u32 size)
 {
 	FIL backup;
-	if (f_open(&backup, name, FA_OPEN_EXISTING | FA_READ) == FR_OK)
+	if (f_open_char(&backup, name, FA_OPEN_EXISTING | FA_READ) == FR_OK)
 	{
 		if(backup.fsize == size)
 		{
@@ -1889,7 +1889,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					u32 DBGSize;
 
 					FIL fs;
-					if( f_open( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
+					if( f_open_char( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
 					{
 						#ifdef DEBUG_PATCH
 						dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
@@ -1948,7 +1948,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									FIL CodeFD;
 									u32 read;
 
-									if( f_open( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+									if( f_open_char( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 									{
 										if( CodeFD.fsize >= 0x2E60 - (0x1800+DBGSize-8) )
 										{
@@ -3205,7 +3205,7 @@ s32 Check_Cheats()
 		u32 DBGSize;
 		FIL fs;
 		
-		if( f_open( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
+		if( f_open_char( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
 		{
 			#ifdef DEBUG_PATCH
 			dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
@@ -3232,7 +3232,7 @@ s32 Check_Cheats()
 
 			FIL CodeFD;
 
-			if( f_open( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+			if( f_open_char( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 			{
 				if( CodeFD.fsize >= 0x2E60 - (0x1800+DBGSize-8) )
 				{
