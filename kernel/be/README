@@ -1,1 +1,1 @@
-This copy of libgcc.a is from devkitARM r42, the latest devkitARM r43 does not include a big endian version anymore.
+libc.a and libgcc.a are from devkitARM r42, the latest devkitARM r43 does not include big endian versions anymore.

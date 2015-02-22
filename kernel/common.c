@@ -222,6 +222,25 @@ unsigned int atox( char *String )
 
 	return val;
 }
+wchar_t tmpwchar[512]; //2kb right here, everything but threadsafe
+extern size_t mbstowcs(wchar_t*,const char*,size_t);
+FRESULT f_open_char( FIL* fp, const char* path, BYTE mode )
+{
+	if(fp == NULL || path == NULL || strlen(path) == 0)
+		return FR_INVALID_NAME;
+
+	size_t charnum = mbstowcs(tmpwchar, path, 512);
+	if(charnum == 0)
+		return FR_INVALID_NAME;
+
+	size_t i;
+	WCHAR *u16char = (WCHAR*)tmpwchar; //saves on 4 byte but only uses 2 byte
+	for(i = 0; i < charnum; ++i) //so we can just remove the rest
+		u16char[i] = (WCHAR)(tmpwchar[i]&0xFFFF);
+	u16char[charnum] = 0x0000; //mbstowcs doesnt close
+
+	return f_open(fp, u16char, mode);
+}
 
 void wait_for_ppc(u8 multi)
 {

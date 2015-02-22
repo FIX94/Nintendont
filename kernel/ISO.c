@@ -61,10 +61,9 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 extern u32 ISOShift;
 bool ISOInit()
 {
-	s32 ret = f_open( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
+	s32 ret = f_open_char( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
 	if( ret != FR_OK )
 		return false;
-
 	/* Setup table */
 	u32 tblsize = 4; //minimum default size
 	GameFile.cltbl = malloc(tblsize * sizeof(DWORD));

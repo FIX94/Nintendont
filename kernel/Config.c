@@ -19,7 +19,7 @@ void ConfigInit( void )
 	if (ncfg->Magicbytes != 0x01070CF6)
 	{
 		dbgprintf("Cfg not in memory, trying file\r\n");
-		if (f_open(&cfg, "/nincfg.bin", FA_OPEN_EXISTING | FA_READ) != FR_OK)
+		if (f_open_char(&cfg, "/nincfg.bin", FA_OPEN_EXISTING | FA_READ) != FR_OK)
 		{
 			dbgprintf("CFG:Failed to open config\r\n");
 			Shutdown();
