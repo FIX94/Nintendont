@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <unistd.h>
 #include <wupc/wupc.h>
+#include "PADReadGC_bin.h"
+#include "HID.h"
 
 static u32 WPAD_Pressed;
 static u32 PAD_Pressed;
@@ -45,8 +47,21 @@ static u32 Repeat;
 #define LEFT_STICK_DOWN (status->exp.classic.ljs.ang >= 120 && status->exp.classic.ljs.ang <= 240)
 #define LEFT_STICK_LEFT (status->exp.classic.ljs.ang >= 210 && status->exp.classic.ljs.ang <= 330)
 
+u32 (*PADRead)(u32) = (void*)0x93000000;
+NIN_CFG *PADCFG = (NIN_CFG*)0x93002900;
+#define C_NOT_SET	(0<<0)
 void FPAD_Init( void )
 {
+	DCInvalidateRange((void*)0x93000000, 0x2900);
+	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
+	memset((void*)0x93002700, 0, 0x200); //clears alot of pad stuff
+	DCFlushRange((void*)0x93000000, 0x2900);
+	ICInvalidateRange((void*)0x93000000, 0x2700);
+	struct BTPadCont *BTPad = (struct BTPadCont*)0x932F0000;
+	u32 i;
+	for(i = 0; i < WPAD_MAX_WIIMOTES; ++i)
+		BTPad[i].used = C_NOT_SET;
+
 	PAD_Init();
 	WUPC_Init();
 	WPAD_Init();
@@ -88,6 +103,16 @@ void FPAD_Update( void )
 		}
 	}
 
+	/* HID */
+	HIDUpdateRegisters();
+	PADRead(0);
+	PADStatus *Pad = (PADStatus*)(0x93002800);
+	for(i = 0; i < PAD_CHANMAX; ++i)
+	{
+		PAD_Pressed |= Pad[i].button;
+		PAD_Stick_Y |= Pad[i].stickY;
+		PAD_Stick_X |= Pad[i].stickX;
+	}
 	if(!IsWiiU())
 	{
 		PAD_ScanPads();

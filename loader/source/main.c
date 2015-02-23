@@ -39,11 +39,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "MemCard.h"
 #include "Patches.h"
 #include "kernel_bin.h"
-#include "PADReadGC_bin.h"
 #include "multidol_ldr_bin.h"
 #include "stub_bin.h"
 #include "titles.h"
 #include "ipl.h"
+#include "HID.h"
 
 extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
@@ -85,6 +85,9 @@ static const unsigned char FSAccessPatch[] =
     0x9B, 0x05, 0x40, 0x03, 0x1C, 0x0B, 0x42, 0x8B, 
 };
 
+// Forbid the use of MEM2 through malloc
+u32 MALLOC_MEM2 = 0;
+
 s32 __IOS_LoadStartupIOS(void)
 {
 	int res;
@@ -95,6 +98,7 @@ s32 __IOS_LoadStartupIOS(void)
 
 	return 0;
 }
+
 extern DISC_INTERFACE __io_custom_usbstorage;
 extern vu32 FoundVersion;
 vu32 KernelLoaded = 0;
@@ -691,7 +695,7 @@ int main(int argc, char **argv)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config...");
 		if(abs(STATUS_LOADING) > 7 && abs(STATUS_LOADING) < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config... Done!");
-		if(STATUS_LOADING == 8)
+		/*if(STATUS_LOADING == 8)
 		{
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... ");
 			if ( STATUS_ERROR == 1)
@@ -746,37 +750,37 @@ int main(int argc, char **argv)
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Unknown error %d %35s", STATUS_ERROR, " ");
 					break;
 			}
-		}
+		}*/
 		if(STATUS_LOADING == 9)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init DI... %40s", " ");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init DI... %40s", " ");
 		if(abs(STATUS_LOADING) > 9 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init DI... Done! %35s", " ");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init DI... Done! %35s", " ");
 		if(STATUS_LOADING == 10)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD...");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD...");
 		if(abs(STATUS_LOADING) > 10 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD... Done!");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD... Done!");
 		if(STATUS_LOADING == -10)
 		{
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Init CARD... Failed! Shutting down");
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD... Failed! Shutting down");
 			switch (STATUS_ERROR)
 			{
 				case -1:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/sneek/kenobiwii.bin", GetRootDevice());
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing %s:/sneek/kenobiwii.bin", GetRootDevice());
 					break;
 				case -2:
 					if (ncfg->Config & NIN_CFG_CHEAT_PATH)
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/%s", GetRootDevice(), ncfg->CheatPath);
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing %s:/%s", GetRootDevice(), ncfg->CheatPath);
 					else
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Missing %s:/games/GAMEID/GAMEID.gct", GetRootDevice());
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing %s:/games/GAMEID/GAMEID.gct", GetRootDevice());
 					break;
 				case -3:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Cheat file to large", GetRootDevice());
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Cheat file to large", GetRootDevice());
 					break;
 				case -4:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Cheat path is empty", GetRootDevice());
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Cheat path is empty", GetRootDevice());
 					break;
 				default:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17, "Unknown error %d %35s", STATUS_ERROR, " ");
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Unknown error %d %35s", STATUS_ERROR, " ");
 					break;
 			}
 		}
@@ -944,7 +948,6 @@ int main(int argc, char **argv)
 	settime(secs_to_ticks(cur_time));
 
 	DCInvalidateRange((void*)0x93000000, 0x3000);
-	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
 	memset((void*)0x93002700, 0, 0x200); //clears alot of pad stuff
 	memset((void*)0x93002C00, 0, 0x400); //clears alot of multidol stuff
 	strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug

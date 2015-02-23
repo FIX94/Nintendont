@@ -63,6 +63,18 @@ typedef struct Controller
 
 } controller;
 
+typedef struct Rumble {
+	u32 VID;
+	u32 PID;
+
+	u32 RumbleType;
+	u32 RumbleDataLen;
+	u32 RumbleTransfers;
+	u32 RumbleTransferLen;
+	u8 *RumbleDataOn;
+	u8 *RumbleDataOff;
+} rumble;
+
 typedef struct {
 	u8 padding[16]; // anything you want can go here
 	s32 device_no;
@@ -85,10 +97,11 @@ typedef struct {
 	void *data; // virtual pointer, not physical!
 } req_args; // 32 bytes
 
-s32 HIDInit();
+void HIDInit();
+s32 HIDOpen();
 void HIDEnable();
 void HIDClose();
-void HIDUpdateRegisters();
+void HIDUpdateRegisters(u32 LoaderRequest);
 void HIDGCInit( void );
 void HIDPS3Init( void );
 void HIDPS3Read( void );

@@ -11,6 +11,7 @@ static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* const _siReg = (u32*)0xCD006400;
 static vu32* const MotorCommand = (u32*)0x93003010;
 static vu32* RESET_STATUS = (u32*)0xD3003420;
+static vu32* HID_STATUS = (u32*)0xD3003440;
 static vu32* HIDMotor = (u32*)0x93002700;
 static vu32* PadUsed = (u32*)0x93002704;
 static vu32* TRIButtons = (u32*)0x93002708;
@@ -46,7 +47,7 @@ const s8 DEADZONE = 0x1A;
 #define C_NSWAP3	(1<<7)
 #define C_ISWAP		(1<<8)
 
-u32 _start()
+u32 _start(u32 calledByGame)
 {
 	// Registers r1,r13-r31 automatically restored if used.
 	// Registers r0, r3-r12 should be handled by calling function
@@ -55,11 +56,17 @@ u32 _start()
 	u32 used = 0;
 
 	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
-	u32 MaxPads = ((NIN_CFG*)0x93002900)->MaxPads;
-	if (MaxPads > NIN_CFG_MAXPAD)
-		MaxPads = NIN_CFG_MAXPAD;
+	u32 MaxPads;
+	if(calledByGame)
+	{
+		MaxPads = ((NIN_CFG*)0x93002900)->MaxPads;
+		if (MaxPads > NIN_CFG_MAXPAD)
+			MaxPads = NIN_CFG_MAXPAD;
+	}
+	else //this file is only used for hid in the loader
+		MaxPads = 0;
 
-	u32 HIDPad = ((((NIN_CFG*)0x93002900)->Config) & NIN_CFG_HID) == 0 ? HID_PAD_NONE : HID_PAD_NOT_SET;
+	u32 HIDPad = (*HID_STATUS == 0) ? HID_PAD_NONE : HID_PAD_NOT_SET;
 	u32 chan;
 	for (chan = 0; (chan < MaxPads); ++chan)
 	{
@@ -235,7 +242,7 @@ u32 _start()
 			}
 		}
 
-		if(HID_CTRL->Power.Mask &&	//shutdown if power configured and all power buttons pressed
+		if(calledByGame && HID_CTRL->Power.Mask &&	//shutdown if power configured and all power buttons pressed
 		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
 		{
 			goto Shutdown;

@@ -48,6 +48,9 @@ MEM2
 0x93003424=dol flush len
 0x93003428=dol flush addr
 
+0x93003440=hid load request
+0x93003460=hid controller ini
+
 0x93005000-0x930050E8=hid controller positions
 0x930050F0-0x93005170=hid packet (may be bigger device dependent)
 
