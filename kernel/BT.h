@@ -26,6 +26,7 @@ void BTUpdateRegisters(void);
 
 struct BTPadStat {
 	u32 controller;
+	u32 timeout;
 	u32 transfertype;
 	u32 transferstate;
 	u32 channel;

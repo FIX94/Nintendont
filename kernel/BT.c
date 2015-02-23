@@ -332,6 +332,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		{
 			//reset
 			stat->controller = C_NOT_SET;
+			stat->timeout = read32(HW_TIMER);
 			stat->transferstate = TRANSFER_EXT1;
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			if(chan < CHAN_NOT_SET)
@@ -548,6 +549,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		{
 			//reset
 			stat->controller = C_NOT_SET;
+			stat->timeout = read32(HW_TIMER);
 			stat->transferstate = TRANSFER_EXT1;
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			if(chan < CHAN_NOT_SET)
@@ -587,6 +589,7 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 		bte_senddata(stat->sock,buf,3);
 		stat->transferstate = TRANSFER_CONNECT;
 		stat->controller = C_NOT_SET;
+		stat->timeout = read32(HW_TIMER);
 	}
 	else
 	{
@@ -757,6 +760,11 @@ void BTUpdateRegisters(void)
 					break;
 				}
 			}
+		}
+		else if(TimerDiffSeconds(BTPadConnected[i]->timeout) >= 20)
+		{
+			bte_disconnect(BTPadConnected[i]->sock);
+			break;
 		}
 		if(CurRumble == 0)
 		{
