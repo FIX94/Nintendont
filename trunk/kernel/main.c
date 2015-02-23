@@ -78,23 +78,32 @@ int _main( int argc, char *argv[] )
 
 //Load IOS Modules
 	ES_Init( MessageHeap );
-	mdelay( 300 ); //give modules time
+
+//Early HID for loader
+	HIDInit();
 
 //Enable DVD Access
 	write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
 
 	dbgprintf("Sending signal to loader\r\n");
 	BootStatus(1, 0, 0);
+	mdelay(10);
 
 //Loader running, selects games
 	while(1)
 	{
 		sync_before_read((void*)RESET_STATUS, 0x20);
 		vu32 reset_status = read32(RESET_STATUS);
-		if(reset_status == 0x0DEA)
-			break; //game selected
-		else if(reset_status == 0x1DEA)
-			goto DoIOSBoot; //exit
+		if(reset_status != 0)
+		{
+			if(reset_status == 0x0DEA)
+				break; //game selected
+			else if(reset_status == 0x1DEA)
+				goto DoIOSBoot; //exit
+			write32(RESET_STATUS, 0);
+			sync_after_write((void*)RESET_STATUS, 0x20);
+		}
+		HIDUpdateRegisters(1);
 		mdelay(10);
 	}
 	ConfigSyncBeforeRead();
@@ -205,22 +214,9 @@ int _main( int argc, char *argv[] )
 	memset32((void*)0x13026500, 0, 0x100);
 	sync_after_write((void*)0x13026500, 0x100);
 
-	bool UseHID = ConfigGetConfig(NIN_CFG_HID);
-	if( UseHID )
-	{
-		ret = HIDInit();
-		if(ret < 0 )
-		{
-			dbgprintf("ES:HIDInit() failed\r\n" );
-			BootStatusError(-8, ret);
-			mdelay(4000);
-			Shutdown();
-		}
-	}
 	BootStatus(9, s_size, s_cnt);
 
 	DIRegister();
-	dbgprintf("DI Thread Start:%08x %08x\r\n", &__di_stack_addr, &__di_stack_size);
 	DI_Thread = thread_create(DIReadThread, NULL, ((u32*)&__di_stack_addr), ((u32)(&__di_stack_size)) / sizeof(u32), 0x78, 1);
 	thread_continue(DI_Thread);
 
@@ -368,7 +364,7 @@ int _main( int argc, char *argv[] )
 		EXIUpdateRegistersNEW();
 		GCAMUpdateRegisters();
 		BTUpdateRegisters();
-		if(UseHID) HIDUpdateRegisters();
+		HIDUpdateRegisters(0);
 		if(DisableSIPatch == 0) SIUpdateRegisters();
 		#endif
 		StreamUpdateRegisters();
@@ -453,7 +449,7 @@ int _main( int argc, char *argv[] )
 		//}
 		cc_ahbMemFlush(1);
 	}
-	if( UseHID )
+	//if( UseHID )
 		HIDClose();
 	IOS_Close(DI_Handle); //close game
 	thread_cancel(DI_Thread, 0);

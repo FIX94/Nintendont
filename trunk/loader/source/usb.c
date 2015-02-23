@@ -614,7 +614,7 @@ s32 USB_OGC_Initialize()
 		}
 	}
 
-	if (hid_host==NULL) {
+	/*if (hid_host==NULL) {
 		s32 hid_fd = IOS_Open(__hid_path, IPC_OPEN_NONE);
 		if (hid_fd>=0) {
 			hid_host = (struct _usbv5_host*)iosAlloc(hId, sizeof(*hid_host));
@@ -639,7 +639,7 @@ s32 USB_OGC_Initialize()
 
 			iosFree(hId, hid_ver);
 		}
-	}
+	}*/
 
 	return IPC_OK;
 

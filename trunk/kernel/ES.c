@@ -131,6 +131,7 @@ s32 ES_BootSystem( void )
 	{
 		Shutdown();
 	}
+	mdelay( 300 ); //give modules time
 
 	free( path );
 	free( size );
