@@ -23,6 +23,8 @@ static const char *TRI_NamcoChar = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + 
 static const u32 TRI_DefaultCoinCount = 9;
 
 static const PADStatus *PadBuff = (PADStatus*)0x13002800;
+static const u32 *IN_TESTMENU = (u32*)0x13002760;
+static u32 TestMenuTimer = 0, TestMenuTimerRunning = 0;
 
 static vu8 jvs_io_buffer[0x80];
 
@@ -221,10 +223,26 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 
 				// Test button
 				if( PadBuff[0].button & PAD_TRIGGER_Z )
-					addDataByte(0x80);
+				{
+					sync_before_read((void*)IN_TESTMENU, 0x20);
+					if(*IN_TESTMENU || TRIGame == TRI_SB)
+						addDataByte(0x80); //allow direct press
+					else
+					{	//start a timeout for the button
+						if(TestMenuTimerRunning == 0)
+						{
+							TestMenuTimer = read32(HW_TIMER);
+							TestMenuTimerRunning = 1;
+						}
+						//ignore under 2 seconds ingame
+						addDataByte((TimerDiffSeconds(TestMenuTimer) < 2) ? 0x00 : 0x80);
+					}
+				}
 				else
+				{
+					TestMenuTimerRunning = 0;
 					addDataByte(0x00);
-
+				}
 				for( i=0; i < PlayerCount; ++i )
 				{
 					unsigned char PlayerData[3] = {0,0,0};

@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set IN_TESTMENU,	0x93002760
+.set IN_TESTMENU,	0xD3002760 #uncached for kernel
 
 #r3 gets overwritten later
 
