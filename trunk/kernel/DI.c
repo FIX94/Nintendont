@@ -274,9 +274,6 @@ void DIinit( bool FirstTime )
 				MultipleDiscs = false;
 			else
 				f_close(&ExistsFile);
-
-			write32( DIP_STATUS, 0x7E ); //clear interrupts and reset
-			write32( DIP_CMD_0, 0xE3000000 ); //spam stop motor
 		}
 		else
 		{
@@ -346,22 +343,15 @@ void DIInterrupt()
 {
 	DI_IRQ = false;
 	/* Update DMA registers when needed */
-	if(read32(DI_SCONTROL) == 3)
+	if(read32(DI_SCONTROL) & 2)
 		write32(DI_DMA_ADR, read32(DI_SDMA_ADR) + read32(DI_SDMA_LEN));
 	write32( DI_DMA_LEN, 0 ); // all data handled, clear length
-	write32( DI_CONTROL, 0 ); // finished command
+	write32( DI_STATUS, read32(DI_STATUS) | 0x10 ); //set TC
+	write32( DI_CONTROL, read32(DI_CONTROL) & 2 ); // finished command
+	write32( EXI2CSR, read32(EXI2CSR) | 4 ); // DI IRQ
 	sync_after_write( (void*)DI_BASE, 0x60 );
+	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 	//dbgprintf("Disc Interrupt\r\n");
-
-	if(RealDiscCMD)
-	{
-		write32( DIP_STATUS, 0x7E ); //clear interrupts and reset
-		write32( DIP_CMD_0, 0xE0000000 ); //spam request error
-		udelay(70);
-	}
-	write32( DIP_CONTROL, 1 ); //start transfer, causes an interrupt, game gets its data
-	while( read32(DIP_CONTROL) & 1 )
-		udelay(70);
 }
 
 static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
@@ -437,15 +427,14 @@ void DIUpdateRegisters( void )
 
 	sync_before_read( (void*)DI_BASE, 0x60 );
 
-	if( read32(DI_CONTROL) != 0 )
+	if( read32(DI_CONTROL) &1 )
 	{
 		udelay(50); //security delay
 		write32( DI_SCONTROL, read32(DI_CONTROL) & 3 );
-		sync_after_write( (void*)DI_BASE, 0x60 );
 
 		if( read32(DI_SCONTROL) & 1 )
 		{
-			for( i = 2; i < 9; ++i )
+			for( i = 2; i < 8; ++i )
 				DInterfaceS[i] = DInterface[i];
 
 			/*

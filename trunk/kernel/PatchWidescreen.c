@@ -77,7 +77,8 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 		dbgprintf("Patch:[Aspect Ratio 1.688] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
-	else if(FirstVal == FLT_ASPECT_1_333 && (read32(Buffer+4) == 0x481c4000 || read32(Buffer+4) == 0xbf800000))
+	else if(FirstVal == FLT_ASPECT_1_333 && (read32(Buffer+4) == 0x481c4000 || 
+		read32(Buffer+4) == 0x3f800000 || read32(Buffer+4) == 0xbf800000))
 	{
 		write32(Buffer, FLT_ASPECT_1_777);
 		dbgprintf("Patch:[Aspect Ratio 1.777] applied (0x%08X)\r\n", Buffer );

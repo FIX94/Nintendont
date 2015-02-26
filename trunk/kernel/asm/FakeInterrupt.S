@@ -12,7 +12,7 @@ FakeInterrupt:
 	lis		%r0,	0x4000
 	stw		%r0,	0x30(%r3)
 
-	lwz		%r0,	0x6828(%r3)			#FAKE_EXI_INT
+	lwz		%r0,	0x6828(%r3)			#DI_EXI_INT
 	or		%r31,	%r31,	%r0
 
 	lwz		%r0,	0x6834(%r3)			#FAKE_SI_INT

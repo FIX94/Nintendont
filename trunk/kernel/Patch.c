@@ -1366,6 +1366,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x000D9F14, 0x60000000 ); //select character
 		write32( 0x001A8CF8, 0x60000000 ); //select cup
 		write32( 0x001A89B8, 0x60000000 ); //select round
+		write32( 0x001A36CC, 0x60000000 ); //select item pack (card)
 		write32( 0x001A2A10, 0x60000000 ); //select item (card)
 		write32( 0x001B9724, 0x60000000 ); //continue
 		write32( 0x001E61B4, 0x60000000 ); //rewrite rank
@@ -2720,9 +2721,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								}
 							}
 						} break;
+						case FCODE_PADControlAllMotors:
+						{
+							u32 CheckOffset = CurPatterns[j].Length - 0x24;
+							if((read32(FOffset+CheckOffset) & 0xFC00FFFF) != 0x2C000000) //cmpwi rX, 0
+							{
+								CurPatterns[j].Found = 0; // False hit
+								break;
+							}
+							memcpy((void*)FOffset, PADControlAllMotors, PADControlAllMotors_size);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+						} break;
 						case FCODE_PADControlMotor:
 						{
-							if(read32(FOffset+0x24) != 0x3C008000)
+							if((read32(FOffset+0x24) & 0xFC00FFFF) != 0x3C008000) //lis rX, 0x8000
 							{
 								CurPatterns[j].Found = 0; // False hit
 								break;

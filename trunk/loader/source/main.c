@@ -116,7 +116,6 @@ int main(int argc, char **argv)
 	CheckForGecko();
 	DCInvalidateRange(loader_stub, 0x1800);
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
-	DCFlushRange(loader_stub, 0x1800);
 
 	RAMInit();
 
