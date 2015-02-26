@@ -289,12 +289,9 @@ int _main( int argc, char *argv[] )
 	{
 		_ahbMemFlush(0);
 
-		//Check this.  Purpose is to send another interrupt if wasn't processed
-		/*if (((read32(0x14) != 0) || (read32(0x13026514) != 0))
-			&& (read32(HW_ARMIRQFLAG) & (1 << 30)) == 0)
-		{
+		//Does DI as well as EXI again if needed
+		if(read32( EXI2CSR ) != 0)
 			write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
-		}*/
 		#ifdef PATCHALL
 		if (EXI_IRQ == true)
 		{

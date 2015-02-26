@@ -88,6 +88,7 @@ enum
 										//EXIntrruptHandler_B,	
 										//EXIntrruptHandler_C,
 	FCODE_PADRead,
+	FCODE_PADControlAllMotors,
 	FCODE_PADControlMotor,
 	FCODE_PADIsBarrel,
 	FCODE_EXIDMA,
@@ -250,8 +251,9 @@ FuncPattern SIFPatterns[] =
 	{  0x2A8,   66,    4,   20,   17,   14,	NULL,				FCODE_PADRead,				"PADRead",				"DBG A",	FGROUP_PADRead,				0 },
 	{  0x2AC,   65,    3,   15,   16,   18,	NULL,				FCODE_PADRead,				"PADRead",				"DBG B",	FGROUP_PADRead,				0 },
 
-	{   0xB4,    8,    2,    5,    4,    5,	PADControlAllMotors,PADControlAllMotors_size,	"PADControlAllMotors",	"A",		FGROUP_PADControlAllMotors,	0 },
-	{   0xC8,    9,    2,    5,    5,    5,	PADControlAllMotors,PADControlAllMotors_size,	"PADControlAllMotors",	"B",		FGROUP_PADControlAllMotors,	0 },
+	{   0xB4,    8,    2,    5,    4,    5,	NULL,				FCODE_PADControlAllMotors,	"PADControlAllMotors",	"A",		FGROUP_PADControlAllMotors,	0 },
+	{   0xC8,    9,    2,    5,    5,    5,	NULL,				FCODE_PADControlAllMotors,	"PADControlAllMotors",	"B",		FGROUP_PADControlAllMotors,	0 },
+	{   0xC8,   13,    2,    4,    4,    6,	NULL,				FCODE_PADControlAllMotors,	"PADControlAllMotors",	"C",		FGROUP_PADControlAllMotors,	0 },
 
 	{   0xB4,   11,    5,    5,    3,    5,	NULL,				FCODE_PADControlMotor,		"PADControlMotor",		"A",		FGROUP_PADControlMotor,		0 },
 	{   0xA0,   10,    5,    5,    2,    5,	NULL,				FCODE_PADControlMotor,		"PADControlMotor",		"B",		FGROUP_PADControlMotor,		0 },
