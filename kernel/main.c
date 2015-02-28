@@ -290,7 +290,7 @@ int _main( int argc, char *argv[] )
 		_ahbMemFlush(0);
 
 		//Does DI as well as EXI again if needed
-		if(read32( EXI2CSR ) != 0)
+		if (read32(EXI2CSR) & 0x14)
 			write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
 		#ifdef PATCHALL
 		if (EXI_IRQ == true)

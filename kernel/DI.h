@@ -17,19 +17,6 @@
 #define		DI_IMM		(DI_BASE+0x20)
 #define		DI_CONFIG	(DI_BASE+0x24)
 
-#define		DI_SHADOW	(DI_BASE + 0x30)
-
-#define		DI_SSTATUS	(DI_SHADOW+0x00)
-#define		DI_SCOVER	(DI_SHADOW+0x04)
-#define		DI_SCMD_0	(DI_SHADOW+0x08)
-#define		DI_SCMD_1	(DI_SHADOW+0x0C)
-#define		DI_SCMD_2	(DI_SHADOW+0x10)
-#define		DI_SDMA_ADR	(DI_SHADOW+0x14)
-#define		DI_SDMA_LEN	(DI_SHADOW+0x18)
-#define		DI_SCONTROL	(DI_SHADOW+0x1C)
-#define		DI_SIMM		(DI_SHADOW+0x20)
-#define		DI_SCONFIG	(DI_SHADOW+0x24)
-
 #define		DIP_BASE	0x0D806000
 
 #define		DIP_STATUS	(DIP_BASE+0x00)
