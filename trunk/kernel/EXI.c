@@ -223,10 +223,11 @@ void EXIInterrupt(void)
 {
 	write32( 0x10, IRQ_Cause );
 	write32( 0x18, IRQ_Cause2 );
-	write32( EXI2CSR, read32(EXI2CSR) | 0x10 );		// EXI IRQ
 	sync_after_write( (void*)0, 0x20 );
+	udelay(50); //security delay
+	write32( EXI2CSR, read32(EXI2CSR) | 0x10 );		// EXI IRQ
 	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-
+	//dbgprintf("EXI Interrupt\r\n");
 	EXI_IRQ = false;
 	IRQ_Timer = 0;
 	IRQ_Cause = 0;
@@ -784,6 +785,9 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 
 void EXIUpdateRegistersNEW( void )
 {
+	if( EXI_IRQ == true || read32(EXI2CSR) & 0x10 )
+		return;
+
 	//u32 chn, dev, frq, ret, data, len, mode;
 	u32 chn, dev, ret, data, len, mode;
 	u8 *ptr;

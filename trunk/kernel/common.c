@@ -156,7 +156,7 @@ void Shutdown( void )
 	//}
 
 	for( i = 0; i < 0x30; i+=4 )
-		dbgprintf("0x%08X:0x%08X\t0x%08X\r\n", i, read32( DI_BASE + i ), read32( DI_SHADOW + i ) );
+		dbgprintf("0x%08X:0x%08X\r\n", i, read32( DI_BASE + i ) );
 	dbgprintf("\r\n");
 
 	for( i = 0; i < 0x30; i+=4 )
