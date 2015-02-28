@@ -51,6 +51,27 @@ extern u32 SystemRegion;
 #define PRS_DOL     0x131C0000
 #define PRS_EXTRACT 0x131C0020
 
+#define PATCH_STATE_NONE  0
+#define PATCH_STATE_LOAD  1
+#define PATCH_STATE_PATCH 2
+#define PATCH_STATE_DONE  4
+
+#define PSO_STATE_NONE    0
+#define PSO_STATE_LOAD    1
+#define PSO_STATE_PSR     2
+#define PSO_STATE_NOENTRY 4
+#define PSO_STATE_SWITCH  8
+
+u32 PatchState = PATCH_STATE_NONE;
+u32 PSOHack    = PSO_STATE_NONE;
+u32 ELFLoading = 0;
+u32 DOLSize    = 0;
+u32 DOLMinOff  = 0;
+u32 DOLMaxOff  = 0;
+vu32 TRI_BackupAvailable = 0;
+vu32 GameEntry = 0, FirstLine = 0;
+u32 AppLoaderSize = 0;
+
 extern u32 prs_decompress(void* source,void* dest);
 extern u32 prs_decompress_size(void* source);
 
@@ -838,6 +859,9 @@ void PatchPatchBuffer(char *dst)
 
 bool GameNeedsHook()
 {
+	if( (TITLE_ID) == 0x473258 )	// Sonic Gems Collection
+		return (DOLSize != 1440100 && DOLSize != 1439812); //Everything except Sonic Fighters
+
 	return( (TITLE_ID) == 0x474234 ||	// Burnout 2
 			(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
 			(TITLE_ID) == 0x474146 ||	// Animal Crossing
@@ -853,7 +877,6 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x474D5A ||	// Monster 4x4: Masters Of Metal
 			(TITLE_ID) == 0x47504C ||	// Piglet's Big Game
 			(TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
-			(TITLE_ID) == 0x473258 ||	// Sonic Gems Collection
 			(TITLE_ID) == 0x47534F ||	// Sonic Mega Collection
 			(GAME_ID) == 0x4747504A);	// SD Gundam Gashapon Wars
 }
@@ -961,27 +984,6 @@ static inline void printpatchfound(const char *name, const char *type, u32 offse
 #define printvidpatch(...)
 #define printpatchfound(...)
 #endif
-
-#define PATCH_STATE_NONE  0
-#define PATCH_STATE_LOAD  1
-#define PATCH_STATE_PATCH 2
-#define PATCH_STATE_DONE  4
-
-#define PSO_STATE_NONE    0
-#define PSO_STATE_LOAD    1
-#define PSO_STATE_PSR     2
-#define PSO_STATE_NOENTRY 4
-#define PSO_STATE_SWITCH  8
-
-u32 PatchState = PATCH_STATE_NONE;
-u32 PSOHack    = PSO_STATE_NONE;
-u32 ELFLoading = 0;
-u32 DOLSize    = 0;
-u32 DOLMinOff  = 0;
-u32 DOLMaxOff  = 0;
-vu32 TRI_BackupAvailable = 0;
-vu32 GameEntry = 0, FirstLine = 0;
-u32 AppLoaderSize = 0;
 
 int GotoFuncStart(int i, u32 Buffer)
 {
@@ -3110,6 +3112,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			*(vu32*)(0x00006858) = 0x60000000;		//OSReport disabled patch
 			PatchB( 0x00006950, 0x003191BC );
 		}*/
+	}
+	else if( TITLE_ID == 0x475832 )	// X-Men Legends 2
+	{
+		//Fix a Bad Jump in the code
+		if(write32A(0x0018A764, 0x4182021C, 0x41820018, 0))
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched X-Men Legends 2 NTSC-U\r\n");
+			#endif
+		}
 	}
 	PatchStaticTimers();
 
