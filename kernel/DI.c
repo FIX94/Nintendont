@@ -64,6 +64,10 @@ extern u32 RealDiscCMD;
 u8 *DI_READ_BUFFER = (u8*)0x12E80000;
 u32 DI_READ_BUFFER_LENGTH = 0x80000;
 
+// Simulating Disc Read Speed
+u32 CMDStartTime = 0;
+u32 CMDTicks = UINT_MAX;
+
 // Triforce
 extern vu32 TRIGame;
 extern vu32 useipltri;
@@ -339,6 +343,9 @@ bool DIChangeDisc( u32 DiscNumber )
 
 void DIInterrupt()
 {
+	/* Very basic read speed */
+	if(CMDTicks < UINT_MAX && TimerDiffTicks(CMDStartTime) < CMDTicks)
+		return;
 	/* Update DMA registers when needed */
 	if(read32(DI_CONTROL) & 2)
 		write32(DI_DMA_ADR, read32(DI_DMA_ADR) + read32(DI_DMA_LEN));
@@ -424,6 +431,8 @@ void DIUpdateRegisters( void )
 	sync_before_read( (void*)DI_BASE, 0x40 );
 	if( read32(DI_CONTROL) & 1 )
 	{
+		CMDStartTime = read32(HW_TIMER);
+		CMDTicks = UINT_MAX; //reset value
 		udelay(50); //security delay
 		write32( DI_STATUS, read32(DI_STATUS) & 0x2A ); //clear status
 
@@ -842,11 +851,11 @@ u32 DIReadThread(void *arg)
 					mqueue_ack( di_msg, 0 );
 					break;
 				}
+				u32 prev_offset = di_length + di_offset;
 				di_src = 0;
 				di_dest = (char*)di_msg->ioctl.buffer_io;
 				di_length = di_msg->ioctl.length_io;
 				di_offset = ((u32)di_msg->ioctl.buffer_in) + ISOShift;
-
 				u32 Offset = 0;
 				u32 Length = di_length;
 				for (Offset = 0; Offset < di_length; Offset += Length)
@@ -862,7 +871,14 @@ u32 DIReadThread(void *arg)
 					memcpy( di_dest + Offset, di_src, Length > di_length ? di_length : Length );
 				}
 				if(di_msg->ioctl.command == 0)
+				{
 					DoPatches(di_dest, di_length, di_offset);
+					if(RealDiscCMD == 0 && TRIGame == TRI_NONE) //emulate disc read speed
+					{
+						CMDTicks = di_length / 1.657; //assuming we read about 3mb per second
+						if(prev_offset != di_offset) CMDTicks += 9492; //50ms seek time
+					}
+				}
 				sync_after_write( di_dest, di_length );
 				mqueue_ack( di_msg, 0 );
 				break;

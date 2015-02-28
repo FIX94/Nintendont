@@ -853,6 +853,8 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x474D5A ||	// Monster 4x4: Masters Of Metal
 			(TITLE_ID) == 0x47504C ||	// Piglet's Big Game
 			(TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
+			(TITLE_ID) == 0x473258 ||	// Sonic Gems Collection
+			(TITLE_ID) == 0x47534F ||	// Sonic Mega Collection
 			(GAME_ID) == 0x4747504A);	// SD Gundam Gashapon Wars
 }
 
@@ -2370,8 +2372,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							switch( TITLE_ID )
 							{
 								case 0x505A4C:	// The Legend of Zelda: Collector's Edition
-									if( !(DOLSize == 3847012 || DOLSize == 3803812) )			// only patch the main.dol of the Zelda:ww game 
-										break;
+									if( !(DOLSize == 3847012 || DOLSize == 3803812 || DOLSize == 3763812) )
+										break;	// only patch the main.dol of the Zelda:ww game
 								case 0x475A4C:	// The Legend of Zelda: The Wind Waker
 								case 0x475352:	// Smugglers Run: Warezones
 								{
@@ -2545,7 +2547,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									 (TITLE_ID) == 0x474154 ||	// ATV Quad Power Racing 2
 									 (TITLE_ID) == 0x47504E ||	// P.N.03
 									 (TITLE_ID) == 0x474D4F ||	// Micro Machines
-									 (TITLE_ID) == 0x473258 ||	// Sonic Gems Collection
 									 (TITLE_ID) == 0x475355 ||	// Superman: Shadow of Apokolips
 									 (TITLE_ID) == 0x443737 )	// Multi-Game Demo Disc 18
 							{
