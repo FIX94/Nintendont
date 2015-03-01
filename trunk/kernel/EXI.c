@@ -204,8 +204,8 @@ void EXIInit( void )
 extern vu32 TRIGame;
 void EXISetTimings(u32 TitleID, u32 Region)
 {
-	if((TitleID == 0x474637 && Region == REGION_ID_USA) || //Starfox Assault NTSC
-		TitleID == 0x475832)	//X-Men Legends 2
+	if((TitleID == 0x474637 && Region == REGION_ID_USA) || //Starfox Assault NTSC,
+		TitleID == 0x475832 || TitleID == 0x473633 )	//X-Men Legends 2 or Rainbow Six 3
 		CurrentTiming = EXI_IRQ_INSTANT;
 	else if(TitleID == 0x474C4D) //Luigis Mansion
 		CurrentTiming = EXI_IRQ_SLOW;

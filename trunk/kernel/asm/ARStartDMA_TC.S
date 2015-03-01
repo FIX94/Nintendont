@@ -25,65 +25,64 @@ ARStartDMA:
 	oris	%r5,	%r5,	0x9000
 
 	cmpwi	%r3,	AR_MRAM_TO_ARAM
-	beq		memcpyPrep		#we dont need to invalidate main mem
+	beq		memcpy32prep
 
 ARAM_TO_MRAM:
 	mr		%r0,	%r4
 	mr		%r4,	%r5
 	mr		%r5,	%r0
 
-	srwi	%r0,	%r6,	5
+memcpy32prep:
+	li		%r7,	0
+	cmplwi	%r6,	3
+	ble		memcpy16prep
+	srwi	%r0,	%r6,	2	#32bit
 	mtctr	%r0
-	mr		%r7,	%r4
-
-	li		%r0,	0
-DCInvalidateRange:
-	dcbi	%r0,	%r7
-	addi	%r7,	%r7,	0x20
-	bdnz	DCInvalidateRange
-	sync
-
-memcpyPrep:
-	mr		%r7,	%r6		#save length
-memcpy:
-	addic.	%r7,	%r7,	-4
+memcpy32:
 	lwzx	%r0,	%r4,	%r7
 	stwx	%r0,	%r5,	%r7
-	bne		memcpy
+	addi	%r7,	%r7,	4
+	bdnz	memcpy32
 
-DCFlushRangePrep:
-	srwi	%r0,	%r6,	5
+memcpy16prep:
+	subf	%r0,	%r7,	%r6
+	cmpwi	%r0,	1
+	ble		memcpy8prep
+memcpy16:
+	lhzx	%r0,	%r4,	%r7
+	sthx	%r0,	%r5,	%r7
+	addi	%r7,	%r7,	2
+
+memcpy8prep:
+	subf	%r0,	%r7,	%r6
+	cmpwi	%r0,	0
+	ble		DCStoreRangePrep
+memcpy8:
+	lbzx	%r0,	%r4,	%r7
+	stbx	%r0,	%r5,	%r7
+
+DCStoreRangePrep:
+	addi	%r0,	%r6,	0x1F
+	srwi	%r0,	%r0,	5
 	mtctr	%r0
 
 	li		%r0,	0
-DCFlushRange:
+DCStoreRange:
 	dcbf	%r0,	%r5
 	addi	%r5,	%r5,	0x20
-	bdnz	DCFlushRange
+	bdnz	DCStoreRange
 	sync
 
-#Early Exception Numbers from:
-#https://code.google.com/p/dolphin-emu/source/browse/Source/Core/Core/HW/DSP.cpp#702
-
 #ARAM Transfer Fake
-	cmpwi	%r6,	0x1800
-	bgt		LateIRQ
-	cmpwi	%r6,	0x800
-	ble		LateIRQ
+	cmplwi	%r6,	0x1000
+	bne		LateIRQ
 
 EarlyIRQ:
 	li		%r6,	0
 	b		FakeTransfer
 
 LateIRQ:
-	srwi	%r6,	%r6,	4
-
-	li		%r0,	0x80
-	slwi	%r0,	%r0,	8
-
-	cmpwi	%r6,	%r0
-	ble		FakeTransfer
-	mr		%r6,	%r0
+	srwi	%r6,	%r6,	5	#r6 / 0x20
 
 FakeTransfer:
 	lis		%r3,	AR_DMA_CNT@h
