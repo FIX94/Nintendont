@@ -58,6 +58,7 @@
 #include "asm/DVDLowAudioBufferConfig.h"
 #include "asm/__GXSetVAT.h"
 #include "asm/DatelTimer.h"
+#include "asm/SonicRidersCopy.h"
 
 unsigned char SRAM[64] =
 {

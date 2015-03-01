@@ -62,6 +62,14 @@ extern u32 SystemRegion;
 #define PSO_STATE_NOENTRY 4
 #define PSO_STATE_SWITCH  8
 
+#define SONICRIDERS_BASE_NTSCU	0x4FBD00
+#define SONICRIDERS_BASE_NTSCJ	0x4FBD00
+#define SONICRIDERS_BASE_PAL	0x4FBDC0
+
+#define SONICRIDERS_HOOK_NTSCU	0x555214
+#define SONICRIDERS_HOOK_NTSCJ	0x5551A8
+#define SONICRIDERS_HOOK_PAL	0x5554E8
+
 u32 PatchState = PATCH_STATE_NONE;
 u32 PSOHack    = PSO_STATE_NONE;
 u32 ELFLoading = 0;
@@ -1265,7 +1273,27 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	if( TRIGame == TRI_SB && Length == 0x1C0 && *((vu8*)Buffer+0x0F) == 0x06 )
 	{	/* Fixes Caution 51 */
 		*((vu8*)Buffer+0x0F) = 0x07;
-		//dbgprintf("TRI:Patched boot.id Video Mode\r\n");
+		dbgprintf("TRI:Patched boot.id Video Mode\r\n");
+	}
+
+	/* Modify Sonic Riders _Main.rel not crash on certain mem copies */
+	if( (GAME_ID) == 0x47584545 && (u32)Buffer == SONICRIDERS_BASE_NTSCU
+		&& Length == 0x80000 && read32(SONICRIDERS_HOOK_NTSCU) == 0x7CFF3B78 )
+	{
+		PatchBL(PatchCopy(SonicRidersCopy, SonicRidersCopy_size), SONICRIDERS_HOOK_NTSCU);
+		dbgprintf("Patch:Patched Sonic Riders _Main.rel NTSC-U\r\n");
+	}
+	else if( (GAME_ID) == 0x4758454A && (u32)Buffer == SONICRIDERS_BASE_NTSCJ
+		&& Length == 0x80000 && read32(SONICRIDERS_HOOK_NTSCJ) == 0x7CFF3B78 )
+	{
+		PatchBL(PatchCopy(SonicRidersCopy, SonicRidersCopy_size), SONICRIDERS_HOOK_NTSCJ);
+		dbgprintf("Patch:Patched Sonic Riders _Main.rel NTSC-J\r\n");
+	}
+	else if( (GAME_ID) == 0x47584550 && (u32)Buffer == SONICRIDERS_BASE_PAL
+		&& Length == 0x80000 && read32(SONICRIDERS_HOOK_PAL) == 0x7CFF3B78 )
+	{
+		PatchBL(PatchCopy(SonicRidersCopy, SonicRidersCopy_size), SONICRIDERS_HOOK_PAL);
+		dbgprintf("Patch:Patched Sonic Riders _Main.rel PAL\r\n");
 	}
 
 	if (!(PatchState & PATCH_STATE_PATCH))
