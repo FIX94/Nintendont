@@ -2569,7 +2569,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									CurPatterns[j].Found = 0; // False hit
 									break;
 								}
-								PatchBL( PatchCopy(ARStartDMA_Hook, sizeof(ARStartDMA_Hook)), (FOffset + PatchOffset) );
+								PatchBL( PatchCopy(ARStartDMA_Hook, ARStartDMA_Hook_size), (FOffset + PatchOffset) );
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + PatchOffset);
 								break;
 							}
@@ -2580,11 +2580,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									 (TITLE_ID) == 0x475355 ||	// Superman: Shadow of Apokolips
 									 (TITLE_ID) == 0x443737 )	// Multi-Game Demo Disc 18
 							{
-								memcpy( (void*)FOffset, ARStartDMA_PM, sizeof(ARStartDMA_PM) );
+								memcpy( (void*)FOffset, ARStartDMA_PM, ARStartDMA_PM_size );
+							}
+							else if( (TITLE_ID) == 0x474759 ||	// Tom Clancy's Ghost Recon 2
+									 (TITLE_ID) == 0x473633 )	// Tom Clancy's Rainbow Six 3
+							{
+								memcpy( (void*)FOffset, ARStartDMA_TC, ARStartDMA_TC_size );
 							}
 							else
 							{
-								memcpy( (void*)FOffset, ARStartDMA, sizeof(ARStartDMA) );
+								memcpy( (void*)FOffset, ARStartDMA, ARStartDMA_size );
 							}
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
