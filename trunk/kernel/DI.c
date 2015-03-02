@@ -353,8 +353,8 @@ void DIInterrupt()
 	write32( DI_STATUS, read32(DI_STATUS) | 0x10 ); //set TC
 	write32( DI_CONTROL, read32(DI_CONTROL) & 2 ); // finished command
 	sync_after_write( (void*)DI_BASE, 0x40 );
-	udelay(50); //security delay
-	write32( EXI2CSR, read32(EXI2CSR) | 4 ); // DI IRQ
+	write32( DI_INT, 0x4 ); // DI IRQ
+	sync_after_write( (void*)DI_INT, 0x20 );
 	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 	//dbgprintf("Disc Interrupt\r\n");
 	DI_IRQ = false;
@@ -422,7 +422,7 @@ static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
 
 void DIUpdateRegisters( void )
 {
-	if( DI_IRQ == true || read32(EXI2CSR) & 4 )
+	if( DI_IRQ == true || read32(DI_INT) & 4 )
 		return;
 
 	u32 i;

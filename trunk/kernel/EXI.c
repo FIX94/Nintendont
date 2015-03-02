@@ -68,10 +68,6 @@ void EXIInit( void )
 	memset32((void*)EXI_BASE, 0, 0x20);
 	sync_after_write((void*)EXI_BASE, 0x20);
 
-	write32( EXI2CSR, 0 );
-	write32( EXI2CR, 0 );
-	write32( EXI2DATA, 0 );
-
 	u32 GameID = ConfigGetGameID();
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 	{
@@ -225,8 +221,8 @@ void EXIInterrupt(void)
 	write32( 0x10, IRQ_Cause );
 	write32( 0x18, IRQ_Cause2 );
 	sync_after_write( (void*)0, 0x20 );
-	udelay(50); //security delay
-	write32( EXI2CSR, read32(EXI2CSR) | 0x10 );		// EXI IRQ
+	write32( EXI_INT, 0x10 ); // EXI IRQ
+	sync_after_write( (void*)EXI_INT, 0x20 );
 	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
 	//dbgprintf("EXI Interrupt\r\n");
 	EXI_IRQ = false;
@@ -786,7 +782,7 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 
 void EXIUpdateRegistersNEW( void )
 {
-	if( EXI_IRQ == true || read32(EXI2CSR) & 0x10 )
+	if( EXI_IRQ == true || read32(EXI_INT) & 0x10 )
 		return;
 
 	//u32 chn, dev, frq, ret, data, len, mode;

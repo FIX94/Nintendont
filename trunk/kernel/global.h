@@ -158,13 +158,6 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define HW_GPIO_IN		(HW_BASE+0xE8)
 #define HW_GPIO_OWNER	(HW_BASE+0xFC)
 
-//used by exi channel 2 which we dont need
-#define EXI2CSR			(HW_BASE+0x6828) //bit 0-13 are usable
-#define EXI2MAR			(HW_BASE+0x682C) //bit 4-22 are usable
-#define EXI2LENGTH		(HW_BASE+0x6830) //bit 4-22 are usable
-#define EXI2CR			(HW_BASE+0x6834) //bit 1-5 are usable
-#define EXI2DATA		(HW_BASE+0x6838) //all bits are usable
-
 #define GPIO_POWER		(1<<0)
 #define GPIO_SHUTDOWN	(1<<1)
 #define GPIO_SLOT_LED	(1<<5)
@@ -172,6 +165,16 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define P2C(x)			((x)&0x7FFFFFFF)
 
 #define DI_DISABLEDVD	(1<<21)
+
+#define INT_BASE		0x13026500
+#define RSW_INT			(INT_BASE+0x00) //0x2
+#define DI_INT			(INT_BASE+0x20) //0x4
+#define SI_INT			(INT_BASE+0x40) //0x8
+#define EXI_INT			(INT_BASE+0x60) //0x10
+
+#define STREAMING		0x13026580
+#define UPDATE_STREAM	0x130265A0
+#define AI_ADP_LOC		0x130265C0
 
 enum Gameregion
 {

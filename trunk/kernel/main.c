@@ -289,8 +289,10 @@ int _main( int argc, char *argv[] )
 	{
 		_ahbMemFlush(0);
 
-		//Does DI as well as EXI again if needed
-		if (read32(EXI2CSR) & 0x14)
+		//Does interrupts again if needed
+		sync_before_read((void*)INT_BASE, 0x80);
+		if((read32(RSW_INT) & 2) || (read32(DI_INT) & 4) || 
+			(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10))
 			write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
 		#ifdef PATCHALL
 		if (EXI_IRQ == true)
@@ -385,14 +387,16 @@ int _main( int argc, char *argv[] )
 			if (Reset == 0)
 			{
 				dbgprintf("Fake Reset IRQ\n");
-				write32(EXI2DATA, 0x2); // Reset irq
+				write32( RSW_INT, 0x2 ); // Reset irq
+				sync_after_write( (void*)RSW_INT, 0x20 );
 				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
 				Reset = 1;
 			}
 		}
 		else if (Reset == 1)
 		{
-			write32(EXI2DATA, 0x10000); // send pressed
+			write32( RSW_INT, 0x10000 ); // send pressed
+			sync_after_write( (void*)RSW_INT, 0x20 );
 			ResetTimer = read32(HW_TIMER);
 			Reset = 2;
 		}
@@ -401,9 +405,8 @@ int _main( int argc, char *argv[] )
 		{
 			if (TimerDiffTicks(ResetTimer) > 949219) //free after half a second
 			{
-				write32(EXI2DATA, 0); // done, clear
-				write32(RESET_STATUS, 0);
-				sync_after_write( (void*)RESET_STATUS, 0x20 );
+				write32( RSW_INT, 0 ); // done, clear
+				sync_after_write( (void*)RSW_INT, 0x20 );
 				Reset = 0;
 			}
 		}

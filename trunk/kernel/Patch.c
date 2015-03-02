@@ -3235,8 +3235,9 @@ void PatchGame()
 	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
 	write32(0x13002744, PADSwitchRequired() && (useipl == 0));
 	sync_after_write((void*)0x13002740, 0x20);
-	/* Clear main IRQ register */
-	write32(EXI2CSR, 0);
+	/* Clear very actively used areas */
+	memset32((void*)0x13026500, 0, 0x100);
+	sync_after_write((void*)0x13026500, 0x100);
 	/* Clear AR positions */
 	memset32((void*)0x131C0040, 0, 0x20);
 	sync_after_write((void*)0x131C0040, 0x20);
