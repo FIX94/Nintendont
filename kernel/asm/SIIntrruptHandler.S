@@ -1,19 +1,14 @@
 #include <asm.h>
 
-.set FAKE_SI_INT,	0xCD806834
+.set	INT_BASE,	0xD3026500
+.set	SI_INT,		INT_BASE+0x40
 
 SIIntrruptHandler:
+	#original instruction
+	stw		%r0,	4(%sp)
 
-	stw		%r0, 4(%sp)
-	
-	lis		%r8,	0xCD80
-	li		%r0,	0x34
-	stw		%r0,	4(%r8)
-
-	li		%r0,	0x0
-	stw		%r0,	FAKE_SI_INT@l(%r8)
-
-	lis		%r0,	0x4000
-	stw		%r0,	0x30(%r8)
+	li		%r0,	0
+	lis		%r8,	INT_BASE@h
+	stw		%r0,	SI_INT@l(%r8)
 
 	blr

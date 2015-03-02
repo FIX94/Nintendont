@@ -20,9 +20,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 .set	AI_ADP_BUF,		0x93280000
 
-.set	UPDATE_STREAM,	0xCD80682C
-.set	REAL_STREAMING,	0xCD80682E
-.set	AI_ADP_LOC,		0xCD806830
+.set	STREAMING,		0xD3026580
+.set	UPDATE_STREAM,	0xD30265A0
+.set	AI_ADP_LOC,		0xD30265C0
 
 .set	AI_VR,			0xCD806C04
 
@@ -32,9 +32,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #note:r3 and r12 will get overwritten, safe to use
 
 __DSPHandler:
-	lis		%r12,	REAL_STREAMING@h
-	lhz		%r3,	REAL_STREAMING@l(%r12)
-	cmpwi	%r3,	0x20
+	lis		%r12,	STREAMING@h
+	lwz		%r3,	STREAMING@l(%r12)
+	cmpwi	%r3,	1
 	beq		startcp
 	cmpwi	%r0,	0
 	blr
@@ -52,13 +52,14 @@ startcp:
 	stw		%r0,	0x1C(%r1)
 
 #extract from AI directly
-	lis		%r8,	AI_DMA_ADDR@h
-	lwz		%r9,	AI_DMA_ADDR@l(%r8)
+	lis		%r12,	AI_DMA_ADDR@h
+	lwz		%r9,	AI_DMA_ADDR@l(%r12)
 	rlwinm	%r9,	%r9,	0,		7,		26 # 0x01ffffe0
 	oris	%r9,	%r9,	0x8000
-	lhz		%r8,	AI_DMA_SIZE@l(%r8)
+	lhz		%r8,	AI_DMA_SIZE@l(%r12)
 	rlwinm	%r8,	%r8,	5,		12,		31 # 0x000fffe0
 
+	lis		%r12,	AI_ADP_LOC@h
 	lwz		%r4,	AI_ADP_LOC@l(%r12)
 	li		%r3,	0xC40
 	slwi	%r3,	%r3,	4		#BUFSIZE=0xC400
@@ -81,6 +82,7 @@ DCInvalidateRange1:
 
 	li		%r5,	0
 startcopy:
+	lis		%r12,	AI_VR@h
 #left audiostream
 	lhax	%r0,	%r6,	%r4
 #calc volume
@@ -131,6 +133,7 @@ DCFlushRange:
 	bdnz	DCFlushRange
 
 exit:
+	lis		%r12,	AI_ADP_LOC@h
 	stw		%r4,	AI_ADP_LOC@l(%r12)
 
 	lwz		%r0,	0x1C(%r1)
@@ -148,7 +151,8 @@ exit:
 
 changebuffer:
 	li		%r0,	1
-	sth		%r0,	UPDATE_STREAM@l(%r12)
+	lis		%r12,	UPDATE_STREAM@h
+	stw		%r0,	UPDATE_STREAM@l(%r12)
 	li		%r0,	0xC40
 	slwi	%r0,	%r0,	4		#BUFSIZE=0xC400
 	cmplw	%r4,	%r0

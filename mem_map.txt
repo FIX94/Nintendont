@@ -59,8 +59,8 @@ MEM2
 0x93010010-0x93020010=loader and our reload stub
 0x93024000-0x93024060=memory interface
 0x93026400-0x93026500=serial interface
-0x93026500=SI Fake Interrupt
-0x93026520-0x93026600=audio stream information
+0x93026500-0x93026580=fake interrupts
+0x93026580-0x93026600=audio stream information
 0x93100000-0x93150000=ipl fonts buffer (0x1aff00-0x1fff00)
 0x93160000-0x93160008=OSReport (patch_fwrite)
 0x931C0000=PSO PRS dol location

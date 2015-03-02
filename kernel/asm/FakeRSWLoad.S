@@ -1,10 +1,11 @@
 #include <asm.h>
 
-.set FAKE_RSW_INT,	0xCD806838
+.set	INT_BASE,	0xD3026500
+.set	RSW_INT,	INT_BASE+0x00
 
 OSGetResetButtonState:
-	lis		%r5,	FAKE_RSW_INT@h
-	lwz		%r6,	FAKE_RSW_INT@l(%r5)
+	lis		%r5,	INT_BASE@h
+	lwz		%r6,	RSW_INT@l(%r5)
 	cmpwi	%r6,	0
 	beq		end
 	mr		%r0,	%r6

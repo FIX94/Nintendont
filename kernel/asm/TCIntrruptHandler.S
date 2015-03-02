@@ -1,20 +1,14 @@
 #include <asm.h>
 
-.set DI_EXI_INT,	0xCD806828
+.set	INT_BASE,	0xD3026500
+.set	EXI_INT,	INT_BASE+0x60
 
 TCIntrruptHandler:
 	#original instruction
 	stw		%r0,	4(%sp)
 
-	lis		%r8,	0xCD80
-	li		%r0,	0x34
-	stw		%r0,	4(%r8)
-
-	lwz		%r0,	DI_EXI_INT@l(%r8)
-	rlwinm	%r0,	%r0,	0, 28, 26	#~0x10
-	stw		%r0,	DI_EXI_INT@l(%r8)
-
-	lis		%r0,	0x4000
-	stw		%r0,	0x30(%r8)
+	li		%r0,	0
+	lis		%r8,	INT_BASE@h
+	stw		%r0,	EXI_INT@l(%r8)
 
 	blr

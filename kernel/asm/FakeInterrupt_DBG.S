@@ -1,5 +1,12 @@
 #include <asm.h>
 
+#all in different cache blocks
+.set	INT_BASE,	0xD3026500
+.set	RSW_INT,	INT_BASE+0x00
+.set	DI_INT,		INT_BASE+0x20
+.set	SI_INT,		INT_BASE+0x40
+.set	EXI_INT,	INT_BASE+0x60
+
 FakeInterrupt:
 
 #check if IPC IRQ
@@ -12,14 +19,18 @@ FakeInterrupt:
 	lis		%r0,	0x4000
 	stw		%r0,	0x30(%r3)
 
-	lwz		%r0,	0x6828(%r3)			#DI_EXI_INT
-	or		%r29,	%r29,	%r0
+	lis		%r3,	INT_BASE@h
+	lwz		%r0,	RSW_INT@l(%r3)
+	rlwimi	%r29,	%r0,	0, 30, 30	#0x2
 
-	lwz		%r0,	0x6834(%r3)			#FAKE_SI_INT
-	or		%r29,	%r29,	%r0
+	lwz		%r0,	DI_INT@l(%r3)
+	rlwimi	%r29,	%r0,	0, 29, 29	#0x4
 
-	lwz		%r0,	0x6838(%r3)			#FAKE_RSW_INT
-	or		%r29,	%r29,	%r0
+	lwz		%r0,	SI_INT@l(%r3)
+	rlwimi	%r29,	%r0,	0, 28, 28	#0x8
+
+	lwz		%r0,	EXI_INT@l(%r3)
+	rlwimi	%r29,	%r0,	0, 27, 27	#0x10
 
 end:
 	lis		%r3,	0xCC00

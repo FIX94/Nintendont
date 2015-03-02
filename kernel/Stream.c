@@ -30,9 +30,6 @@ u32 StreamCurrent = 0;
 u32 StreamLoop = 0;
 
 u8 *StreamBuffer = (u8*)0x132A0000;
-#define UPDATE_STREAM EXI2MAR
-#define REAL_STREAMING (UPDATE_STREAM+2)
-#define AI_ADP_LOC EXI2LENGTH
 
 #define AI_CR 0x0D806C00
 #define AI_32K (1<<6)
@@ -64,10 +61,6 @@ void StreamInit()
 	sync_after_write((void*)buf1, BUFSIZE);
 	memset32((void*)buf2, 0, BUFSIZE);
 	sync_after_write((void*)buf2, BUFSIZE);
-
-	write16(UPDATE_STREAM, 0);
-	write16(REAL_STREAMING, 0);
-	write32(AI_ADP_LOC, 0);
 }
 
 void StreamPrepare()
@@ -156,13 +149,15 @@ u32 StreamGetChunkSize()
 
 void StreamUpdateRegisters()
 {
-	if(read16(UPDATE_STREAM))		//decoder update, it WILL update
+	sync_before_read((void*)UPDATE_STREAM, 0x20);
+	if(read32(UPDATE_STREAM))		//decoder update, it WILL update
 	{
 		if(StreamEnd)
 		{
 			StreamEnd = 0;
 			StreamCurrent = 0;
-			write16(REAL_STREAMING, 0); //stop playing
+			write32(STREAMING, 0); //stop playing
+			sync_after_write((void*)STREAMING, 0x20);
 		}
 		else if(StreamCurrent > 0)
 		{
@@ -183,7 +178,8 @@ void StreamUpdateRegisters()
 			}
 			StreamUpdate();
 		}
-		write16(UPDATE_STREAM, 0); //clear status
+		write32(UPDATE_STREAM, 0); //clear status
+		sync_after_write((void*)UPDATE_STREAM, 0x20);
 	}
 }
 
@@ -206,8 +202,9 @@ void StreamStartStream(u32 CurrentStart, u32 CurrentSize)
 		StreamUpdate();
 		/* Send stream signal to PPC */
 		write32(AI_ADP_LOC, 0); //reset adp read pos
-		write16(UPDATE_STREAM, 0); //clear status
-		write16(REAL_STREAMING, 0x20); //set stream flag
+		write32(UPDATE_STREAM, 0); //clear status
+		write32(STREAMING, 1); //set stream flag
+		sync_after_write((void*)STREAMING, 0x60);
 		//dbgprintf("Streaming %08x %08x\n", StreamStart, StreamSize);
 		StreamLoop = 1;
 		StreamEnd = 0;
@@ -219,5 +216,6 @@ void StreamStartStream(u32 CurrentStart, u32 CurrentSize)
 void StreamEndStream()
 {
 	StreamCurrent = 0;
-	write16(REAL_STREAMING, 0); //clear stream flag
+	write32(STREAMING, 0); //clear stream flag
+	sync_after_write((void*)STREAMING, 0x20);
 }
