@@ -262,6 +262,7 @@ int _main( int argc, char *argv[] )
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
+	u32 InterruptTimer = Now;
 	USBReadTimer = Now;
 	u32 Reset = 0;
 	bool SaveCard = false;
@@ -290,10 +291,14 @@ int _main( int argc, char *argv[] )
 		_ahbMemFlush(0);
 
 		//Does interrupts again if needed
-		sync_before_read((void*)INT_BASE, 0x80);
-		if((read32(RSW_INT) & 2) || (read32(DI_INT) & 4) || 
-			(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10))
-			write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+		if(TimerDiffTicks(InterruptTimer) > 15820) //about 120 times a second
+		{
+			sync_before_read((void*)INT_BASE, 0x80);
+			if((read32(RSW_INT) & 2) || (read32(DI_INT) & 4) || 
+				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10))
+				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+			InterruptTimer = read32(HW_TIMER);
+		}
 		#ifdef PATCHALL
 		if (EXI_IRQ == true)
 		{

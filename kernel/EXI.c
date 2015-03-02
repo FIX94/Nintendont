@@ -782,7 +782,7 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 
 void EXIUpdateRegistersNEW( void )
 {
-	if( EXI_IRQ == true || read32(EXI_INT) & 0x10 )
+	if( EXI_IRQ == true ) //still working
 		return;
 
 	//u32 chn, dev, frq, ret, data, len, mode;

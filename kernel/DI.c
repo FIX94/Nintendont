@@ -346,17 +346,22 @@ void DIInterrupt()
 	/* Very basic read speed */
 	if(CMDTicks < UINT_MAX && TimerDiffTicks(CMDStartTime) < CMDTicks)
 		return;
+	sync_before_read( (void*)DI_BASE, 0x40 );
 	/* Update DMA registers when needed */
 	if(read32(DI_CONTROL) & 2)
 		write32(DI_DMA_ADR, read32(DI_DMA_ADR) + read32(DI_DMA_LEN));
 	write32( DI_DMA_LEN, 0 ); // all data handled, clear length
-	write32( DI_STATUS, read32(DI_STATUS) | 0x10 ); //set TC
+	u32 di_status = read32(DI_STATUS);
+	write32( DI_STATUS, di_status | 0x10 ); //set TC
 	write32( DI_CONTROL, read32(DI_CONTROL) & 2 ); // finished command
 	sync_after_write( (void*)DI_BASE, 0x40 );
-	write32( DI_INT, 0x4 ); // DI IRQ
-	sync_after_write( (void*)DI_INT, 0x20 );
-	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-	//dbgprintf("Disc Interrupt\r\n");
+	if( di_status & 0x8 ) //TC Interrupt enabled
+	{
+		write32( DI_INT, 0x4 ); // DI IRQ
+		sync_after_write( (void*)DI_INT, 0x20 );
+		write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+		//dbgprintf("Disc Interrupt\r\n");
+	}
 	DI_IRQ = false;
 }
 
@@ -422,7 +427,7 @@ static void TRIReadMediaBoard( u32 Buffer, u32 Offset, u32 Length )
 
 void DIUpdateRegisters( void )
 {
-	if( DI_IRQ == true || read32(DI_INT) & 4 )
+	if( DI_IRQ == true ) //still working
 		return;
 
 	u32 i;
