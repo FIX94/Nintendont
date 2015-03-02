@@ -7,11 +7,11 @@
 .set	SI_INT,		INT_BASE+0x40
 .set	EXI_INT,	INT_BASE+0x60
 
-FakeInterrupt:
-
-#check if IPC IRQ
+FakeInterrupt_DBG:
 	lwz		%r29,	0x3000(%r3)
-	andi.	%r29,	%r29,	0xBFFF
+	andi.	%r0,	%r29,	0x4000	#check if IPC IRQ
+	rlwinm	%r29,	%r29,	0, 18, 31 #relevant irqs
+	beq		end		#if bit 14=0 then no need to check
 
 	lis		%r3,	0xCD80
 	li		%r0,	0x34
