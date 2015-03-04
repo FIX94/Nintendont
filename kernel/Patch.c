@@ -2283,20 +2283,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_GXInitTlutObj:	// GXInitTlutObj
 						{
-							if( read32( FOffset+0x11C ) == 0x5400023E )
+							if( read32( FOffset+0x34 ) == 0x5400023E || //A
+								read32( FOffset+0x28 ) == 0x5004C00E || //B
+								read32( FOffset+0x11C ) == 0x5400023E ) //DBG
 							{
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x11C);
-								write32( FOffset+0x11C, 0x5400033E );
-							}
-							else if( read32( FOffset+0x34 ) == 0x5400023E )
-							{
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x34);
-								write32( FOffset+0x34, 0x5400033E );
-							}
-							else if( read32( FOffset+0x28 ) == 0x5004C00E )
-							{
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x28);
-								write32( FOffset+0x28, 0x5004C016 );
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								memcpy( (void*)FOffset, GXInitTlutObj, GXInitTlutObj_size );
 							}
 							else
 								CurPatterns[j].Found = 0; // False hit
@@ -2396,28 +2388,43 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x60);
 							write32( FOffset+0x60, 0x48000060 ); // b +0x0060, Skip Checks
 						} break;
-						case FCODE___GXSetVAT:	// Patch for __GXSetVAT, fixes the dungeon map freeze in Wind Waker
+						case FCODE___GXSetVAT:
 						{
-							if(useipl == 1) break;
-							switch( TITLE_ID )
+							u32 BaseReg = 0, L1 = 0, L2 = 0, L3 = 0, RegLoc = 0;
+							if((read32(FOffset) & 0xFE000000) == 0x80000000)
 							{
-								case 0x505A4C:	// The Legend of Zelda: Collector's Edition
-									if( !(DOLSize == 3847012 || DOLSize == 3803812 || DOLSize == 3763812) )
-										break;	// only patch the main.dol of the Zelda:ww game
-								case 0x475A4C:	// The Legend of Zelda: The Wind Waker
-								case 0x475352:	// Smugglers Run: Warezones
-								{
-									u32 tmp1 = read32(FOffset) & 0x1FFFFF;
-									u32 tmp2 = read32(FOffset+0x18) & 0xFFFF;
-									memcpy( (void*)FOffset, __GXSetVAT, __GXSetVAT_size );
-									write32(FOffset, (read32(FOffset) & 0xFFE00000) | tmp1);
-									write32(FOffset+0x8, (read32(FOffset+0x8) & 0xFFFF0000) | tmp2);
-									write32(FOffset+0x78, (read32(FOffset+0x78) & 0xFFFF0000) | tmp2);
-									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-								} break;
-								default:
-								break;
+								if(CurPatterns[j].Length == 0x98 &&
+									(read32(FOffset+0x94) & 0xFE000000) == 0x98000000)
+								{	//Pattern A
+									BaseReg = read32(FOffset) & 0x1FFFFF;
+									L1 = read32(FOffset+0x38) & 0xFFFF;
+									L2 = read32(FOffset+0x44) & 0xFFFF;
+									L3 = read32(FOffset+0x50) & 0xFFFF;
+									RegLoc = read32(FOffset+0x94) & 0xFFFF;
+								}
+								else if(CurPatterns[j].Length == 0x84 && 
+									(read32(FOffset+0x80) & 0xFE000000) == 0x98000000)
+								{	//Pattern B
+									BaseReg = read32(FOffset) & 0x1FFFFF;
+									L1 = read32(FOffset+0x28) & 0xFFFF;
+									L2 = read32(FOffset+0x34) & 0xFFFF;
+									L3 = read32(FOffset+0x40) & 0xFFFF;
+									RegLoc = read32(FOffset+0x80) & 0xFFFF;
+								}
 							}
+							if(BaseReg)
+							{
+								memcpy( (void*)FOffset, __GXSetVAT, __GXSetVAT_size );
+								write32(FOffset, (read32(FOffset) & 0xFFE00000) | BaseReg);
+								write32(FOffset+0xC, (read32(FOffset+0xC) & 0xFFFF0000) | RegLoc);
+								write32(FOffset+0x2C, (read32(FOffset+0x2C) & 0xFFFF0000) | L1);
+								write32(FOffset+0x40, (read32(FOffset+0x40) & 0xFFFF0000) | L2);
+								write32(FOffset+0x54, (read32(FOffset+0x54) & 0xFFFF0000) | L3);
+								write32(FOffset+0x74, (read32(FOffset+0x74) & 0xFFFF0000) | RegLoc);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else
+								CurPatterns[j].Found = 0;
 						} break;
 						case FCODE_EXIIntrruptHandler:
 						{

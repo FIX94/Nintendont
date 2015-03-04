@@ -111,6 +111,7 @@ enum
 enum
 {
 	FGROUP_NONE				= 0x0,
+	FGROUP___GXSetVAT,
 	FGROUP_GXInitTlutObj,
 	FGROUP_ARInit,
 	FGROUP_ARStartDMA,
@@ -182,7 +183,8 @@ FuncPattern NormalFPatterns[] =
 	{  0x2D8,   41,   17,    8,   21,   13,	NULL,				FCODE___fwrite,				"__fwrite",				"C",		FGROUP___fwrite,			0 },
 //	{  0x1FC,   47,    4,   14,   18,    7,	NULL,				FCODE___fwrite_D,			"__fwrite D",						FGROUP___fwrite,			0 },
 
-	{   0x98,    8,    3,    0,    3,    5,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			NULL,		FGROUP_NONE,				0 },
+	{   0x98,    8,    3,    0,    3,    5,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			"A",		FGROUP___GXSetVAT,			0 },
+	{   0x84,    7,    3,    0,    1,    3,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			"B",		FGROUP___GXSetVAT,			0 },
 #ifdef PATCHALL
 	{   0xF0,   20,   11,    3,    3,    9,	NULL,				FCODE___OSResetHandler,	"__OSResetSWInterruptHandler",NULL,		FGROUP_NONE,				0 },
 
