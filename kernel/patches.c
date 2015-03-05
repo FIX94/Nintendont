@@ -47,6 +47,7 @@ enum
 	FCODE_GXInitTlutObj,
 										//GXInitTlutObj_A,
 										//GXInitTlutObj_B,
+	FCODE_GXLoadTlut,
 	FCODE__SITransfer, 
 										//_SITransfer_A,
 										//_SITransfer_B,
@@ -113,6 +114,7 @@ enum
 	FGROUP_NONE				= 0x0,
 	FGROUP___GXSetVAT,
 	FGROUP_GXInitTlutObj,
+	FGROUP_GXLoadTlut,
 	FGROUP_ARInit,
 	FGROUP_ARStartDMA,
 	FGROUP_SIGetType,
@@ -148,9 +150,15 @@ FuncPattern NormalFPatterns[] =
 #ifndef AUDIOSTREAM
 	{   0xD4,   13,    8,   11,    2,    7,	NULL,				FCODE_AIResetStreamCount,"AIResetStreamSampleCount",NULL,		FGROUP_NONE,				0 },
 #endif
+	{   0x98,    8,    3,    0,    3,    5,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			"A",		FGROUP___GXSetVAT,			0 },
+	{   0x84,    7,    3,    0,    1,    3,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			"B",		FGROUP___GXSetVAT,			0 },
+
 	{   0x44,    4,    4,    0,    0,    2,	NULL,				FCODE_GXInitTlutObj,		"GXInitTlutObj",		"A",		FGROUP_GXInitTlutObj,		0 },
 	{   0x34,    5,    4,    0,    0,    0,	NULL,				FCODE_GXInitTlutObj,		"GXInitTlutObj",		"B",		FGROUP_GXInitTlutObj,		0 },
 	{  0x13C,   28,    6,    6,    5,    4,	NULL,				FCODE_GXInitTlutObj,		"GXInitTlutObj",		"DBG",		FGROUP_GXInitTlutObj,		0 },
+
+	{   0x98,   16,   10,    2,    0,    4,	NULL,				FCODE_GXLoadTlut,			"GXLoadTlut",			"A",		FGROUP_GXLoadTlut,			0 },
+	{   0x94,   16,   10,    2,    0,    4,	NULL,				FCODE_GXLoadTlut,			"GXLoadTlut",			"B",		FGROUP_GXLoadTlut,			0 },
 
 	{   0xEC,    9,    6,    2,    0,    8,	NULL,				FCODE_ARStartDMA,			"ARStartDMA",			NULL,		FGROUP_ARStartDMA,			0 },
 	{  0x16C,   29,    3,    5,    3,    9,	NULL,				FCODE_ARStartDMA,			"ARStartDMA",			"DBG",		FGROUP_ARStartDMA,			0 },
@@ -183,8 +191,6 @@ FuncPattern NormalFPatterns[] =
 	{  0x2D8,   41,   17,    8,   21,   13,	NULL,				FCODE___fwrite,				"__fwrite",				"C",		FGROUP___fwrite,			0 },
 //	{  0x1FC,   47,    4,   14,   18,    7,	NULL,				FCODE___fwrite_D,			"__fwrite D",						FGROUP___fwrite,			0 },
 
-	{   0x98,    8,    3,    0,    3,    5,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			"A",		FGROUP___GXSetVAT,			0 },
-	{   0x84,    7,    3,    0,    1,    3,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			"B",		FGROUP___GXSetVAT,			0 },
 #ifdef PATCHALL
 	{   0xF0,   20,   11,    3,    3,    9,	NULL,				FCODE___OSResetHandler,	"__OSResetSWInterruptHandler",NULL,		FGROUP_NONE,				0 },
 
