@@ -58,6 +58,7 @@
 #include "asm/DVDLowAudioBufferConfig.h"
 #include "asm/__GXSetVAT.h"
 #include "asm/GXInitTlutObj.h"
+#include "asm/GXLoadTlut.h"
 #include "asm/DatelTimer.h"
 #include "asm/SonicRidersCopy.h"
 

@@ -559,10 +559,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				if (Datel && ((op & 0xFFFF) == 0x6000)) //Use original DI Status register to clear interrupts
-					write32((u32)LISOff, LISOp | 0x0000CD80);
-				else
-					write32((u32)LISOff, LISOp | 0x0000D302);
+				write32((u32)LISOff, LISOp | 0x0000D302);
 				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				DIPatched++;
 				LISReg = 32;
@@ -634,10 +631,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if (src == LISReg)
 			{
-				if (Datel && ((op & 0xFFFF) == 0x6000)) //Use original DI Status register to clear interrupts
-					write32((u32)LISOff, LISOp | 0x0000CD80);
-				else
-					write32((u32)LISOff, LISOp | 0x0000D302);
+				write32((u32)LISOff, LISOp | 0x0000D302);
 				//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 				DIPatched++;
 				LISReg = 32;
@@ -691,10 +685,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6000) // case with 0x60XY(rZ) (di)
 				{
-					if (Datel && ((op & 0xFFFF) == 0x6000)) //Use original DI Status register to clear interrupts
-						write32((u32)LISOff, LISOp | 0x0000CD80);
-					else
-						write32((u32)LISOff, LISOp | 0x0000D302);
+					write32((u32)LISOff, LISOp | 0x0000D302);
 					//dbgprintf("DI:[%08X] %08X: lis r%u, 0xD302\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
 					DIPatched++;
 					LISReg = 32;
@@ -1316,9 +1307,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	POffset = PATCH_OFFSET_ENTRY;
 
 	u32 __DVDInterruptHandlerAddr = PatchCopy(__DVDInterruptHandler, __DVDInterruptHandler_size);
-	//Combine these?  Worried if an interrupt occurs while the code is being overwritten
-	u32 __DVDInterruptHandlerAddr2 = PatchCopy(__DVDInterruptHandler, __DVDInterruptHandler_size);
-
 	u32 FakeInterruptAddr = PatchCopy(FakeInterrupt, FakeInterrupt_size);
 	u32 FakeInterrupt_DBGAddr = PatchCopy(FakeInterrupt_DBG, FakeInterrupt_DBG_size);
 	u32 TCIntrruptHandlerAddr = PatchCopy(TCIntrruptHandler, TCIntrruptHandler_size);
@@ -1331,6 +1319,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 AIInitDMAAddr = PatchCopy(AIInitDMA, AIInitDMA_size);
 	u32 __DSPHandlerAddr = PatchCopy(__DSPHandler, __DSPHandler_size);
 	u32 __ARHandlerAddr = PatchCopy(__ARHandler, __ARHandler_size);
+
+	u32 GXLoadTlutAddr = PatchCopy(GXLoadTlut, GXLoadTlut_size);
 
 	//if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))  // Make these FuncPatterns?
 	u32 SwitcherPrsAddr = PatchCopy(SwitcherPrs, SwitcherPrs_size);
@@ -1775,15 +1765,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 					#endif
 					//PatchDiscInterface( (char*)Offset );
-					u32 OrigData = read32(HwOffset);
 					PatchBL(__DVDInterruptHandlerAddr, HwOffset);
-					if ((read32(__DVDInterruptHandlerAddr + __DVDInterruptHandler_size - 0x8) & 0xFC00FFFF) == 0x3C00D302)
-					{
-						write32(__DVDInterruptHandlerAddr + __DVDInterruptHandler_size - 0x8, OrigData);
-						#ifdef DEBUG_PATCH
-						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", OrigData, HwOffset);
-						#endif
-					}
 					PatchCount |= FPATCH_DVDIntrHandler;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
@@ -1811,15 +1793,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
 					#endif
 					//PatchDiscInterface( (char*)Offset );
-					u32 OrigData = read32(HwOffset);
-					PatchBL(__DVDInterruptHandlerAddr2, HwOffset);
-					if ((read32(__DVDInterruptHandlerAddr2 + __DVDInterruptHandler_size - 0x8) & 0xFC00FFFF) == 0x3C00D302)
-					{
-						write32(__DVDInterruptHandlerAddr2 + __DVDInterruptHandler_size - 0x8, OrigData);
-						#ifdef DEBUG_PATCH
-						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", OrigData, HwOffset);
-						#endif
-					}
+					PatchBL(__DVDInterruptHandlerAddr, HwOffset);
 					PatchCount |= FPATCH_DVDIntrHandler;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
@@ -2289,6 +2263,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							{
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 								memcpy( (void*)FOffset, GXInitTlutObj, GXInitTlutObj_size );
+							}
+							else
+								CurPatterns[j].Found = 0; // False hit
+						} break;
+						case FCODE_GXLoadTlut:
+						{
+							if(read32(FOffset + 0x40) == 0x801E0004)
+							{
+								PatchBL(GXLoadTlutAddr, FOffset + 0x40);
+								if(read32(FOffset + 0x6C) == 0x801E0004)
+									PatchBL(GXLoadTlutAddr, FOffset + 0x6C);
+								else if(read32(FOffset + 0x70) == 0x801E0004)
+									PatchBL(GXLoadTlutAddr, FOffset + 0x70);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							}
 							else
 								CurPatterns[j].Found = 0; // False hit
