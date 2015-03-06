@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "Patch.h"
 #include "Stream.h"
+#include "ReadSpeed.h"
 #include "ISO.h"
 #include "FST.h"
 #include "HID.h"
@@ -63,10 +64,6 @@ extern u32 RealDiscCMD;
 
 u8 *DI_READ_BUFFER = (u8*)0x12E80000;
 u32 DI_READ_BUFFER_LENGTH = 0x80000;
-
-// Simulating Disc Read Speed
-u32 CMDStartTime = 0;
-u32 CMDTicks = UINT_MAX;
 
 // Triforce
 extern vu32 TRIGame;
@@ -312,6 +309,8 @@ void DIinit( bool FirstTime )
 	GCAMKeyA = read32(0);
 	GCAMKeyB = read32(4);
 	GCAMKeyC = read32(8);
+
+	ReadSpeed_Init();
 }
 void DISetDIMMVersion( u32 Version )
 {
@@ -343,9 +342,8 @@ bool DIChangeDisc( u32 DiscNumber )
 
 void DIInterrupt()
 {
-	/* Very basic read speed */
-	if(CMDTicks < UINT_MAX && TimerDiffTicks(CMDStartTime) < CMDTicks)
-		return;
+	if(ReadSpeed_End() == 0)
+		return; //still busy
 	sync_before_read( (void*)DI_BASE, 0x40 );
 	/* Update DMA registers when needed */
 	if(read32(DI_CONTROL) & 2)
@@ -436,8 +434,6 @@ void DIUpdateRegisters( void )
 	sync_before_read( (void*)DI_BASE, 0x40 );
 	if( read32(DI_CONTROL) & 1 )
 	{
-		CMDStartTime = read32(HW_TIMER);
-		CMDTicks = UINT_MAX; //reset value
 		udelay(50); //security delay
 		write32( DI_STATUS, read32(DI_STATUS) & 0x2A ); //clear status
 
@@ -760,7 +756,10 @@ void DIUpdateRegisters( void )
 						if( useipltri )
 							ReadSegaBoot(Buffer, Offset, Length);
 						else
+						{
 							DiscReadAsync(Buffer, Offset, Length, 0);
+							ReadSpeed_Start();
+						}
 					}
 					DIOK = 2;
 				}
@@ -856,7 +855,6 @@ u32 DIReadThread(void *arg)
 					mqueue_ack( di_msg, 0 );
 					break;
 				}
-				u32 prev_offset = di_length + di_offset;
 				di_src = 0;
 				di_dest = (char*)di_msg->ioctl.buffer_io;
 				di_length = di_msg->ioctl.length_io;
@@ -878,11 +876,7 @@ u32 DIReadThread(void *arg)
 				if(di_msg->ioctl.command == 0)
 				{
 					DoPatches(di_dest, di_length, di_offset);
-					if(RealDiscCMD == 0 && TRIGame == TRI_NONE) //emulate disc read speed
-					{
-						CMDTicks = di_length / 1.657; //assuming we read about 3mb per second
-						if(prev_offset != di_offset) CMDTicks += 9492; //50ms seek time
-					}
+					ReadSpeed_Setup(di_offset, di_length);
 				}
 				sync_after_write( di_dest, di_length );
 				mqueue_ack( di_msg, 0 );
