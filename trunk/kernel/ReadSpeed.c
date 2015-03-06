@@ -51,11 +51,15 @@ void ReadSpeed_Start()
 {
 	if(RealDiscCMD != 0 || TRIGame != TRI_NONE)
 		return;
+
 	CMDStartTime = read32(HW_TIMER);
 }
 
 void ReadSpeed_Setup(u32 Offset, int Length)
 {
+	if(RealDiscCMD != 0 || TRIGame != TRI_NONE)
+		return;
+
 	u32 CurrentBlock = ALIGN_BACKWARD(Offset, READ_BLOCK);
 	if(CurrentBlock < CMDBaseBlock || //always seek and read
 		((Offset+Length) - CMDBaseBlock) > CACHE_SIZE)
@@ -93,6 +97,9 @@ void ReadSpeed_Setup(u32 Offset, int Length)
 
 u32 ReadSpeed_End()
 {
+	if(RealDiscCMD != 0 || TRIGame != TRI_NONE)
+		return 1;
+
 	if(CMDTicks < UINT_MAX)
 	{
 		if(TimerDiffTicks(CMDStartTime) < CMDTicks)

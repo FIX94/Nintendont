@@ -868,6 +868,7 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x474832 ||	// NFS: HP2
 			(TITLE_ID) == 0x474156 ||	// Avatar Last Airbender
 			(TITLE_ID) == 0x473442 ||	// Resident Evil 4
+			(TITLE_ID) == 0x503442 ||	// Resident Evil 4 (Demo)
 			(TITLE_ID) == 0x474856 ||	// Disneys Hide and Sneak
 			(TITLE_ID) == 0x474353 ||	// Street Racing Syndicate
 			(TITLE_ID) == 0x474241 ||	// NBA 2k2
