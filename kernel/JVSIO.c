@@ -66,9 +66,9 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			write32( 0x003CD6A0, 0x00001734 );	// FZeroAX menu timer to 99
 			sync_after_write( (void*)0x003CD6A0, 0x20 );
 
-			sync_before_read( (void*)0x003BC400, 0x20 );
-			write32( 0x003BC400, 0x803BB940 );	// Crash hack
-			sync_after_write( (void*)0x003BC400, 0x20 );
+			//sync_before_read( (void*)0x003BC400, 0x20 );
+			//write32( 0x003BC400, 0x803BB940 );	// Crash hack
+			//sync_after_write( (void*)0x003BC400, 0x20 );
 
 			//sync_before_read( (void*)0x03CFBE0, 0x20 );
 			//u32 val = read32( 0x03CFBF4 ) & 0xFFFF00FF;

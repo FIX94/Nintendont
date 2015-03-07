@@ -1528,6 +1528,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x0024E034, 0x80180D5C );
 		write32( 0x0024E038, 0x80180BC0 );
 
+		//Call Important Init Function
+		PatchB( 0x000DA6D4, 0x00180D9C );
+
+		//Remove Overscan on first VIConfigure
+		write32( 0x001FBE54, 0x38C00000 );
+
 		//English
 		write32( 0x000DF698, 0x38000000 );
 
