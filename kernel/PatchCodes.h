@@ -12,6 +12,7 @@
 #include "asm/__CARDReadStatus.h"
 #include "asm/__CARDClearStatus.h"
 #include "asm/__CARDEraseSector.h"
+#include "asm/ReadROM.h"
 
 #include "asm/ARQPostRequest.h"
 #include "asm/ARInit.h"

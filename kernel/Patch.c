@@ -2523,6 +2523,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							write32( FOffset+0x1FC, 0x60000000 );
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
+						case FCODE_ReadROM:
+						{
+							if(read32(FOffset+0x3C) == 0x3BE00100)
+							{
+								memcpy((void*)FOffset, ReadROM, ReadROM_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else
+								CurPatterns[j].Found = 0;
+						} break;
 						case FCODE_ARInit:
 						{
 							/* Use GC Bus Clock Speed for Refresh Value */
@@ -3005,8 +3015,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			if(!CurPatterns[j].Found)
 			{
 				dbgprintf("Patch:[%s] not found\r\n", CurPatterns[j].Name );
-				if(CurPatterns[j].Group)
-					for( k = j; j < CurPatternsLen && CurPatterns[j].Group == CurPatterns[k].Group; ++j ) ;
+				if(CurPatterns[j].Group != FGROUP_NONE)
+					for( k = j; (j+1) < CurPatternsLen && CurPatterns[j+1].Group == CurPatterns[k].Group; ++j ) ;
 			}
 		}
 	}
