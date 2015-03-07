@@ -97,6 +97,7 @@ enum
 	FCODE___CARDStat_A,
 	FCODE___CARDStat_B,
 	FCODE___CARDStat_C,
+	FCODE_ReadROM,
 	FCODE___OSResetHandler,
 	FCODE_OSGetResetState,
 	FCODE___OSInitAudioSystem_A,
@@ -351,6 +352,8 @@ FuncPattern EXIFPatterns[] =
 //	{  0x130,   33,    8,    6,    5,    2,	__CARDReadSegment,	sizeof(__CARDReadSegment),	"__CARDReadSegment",				FGROUP_NONE,				0 },
 //	{   0x60,    7,    6,    1,    1,    3,	__CARDRead,			sizeof(__CARDRead),			"__CARDRead",						FGROUP_NONE,				0 },
 //	{   0xDC,   17,    9,    4,    3,    2,	__CARDEraseSector,	sizeof(__CARDEraseSector),	"__CARDEraseSector",				FGROUP_NONE,				0 },
+
+	{   0x88,    9,    6,    1,    3,    2,	NULL,				FCODE_ReadROM,				"ReadROM",				NULL,		FGROUP_NONE,				0 },
 };
 
 FuncPattern DatelFPatterns[] =
