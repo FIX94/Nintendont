@@ -803,7 +803,7 @@ void DIUpdateRegisters( void )
 	}
 	return;
 }
-
+extern u32 Pach31A0Backup;
 u8 *di_src = NULL; char *di_dest = NULL; u32 di_length = 0, di_offset = 0;
 u32 DIReadThread(void *arg)
 {
@@ -871,6 +871,11 @@ u32 DIReadThread(void *arg)
 					else
 						di_src = ISORead(&Length, di_offset + Offset);
 					// Copy data at a later point to prevent MEM1 issues
+					if(((u32)di_dest + Offset) <= 0x31A0)
+					{
+						u32 pos31A0 = 0x31A0 - ((u32)di_dest + Offset);
+						Pach31A0Backup = read32((u32)di_src + pos31A0);
+					}
 					memcpy( di_dest + Offset, di_src, Length > di_length ? di_length : Length );
 				}
 				if(di_msg->ioctl.command == 0)

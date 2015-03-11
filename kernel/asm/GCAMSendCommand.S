@@ -24,18 +24,18 @@ DCFlushRange:
 	bdnz	DCFlushRange
 	sync
 
-	lis		%r7,	0xC000
+	lis		%r7,	0xD302
 	lis		%r0,	0x7000
 
-	stw		%r0,	0x2F60(%r7)
-	stw		%r4,	0x2F64(%r7)
-	stw		%r6,	0x2F68(%r7)
+	stw		%r0,	0x6100(%r7)
+	stw		%r4,	0x6104(%r7)
+	stw		%r6,	0x6108(%r7)
 
 	li		%r0,	3
-	stw		%r0,	0x2F78(%r7)
+	stw		%r0,	0x6118(%r7)
 
 ready_loop:
-	lwz		%r0,	0x2F78(%r7)
+	lwz		%r0,	0x6118(%r7)
 	cmpwi	%r0,	3
 	beq		ready_loop
 

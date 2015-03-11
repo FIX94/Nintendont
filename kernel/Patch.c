@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define GAME_ID		(read32(0))
 #define TITLE_ID	(GAME_ID >> 8)
 
-#define PATCH_OFFSET_START (0x2F60 - (sizeof(u32) * 5))
+#define PATCH_OFFSET_START (0x3000 - (sizeof(u32) * 3))
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
@@ -423,39 +423,70 @@ void PatchBL( u32 dst, u32 src )
 	*(vu32*)src = newval;
 }
 /*
-	This offset gets randomly overwritten, this workaround fixes that problem.
+	This area gets used by IOS, this workaround fixes that problem.
 */
+u32 Pach31A0Backup = 0;
 void Patch31A0( void )
 {
+	if(Pach31A0Backup == 0)
+		return;
 	u32 PatchOffset = PATCH_OFFSET_START;
-
-	u32 i;
-	for (i = 0; i < (4 * 0x04); i+=0x04)
+	if(DOLMinOff < 0x31A0)
 	{
-		u32 Orig = *(vu32*)(0x319C + i);
-		if ((Orig & 0xFC000002) == 0x40000000)
+		u32 CurBuf = read32(0x319C);
+		if ((CurBuf & 0xFC000002) == 0x40000000)
 		{
-			u32 NewAddr = (((s16)(Orig & 0xFFFC)) + 0x319C - PatchOffset);
-			Orig = (Orig & 0xFFFF0003) | NewAddr;
+			u32 Orig = CurBuf;
+			u32 NewAddr = (((s16)(CurBuf & 0xFFFC)) + 0x319C - PatchOffset);
+			CurBuf = (CurBuf & 0xFFFF0003) | NewAddr;
 #ifdef DEBUG_PATCH
-			dbgprintf("Patch:[Patch31A0] applied (0x%08X), 0x%08X=0x%08X\r\n", 0x319C + i, PatchOffset + i, Orig);
+			dbgprintf("319C:Changed 0x%08X to 0x%08X\r\n", Orig, CurBuf);
 #endif
 		}
-		else if ((Orig & 0xFC000002) == 0x48000000)
+		else if ((CurBuf & 0xFC000002) == 0x48000000)
 		{
-			u32 BaseAddr = (Orig & 0x3FFFFFC);
+			u32 Orig = CurBuf;
+			u32 BaseAddr = (CurBuf & 0x3FFFFFC);
 			if(BaseAddr & 0x2000000) BaseAddr |= 0xFC000000;
 			u32 NewAddr = (((s32)BaseAddr) + 0x319C - PatchOffset) & 0x3FFFFFC;
-			Orig = (Orig & 0xFC000003) | NewAddr;
+			CurBuf = (CurBuf & 0xFC000003) | NewAddr;
 #ifdef DEBUG_PATCH
-			dbgprintf("Patch:[Patch31A0] applied (0x%08X), 0x%08X=0x%08X\r\n", 0x319C + i, PatchOffset + i, Orig);
+			dbgprintf("319C:Changed 0x%08X to 0x%08X\r\n", Orig, CurBuf);
 #endif
 		}
-		*(vu32*)(PatchOffset + i) = Orig;
+		write32(PatchOffset, CurBuf);
+		PatchOffset += 4;
 	}
 
-	PatchB( PatchOffset, 0x319C );
-	PatchB( 0x31AC, PatchOffset+0x10 );
+	u32 CurBuf = Pach31A0Backup;
+	if ((CurBuf & 0xFC000002) == 0x40000000)
+	{
+		u32 Orig = CurBuf;
+		u32 NewAddr = (((s16)(CurBuf & 0xFFFC)) + 0x31A0 - PatchOffset);
+		CurBuf = (CurBuf & 0xFFFF0003) | NewAddr;
+#ifdef DEBUG_PATCH
+		dbgprintf("31A0:Changed 0x%08X to 0x%08X\r\n", Orig, CurBuf);
+#endif
+	}
+	else if ((CurBuf & 0xFC000002) == 0x48000000)
+	{
+		u32 Orig = CurBuf;
+		u32 BaseAddr = (CurBuf & 0x3FFFFFC);
+		if(BaseAddr & 0x2000000) BaseAddr |= 0xFC000000;
+		u32 NewAddr = (((s32)BaseAddr) + 0x31A0 - PatchOffset) & 0x3FFFFFC;
+		CurBuf = (CurBuf & 0xFC000003) | NewAddr;
+#ifdef DEBUG_PATCH
+		dbgprintf("31A0:Changed 0x%08X to 0x%08X\r\n", Orig, CurBuf);
+#endif
+	}
+	write32(PatchOffset, CurBuf);
+	PatchOffset += 4;
+	PatchB(0x31A4, PatchOffset);
+
+	if(P2C(DOLMinOff) < 0x31A0)
+		PatchB(PATCH_OFFSET_START, 0x319C);
+	if(P2C(GameEntry) == 0x13A0)
+		GameEntry = (PATCH_OFFSET_START) | (1<<31);
 }
 
 u32 PatchCopy(const u8 *PatchPtr, const u32 PatchSize)
@@ -3196,10 +3227,6 @@ void SetIPL_TRI()
 #define FLUSH_ADDR (RESET_STATUS+8)
 void PatchGame()
 {
-	// Yea that & is needed, I'm not sure if the patch is needed at all
-	// Commenting out until case where needed found
-	//if ((GameEntry & 0x7FFFFFFF) < 0x31A0)
-	//	Patch31A0();
 	if (Datel && (AppLoaderSize != 0))
 	{
 		DOLMinOff = 0x01300000;
@@ -3253,7 +3280,8 @@ void PatchGame()
 	/* Clear AR positions */
 	memset32((void*)0x131C0040, 0, 0x20);
 	sync_after_write((void*)0x131C0040, 0x20);
-
+	/* Secure Low Mem */
+	Patch31A0();
 	write32( FLUSH_LEN, FullLength >> 5 );
 	u32 Command2 = DOLMinOff;
 	// ToDo.  HACK: Why doesn't Nightfire Deep Descent level like this??

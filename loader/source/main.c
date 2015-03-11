@@ -794,7 +794,6 @@ int main(int argc, char **argv)
 	GRRLIB_Render();
 	DrawBuffer(); // Draw all status messages
 //	memcpy( (void*)0x80000000, (void*)0x90140000, 0x1200000 );
-	DVDStartCache();
 	GRRLIB_FreeTexture(background);
 	GRRLIB_FreeTexture(screen_buffer);
 	GRRLIB_FreeTTF(myFont);
@@ -982,6 +981,9 @@ int main(int argc, char **argv)
 	//u32 level = IRQ_Disable();
 	__exception_closeall();
 	__lwp_thread_closeall();
+
+	DVDStartCache(); //waits for kernel start
+	gprintf("Game Start\n");
 
 	if(useipl)
 	{
