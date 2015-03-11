@@ -7,7 +7,7 @@
 #include "ff.h"
 #include "vsprintf.h"
 
-#define		GCAM_BASE		0x00002F60
+#define		GCAM_BASE		0x13026100
 
 #define		GCAM_CMD		(GCAM_BASE+0x00)
 #define		GCAM_CMD_1		(GCAM_BASE+0x04)

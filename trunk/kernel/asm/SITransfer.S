@@ -26,23 +26,16 @@ SITransfer:
 	mr		%r21,	%r3
 	mr		%r4,	%r10
 
-#send cmd to DM
-	li		%r0,	0
-	lis		%r9,	0xC000
-	addi	%r9,	%r9,	0x2F60
-#IPC area
-	dcbi	%r0,	%r9
-
-	lis     %r9,	0xC000
+	lis     %r9,	0xD302
 	lis     %r0,	0x5000
 	or		%r0,	%r0,	%r19
 	
-	stw     %r0,	0x2F60(%r9)
+	stw     %r0,	0x6100(%r9)
 	
-	stw     %r4,	0x2F64(%r9)
-	stw     %r5,	0x2F68(%r9)
-	stw     %r6,	0x2F6C(%r9)
-	stw     %r7,	0x2F70(%r9)
+	stw     %r4,	0x6104(%r9)
+	stw     %r5,	0x6108(%r9)
+	stw     %r6,	0x610C(%r9)
+	stw     %r7,	0x6110(%r9)
 
 #flush DataIn
 	clrrwi	%r3,	%r4,	5
@@ -60,10 +53,10 @@ DCFlushRange:
 	sync
 
 	li		%r0,	3
-	stw		%r0,	0x2F78(%r9)
+	stw		%r0,	0x6118(%r9)
 
 ready_loop:
-	lwz		%r0,	0x2F78(%r9)
+	lwz		%r0,	0x6118(%r9)
 	cmpwi	%r0,	3
 	beq		ready_loop
 

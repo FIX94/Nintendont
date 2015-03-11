@@ -243,20 +243,15 @@ int _main( int argc, char *argv[] )
 	StreamInit();
 
 	PatchInit();
-
-//This bit seems to be different on japanese consoles
-	u32 ori_ppcspeed = read32(HW_PPCSPEED);
-	if((ConfigGetGameID() & 0xFF) == 'J')
-		set32(HW_PPCSPEED, (1<<17));
-	else
-		clear32(HW_PPCSPEED, (1<<17));
-
-	//write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
-
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);
 	BootStatus(0xdeadbeef, s_size, s_cnt);
+	mdelay(1000); //wait before hw flag changes
+	dbgprintf("Kernel Start\r\n");
+
+	//write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
+	//sync_after_write((void*)0x1860, 0x20);
 
 	u32 Now = read32(HW_TIMER);
 	u32 PADTimer = Now;
@@ -276,6 +271,16 @@ int _main( int argc, char *argv[] )
 	clear32(HW_GPIO_DIR, GPIO_SENSOR_BAR);
 	clear32(HW_GPIO_OWNER, GPIO_SENSOR_BAR);
 	set32(HW_GPIO_OUT, GPIO_SENSOR_BAR);	//turn on sensor bar
+
+	write32( HW_PPCIRQMASK, (1<<30) );
+	write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );
+
+//This bit seems to be different on japanese consoles
+	u32 ori_ppcspeed = read32(HW_PPCSPEED);
+	if((ConfigGetGameID() & 0xFF) == 'J')
+		set32(HW_PPCSPEED, (1<<17));
+	else
+		clear32(HW_PPCSPEED, (1<<17));
 
 	u32 ori_widesetting = read32(0xd8006a0);
 	if(IsWiiU)
