@@ -128,22 +128,6 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		dbgprintf("Patch:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
-	/* RADTimerRead split into subparts */
-	if( FirstVal == 0x3C000001 && read32(Buffer + 4) == 0x60009E40 )
-	{
-		u32 smallTimer = U32_TIMER_CLOCK_RAD_WII >> 15;
-		W16(Buffer + 2, smallTimer >> 16);
-		W16(Buffer + 6, smallTimer & 0xFFFF);
-		dbgprintf("Patch:[RADTimerRead A] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == 0x3CC0CF20 && read32(Buffer + 8) == 0x60C649A1 )
-	{
-		W16(Buffer + 2, U32_TIMER_CLOCK_RAD_WII >> 16);
-		W16(Buffer + 10, U32_TIMER_CLOCK_RAD_WII & 0xFFFF);
-		dbgprintf("Patch:[RADTimerRead B] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
 	/* Coded in values */
 	FirstVal &= 0xFC00FFFF;
 	if( FirstVal == 0x3C001CF7 )
@@ -209,6 +193,41 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 			W16(Buffer + 2, (U32_TIMER_CLOCK_MSECS_WII >> 16) + 1);
 			W16(NextP + 2, U32_TIMER_CLOCK_MSECS_WII & 0xFFFF);
 			dbgprintf("Patch:[Timer Clock addi ms] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+	}
+	/* RADTimerRead split into subparts */
+	if( FirstVal == 0x3C000001 )
+	{
+		u32 NextP = CheckFor(Buffer, 0x60009E40);
+		if(NextP > 0)
+		{
+			u32 smallTimer = U32_TIMER_CLOCK_RAD_WII >> 15;
+			W16(Buffer + 2, smallTimer >> 16);
+			W16(NextP + 2, smallTimer & 0xFFFF);
+			dbgprintf("Patch:[RADTimerRead ori shift] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+	}
+	if( FirstVal == 0x3C00CF20 )
+	{
+		u32 NextP = CheckFor(Buffer, 0x600049A1);
+		if(NextP > 0)
+		{
+			W16(Buffer + 2, U32_TIMER_CLOCK_RAD_WII >> 16);
+			W16(NextP + 2, U32_TIMER_CLOCK_RAD_WII & 0xFFFF);
+			dbgprintf("Patch:[RADTimerRead ori full] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+	}
+	if( FirstVal == 0x3C00CF20 )
+	{
+		u32 NextP = CheckFor(Buffer, 0x380049A1);
+		if(NextP > 0)
+		{
+			W16(Buffer + 2, (U32_TIMER_CLOCK_RAD_WII >> 16) + 1);
+			W16(NextP + 2, U32_TIMER_CLOCK_RAD_WII & 0xFFFF);
+			dbgprintf("Patch:[RADTimerRead addi full] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
