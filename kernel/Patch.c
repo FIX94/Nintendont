@@ -1318,6 +1318,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PatchBL(PatchCopy(SonicRidersCopy, SonicRidersCopy_size), SONICRIDERS_HOOK_PAL);
 		dbgprintf("Patch:Patched Sonic Riders _Main.rel PAL\r\n");
 	}
+	u32 t;
+	for(t = 0; t < Length; t+=4) //make sure its patched at all times
+		PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t);
 
 	if (!(PatchState & PATCH_STATE_PATCH))
 		return;
@@ -2621,6 +2624,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									 (TITLE_ID) == 0x47504E ||	// P.N.03
 									 (TITLE_ID) == 0x474D4F ||	// Micro Machines
 									 (TITLE_ID) == 0x475355 ||	// Superman: Shadow of Apokolips
+									 (TITLE_ID) == 0x474859 ||	// Disney's The Haunted Mansion
 									 (TITLE_ID) == 0x443737 )	// Multi-Game Demo Disc 18
 							{
 								memcpy( (void*)FOffset, ARStartDMA_PM, ARStartDMA_PM_size );
