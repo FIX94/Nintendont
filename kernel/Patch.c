@@ -1691,6 +1691,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		for( j=0; j < CurPatternsLen; ++j )
 			CurPatterns[j].Found = 0;
 	}
+	/* Cheats */
+	u32 DebuggerHook = 0;
 	/* SI Inited Patch */
 	u32 PADInitOffset = 0, SIInitOffset = 0;
 	/* DSP Patches */
@@ -1931,105 +1933,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					while( *(vu32*)(Buffer+i+j) != 0x4E800020 )
 						j+=4;
 
-					u32 DebuggerHook = (u32)Buffer + i + j;
+					DebuggerHook = (u32)Buffer + i + j;
 					printpatchfound("Hook:OSSleepThread",NULL, DebuggerHook);
-
-					u32 DBGSize;
-
-					FIL fs;
-					if( f_open_char( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
-					{
-						#ifdef DEBUG_PATCH
-						dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
-						#endif
-					}
-					else
-					{
-						if( fs.fsize != 0 )
-						{
-							DBGSize = fs.fsize;
-
-							//Read file to memory
-							s32 ret = f_read( &fs, (void*)0x1800, fs.fsize, &read );
-							if( ret != FR_OK )
-							{
-								#ifdef DEBUG_PATCH
-								dbgprintf( "Patch:Could not read:\"%s\":%d\r\n", "/sneek/kenobiwii.bin", ret );
-								#endif
-								f_close( &fs );
-							}
-							else
-							{
-								f_close( &fs );
-
-								if( IsWiiU )
-								{
-									*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
-								}
-								else
-								{
-									if( ConfigGetConfig(NIN_CFG_DEBUGWAIT) )
-										*(vu32*)(P2C(*(vu32*)0x1808)) = 1;
-									else
-										*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
-								}
-
-								memcpy( (void *)0x1800, (void*)0, 6 );
-
-								u32 newval = 0x18A8 - DebuggerHook;
-									newval&= 0x03FFFFFC;
-									newval|= 0x48000000;
-
-								*(vu32*)(DebuggerHook) = newval;
-
-								if( ConfigGetConfig( NIN_CFG_CHEATS ) )
-								{
-									char *path = (char*)malloc( 128 );
-
-									if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
-									{
-										_sprintf( path, "%s", ConfigGetCheatPath() );
-									} else {
-										_sprintf( path, "/games/%.6s/%.6s.gct", (char*)0x1800, (char*)0x1800 );
-									}
-
-									FIL CodeFD;
-									u32 read;
-
-									if( f_open_char( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
-									{
-										if( CodeFD.fsize >= 0x2E60 - (0x1800+DBGSize-8) )
-										{
-											#ifdef DEBUG_PATCH
-											dbgprintf("Patch:Cheatfile is too large, it must not be large than %d bytes!\r\n", 0x2E60 - (0x1800+DBGSize-8));
-											#endif
-										} else {
-											if( f_read( &CodeFD, (void*)(0x1800+DBGSize-8), CodeFD.fsize, &read ) == FR_OK )
-											{
-												#ifdef DEBUG_PATCH
-												dbgprintf("Patch:Copied cheat file to memory\r\n");
-												#endif
-												write32( 0x1804, 1 );
-											} else {
-												#ifdef DEBUG_PATCH
-												dbgprintf("Patch:Failed to read cheat file:\"%s\"\r\n", path );
-												#endif
-											}
-										}
-
-										f_close( &CodeFD );
-
-									} else {
-										#ifdef DEBUG_PATCH
-										dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", path );
-										#endif
-									}
-
-									free(path);
-								}
-							}
-						}
-					}
 
 					PatchCount |= FPATCH_OSSleepThread;
 					i = GotoFuncEnd(i, (u32)Buffer);
@@ -3021,6 +2926,114 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			printpatchfound("C_MTXLightPerspective", NULL, MTXLightPerspectiveOffset);
 			PatchWideMulti(MTXLightPerspectiveOffset + 0x24, 27);
+		}
+	}
+	if(DebuggerHook)
+	{
+		u32 DBGSize;
+
+		FIL fs;
+		if( f_open_char( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
+			#endif
+		}
+		else if(fs.fsize > (POffset - 0x1800))
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:No More Memory for kenobiwii left!\r\n");
+			#endif
+			f_close(&fs);
+		}
+		else
+		{
+			if( fs.fsize != 0 )
+			{
+				DBGSize = fs.fsize;
+				void *KMem = malloc(fs.fsize);
+				//Read file to memory
+				s32 ret = f_read( &fs, KMem, fs.fsize, &read );
+				if( ret != FR_OK )
+				{
+					#ifdef DEBUG_PATCH
+					dbgprintf( "Patch:Could not read:\"%s\":%d\r\n", "/sneek/kenobiwii.bin", ret );
+					#endif
+					free( KMem );
+					f_close( &fs );
+				}
+				else
+				{
+					f_close( &fs );
+					memcpy( (void*)0x1800, KMem, DBGSize );
+					free( KMem );
+					if( IsWiiU )
+					{
+						*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
+					}
+					else
+					{
+						if( ConfigGetConfig(NIN_CFG_DEBUGWAIT) )
+							*(vu32*)(P2C(*(vu32*)0x1808)) = 1;
+						else
+							*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
+					}
+
+					memcpy( (void *)0x1800, (void*)0, 6 );
+
+					PatchB( 0x18A8, DebuggerHook );
+
+					if( ConfigGetConfig( NIN_CFG_CHEATS ) && TRIGame != TRI_SB && useipl == 0 )
+					{
+						char *path = (char*)malloc( 128 );
+
+						if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
+						{
+							_sprintf( path, "%s", ConfigGetCheatPath() );
+						} else {
+							_sprintf( path, "/games/%.6s/%.6s.gct", (char*)0x1800, (char*)0x1800 );
+						}
+
+						FIL CodeFD;
+						if( f_open_char( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+						{
+							if( CodeFD.fsize > (POffset - (0x1800+DBGSize-8)) )
+							{
+								#ifdef DEBUG_PATCH
+								dbgprintf( "Patch:Cheatfile is too large, it must not be large than %d bytes!\r\n", (POffset - (0x1800+DBGSize-8)) );
+								#endif
+							}
+							else
+							{
+								void *CMem = malloc(CodeFD.fsize);
+								if( f_read( &CodeFD, CMem, CodeFD.fsize, &read ) == FR_OK )
+								{
+									memcpy((void*)(0x1800+DBGSize-8), CMem, CodeFD.fsize);
+									#ifdef DEBUG_PATCH
+									dbgprintf("Patch:Copied cheat file to memory\r\n");
+									#endif
+									//write32( 0x1804, 1 ); //???
+								}
+								else
+								{
+									#ifdef DEBUG_PATCH
+									dbgprintf("Patch:Failed to read cheat file:\"%s\"\r\n", path);
+									#endif
+								}
+								free( CMem );
+							}
+							f_close( &CodeFD );
+						}
+						else
+						{
+							#ifdef DEBUG_PATCH
+							dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", path );
+							#endif
+						}
+						free(path);
+					}
+				}
+			}
 		}
 	}
 	free(hash);
