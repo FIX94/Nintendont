@@ -45,6 +45,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ipl.h"
 #include "HID.h"
 
+const char * NIN_BUILD_STRING = NIN_VERSION_STRING; // Version detection string used by nintendont launchers "$$Version:x.xxx"
+
 extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
 extern u32 __SYS_GetRTC(u32 *gctime);
@@ -208,6 +210,7 @@ int main(int argc, char **argv)
 	gprintf("launch_dir = %s\r\n", launch_dir);
 
 	FPAD_Init();
+	FPAD_Update();
 
 	PrintInfo();
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*1, "Home: Exit");
