@@ -16,6 +16,9 @@
 #define		DI_CONTROL	(DI_BASE+0x1C)
 #define		DI_IMM		(DI_BASE+0x20)
 #define		DI_CONFIG	(DI_BASE+0x24)
+// custom for invalidating in handler
+#define		DI_INV_ADR	(DI_BASE+0x28)
+#define		DI_INV_LEN	(DI_BASE+0x2C)
 
 #define		DIP_BASE	0x0D806000
 
