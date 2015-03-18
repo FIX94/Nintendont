@@ -347,7 +347,12 @@ void DIInterrupt()
 	sync_before_read( (void*)DI_BASE, 0x40 );
 	/* Update DMA registers when needed */
 	if(read32(DI_CONTROL) & 2)
+	{
+		/* Yes, some games need manual invalidates */
+		write32(DI_INV_ADR, read32(DI_DMA_ADR));
+		write32(DI_INV_LEN, read32(DI_DMA_LEN));
 		write32(DI_DMA_ADR, read32(DI_DMA_ADR) + read32(DI_DMA_LEN));
+	}
 	write32( DI_DMA_LEN, 0 ); // all data handled, clear length
 	u32 di_status = read32(DI_STATUS);
 	write32( DI_STATUS, di_status | 0x10 ); //set TC
