@@ -45,8 +45,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ipl.h"
 #include "HID.h"
 
-const char * NIN_BUILD_STRING = NIN_VERSION_STRING; // Version detection string used by nintendont launchers "$$Version:x.xxx"
-
 extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
 extern u32 __SYS_GetRTC(u32 *gctime);
@@ -110,6 +108,7 @@ extern void __exception_closeall();
 static u8 loader_stub[0x1800]; //save internally to prevent overwriting
 static ioctlv IOCTL_Buf ALIGNED(32);
 static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
+static const char NIN_BUILD_STRING[] ALIGNED(32) = NIN_VERSION_STRING; // Version detection string used by nintendont launchers "$$Version:x.xxx"
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -202,7 +201,7 @@ int main(int argc, char **argv)
 	}
 	fatInitDefault();
 
-	gprintf("Nintendont at your service!\r\n");
+	gprintf("Nintendont at your service!\r\n%s\r\n", NIN_BUILD_STRING);
 	KernelLoaded = 1;
 
 	char* first_slash = strrchr(argv[0], '/');
