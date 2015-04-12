@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .set	UPDATE_STREAM,	0xD30265A0
 .set	AI_ADP_LOC,		0xD30265C0
 
+.set	AI_CR,			0xCD806C00
 .set	AI_VR,			0xCD806C04
 
 .set	AI_DMA_ADDR,	0xCC005030
@@ -34,8 +35,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 __DSPHandler:
 	lis		%r12,	STREAMING@h
 	lwz		%r3,	STREAMING@l(%r12)
-	cmpwi	%r3,	1
-	beq		startcp
+	lis		%r12,	AI_CR@h
+	lwz		%r12,	AI_CR@l(%r12)
+	and.	%r3,	%r3,	%r12
+	bne		startcp
 	cmpwi	%r0,	0
 	blr
 
