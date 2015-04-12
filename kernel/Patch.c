@@ -898,6 +898,7 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x475852 ||	// Mega Man X Command Mission
 			(TITLE_ID) == 0x474832 ||	// NFS: HP2
 			(TITLE_ID) == 0x474156 ||	// Avatar Last Airbender
+			(TITLE_ID) == 0x47484E ||	// Hunter the Reckoning
 			(TITLE_ID) == 0x473442 ||	// Resident Evil 4
 			(TITLE_ID) == 0x503442 ||	// Resident Evil 4 (Demo)
 			(TITLE_ID) == 0x474856 ||	// Disneys Hide and Sneak
