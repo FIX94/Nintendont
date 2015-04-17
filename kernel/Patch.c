@@ -1319,9 +1319,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PatchBL(PatchCopy(SonicRidersCopy, SonicRidersCopy_size), SONICRIDERS_HOOK_PAL);
 		dbgprintf("Patch:Patched Sonic Riders _Main.rel PAL\r\n");
 	}
-	u32 t;
-	for(t = 0; t < Length; t+=4) //make sure its patched at all times
-		PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t);
+	else if( (TITLE_ID) == 0x474842 && useipl == 0 )
+	{
+		/* Agressive Timer Patches for The Hobbit */
+		u32 t;
+		for(t = 0; t < Length; t+=4) //make sure its patched at all times
+			PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t);
+	}
 
 	if (!(PatchState & PATCH_STATE_PATCH))
 		return;

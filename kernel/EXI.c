@@ -37,6 +37,7 @@ static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
 extern u8 SRAM[64];
 extern u32 Region;
+extern vu32 useipl;
 
 u32 Device=0;
 u32 SRAMWriteCount=0;
@@ -200,13 +201,20 @@ void EXIInit( void )
 extern vu32 TRIGame;
 void EXISetTimings(u32 TitleID, u32 Region)
 {
-	if((TitleID == 0x474637 && Region == REGION_ID_USA) || //Starfox Assault NTSC,
-		TitleID == 0x475832 || TitleID == 0x473633 )	//X-Men Legends 2 or Rainbow Six 3
+	//GC BIOS, Trifoce Game, X-Men Legends 2, Rainbow Six 3 or Starfox Assault (NTSC-U)
+	if(useipl || TRIGame != TRI_NONE || TitleID == 0x475832 || TitleID == 0x473633 ||
+		(TitleID == 0x474637 && Region == REGION_ID_USA))
+	{
 		CurrentTiming = EXI_IRQ_INSTANT;
-	else if(TitleID == 0x474C4D) //Luigis Mansion
+	}
+	else if(TitleID == 0x474C4D) //Luigis Mansion (stabilize)
+	{
 		CurrentTiming = EXI_IRQ_SLOW;
+	}
 	else
+	{
 		CurrentTiming = EXI_IRQ_DEFAULT;
+	}
 #ifdef DEBUG_PATCH
 	dbgprintf("Patch:Using a EXI Timing of %i\n", CurrentTiming);
 #endif
