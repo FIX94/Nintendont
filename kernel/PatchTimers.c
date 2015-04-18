@@ -266,4 +266,24 @@ void PatchStaticTimers()
 		dbgprintf("Patch:[Killer7 PAL] applied\r\n");
 		#endif
 	}
+	else if(read32(0xD605C) == 0x41820018 && read32(0xD6064) == 0x54600FFE)
+	{
+		write32(0xD605C, 0x60000000); /* abuse existing cheat */
+		write32(0xD6064, 0x38000003); /* dont slow down half */
+		write32(0xD6068, 0x5463083C); /* but do *2/3 to get */
+		write32(0xD606C, 0x7C030396); /* to exactly 100% speed */
+		#ifdef DEBUG_PATCH
+		dbgprintf("Patch:[Freekstyle NTSC-U] applied\r\n");
+		#endif
+	}
+	else if(read32(0xD7A08) == 0x41820018 && read32(0xD7A10) == 0x54600FFE)
+	{
+		write32(0xD7A08, 0x60000000); /* abuse existing cheat */
+		write32(0xD7A10, 0x38000003); /* dont slow down half */
+		write32(0xD7A14, 0x5463083C); /* but do *2/3 to get */
+		write32(0xD7A18, 0x7C030396); /* to exactly 100% speed */
+		#ifdef DEBUG_PATCH
+		dbgprintf("Patch:[Freekstyle PAL] applied\r\n");
+		#endif
+	}
 }
