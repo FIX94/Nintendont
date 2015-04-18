@@ -2935,6 +2935,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	if(DebuggerHook)
 	{
+		/* Freekstyle needs Hook into GXSetDrawDone */
+		//if((GAME_ID) == 0x47464B45)
+		//	DebuggerHook = 0x123098;
+
 		u32 DBGSize;
 
 		FIL fs;
