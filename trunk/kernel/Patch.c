@@ -2329,6 +2329,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE___GXSetVAT:
 						{
+							if((GAME_ID) == 0x475A4D50) //dont know why needed
+							{
+								#ifdef DEBUG_PATCH
+								dbgprintf("Patch:[__GXSetVAT] skipped (0x%08X)\r\n", FOffset);
+								#endif
+								break;
+							}
 							u32 BaseReg = 0, L1 = 0, L2 = 0, L3 = 0, RegLoc = 0;
 							if((read32(FOffset) & 0xFE000000) == 0x80000000)
 							{
