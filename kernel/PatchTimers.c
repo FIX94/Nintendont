@@ -85,6 +85,10 @@ static u32 CheckFor( u32 Buf, u32 Val )
 #define U32_TIMER_CLOCK_RAD_GC		0xcf2049a1
 #define U32_TIMER_CLOCK_RAD_WII		0x8a15866c
 
+//dont know exactly what this represents
+#define FLT_ONE_DIV_SOMECLOCK_GC	0x37f88d25
+#define FLT_ONE_DIV_SOMECLOCK_WII	0x37a5b36e
+
 //osGetCount, Multiplier so (GC / 1.5f)
 #define DBL_1_1574		0x3ff284b5dcc63f14ull
 #define DBL_0_7716		0x3fe8b0f27bb2fec5ull
@@ -126,6 +130,12 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 	{
 		write32(Buffer, FLT_ONE_DIV_CLOCK_MSECS_WII);
 		dbgprintf("Patch:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
+		return true;
+	}
+	if( FirstVal == FLT_ONE_DIV_SOMECLOCK_GC )
+	{
+		write32(Buffer, FLT_ONE_DIV_SOMECLOCK_WII);
+		dbgprintf("Patch:[Timer Clock float 1/unk] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	/* Coded in values */
@@ -264,26 +274,6 @@ void PatchStaticTimers()
 		write32(0x1E71B8, 0x39077314);
 		#ifdef DEBUG_PATCH
 		dbgprintf("Patch:[Killer7 PAL] applied\r\n");
-		#endif
-	}
-	else if(read32(0xD605C) == 0x41820018 && read32(0xD6064) == 0x54600FFE)
-	{
-		write32(0xD605C, 0x60000000); /* abuse existing cheat */
-		write32(0xD6064, 0x38000003); /* dont slow down half */
-		write32(0xD6068, 0x5463083C); /* but do *2/3 to get */
-		write32(0xD606C, 0x7C030396); /* to exactly 100% speed */
-		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:[Freekstyle NTSC-U] applied\r\n");
-		#endif
-	}
-	else if(read32(0xD7A08) == 0x41820018 && read32(0xD7A10) == 0x54600FFE)
-	{
-		write32(0xD7A08, 0x60000000); /* abuse existing cheat */
-		write32(0xD7A10, 0x38000003); /* dont slow down half */
-		write32(0xD7A14, 0x5463083C); /* but do *2/3 to get */
-		write32(0xD7A18, 0x7C030396); /* to exactly 100% speed */
-		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:[Freekstyle PAL] applied\r\n");
 		#endif
 	}
 }
