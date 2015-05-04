@@ -80,6 +80,7 @@ vu32 TRI_BackupAvailable = 0;
 vu32 GameEntry = 0, FirstLine = 0;
 u32 AppLoaderSize = 0;
 
+static char cheatPath[255];
 extern u32 prs_decompress(void* source,void* dest);
 extern u32 prs_decompress_size(void* source);
 
@@ -920,6 +921,11 @@ bool PADSwitchRequired()
 			(TITLE_ID) == 0x475734 );	// Tiger Woods PGA Tour 2004
 }
 
+bool PADForceConnected()
+{
+	return( (TITLE_ID) == 0x474C5A ); // 007 From Russia With Love
+}
+
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
 {
 	u32 i;
@@ -1066,6 +1072,17 @@ void TRIReadSettings(char *name, u32 size)
 		}
 		f_close(&backup);
 	}
+}
+
+bool fileExist( char *path )
+{
+	FIL fd;
+	if( f_open_char( &fd, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+	{
+		f_close( &fd );
+		return true;
+	}
+	return false;
 }
 
 void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
@@ -3001,22 +3018,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 					if( ConfigGetConfig( NIN_CFG_CHEATS ) && TRIGame != TRI_SB && useipl == 0 )
 					{
-						char *path = (char*)malloc( 128 );
-
-						if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
-						{
-							_sprintf( path, "%s", ConfigGetCheatPath() );
-						} else {
-							_sprintf( path, "/games/%.6s/%.6s.gct", (char*)0x1800, (char*)0x1800 );
-						}
-
 						FIL CodeFD;
-						if( f_open_char( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+						if( f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 						{
 							if( CodeFD.fsize > (POffset - (0x1800+DBGSize-8)) )
 							{
 								#ifdef DEBUG_PATCH
-								dbgprintf( "Patch:Cheatfile is too large, it must not be large than %d bytes!\r\n", (POffset - (0x1800+DBGSize-8)) );
+								dbgprintf( "Patch:Cheatfile is too large, it must not be larger than %d bytes!\r\n", (POffset - (0x1800+DBGSize-8)) );
 								#endif
 							}
 							else
@@ -3026,14 +3034,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								{
 									memcpy((void*)(0x1800+DBGSize-8), CMem, CodeFD.fsize);
 									#ifdef DEBUG_PATCH
-									dbgprintf("Patch:Copied cheat file to memory\r\n");
+									dbgprintf("Patch:Copied %s to memory\r\n", cheatPath);
 									#endif
 									//write32( 0x1804, 1 ); //???
 								}
 								else
 								{
 									#ifdef DEBUG_PATCH
-									dbgprintf("Patch:Failed to read cheat file:\"%s\"\r\n", path);
+									dbgprintf("Patch:Failed to read %s\r\n", cheatPath);
 									#endif
 								}
 								free( CMem );
@@ -3043,10 +3051,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						else
 						{
 							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", path );
+							dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", cheatPath );
 							#endif
 						}
-						free(path);
 					}
 				}
 			}
@@ -3306,6 +3313,7 @@ void PatchGame()
 		SiInitSet = 1;
 	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
 	write32(0x13002744, PADSwitchRequired() && (useipl == 0));
+	write32(0x13002748, PADForceConnected() && (useipl == 0));
 	sync_after_write((void*)0x13002740, 0x20);
 	/* Clear very actively used areas */
 	memset32((void*)0x13026500, 0, 0x100);
@@ -3335,55 +3343,48 @@ s32 Check_Cheats()
 	if((ConfigGetConfig(NIN_CFG_CHEATS)) ||
 	  ((!(IsWiiU)) && ConfigGetConfig(NIN_CFG_DEBUGGER) ))
 	{
-		u32 DBGSize;
-		FIL fs;
-		
-		if( f_open_char( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
+		if( !fileExist("/sneek/kenobiwii.bin") )
 		{
 			#ifdef DEBUG_PATCH
-			dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
+			dbgprintf( "Patch:Could not open /sneek/kenobiwii.bin, this file is required for debugging!\r\n" );
 			#endif
 			return -1;
 		}
-		DBGSize = fs.fsize;
-		f_close( &fs );
-		
+
 		if( ConfigGetConfig( NIN_CFG_CHEATS ) )
 		{
-			char path[128];
-
 			if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
 			{
-				_sprintf( path, "%s", ConfigGetCheatPath() );
-				if (path[0] == 0)	//cheat path is null
-					return -4;
-			} else {
-				return 0;	//todo: temp until fixed
-//				_sprintf( path, "/games/%.6s/%.6s.gct", (char*)0x1800, (char*)0x1800 );
-//				_sprintf( path, "/games/%c%c%c%c%c%c/%c%c%c%c%c%c.gct", (char*)0, (char*)1, (char*)2, (char*)3, (char*)4, (char*)5, (char*)0, (char*)1, (char*)2, (char*)3, (char*)4, (char*)5 );
-			}
-
-			FIL CodeFD;
-
-			if( f_open_char( &CodeFD, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
-			{
-				if( CodeFD.fsize >= 0x2E60 - (0x1800+DBGSize-8) )
+				char *cpath = ConfigGetCheatPath();
+				if (cpath[0] != 0)
 				{
-					f_close( &CodeFD );
-					#ifdef DEBUG_PATCH
-					dbgprintf("Patch:Cheatfile is too large, it must not be large than %d bytes!\r\n", 0x2E60 - (0x1800+DBGSize-8));
-					#endif
-					return -3;
+					if( fileExist(cpath) )
+					{
+						memcpy(cheatPath, cpath, 255);
+						return 0;
+					}
 				}
-				f_close( &CodeFD );
 			}
-			else
-			{
-				#ifdef DEBUG_PATCH
-				dbgprintf("Patch:Failed to read cheat file:\"%s\"\r\n", path );
-				#endif
-				return -2;
-			}
+			u32 i;
+			char* DiscName = ConfigGetGamePath();
+			//search the string backwards for '/'
+			for( i=strlen(DiscName); i > 0; --i )
+				if( DiscName[i] == '/' )
+					break;
+			i++;
+			memcpy(cheatPath, DiscName, i);
+			_sprintf(cheatPath+i, "game.gct");
+			if( fileExist(cheatPath) )
+				return 0;
+			sync_before_read((void*)0x0, 0x20);
+			_sprintf(cheatPath+i, "%.6s.gct", (char*)0x0);
+			if( fileExist(cheatPath) )
+				return 0;
+			//oldschool backup path
+			_sprintf(cheatPath, "/games/%.6s/%.6s.gct", (char*)0x0, (char*)0x0);
+			if( fileExist(cheatPath) )
+				return 0;
+			return -2;
 		}
 	}
 #endif
