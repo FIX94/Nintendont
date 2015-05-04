@@ -769,17 +769,14 @@ int main(int argc, char **argv)
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing %s:/sneek/kenobiwii.bin", GetRootDevice());
 					break;
 				case -2:
-					if (ncfg->Config & NIN_CFG_CHEAT_PATH)
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing %s:/%s", GetRootDevice(), ncfg->CheatPath);
-					else
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing %s:/games/GAMEID/GAMEID.gct", GetRootDevice());
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing Cheat file", GetRootDevice());
 					break;
-				case -3:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Cheat file to large", GetRootDevice());
+				/*case -3:
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Cheat file too large", GetRootDevice());
 					break;
 				case -4:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Cheat path is empty", GetRootDevice());
-					break;
+					break;*/
 				default:
 					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Unknown error %d %35s", STATUS_ERROR, " ");
 					break;

@@ -25,7 +25,7 @@ static vu32* BTMotor = (u32*)0x93002720;
 static vu32* BTPadFree = (u32*)0x93002730;
 static vu32* SIInited = (u32*)0x93002740;
 static vu32* PADSwitchRequired = (u32*)0x93002744;
-
+static vu32* PADForceConnected = (u32*)0x93002748;
 
 static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
@@ -1217,6 +1217,13 @@ u32 _start(u32 calledByGame)
 	}
 	memInvalidate = (u32)SIInited;
 	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+
+	/* Some games always need the controllers "used" */
+	if(*PADForceConnected)
+	{
+		for(chan = 0; chan < 4; ++chan)
+			used |= (1<<chan);
+	}
 
 	if(*PADSwitchRequired)
 	{
