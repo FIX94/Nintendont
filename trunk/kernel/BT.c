@@ -109,10 +109,10 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		if(chan == CHAN_NOT_SET)
 			return ERR_OK;
 		sync_before_read(&BTPad[chan], sizeof(struct BTPadCont));
-		BTPad[chan].xAxisL = ((bswap16(R16((u32)(((u8*)buffer)+1))) - stat->xAxisLmid) *7) >>6;
-		BTPad[chan].xAxisR = ((bswap16(R16((u32)(((u8*)buffer)+3))) - stat->xAxisRmid) *7) >>6;
-		BTPad[chan].yAxisL = ((bswap16(R16((u32)(((u8*)buffer)+5))) - stat->yAxisLmid) *7) >>6;
-		BTPad[chan].yAxisR = ((bswap16(R16((u32)(((u8*)buffer)+7))) - stat->yAxisRmid) *7) >>6;
+		BTPad[chan].xAxisL = ((bswap16(R16((u32)(((u8*)buffer)+1))) - stat->xAxisLmid) *3) >>5;
+		BTPad[chan].xAxisR = ((bswap16(R16((u32)(((u8*)buffer)+3))) - stat->xAxisRmid) *3) >>5;
+		BTPad[chan].yAxisL = ((bswap16(R16((u32)(((u8*)buffer)+5))) - stat->yAxisLmid) *3) >>5;
+		BTPad[chan].yAxisR = ((bswap16(R16((u32)(((u8*)buffer)+7))) - stat->yAxisRmid) *3) >>5;
 		u32 prevButton = BTPad[chan].button;
 		BTPad[chan].button = ~(R16((u32)(((u8*)buffer)+9)));
 		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
