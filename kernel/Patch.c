@@ -3373,11 +3373,16 @@ s32 Check_Cheats()
 					break;
 			i++;
 			memcpy(cheatPath, DiscName, i);
+			//new version paths
 			_sprintf(cheatPath+i, "game.gct");
 			if( fileExist(cheatPath) )
 				return 0;
 			sync_before_read((void*)0x0, 0x20);
 			_sprintf(cheatPath+i, "%.6s.gct", (char*)0x0);
+			if( fileExist(cheatPath) )
+				return 0;
+			//gecko path
+			_sprintf(cheatPath, "/codes/%.6s.gct", (char*)0x0);
 			if( fileExist(cheatPath) )
 				return 0;
 			//oldschool backup path
