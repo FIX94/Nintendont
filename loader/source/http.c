@@ -31,6 +31,7 @@
 
 #include "http.h"
 #include "exi.h"
+#include "ssl.h"
 
 char *http_host;
 u16 http_port;
@@ -49,16 +50,19 @@ s32 tcp_socket (void) {
 	s = net_socket (PF_INET, SOCK_STREAM, 0);
 	if (s < 0) return s;
 
-	res = net_fcntl (s, F_GETFL, 0);
-	if (res < 0) {
-		net_close (s);
-		return res;
-	}
-
-	res = net_fcntl (s, F_SETFL, res | 4);
-	if (res < 0) {
-		net_close (s);
-		return res;
+	if(http_port == 80)
+	{
+		res = net_fcntl (s, F_GETFL, 0);
+		if (res < 0) {
+			net_close (s);
+			return res;
+		}
+		//set non-blocking
+		res = net_fcntl (s, F_SETFL, res | 4);
+		if (res < 0) {
+			net_close (s);
+			return res;
+		}
 	}
 
 	return s;
@@ -127,7 +131,10 @@ char * tcp_readln (const s32 s, const u16 max_length, const u64 start_time, cons
 		if (ticks_to_millisecs (diff_ticks (start_time, gettime ())) > timeout)
 			break;
 
-		res = net_read (s, &buf[c], 1);
+		if(http_port == 443)
+			res = ssl_read (s, &buf[c], 1);
+		else
+			res = net_read (s, &buf[c], 1);
 
 		if ((res == 0) || (res == -EAGAIN)) {
 			usleep (20 * 1000);
@@ -178,7 +185,10 @@ bool tcp_read (const s32 s, u8 **buffer, const u32 length) {
 		if (block > 2048)
 			block = 2048;
 
-		res = net_read (s, p, block);
+		if(http_port == 443)
+			res = ssl_read (s, p, block);
+		else
+			res = net_read (s, p, block);
 
 		if ((res == 0) || (res == -EAGAIN)) {
 			usleep (20 * 1000);
@@ -224,7 +234,10 @@ bool tcp_write (const s32 s, const u8 *buffer, const u32 length) {
 		if (block > 2048)
 			block = 2048;
 
-		res = net_write (s, p, block);
+		if(http_port == 443)
+			res = ssl_write (s, p, block);
+		else
+			res = net_write (s, p, block);
 
 		if ((res == 0) || (res == -56)) {
 			usleep (20 * 1000);
@@ -251,10 +264,13 @@ bool http_split_url (char **host, char **path, const char *url) {
 	const char *p;
 	char *c;
 
-	if (strncasecmp (url, "http://", 7))
+	if (strncasecmp (url, "http://", 7) == 0)
+		p = url + 7;
+	else if(strncasecmp (url, "https://", 8) == 0)
+		p = url + 8;
+	else
 		return false;
 
-	p = url + 7;
 	c = strchr (p, '/');
 
 	if (c[0] == 0)
@@ -268,11 +284,16 @@ bool http_split_url (char **host, char **path, const char *url) {
 
 bool http_request (const char *url, const u32 max_size) {
 	int linecount;
+	int sslcontext = -1;
 	if (!http_split_url(&http_host, &http_path, url)) return false;
 
-	http_port = 80;
+	if (strncasecmp (url, "http://", 7) == 0)
+		http_port = 80;
+	else
+		http_port = 443;
+
 	http_max_size = max_size;
-	
+
 	http_status = 404;
 	content_length = 0;
 	http_data = NULL;
@@ -282,21 +303,50 @@ bool http_request (const char *url, const u32 max_size) {
 		result = HTTPR_ERR_CONNECT;
 		return false;
 	}
-
+	if(http_port == 443)
+	{
+		//patched out anyways so just to set something
+		sslcontext = ssl_new((u8*)http_host,0);
+		if(sslcontext < 0)
+		{
+			gprintf("ssl_new\n");
+			result = HTTPR_ERR_CONNECT;
+			net_close (s);
+			return false;
+		}
+		//patched out anyways so just to set something
+		ssl_setbuiltinclientcert(sslcontext,0);
+		if(ssl_connect(sslcontext,s) < 0)
+		{
+			gprintf("ssl_connect\n");
+			result = HTTPR_ERR_CONNECT;
+			ssl_shutdown(sslcontext);
+			net_close (s);
+			return false;
+		}
+		int ret = ssl_handshake(sslcontext);
+		if(ret < 0)
+		{
+			gprintf("ssl_handshake %i\n", ret);
+			result = HTTPR_ERR_STATUS;
+			ssl_shutdown(sslcontext);
+			net_close (s);
+			return false;
+		}
+	}
 	char *request = (char *) memalign (32, 1024*6);
 	char *r = request;
 	r += sprintf (r, "GET %s HTTP/1.1\r\n", http_path);
 	r += sprintf (r, "Host: %s\r\n", http_host);
 	r += sprintf (r, "Cache-Control: no-cache\r\n\r\n");
 
-
-	bool b = tcp_write (s, (u8 *) request, strlen (request));
+	bool b = tcp_write (http_port == 443 ? sslcontext : s, (u8 *) request, strlen (request));
 
 	free (request);
 	linecount = 0;
 
 	for (linecount=0; linecount < 32; linecount++) {
-	  char *line = tcp_readln (s, 0xff, gettime(), (u16)HTTP_TIMEOUT);
+	  char *line = tcp_readln (http_port == 443 ? sslcontext : s, 0xff, gettime(), (u16)HTTP_TIMEOUT);
 		if (!line) {
 			http_status = 404;
 			result = HTTPR_ERR_REQUEST;
@@ -320,26 +370,34 @@ bool http_request (const char *url, const u32 max_size) {
 	if (linecount == 32 || !content_length) http_status = 404;
 	if (http_status != 200) {
 		result = HTTPR_ERR_STATUS;
+		if(http_port == 443)
+			ssl_shutdown(sslcontext);
 		net_close (s);
 		return false;
 	}
 	if (content_length > http_max_size) {
 		result = HTTPR_ERR_TOOBIG;
+		if(http_port == 443)
+			ssl_shutdown(sslcontext);
 		net_close (s);
 		return false;
 	}
 	http_data = (u8 *) memalign (32, content_length);
-	b = tcp_read (s, &http_data, content_length);
+	b = tcp_read (http_port == 443 ? sslcontext : s, &http_data, content_length);
 	if (!b) {
 		free (http_data);
 		http_data = NULL;
 		result = HTTPR_ERR_RECEIVE;
+		if(http_port == 443)
+			ssl_shutdown(sslcontext);
 		net_close (s);
 		return false;
 	}
 
 	result = HTTPR_OK;
 
+	if(http_port == 443)
+		ssl_shutdown(sslcontext);
 	net_close (s);
 
 

@@ -176,8 +176,7 @@ s32 LoadModules( u32 IOSVersion )
 		if( TMD->BootIndex == TMD->Contents[i].Index )
 			continue;
 
-		if( TMD->Contents[i].Index == 0 ||	// ???
-			TMD->Contents[i].Index == 12 )	// SSL (We dont use HTTPS)
+		if( TMD->Contents[i].Index == 0 )
 			continue;
 		//check if shared!
 		if( TMD->Contents[i].Type & CONTENT_SHARED )

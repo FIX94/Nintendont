@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "font.h"
 #include "global.h"
 #include "http.h"
+#include "ssl.h"
 #include "menu.h"
 #include "update.h"
 #include "unzip/miniunz.h"
@@ -58,10 +59,10 @@ typedef enum {
 } DOWNLOADS;
 
 static const downloads_t Downloads[] = {
-	{"http://nintendon-t.googlecode.com/svn/trunk/loader/loader.dol", "Updating Nintendont", "boot.dol", 0x400000}, // 4MB
-	{"http://nintendon-t.googlecode.com/svn/trunk/nintendont/titles.txt", "Updating titles.txt", "titles.txt", 0x80000}, // 512KB
-	{"http://nintendon-t.googlecode.com/svn/trunk/controllerconfigs/controllers.zip", "Updating controllers.zip", "controllers.zip", 0x8000}, // 32KB
-	{"http://nintendon-t.googlecode.com/svn/trunk/common/include/NintendontVersion.h", "Checking Latest Version", "", 0x400} // 1KB
+	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/loader/loader.dol", "Updating Nintendont", "boot.dol", 0x400000}, // 4MB
+	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/titles.txt", "Updating titles.txt", "titles.txt", 0x80000}, // 512KB
+	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/controllerconfigs/controllers.zip", "Updating controllers.zip", "controllers.zip", 0x8000}, // 32KB
+	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/common/include/NintendontVersion.h", "Checking Latest Version", "", 0x400} // 1KB
 };
 
 static int UnzipControllers(const char* filepath) {
@@ -175,7 +176,7 @@ static s32 Download(DOWNLOADS download_number)  {
 	gprintf("Network Initialized\r\n");
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Network Initialized");
 	UpdateScreen();
-	
+	ssl_init(); //only once needed
 	line++;
 	if (download_number == DOWNLOAD_NINTENDONT) {
 		ret = LatestVersion(&major, &minor, &line);
@@ -214,6 +215,7 @@ static s32 Download(DOWNLOADS download_number)  {
 	line++;
 	if (!dir_argument_exists) {
 		gprintf("Creating new directory\r\n");
+		mkdir("/apps", S_IWRITE|S_IREAD);
 		mkdir("/apps/Nintendont", S_IWRITE|S_IREAD);
 	}
 	file = fopen(filepath, "wb");

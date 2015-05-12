@@ -434,7 +434,10 @@ void Patch31A0( void )
 	u32 PatchOffset = PATCH_OFFSET_START;
 	if(DOLMinOff < 0x31A0)
 	{
+		//backup data
 		u32 CurBuf = read32(0x319C);
+		//create jump for it
+		PatchB(PatchOffset, 0x319C);
 		if ((CurBuf & 0xFC000002) == 0x40000000)
 		{
 			u32 Orig = CurBuf;
@@ -481,13 +484,11 @@ void Patch31A0( void )
 #endif
 	}
 	write32(PatchOffset, CurBuf);
+	if(P2C(GameEntry) == 0x31A0) //terrible case
+		GameEntry = (PatchOffset | (1<<31));
 	PatchOffset += 4;
+	//jump back
 	PatchB(0x31A4, PatchOffset);
-
-	if(P2C(DOLMinOff) < 0x31A0)
-		PatchB(PATCH_OFFSET_START, 0x319C);
-	if(P2C(GameEntry) == 0x13A0)
-		GameEntry = (PATCH_OFFSET_START) | (1<<31);
 }
 
 u32 PatchCopy(const u8 *PatchPtr, const u32 PatchSize)
