@@ -198,6 +198,24 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				}
 			}
 			return false;
+		case 0x474D38: //Metroid Prime
+		case 0x47324D: //Metroid Prime 2
+			for(Buffer = 0x2B0000; Buffer < 0x3B0000; Buffer+=4)
+			{
+				if(read32(Buffer) == 0xFFA01090 && read32(Buffer+8) == 0xFFC01890 && read32(Buffer+12) == 0xEC250072)
+				{
+					PatchWideMulti(Buffer, 29); //perspective
+					PatchedWide++;
+				}
+				if(read32(Buffer) == 0xFF401090 && read32(Buffer+4) == 0xEF210032 && read32(Buffer+12) == 0xFFC01890)
+				{
+					PatchWideMulti(Buffer, 26); //width near plane
+					PatchWideMulti(Buffer+12, 30); //width far plane
+					PatchedWide++;
+				}
+			}
+			dbgprintf("Patch:Patched Metroid Prime Widescreen (%i times)\r\n", PatchedWide);
+			return PatchedWide;
 		case 0x474832: //Need for Speed Hot Pursuit 2
 			dbgprintf("Patch:Patched NFS:HP2 Widescreen\r\n");
 			if(Region == REGION_ID_USA)
