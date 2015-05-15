@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SI.h"
 #include "EXI.h"
 #include "GCAM.h"
+#include "codehandler.h"
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
 #define GAME_ID		(read32(0))
@@ -2963,102 +2964,72 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		/* Freekstyle needs Hook into GXSetDrawDone */
 		//if((GAME_ID) == 0x47464B45)
 		//	DebuggerHook = 0x123098;
-
-		u32 DBGSize;
-
-		FIL fs;
-		if( f_open_char( &fs, "/sneek/kenobiwii.bin", FA_OPEN_EXISTING|FA_READ ) != FR_OK )
+		//copy into dedicated space
+		memcpy( (void*)0x1800, codehandler, codehandler_size );
+		//copy game id for debugger
+		memcpy( (void *)0x1800, (void*)0, 6 );
+		//set custom cheats location
+		W16(0x1CDE, 0x9300);
+		W16(0x1CE2, 0x6000);
+		W16(0x1F5A, 0x9300);
+		W16(0x1F5E, 0x6000);
+		//make sure to clear code area beforeahand
+		memset((void*)0x13006000, 0, 0x2000);
+		sync_after_write((void*)0x13006000, 0x2000);
+		//copy in gct file if requested
+		if( ConfigGetConfig( NIN_CFG_CHEATS ) && TRIGame != TRI_SB && useipl == 0 )
 		{
-			#ifdef DEBUG_PATCH
-			dbgprintf( "Patch:Could not open:\"%s\", this file is required for debugging!\r\n", "/sneek/kenobiwii.bin" );
-			#endif
-		}
-		else if(fs.fsize > (POffset - 0x1800))
-		{
-			#ifdef DEBUG_PATCH
-			dbgprintf("Patch:No More Memory for kenobiwii left!\r\n");
-			#endif
-			f_close(&fs);
-		}
-		else
-		{
-			if( fs.fsize != 0 )
+			FIL CodeFD;
+			if( f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 			{
-				DBGSize = fs.fsize;
-				void *KMem = malloc(fs.fsize);
-				//Read file to memory
-				s32 ret = f_read( &fs, KMem, fs.fsize, &read );
-				if( ret != FR_OK )
+				if( CodeFD.fsize > 0x2000 )
 				{
 					#ifdef DEBUG_PATCH
-					dbgprintf( "Patch:Could not read:\"%s\":%d\r\n", "/sneek/kenobiwii.bin", ret );
+					dbgprintf( "Patch:Cheatfile is too large, it must not be larger than 8KB!\r\n" );
 					#endif
-					free( KMem );
-					f_close( &fs );
 				}
 				else
 				{
-					f_close( &fs );
-					memcpy( (void*)0x1800, KMem, DBGSize );
-					free( KMem );
-					if( IsWiiU )
+					void *CMem = malloc(CodeFD.fsize);
+					if( f_read( &CodeFD, CMem, CodeFD.fsize, &read ) == FR_OK )
 					{
-						*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
+						memcpy((void*)0x13006000, CMem, CodeFD.fsize);
+						sync_after_write((void*)0x13006000, 0x2000);
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:Copied %s to memory\r\n", cheatPath);
+						#endif
 					}
 					else
 					{
-						if( ConfigGetConfig(NIN_CFG_DEBUGWAIT) )
-							*(vu32*)(P2C(*(vu32*)0x1808)) = 1;
-						else
-							*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:Failed to read %s\r\n", cheatPath);
+						#endif
 					}
-
-					memcpy( (void *)0x1800, (void*)0, 6 );
-
-					PatchB( 0x18A8, DebuggerHook );
-
-					if( ConfigGetConfig( NIN_CFG_CHEATS ) && TRIGame != TRI_SB && useipl == 0 )
-					{
-						FIL CodeFD;
-						if( f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
-						{
-							if( CodeFD.fsize > (POffset - (0x1800+DBGSize-8)) )
-							{
-								#ifdef DEBUG_PATCH
-								dbgprintf( "Patch:Cheatfile is too large, it must not be larger than %d bytes!\r\n", (POffset - (0x1800+DBGSize-8)) );
-								#endif
-							}
-							else
-							{
-								void *CMem = malloc(CodeFD.fsize);
-								if( f_read( &CodeFD, CMem, CodeFD.fsize, &read ) == FR_OK )
-								{
-									memcpy((void*)(0x1800+DBGSize-8), CMem, CodeFD.fsize);
-									#ifdef DEBUG_PATCH
-									dbgprintf("Patch:Copied %s to memory\r\n", cheatPath);
-									#endif
-									//write32( 0x1804, 1 ); //???
-								}
-								else
-								{
-									#ifdef DEBUG_PATCH
-									dbgprintf("Patch:Failed to read %s\r\n", cheatPath);
-									#endif
-								}
-								free( CMem );
-							}
-							f_close( &CodeFD );
-						}
-						else
-						{
-							#ifdef DEBUG_PATCH
-							dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", cheatPath );
-							#endif
-						}
-					}
+					free( CMem );
 				}
+				f_close( &CodeFD );
+			}
+			else
+			{
+				#ifdef DEBUG_PATCH
+				dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", cheatPath );
+				#endif
 			}
 		}
+		//set if debugger is requested
+		if( IsWiiU )
+		{
+			*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
+		}
+		else
+		{
+			if( ConfigGetConfig(NIN_CFG_DEBUGWAIT) )
+				*(vu32*)(P2C(*(vu32*)0x1808)) = 1;
+			else
+				*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
+		}
+		//setup jump to codehandler
+		PatchB( 0x18A8, DebuggerHook );
 	}
 	free(hash);
 	free(SHA1i);
@@ -3341,57 +3312,45 @@ void PatchGame()
 s32 Check_Cheats()
 {
 #ifdef CHEATS
-	if((ConfigGetConfig(NIN_CFG_CHEATS)) ||
-	  ((!(IsWiiU)) && ConfigGetConfig(NIN_CFG_DEBUGGER) ))
+	if( ConfigGetConfig( NIN_CFG_CHEATS ) )
 	{
-		if( !fileExist("/sneek/kenobiwii.bin") )
+		if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
 		{
-			#ifdef DEBUG_PATCH
-			dbgprintf( "Patch:Could not open /sneek/kenobiwii.bin, this file is required for debugging!\r\n" );
-			#endif
-			return -1;
-		}
-
-		if( ConfigGetConfig( NIN_CFG_CHEATS ) )
-		{
-			if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
+			char *cpath = ConfigGetCheatPath();
+			if (cpath[0] != 0)
 			{
-				char *cpath = ConfigGetCheatPath();
-				if (cpath[0] != 0)
+				if( fileExist(cpath) )
 				{
-					if( fileExist(cpath) )
-					{
-						memcpy(cheatPath, cpath, 255);
-						return 0;
-					}
+					memcpy(cheatPath, cpath, 255);
+					return 0;
 				}
 			}
-			u32 i;
-			char* DiscName = ConfigGetGamePath();
-			//search the string backwards for '/'
-			for( i=strlen(DiscName); i > 0; --i )
-				if( DiscName[i] == '/' )
-					break;
-			i++;
-			memcpy(cheatPath, DiscName, i);
-			//new version paths
-			_sprintf(cheatPath+i, "game.gct");
-			if( fileExist(cheatPath) )
-				return 0;
-			sync_before_read((void*)0x0, 0x20);
-			_sprintf(cheatPath+i, "%.6s.gct", (char*)0x0);
-			if( fileExist(cheatPath) )
-				return 0;
-			//gecko path
-			_sprintf(cheatPath, "/codes/%.6s.gct", (char*)0x0);
-			if( fileExist(cheatPath) )
-				return 0;
-			//oldschool backup path
-			_sprintf(cheatPath, "/games/%.6s/%.6s.gct", (char*)0x0, (char*)0x0);
-			if( fileExist(cheatPath) )
-				return 0;
-			return -2;
 		}
+		u32 i;
+		char* DiscName = ConfigGetGamePath();
+		//search the string backwards for '/'
+		for( i=strlen(DiscName); i > 0; --i )
+			if( DiscName[i] == '/' )
+				break;
+		i++;
+		memcpy(cheatPath, DiscName, i);
+		//new version paths
+		_sprintf(cheatPath+i, "game.gct");
+		if( fileExist(cheatPath) )
+			return 0;
+		sync_before_read((void*)0x0, 0x20);
+		_sprintf(cheatPath+i, "%.6s.gct", (char*)0x0);
+		if( fileExist(cheatPath) )
+			return 0;
+		//gecko path
+		_sprintf(cheatPath, "/codes/%.6s.gct", (char*)0x0);
+		if( fileExist(cheatPath) )
+			return 0;
+		//oldschool backup path
+		_sprintf(cheatPath, "/games/%.6s/%.6s.gct", (char*)0x0, (char*)0x0);
+		if( fileExist(cheatPath) )
+			return 0;
+		return -2;
 	}
 #endif
 	return 0;
