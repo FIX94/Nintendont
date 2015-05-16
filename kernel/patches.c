@@ -33,7 +33,8 @@ enum
 	FPATCH_CARDUnlock = 1<<5,
 	FPATCH_OSSleepThread = 1<<6,
 	FPATCH_VideoModes = 1<<7,
-	FPATCH_DSP_ROM = 1<<8
+	FPATCH_DSP_ROM = 1<<8,
+	FPATCH_GXBegin = 1<<9,
 };
 
 enum

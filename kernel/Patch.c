@@ -1691,17 +1691,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	sync_after_write( Buffer, Length );
 	sync_before_read( Buffer, Length );
 
-	u32 PatchCount = FPATCH_OSSleepThread | FPATCH_VideoModes;
+	u32 PatchCount = FPATCH_OSSleepThread | FPATCH_VideoModes | FPATCH_GXBegin;
 #ifdef CHEATS
 	if( IsWiiU )
 	{
 		if( ConfigGetConfig(NIN_CFG_CHEATS) )
-			PatchCount &= ~FPATCH_OSSleepThread;
+			PatchCount &= ~(FPATCH_OSSleepThread | FPATCH_GXBegin);
 	}
 	else
 	{
 		if( ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS) )
-			PatchCount &= ~FPATCH_OSSleepThread;
+			PatchCount &= ~(FPATCH_OSSleepThread | FPATCH_GXBegin);
 	}
 #endif
 	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) )
@@ -1716,7 +1716,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			CurPatterns[j].Found = 0;
 	}
 	/* Cheats */
-	u32 DebuggerHook = 0;
+	u32 DebuggerHook = 0, DebuggerHook2 = 0;
 	/* SI Inited Patch */
 	u32 PADInitOffset = 0, SIInitOffset = 0;
 	/* DSP Patches */
@@ -1952,16 +1952,23 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					( BufAt4 == 0x3C808000 || BufAt4 == 0x808400E4 ) &&
 					( read32((u32)Buffer + i + 8 ) == 0x38000004 || read32((u32)Buffer + i + 8 ) == 0x808400E4 ) )
 				{
-					int j = 12;
-
-					while( *(vu32*)(Buffer+i+j) != 0x4E800020 )
-						j+=4;
-
-					DebuggerHook = (u32)Buffer + i + j;
-					printpatchfound("Hook:OSSleepThread",NULL, DebuggerHook);
-
 					PatchCount |= FPATCH_OSSleepThread;
 					i = GotoFuncEnd(i, (u32)Buffer);
+					DebuggerHook = (u32)Buffer + i;
+					printpatchfound("Hook:OSSleepThread",NULL, DebuggerHook);
+					continue;
+				}
+			}
+			if( (PatchCount & FPATCH_GXBegin) == 0 )
+			{
+				//GXBegin(Pattern 1)
+				if( BufAt0 == 0x3C60CC01 && BufAt4 == 0x98038000 &&
+					( read32((u32)Buffer + i + 8 ) == 0xB3E38000 || read32((u32)Buffer + i + 8 ) == 0xB3C38000 ) )
+				{
+					PatchCount |= FPATCH_GXBegin;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					DebuggerHook2 = (u32)Buffer + i;
+					printpatchfound("Hook:GXBegin",NULL, DebuggerHook2);
 					continue;
 				}
 			}
@@ -2959,11 +2966,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchWideMulti(MTXLightPerspectiveOffset + 0x24, 27);
 		}
 	}
-	if(DebuggerHook)
+	if(DebuggerHook || DebuggerHook2)
 	{
-		/* Freekstyle needs Hook into GXSetDrawDone */
-		//if((GAME_ID) == 0x47464B45)
-		//	DebuggerHook = 0x123098;
 		//copy into dedicated space
 		memcpy( (void*)0x1800, codehandler, codehandler_size );
 		//copy game id for debugger
@@ -3029,7 +3033,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
 		}
 		//setup jump to codehandler
-		PatchB( 0x18A8, DebuggerHook );
+		if(DebuggerHook) PatchB( 0x18A8, DebuggerHook );
+		if(DebuggerHook2) PatchB( 0x18A8, DebuggerHook2 );
 	}
 	free(hash);
 	free(SHA1i);
