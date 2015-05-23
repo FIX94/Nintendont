@@ -61,39 +61,39 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 	if(FirstVal == FLT_ASPECT_0_913 && read32(Buffer+4) == 0x2e736200)
 	{
 		write32(Buffer, FLT_ASPECT_1_218);
-		dbgprintf("Patch:[Aspect Ratio 1.218] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchWidescreen:[Aspect Ratio 1.218] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	else if(FirstVal == FLT_ASPECT_1_200 && (read32(Buffer+4) == 0x43F00000 || 
 			(read32(Buffer+4) == 0 && read32(Buffer+8) == 0x43F00000)))
 	{	//All Mario Party games share this value
 		write32(Buffer, FLT_ASPECT_1_600);
-		dbgprintf("Patch:[Aspect Ratio 1.600] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchWidescreen:[Aspect Ratio 1.600] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	else if(FirstVal == FLT_ASPECT_1_266 && read32(Buffer+4) == 0x44180000)
 	{
 		write32(Buffer, FLT_ASPECT_1_688);
-		dbgprintf("Patch:[Aspect Ratio 1.688] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchWidescreen:[Aspect Ratio 1.688] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	else if(FirstVal == FLT_ASPECT_1_333 && (read32(Buffer+4) == 0x481c4000 || 
 		read32(Buffer+4) == 0x3f800000 || read32(Buffer+4) == 0xbf800000))
 	{
 		write32(Buffer, FLT_ASPECT_1_777);
-		dbgprintf("Patch:[Aspect Ratio 1.777] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchWidescreen:[Aspect Ratio 1.777] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	else if(FirstVal == FLT_ASPECT_1_357 && read32(Buffer+4) == 0x481c4000)
 	{
 		write32(Buffer, FLT_ASPECT_1_809);
-		dbgprintf("Patch:[Aspect Ratio 1.809] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchWidescreen:[Aspect Ratio 1.809] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	else if(FirstVal == FLT_ASPECT_1_428 && read32(Buffer+4) == 0x3e99999a)
 	{
 		write32(Buffer, FLT_ASPECT_1_905);
-		dbgprintf("Patch:[Aspect Ratio 1.905] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchWidescreen:[Aspect Ratio 1.905] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	return false;
@@ -103,26 +103,26 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
 	if(TRIGame == TRI_GP1)
 	{
-		dbgprintf("Patch:Mario Kart GP1 Widescreen\r\n");
+		dbgprintf("PatchWidescreen:[Mario Kart GP1] applied\r\n");
 		PatchWideMulti(0x28C800, 1);
 		return true;
 	}
 	else if(TRIGame == TRI_GP2)
 	{
-		dbgprintf("Patch:Mario Kart GP2 Widescreen\r\n");
+		dbgprintf("PatchWidescreen:[Mario Kart GP2] applied\r\n");
 		PatchWideMulti(0x2C80D4, 1);
 		return true;
 	}
 	else if(TRIGame == TRI_VS4)
 	{
-		dbgprintf("Patch:Virtua Striker 4 Widescreen\r\n");
+		dbgprintf("PatchWidescreen:[Virtua Striker 4] applied\r\n");
 		PatchWideMulti(0x5E418, 0); //clipping
 		PatchWideMulti(0x7FA58, 0); //widescreen
 		return true;
 	}
 	else if(TRIGame == TRI_AX)
 	{	//thanks CosmoCortney
-		dbgprintf("Patch:F-Zero AX Widescreen\r\n");
+		dbgprintf("PatchWidescreen:[F-Zero AX] applied\r\n");
 		write32(0x445C34, read32(0x445C30));
 		return true;
 	}
@@ -130,7 +130,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 	switch(TitleID)
 	{
 		case 0x474D34: //Mario Kart Double Dash
-			dbgprintf("Patch:Patched MKDD Widescreen\r\n");
+			dbgprintf("PatchWidescreen:[Mario Kart Double Dash] applied\r\n");
 			if(Region == REGION_ID_USA || Region == REGION_ID_JAP)
 			{
 				PatchWideMulti(0x1D65A4, 3);
@@ -148,7 +148,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			{	//Every language has its own function location making 7 different locations
 				if(read32(Buffer) == 0xFF801090 && read32(Buffer+4) == 0x7C9F2378)
 				{
-					dbgprintf("Patch:Patched Animal Crossing Widescreen (0x%08X)\r\n", Buffer);
+					dbgprintf("PatchWidescreen:[Animal Crossing] applied (0x%08X)\r\n", Buffer);
 					PatchWideMulti(Buffer, 28);
 					return true;
 				}
@@ -159,7 +159,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			{
 				if(read32(Buffer) == 0x281E0000 && read32(Buffer+4) == 0xC03F0034)
 				{
-					dbgprintf("Patch:Patched SSBM Widescreen (0x%08X)\r\n", Buffer+4);
+					dbgprintf("PatchWidescreen:[Super Smash Bros Melee] applied (0x%08X)\r\n", Buffer+4);
 					PatchWideMulti(Buffer+4, 1);
 					return true;
 				}
@@ -170,7 +170,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			{
 				if(read32(Buffer) == 0xEC000828 && (read32(Buffer+4) == 0xD00302A0 || read32(Buffer+4) == 0xD01C02A0))
 				{
-					dbgprintf("Patch:Patched 1080 Avalanche Widescreen (0x%08X)\r\n", Buffer);
+					dbgprintf("PatchWidescreen:[1080 Avalanche] applied (0x%08X)\r\n", Buffer);
 					PatchWideMulti(Buffer, 0);
 					PatchedWide = 1; //patching 2 areas
 				}
@@ -181,7 +181,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			{
 				if(read32(Buffer) == 0x80BF030C)
 				{
-					dbgprintf("Patch:Patched Pikmin Widescreen (0x%08X)\r\n", Buffer);
+					dbgprintf("PatchWidescreen:[Pikmin] applied (0x%08X)\r\n", Buffer);
 					write32(Buffer, 0x38A003AC);
 					return true;
 				}
@@ -192,7 +192,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			{
 				if(read32(Buffer) == 0xEC011824 && read32(Buffer+12) == 0xC0040000)
 				{
-					dbgprintf("Patch:Patched Pikmin 2 Widescreen (0x%08X)\r\n", Buffer);
+					dbgprintf("PatchWidescreen:[Pikmin 2] applied (0x%08X)\r\n", Buffer);
 					PatchWideMulti(Buffer, 0);
 					return true;
 				}
@@ -214,10 +214,10 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 					PatchedWide++;
 				}
 			}
-			dbgprintf("Patch:Patched Metroid Prime Widescreen (%i times)\r\n", PatchedWide);
+			dbgprintf("PatchWidescreen:[Metroid Prime] applied (%i times)\r\n", PatchedWide);
 			return PatchedWide;
 		case 0x474832: //Need for Speed Hot Pursuit 2
-			dbgprintf("Patch:Patched NFS:HP2 Widescreen\r\n");
+			dbgprintf("PatchWidescreen:[Need for Speed Hot Pursuit 2] applied\r\n");
 			if(Region == REGION_ID_USA)
 			{
 				write32(0x14382C, 0xC0429AE8);
@@ -230,7 +230,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			}
 			return true;
 		case 0x474C4D: //Luigis Mansion
-			dbgprintf("Patch:Patched Luigis Mansion Widescreen\r\n");
+			dbgprintf("PatchWidescreen:[Luigis Mansion] applied\r\n");
 			if(Region == REGION_ID_USA)
 				PatchWideMulti(0x206A4, 0);
 			else if(Region == REGION_ID_EUR)
@@ -239,7 +239,7 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				PatchWideMulti(0x20300, 0);
 			return true;
 		case 0x474342: //Crash Bandicoot
-			dbgprintf("Patch:Patched Crash Bandicoot Clipping\r\n");
+			dbgprintf("PatchWidescreen:[Crash Bandicoot] clipping applied\r\n");
 			if(Region == REGION_ID_USA)
 				write32(0xAC768, 0xD01E0040);
 			else if(Region == REGION_ID_EUR)

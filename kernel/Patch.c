@@ -1386,8 +1386,40 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	u32 DatelTimerAddr = PatchCopy(DatelTimer, DatelTimer_size);
 
-	if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ))
+	u32 DSPHandlerNeeded = 1;
+	if( TITLE_ID == 0x505A4C ) //Zelda Collectors Edition
 	{
+		/* Majoras Mask Working Audio Stream Hooks */
+		if(read32(0xF624C) == 0x2F6D616A)
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:[Majoras Mask NTSC-J] applied\r\n");
+			#endif
+			DSPHandlerNeeded = 0;
+			PatchB(__DSPHandlerAddr, 0xC41D8);
+		}
+		else if(read32(0xF278C) == 0x2F6D616A)
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:[Majoras Mask NTSC-U] applied\r\n");
+			#endif
+			DSPHandlerNeeded = 0;
+			PatchB(__DSPHandlerAddr, 0xBD474);
+		}
+		else if(read32(0xE16D8) == 0x2F6D616A)
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:[Majoras Mask PAL] applied\r\n");
+			#endif
+			DSPHandlerNeeded = 0;
+			PatchB(__DSPHandlerAddr, 0xBCB38);
+		}
+	}
+	else if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 )) // Pokemon
+	{
+		#ifdef DEBUG_PATCH
+		dbgprintf("Patch:[Pokemon memset] applied\r\n");
+		#endif
 		// patch out initial memset(0x1800, 0, 0x1800)
 		if( (read32(0) & 0xFF) == 0x4A )	// JAP
 			write32( 0x560C, 0x60000000 );
@@ -2820,8 +2852,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							if(useipl == 1) break;
 							if(read32(FOffset + 0xF8) == 0x2C000000)
 							{
-								PatchBL( __DSPHandlerAddr, (FOffset + 0xF8) );
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								if(DSPHandlerNeeded)
+								{
+									PatchBL( __DSPHandlerAddr, (FOffset + 0xF8) );
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								}
+								else
+								{
+									#ifdef DEBUG_PATCH
+									dbgprintf("Patch:[__DSPHandler] skipped (0x%08X)\r\n", FOffset);
+									#endif
+								}
 							}
 							else
 								CurPatterns[j].Found = 0;

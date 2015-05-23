@@ -99,43 +99,43 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 	if( FirstVal == FLT_TIMER_CLOCK_BUS_GC )
 	{
 		write32(Buffer, FLT_TIMER_CLOCK_BUS_WII);
-		dbgprintf("Patch:[Timer Clock float Bus] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchTimers:[Timer Clock float Bus] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	if( FirstVal == FLT_TIMER_CLOCK_CPU_GC )
 	{
 		write32(Buffer, FLT_TIMER_CLOCK_CPU_WII);
-		dbgprintf("Patch:[Timer Clock float CPU] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchTimers:[Timer Clock float CPU] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	if( FirstVal == FLT_TIMER_CLOCK_SECS_GC )
 	{
 		write32(Buffer, FLT_TIMER_CLOCK_SECS_WII);
-		dbgprintf("Patch:[Timer Clock float s] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchTimers:[Timer Clock float s] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	if( FirstVal == FLT_TIMER_CLOCK_MSECS_GC )
 	{
 		write32(Buffer, FLT_TIMER_CLOCK_MSECS_WII);
-		dbgprintf("Patch:[Timer Clock float ms] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchTimers:[Timer Clock float ms] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	if( FirstVal == FLT_ONE_DIV_CLOCK_SECS_GC )
 	{
 		write32(Buffer, FLT_ONE_DIV_CLOCK_SECS_WII);
-		dbgprintf("Patch:[Timer Clock float 1/s] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchTimers:[Timer Clock float 1/s] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	if( FirstVal == FLT_ONE_DIV_CLOCK_MSECS_GC )
 	{
 		write32(Buffer, FLT_ONE_DIV_CLOCK_MSECS_WII);
-		dbgprintf("Patch:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchTimers:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	if( FirstVal == FLT_ONE_DIV_SOMECLOCK_GC )
 	{
 		write32(Buffer, FLT_ONE_DIV_SOMECLOCK_WII);
-		dbgprintf("Patch:[Timer Clock float 1/unk] applied (0x%08X)\r\n", Buffer );
+		dbgprintf("PatchTimers:[Timer Clock float 1/unk] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	/* Coded in values */
@@ -147,7 +147,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		{
 			W16(Buffer + 2, U32_TIMER_CLOCK_CPU_WII >> 16);
 			W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
-			dbgprintf("Patch:[Timer Clock ori CPU] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[Timer Clock ori CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -158,7 +158,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		{
 			W16(Buffer + 2, (U32_TIMER_CLOCK_CPU_WII >> 16) + 1);
 			W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
-			dbgprintf("Patch:[Timer Clock addi CPU] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[Timer Clock addi CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -169,7 +169,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		{
 			W16(Buffer + 2, U32_TIMER_CLOCK_SECS_WII >> 16);
 			W16(NextP + 2, U32_TIMER_CLOCK_SECS_WII & 0xFFFF);
-			dbgprintf("Patch:[Timer Clock ori s] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[Timer Clock ori s] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -180,7 +180,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		{
 			W16(Buffer + 2, (U32_TIMER_CLOCK_SECS_WII >> 16) + 1);
 			W16(NextP + 2, U32_TIMER_CLOCK_SECS_WII & 0xFFFF);
-			dbgprintf("Patch:[Timer Clock addi s] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[Timer Clock addi s] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -191,7 +191,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		{
 			W16(Buffer + 2, U32_TIMER_CLOCK_MSECS_WII >> 16);
 			W16(NextP + 2, U32_TIMER_CLOCK_MSECS_WII & 0xFFFF);
-			dbgprintf("Patch:[Timer Clock ori ms] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[Timer Clock ori ms] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -202,7 +202,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		{
 			W16(Buffer + 2, (U32_TIMER_CLOCK_MSECS_WII >> 16) + 1);
 			W16(NextP + 2, U32_TIMER_CLOCK_MSECS_WII & 0xFFFF);
-			dbgprintf("Patch:[Timer Clock addi ms] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[Timer Clock addi ms] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -215,7 +215,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 			u32 smallTimer = U32_TIMER_CLOCK_RAD_WII >> 15;
 			W16(Buffer + 2, smallTimer >> 16);
 			W16(NextP + 2, smallTimer & 0xFFFF);
-			dbgprintf("Patch:[RADTimerRead ori shift] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[RADTimerRead ori shift] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -226,7 +226,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		{
 			W16(Buffer + 2, U32_TIMER_CLOCK_RAD_WII >> 16);
 			W16(NextP + 2, U32_TIMER_CLOCK_RAD_WII & 0xFFFF);
-			dbgprintf("Patch:[RADTimerRead ori full] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[RADTimerRead ori full] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -237,7 +237,7 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		{
 			W16(Buffer + 2, (U32_TIMER_CLOCK_RAD_WII >> 16) + 1);
 			W16(NextP + 2, U32_TIMER_CLOCK_RAD_WII & 0xFFFF);
-			dbgprintf("Patch:[RADTimerRead addi full] applied (0x%08X)\r\n", Buffer );
+			dbgprintf("PatchTimers:[RADTimerRead addi full] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
 	}
@@ -253,19 +253,19 @@ void PatchStaticTimers()
 	if(write64A(0x001463E0, DBL_0_7716, DBL_1_1574))
 	{
 		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:[Majoras Mask NTSC-J] applied\r\n");
+		dbgprintf("PatchTimers:[Majoras Mask NTSC-J] applied\r\n");
 		#endif
 	}
 	else if(write64A(0x00141C00, DBL_0_7716, DBL_1_1574))
 	{
 		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:[Majoras Mask NTSC-U] applied\r\n");
+		dbgprintf("PatchTimers:[Majoras Mask NTSC-U] applied\r\n");
 		#endif
 	}
 	else if(write64A(0x00130860, DBL_0_7716, DBL_1_1574))
 	{
 		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:[Majoras Mask PAL] applied\r\n");
+		dbgprintf("PatchTimers:[Majoras Mask PAL] applied\r\n");
 		#endif
 	}
 	else if(read32(0x1E71AC) == 0x3CE0000A && read32(0x1E71B8) == 0x39074CB8)
@@ -273,7 +273,7 @@ void PatchStaticTimers()
 		write32(0x1E71AC, 0x3CE0000F);
 		write32(0x1E71B8, 0x39077314);
 		#ifdef DEBUG_PATCH
-		dbgprintf("Patch:[Killer7 PAL] applied\r\n");
+		dbgprintf("PatchTimers:[Killer7 PAL] applied\r\n");
 		#endif
 	}
 }
