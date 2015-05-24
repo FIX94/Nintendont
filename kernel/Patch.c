@@ -80,6 +80,7 @@ u32 DOLMaxOff  = 0;
 vu32 TRI_BackupAvailable = 0;
 vu32 GameEntry = 0, FirstLine = 0;
 u32 AppLoaderSize = 0;
+u32 MAT2patched = 0;
 
 static char cheatPath[255];
 extern u32 prs_decompress(void* source,void* dest);
@@ -1389,30 +1390,30 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 DSPHandlerNeeded = 1;
 	if( TITLE_ID == 0x505A4C ) //Zelda Collectors Edition
 	{
-		/* Majoras Mask Working Audio Stream Hooks */
+		/* Majoras Mask Working Audio Stream Hooks (too unstable atm) */
 		if(read32(0xF624C) == 0x2F6D616A)
 		{
-			#ifdef DEBUG_PATCH
+			/*#ifdef DEBUG_PATCH
 			dbgprintf("Patch:[Majoras Mask NTSC-J] applied\r\n");
 			#endif
+			PatchB(__DSPHandlerAddr, 0xC41D8);*/
 			DSPHandlerNeeded = 0;
-			PatchB(__DSPHandlerAddr, 0xC41D8);
 		}
 		else if(read32(0xF278C) == 0x2F6D616A)
 		{
-			#ifdef DEBUG_PATCH
+			/*#ifdef DEBUG_PATCH
 			dbgprintf("Patch:[Majoras Mask NTSC-U] applied\r\n");
 			#endif
+			PatchB(__DSPHandlerAddr, 0xBD474);*/
 			DSPHandlerNeeded = 0;
-			PatchB(__DSPHandlerAddr, 0xBD474);
 		}
 		else if(read32(0xE16D8) == 0x2F6D616A)
 		{
-			#ifdef DEBUG_PATCH
+			/*#ifdef DEBUG_PATCH
 			dbgprintf("Patch:[Majoras Mask PAL] applied\r\n");
 			#endif
+			PatchB(__DSPHandlerAddr, 0xBCB38);*/
 			DSPHandlerNeeded = 0;
-			PatchB(__DSPHandlerAddr, 0xBCB38);
 		}
 	}
 	else if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 )) // Pokemon
@@ -3254,6 +3255,52 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched X-Men Legends 2 NTSC-U\r\n");
+			#endif
+		}
+	}
+	else if( TITLE_ID == 0x474159 ) // Midway Arcarde Treasures 2
+	{
+		//Skip over __AXOutInit calling AIStartDMA
+		if(MAT2patched == 0 && write32A(0x906D0, 0x60000000, 0x4BFFB6D9, 0))
+		{
+			//needs patch on first bootup, no idea why
+			MAT2patched = 1;
+			//UnkReport
+			//PatchB(0x7C964,0x92F50);
+			//call AIStartDMA after NGC_SoundInit
+			PatchB(0x8BDA8,0x4F1B8);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Midway Arcade Treasures 2 NTSC-U\r\n");
+			#endif
+		}
+	}
+	else if( TITLE_ID == 0x475051 ) // Powerpuff Girls
+	{
+		// Audio Stream force DMA to get Video Sound
+		if(read32(0xF33D8) == 0x4E800020 && read32(0xF3494) == 0x4E800020)
+		{
+			//UnkReport
+			//memcpy((void*)0xDF870, OSReportDM, sizeof(OSReportDM));
+			//sync_after_write((void*)0xDF870, sizeof(OSReportDM));
+			//OSReport
+			//memcpy((void*)0xE84D4, OSReportDM, sizeof(OSReportDM));
+			//sync_after_write((void*)0xE84D4, sizeof(OSReportDM));
+			//Call AXInit after DVDPrepareStreamAbsAsync
+			PatchB(0xF9E80, 0xF33D8);
+			//Call AXQuit after DVDCancelStreamAsync
+			PatchB(0xF9EB4, 0xF3494);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Powerpuff Girls NTSC-U\r\n");
+			#endif
+		}
+		else if(read32(0xF3EC0) == 0x4E800020 && read32(0xF3F7C) == 0x4E800020)
+		{
+			//Call AXInit after DVDPrepareStreamAbsAsync
+			PatchB(0xFB340, 0xF3EC0);
+			//Call AXQuit after DVDCancelStreamAsync
+			PatchB(0xFB3B0, 0xF3F7C);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Powerpuff Girls PAL\r\n");
 			#endif
 		}
 	}
