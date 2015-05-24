@@ -7,9 +7,10 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 -Loads 1:1 and compressed .ISO disc images  
 -Loads games as extracted files (FST)  
 -Play retail discs (Wii only)  
--Play backups from writable DVD media (Wii only)  
+-Play backups from writable DVD media (Old Wii only)  
 -Memory card emulation  
--Use real memory card  
+-Use real memory card (Wii only)  
+-GBA-Link cable (Wii only)  
 -Play audio via disc audio streaming  
 -Bluetooth controller support (Classic Controller (Pro), Wii U Pro Controller)  
 -HID controller support via USB  
@@ -25,11 +26,10 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 -Use the official Nintendo GameCube controller adapter  
 
 ### What Nintendont doesn't do yet:
-BBA/Modem support
+-BBA/Modem support
 
 ### What Nintendont will never support:
-Game Boy Player  
-GBA-Link cable
+-Game Boy Player
 
 ### Quick Installation:
 Get the [loader.dol](loader/loader.dol?raw=true), rename it to boot.dol and put it in /apps/Nintendont/ along with the files [meta.xml](nintendont/meta.xml?raw=true) and [icon.png](nintendont/icon.png?raw=true).
