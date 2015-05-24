@@ -9,8 +9,8 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 -Play retail discs (Wii only)  
 -Play backups from writable DVD media (Old Wii only)  
 -Memory card emulation  
--Use real memory card (Wii only) 
--GBA-Link cable (Wii only)
+-Use real memory card (Wii only)  
+-GBA-Link cable (Wii only)  
 -Play audio via disc audio streaming  
 -Bluetooth controller support (Classic Controller (Pro), Wii U Pro Controller)  
 -HID controller support via USB  
