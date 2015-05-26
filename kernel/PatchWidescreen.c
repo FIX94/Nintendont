@@ -216,6 +216,24 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			}
 			dbgprintf("PatchWidescreen:[Metroid Prime] applied (%i times)\r\n", PatchedWide);
 			return PatchedWide;
+		case 0x443433: //Ocarina of Time Disc
+		case 0x505A4C: //Zelda Collectors Edition
+			for(Buffer = 0x90000; Buffer < 0x9F000; Buffer+=4)
+			{
+				if(read32(Buffer) == 0xC3A1005C && read32(Buffer+4) == 0x80030010 && read32(Buffer+8) == 0xFC80E890)
+				{
+					PatchWideMulti(Buffer, 29); //guPerspective
+					PatchedWide++;
+				}
+				if(read32(Buffer) == 0xC3810014 && read32(Buffer+4) == 0x80030010 && read32(Buffer+8) == 0xFC80E090)
+				{
+					PatchWideMulti(Buffer, 28); //guPerspectiveF
+					PatchedWide++;
+				}
+			}
+			if(PatchedWide)
+				dbgprintf("PatchWidescreen:[N64 Emu] applied (%i times)\r\n", PatchedWide);
+			return PatchedWide;
 		case 0x474832: //Need for Speed Hot Pursuit 2
 			dbgprintf("PatchWidescreen:[Need for Speed Hot Pursuit 2] applied\r\n");
 			if(Region == REGION_ID_USA)
