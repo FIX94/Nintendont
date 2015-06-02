@@ -85,9 +85,9 @@ static u32 CheckFor( u32 Buf, u32 Val )
 #define U32_TIMER_CLOCK_RAD_GC		0xcf2049a1
 #define U32_TIMER_CLOCK_RAD_WII		0x8a15866c
 
-//dont know exactly what this represents
-#define FLT_ONE_DIV_SOMECLOCK_GC	0x37f88d25
-#define FLT_ONE_DIV_SOMECLOCK_WII	0x37a5b36e
+//1 divided by one 1200th of a second
+#define FLT_ONE_DIV_CLOCK_1200_GC	0x37f88d25
+#define FLT_ONE_DIV_CLOCK_1200_WII	0x37a5b36e
 
 //osGetCount, Multiplier so (GC / 1.5f)
 #define DBL_1_1574		0x3ff284b5dcc63f14ull
@@ -132,10 +132,10 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		dbgprintf("PatchTimers:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
-	if( FirstVal == FLT_ONE_DIV_SOMECLOCK_GC )
+	if( FirstVal == FLT_ONE_DIV_CLOCK_1200_GC )
 	{
-		write32(Buffer, FLT_ONE_DIV_SOMECLOCK_WII);
-		dbgprintf("PatchTimers:[Timer Clock float 1/unk] applied (0x%08X)\r\n", Buffer );
+		write32(Buffer, FLT_ONE_DIV_CLOCK_1200_WII);
+		dbgprintf("PatchTimers:[Timer Clock float 1/1200] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
 	/* Coded in values */
@@ -269,11 +269,25 @@ void PatchStaticTimers()
 		#endif
 	}
 	else if(read32(0x1E71AC) == 0x3CE0000A && read32(0x1E71B8) == 0x39074CB8)
-	{
+	{	/* one 60th of a second */
 		write32(0x1E71AC, 0x3CE0000F);
 		write32(0x1E71B8, 0x39077314);
 		#ifdef DEBUG_PATCH
 		dbgprintf("PatchTimers:[Killer7 PAL] applied\r\n");
+		#endif
+	}
+	else if(read32(0x55A0) == 0x3C60000A && read32(0x55A4) == 0x38036000 
+		&& read32(0x55B0) == 0x380000FF)
+	{	/* The game uses 2 different timers */
+		write32(0x55A0, 0x3C60000F); //lis r3, 0xF
+		write32(0x55A4, 0x60609000); //ori r0, r3, 0x9000
+		write32(0x55B0, 0x3800017E); //li r0, 0x17E
+		/* Values get set twice */
+		write32(0x5ECC, 0x3C60000F); //lis r3, 0xF
+		write32(0x5ED4, 0x60609000); //ori r0, r3, 0x9000
+		write32(0x5ED8, 0x3860017E); //li r3, 0x17E
+		#ifdef DEBUG_PATCH
+		dbgprintf("PatchTimers:[GT Cube NTSC-J] applied\r\n");
 		#endif
 	}
 }
