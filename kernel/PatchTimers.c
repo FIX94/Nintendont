@@ -138,6 +138,13 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		dbgprintf("PatchTimers:[Timer Clock float 1/1200] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}
+	/* For Nintendo Puzzle Collection */
+	if( FirstVal == 0x38C00BB8 && (u32)Buffer == 0x770528 )
+	{	//the multiplier here is around 1.276, no idea why this timer isnt a smooth 1.5
+		write32(Buffer, 0x38C00EF4);
+		dbgprintf("PatchTimers:[Timer Clock Panel de Pon] applied (0x%08X)\r\n", Buffer );
+		return true;
+	}
 	/* Coded in values */
 	FirstVal &= 0xFC00FFFF;
 	if( FirstVal == 0x3C001CF7 )
@@ -280,12 +287,12 @@ void PatchStaticTimers()
 		&& read32(0x55B0) == 0x380000FF)
 	{	/* The game uses 2 different timers */
 		write32(0x55A0, 0x3C60000F); //lis r3, 0xF
-		write32(0x55A4, 0x60609000); //ori r0, r3, 0x9000
-		write32(0x55B0, 0x3800017E); //li r0, 0x17E
+		write32(0x55A4, 0x60609060); //ori r0, r3, 0x9060
+		write32(0x55B0, 0x38000180); //li r0, 0x180
 		/* Values get set twice */
 		write32(0x5ECC, 0x3C60000F); //lis r3, 0xF
-		write32(0x5ED4, 0x60609000); //ori r0, r3, 0x9000
-		write32(0x5ED8, 0x3860017E); //li r3, 0x17E
+		write32(0x5ED4, 0x60609060); //ori r0, r3, 0x9060
+		write32(0x5ED8, 0x38000180); //li r3, 0x180
 		#ifdef DEBUG_PATCH
 		dbgprintf("PatchTimers:[GT Cube NTSC-J] applied\r\n");
 		#endif

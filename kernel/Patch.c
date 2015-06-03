@@ -1339,9 +1339,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PatchBL(PatchCopy(SonicRidersCopy, SonicRidersCopy_size), SONICRIDERS_HOOK_PAL);
 		dbgprintf("Patch:Patched Sonic Riders _Main.rel PAL\r\n");
 	}
-	else if( (TITLE_ID) == 0x474842 && useipl == 0 )
+	else if( ((TITLE_ID) == 0x474842 || (TITLE_ID) == 0x47505A) && useipl == 0 )
 	{
-		/* Agressive Timer Patches for The Hobbit */
+		/* Agressive Timer Patches for The Hobbit and Nintendo Puzzle Collection */
 		u32 t;
 		for(t = 0; t < Length; t+=4) //make sure its patched at all times
 			PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t);
@@ -3301,6 +3301,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchB(0xFB3B0, 0xF3F7C);
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched Powerpuff Girls PAL\r\n");
+			#endif
+		}
+	}
+	else if( TITLE_ID == 0x47505A ) /* Nintendo Puzzle Collection */
+	{
+		if(read32(0x6A28) == 0x7C7F282E && read32(0x6AF8) == 0x7C1F002E)
+		{
+			//Dont load compressed game .rel files but the uncompressed 
+			//ones to patch the timers without any further hooks
+			write32(0x6A28, 0x38600000);
+			write32(0x6AF8, 0x38000000);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Nintendo Puzzle Collection NTSC-J\r\n");
 			#endif
 		}
 	}
