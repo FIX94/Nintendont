@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "common.h"
 #include "alloc.h"
 #include "DI.h"
+#include "RealDI.h"
 #include "ES.h"
 #include "SI.h"
 #include "BT.h"
@@ -39,7 +40,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 //#undef DEBUG
 
-u32 RealDiscCMD = 0;
 u32 USBReadTimer = 0;
 extern u32 s_size;
 extern u32 s_cnt;
@@ -50,6 +50,7 @@ static const WCHAR fatDevName[2] = { 0x002F, 0x0000 };
 
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
+extern u32 WaitForRealDisc;
 extern struct ipcmessage DI_CallbackMsg;
 extern u32 DI_MessageQueue;
 extern vu32 DisableSIPatch;
@@ -132,26 +133,7 @@ int _main( int argc, char *argv[] )
 
 	//Verification if we can read from disc
 	if(memcmp(ConfigGetGamePath(), "di", 3) == 0)
-	{
-		ClearRealDiscBuffer();
-		u32 Length = 0x20;
-		RealDiscCMD = DIP_CMD_NORMAL;
-		u8 *TmpBuf = ReadRealDisc(&Length, 0, false);
-		if(IsGCGame((u32)TmpBuf) == false)
-		{
-			Length = 0x800;
-			RealDiscCMD = DIP_CMD_DVDR;
-			TmpBuf = ReadRealDisc(&Length, 0, false);
-			if(IsGCGame((u32)TmpBuf) == false)
-			{
-				dbgprintf("No GC Disc!\r\n");
-				BootStatusError(-2, -2);
-				mdelay(4000);
-				Shutdown();
-			}
-		}
-		dbgprintf("DI:Reading real disc with command 0x%02X\r\n", RealDiscCMD);
-	}
+		RealDI_Init(); //will shutdown on fail
 
 	BootStatus(3, 0, 0);
 	fatfs = (FATFS*)malloca( sizeof(FATFS), 32 );
@@ -353,6 +335,33 @@ int _main( int argc, char *argv[] )
 				write32( 0x0073E640, 0 );
 			}
 		}*/
+		if( WaitForRealDisc == 1 )
+		{
+			if(RealDI_NewDisc())
+			{
+				DiscChangeTimer = read32(HW_TIMER);
+				WaitForRealDisc = 2; //do another flush round, safety!
+			}
+		}
+		else if( WaitForRealDisc == 2 )
+		{
+			if(TimerDiffSeconds(DiscChangeTimer))
+			{
+				//identify disc after flushing everything
+				RealDI_Identify(false);
+				//clear our fake regs again
+				sync_before_read((void*)DI_BASE, 0x40);
+				write32(DI_IMM, 0);
+				write32(DI_COVER, 0);
+				sync_after_write((void*)DI_BASE, 0x40);
+				//mask and clear interrupts
+				write32( DIP_STATUS, 0x54 );
+				//disable cover irq which DIP enabled
+				write32( DIP_COVER, 4 );
+				DIInterrupt();
+				WaitForRealDisc = 0;
+			}
+		}
 
 		if ( DiscChangeIRQ == 1 )
 		{
