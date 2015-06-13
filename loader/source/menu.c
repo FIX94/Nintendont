@@ -491,6 +491,10 @@ bool SelectGame( void )
 					{
 						ncfg->Config ^= (NIN_CFG_NATIVE_SI);
 					} break;
+					case NIN_SETTINGS_CC_RUMBLE:
+					{
+						ncfg->Config ^= (NIN_CFG_CC_RUMBLE);
+					} break;
 				}
 				if (!(ncfg->Config & NIN_CFG_MEMCARDEMU))
 				{
@@ -572,6 +576,8 @@ bool SelectGame( void )
 				ListLoopIndex+=2;
 
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
+				ListLoopIndex++;
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_CC_RUMBLE)) ? "Force " : "Auto");
 				ListLoopIndex++;
 
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);
