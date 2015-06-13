@@ -26,6 +26,7 @@ const char* OptionStrings[] =
 	"Memcard Blocks",
 	"Memcard Multi",
 	"Native Control",
+	"Wiimote Rumble",
 };
 
 const char* LanguageStrings[] =
