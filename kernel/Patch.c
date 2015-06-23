@@ -434,7 +434,9 @@ void Patch31A0( void )
 	if(Pach31A0Backup == 0)
 		return;
 	u32 PatchOffset = PATCH_OFFSET_START;
-	if(DOLMinOff < 0x31A0)
+	//From Russia with Love stores data here not code so
+	//do NOT add a jump in there, it would break the game
+	if(TITLE_ID != 0x474C5A && DOLMinOff < 0x31A0)
 	{
 		//backup data
 		u32 CurBuf = read32(0x319C);
