@@ -35,6 +35,7 @@ enum
 	FPATCH_VideoModes = 1<<7,
 	FPATCH_DSP_ROM = 1<<8,
 	FPATCH_GXBegin = 1<<9,
+	FPATCH_GXDrawDone = 1<<10,
 };
 
 enum

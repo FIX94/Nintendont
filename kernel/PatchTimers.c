@@ -147,6 +147,28 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 	}
 	/* Coded in values */
 	FirstVal &= 0xFC00FFFF;
+	if( FirstVal == 0x3C0009A7 )
+	{
+		u32 NextP = CheckFor(Buffer, 0x6000EC80);
+		if(NextP > 0)
+		{
+			W16(Buffer + 2, U32_TIMER_CLOCK_BUS_WII >> 16);
+			W16(NextP + 2, U32_TIMER_CLOCK_BUS_WII & 0xFFFF);
+			dbgprintf("PatchTimers:[Timer Clock ori Bus] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+	}
+	if( FirstVal == 0x3C0009A8 )
+	{
+		u32 NextP = CheckFor(Buffer, 0x3800EC80);
+		if(NextP > 0)
+		{
+			W16(Buffer + 2, (U32_TIMER_CLOCK_BUS_WII >> 16) + 1);
+			W16(NextP + 2, U32_TIMER_CLOCK_BUS_WII & 0xFFFF);
+			dbgprintf("PatchTimers:[Timer Clock addi Bus] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+	}
 	if( FirstVal == 0x3C001CF7 )
 	{
 		u32 NextP = CheckFor(Buffer, 0x6000C580);

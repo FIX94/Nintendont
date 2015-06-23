@@ -1724,17 +1724,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	sync_after_write( Buffer, Length );
 	sync_before_read( Buffer, Length );
 
-	u32 PatchCount = FPATCH_OSSleepThread | FPATCH_VideoModes | FPATCH_GXBegin;
+	u32 PatchCount = FPATCH_VideoModes | 
+		FPATCH_OSSleepThread | FPATCH_GXBegin | FPATCH_GXDrawDone;
 #ifdef CHEATS
-	if( IsWiiU )
+	if( (IsWiiU && ConfigGetConfig(NIN_CFG_CHEATS)) ||
+		(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS)) )
 	{
-		if( ConfigGetConfig(NIN_CFG_CHEATS) )
-			PatchCount &= ~(FPATCH_OSSleepThread | FPATCH_GXBegin);
-	}
-	else
-	{
-		if( ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS) )
-			PatchCount &= ~(FPATCH_OSSleepThread | FPATCH_GXBegin);
+		PatchCount &= ~(
+			FPATCH_OSSleepThread | //Hook 1
+			//FPATCH_GXBegin //Hook 2, unstable!
+			FPATCH_GXDrawDone //Hook 3
+		);
 	}
 #endif
 	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) )
@@ -1749,7 +1749,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			CurPatterns[j].Found = 0;
 	}
 	/* Cheats */
-	u32 DebuggerHook = 0, DebuggerHook2 = 0;
+	u32 DebuggerHook = 0, DebuggerHook2 = 0, DebuggerHook3 = 0;
 	/* SI Inited Patch */
 	u32 PADInitOffset = 0, SIInitOffset = 0;
 	/* DSP Patches */
@@ -1987,8 +1987,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				{
 					PatchCount |= FPATCH_OSSleepThread;
 					i = GotoFuncEnd(i, (u32)Buffer);
-					DebuggerHook = (u32)Buffer + i;
-					printpatchfound("Hook:OSSleepThread",NULL, DebuggerHook);
+					if(DebuggerHook == 0) DebuggerHook = (u32)Buffer + i;
+					else if(DebuggerHook2 == 0) DebuggerHook2 = (u32)Buffer + i;
+					else if(DebuggerHook3 == 0) DebuggerHook3 = (u32)Buffer + i;
+					printpatchfound("Hook:OSSleepThread",NULL,(u32)Buffer + i);
 					continue;
 				}
 			}
@@ -2000,8 +2002,54 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				{
 					PatchCount |= FPATCH_GXBegin;
 					i = GotoFuncEnd(i, (u32)Buffer);
-					DebuggerHook2 = (u32)Buffer + i;
-					printpatchfound("Hook:GXBegin",NULL, DebuggerHook2);
+					if(DebuggerHook == 0) DebuggerHook = (u32)Buffer + i;
+					else if(DebuggerHook2 == 0) DebuggerHook2 = (u32)Buffer + i;
+					else if(DebuggerHook3 == 0) DebuggerHook3 = (u32)Buffer + i;
+					printpatchfound("Hook:GXBegin",NULL,(u32)Buffer + i);
+					continue;
+				}
+			}
+			if( (PatchCount & FPATCH_GXDrawDone) == 0 )
+			{
+				//GXDrawDone(Pattern 1)
+				if( BufAt0 == 0x3CC0CC01 && BufAt4 == 0x3CA04500 &&
+					read32((u32)Buffer + i + 12) == 0x38050002 && read32((u32)Buffer + i + 16) == 0x90068000 )
+				{
+					i = GotoFuncEnd(i, (u32)Buffer);
+					if(DebuggerHook == 0) DebuggerHook = (u32)Buffer + i;
+					else if(DebuggerHook2 == 0) DebuggerHook2 = (u32)Buffer + i;
+					else if(DebuggerHook3 == 0) DebuggerHook3 = (u32)Buffer + i;
+					printpatchfound("Hook:GXDrawDone",NULL,(u32)Buffer + i);
+					continue;
+				} //GXDrawDone(Pattern 2)
+				else if( BufAt0 == 0x3CA0CC01 && BufAt4 == 0x3C804500 &&
+					read32((u32)Buffer + i + 12) == 0x38040002 && read32((u32)Buffer + i + 16) == 0x90058000 )
+				{
+					i = GotoFuncEnd(i, (u32)Buffer);
+					if(DebuggerHook == 0) DebuggerHook = (u32)Buffer + i;
+					else if(DebuggerHook2 == 0) DebuggerHook2 = (u32)Buffer + i;
+					else if(DebuggerHook3 == 0) DebuggerHook3 = (u32)Buffer + i;
+					printpatchfound("Hook:GXDrawDone",NULL,(u32)Buffer + i);
+					continue;
+				} //GXDrawDone(Pattern 3)
+				else if( BufAt0 == 0x3FE04500 && BufAt4 == 0x3BFF0002 &&
+					read32((u32)Buffer + i + 20) == 0x3C60CC01 && read32((u32)Buffer + i + 24) == 0x93E38000 )
+				{
+					i = GotoFuncEnd(i, (u32)Buffer);
+					if(DebuggerHook == 0) DebuggerHook = (u32)Buffer + i;
+					else if(DebuggerHook2 == 0) DebuggerHook2 = (u32)Buffer + i;
+					else if(DebuggerHook3 == 0) DebuggerHook3 = (u32)Buffer + i;
+					printpatchfound("Hook:GXDrawDone",NULL,(u32)Buffer + i);
+					continue;
+				}//GXDrawDone(Pattern 4)
+				else if( BufAt0 == 0x3C804500 && read32((u32)Buffer + i + 12) == 0x3CA0CC01 &&
+					read32((u32)Buffer + i + 28) == 0x38040002 && read32((u32)Buffer + i + 40) == 0x90058000 )
+				{
+					i = GotoFuncEnd(i, (u32)Buffer);
+					if(DebuggerHook == 0) DebuggerHook = (u32)Buffer + i;
+					else if(DebuggerHook2 == 0) DebuggerHook2 = (u32)Buffer + i;
+					else if(DebuggerHook3 == 0) DebuggerHook3 = (u32)Buffer + i;
+					printpatchfound("Hook:GXDrawDone",NULL,(u32)Buffer + i);
 					continue;
 				}
 			}
@@ -3008,7 +3056,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchWideMulti(MTXLightPerspectiveOffset + 0x24, 27);
 		}
 	}
-	if(DebuggerHook || DebuggerHook2)
+	if(DebuggerHook || DebuggerHook2 || DebuggerHook3)
 	{
 		//copy into dedicated space
 		memcpy( (void*)0x1800, codehandler, codehandler_size );
@@ -3077,6 +3125,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//setup jump to codehandler
 		if(DebuggerHook) PatchB( 0x18A8, DebuggerHook );
 		if(DebuggerHook2) PatchB( 0x18A8, DebuggerHook2 );
+		if(DebuggerHook3) PatchB( 0x18A8, DebuggerHook3 );
 	}
 	free(hash);
 	free(SHA1i);
@@ -3143,7 +3192,21 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			write32(0x1341514, 0x38600000);
 			#ifdef DEBUG_PATCH
-			dbgprintf("Patch:Patched Gamecube NTSC IPL\r\n");
+			dbgprintf("Patch:Patched Gamecube NTSC IPL v1.0\r\n");
+			#endif
+		}
+		else if(read32(0x13693D4) == 0x38600001)
+		{
+			write32(0x13693D4, 0x38600000);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Gamecube NTSC IPL v1.1\r\n");
+			#endif
+		}
+		else if(read32(0x13702A0) == 0x38600001)
+		{
+			write32(0x13702A0, 0x38600000);
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Gamecube NTSC IPL v1.2\r\n");
 			#endif
 		}
 		else if(read32(0x136C9B4) == 0x38600001)
@@ -3456,7 +3519,7 @@ s32 Check_Cheats()
 		_sprintf(cheatPath, "/games/%.6s/%.6s.gct", (char*)0x0, (char*)0x0);
 		if( fileExist(cheatPath) )
 			return 0;
-		return -2;
+		return -1;
 	}
 #endif
 	return 0;

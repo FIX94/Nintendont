@@ -49,6 +49,10 @@ extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
 extern u32 __SYS_GetRTC(u32 *gctime);
 
+extern syssram* __SYS_LockSram();
+extern u32 __SYS_UnlockSram(u32 write);
+extern u32 __SYS_SyncSram(void);
+
 #define STATUS			((void*)0x90004100)
 #define STATUS_LOADING	(*(vu32*)(0x90004100))
 #define STATUS_SECTOR	(*(vu32*)(0x90004100 + 8))
@@ -517,7 +521,7 @@ int main(int argc, char **argv)
 	*(vu32*)0xD300300C = ISOShift; //multi-iso games
 
 	//Set Language
-	if(ncfg->Language == NIN_LAN_AUTO)
+	if(ncfg->Language == NIN_LAN_AUTO || ncfg->Language >= NIN_LAN_LAST)
 	{
 		switch (CONF_GetLanguage())
 		{
@@ -575,10 +579,19 @@ int main(int argc, char **argv)
 		else
 			fclose(f);
 	}
+	else //setup real sram language
+	{
+		syssram *sram;
+		sram = __SYS_LockSram();
+		sram->lang = ncfg->Language;
+		__SYS_UnlockSram(1); // 1 -> write changes
+		while(!__SYS_SyncSram());
+	}
+
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-	if(IsTRIGame(ncfg->GamePath) == false && (ncfg->Config & NIN_CFG_MEMCARDEMU))
+	if(IsTRIGame(ncfg->GamePath) == false)
 	{
 		char iplchar[32];
 		if((ncfg->GameID & 0xFF) == 'E')
@@ -760,28 +773,6 @@ int main(int argc, char **argv)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD...");
 		if(abs(STATUS_LOADING) > 10 && abs(STATUS_LOADING) < 20)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD... Done!");
-		if(STATUS_LOADING == -10)
-		{
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD... Failed! Shutting down");
-			switch (STATUS_ERROR)
-			{
-				case -1:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing %s:/sneek/kenobiwii.bin", GetRootDevice());
-					break;
-				case -2:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Missing Cheat file", GetRootDevice());
-					break;
-				/*case -3:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Cheat file too large", GetRootDevice());
-					break;
-				case -4:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Cheat path is empty", GetRootDevice());
-					break;*/
-				default:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*16, "Unknown error %d %35s", STATUS_ERROR, " ");
-					break;
-			}
-		}
 		GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE); // Copy all status messages
 		GRRLIB_Render();
 		ClearScreen();
@@ -905,6 +896,32 @@ int main(int argc, char **argv)
 
 		} break;
 	}
+	if((ncfg->Config & NIN_CFG_MEMCARDEMU) == 0) //setup real sram video
+	{
+		syssram *sram;
+		sram = __SYS_LockSram();
+		sram->ntd		&= ~0x40;	// Clear PAL60
+		sram->flags		&= ~0x80;	// Clear Progmode
+		sram->flags		&= ~3;		// Clear Videomode
+		switch(ncfg->GameID & 0xFF)
+		{
+			case 'E':
+			case 'J':
+				//BMX XXX doesnt even boot on a real gc with component cables
+				if( (ncfg->GameID >> 8) != 0x474233 &&
+					(ncfg->VideoMode & NIN_VID_PROG) )
+					sram->flags |= 0x80;	// Set Progmode
+				break;
+			default:
+				sram->ntd		|= 0x40;	// Set PAL60
+				break;
+		}
+		if(*(vu32*)0x800000CC == 1)
+			sram->flags		|= 1; //PAL Video Mode
+		__SYS_UnlockSram(1); // 1 -> write changes
+		while(!__SYS_SyncSram());
+	}
+	
 	VIDEO_Configure( vmode );
 	VIDEO_SetBlack(FALSE);
 	VIDEO_Flush();
