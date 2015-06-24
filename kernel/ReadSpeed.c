@@ -23,8 +23,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 // This file exists to emulate the disc read speed
 // The data used comes from my D2C wii disc drive
 
-static const u32 SEEK_TICKS = 9492; // 50 ms
-static const float READ_TICKS = 1.657f; // 3 MB/s
+static u32 SEEK_TICKS = 94922; // 50 ms
+static float READ_TICKS = 1.657f; // 3 MB/s
 static const u32 READ_BLOCK = 65536; // 64 KB
 static const float CACHE_TICKS = 8.627f; // 15.6 MB/s
 static const u32 CACHE_SIZE = 1048576; // 1 MB
@@ -43,6 +43,13 @@ void ReadSpeed_Init()
 	CMDTicks = UINT_MAX;
 	CMDBaseBlock = UINT_MAX;
 	CMDLastBlock = UINT_MAX;
+
+	if((read32(0) >> 8) == 0x47574B) //King Kong
+	{
+		dbgprintf("ReadSpeed:Using Slow Settings\r\n");
+		SEEK_TICKS = 284765; // 150 ms
+		READ_TICKS = 1.1f; // 2 MB/s
+	}
 }
 
 extern vu32 TRIGame;

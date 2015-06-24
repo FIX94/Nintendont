@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "exi.h"
 #include "global.h"
 #include "font_ttf.h"
-
+#include "dip.h"
 
 GRRLIB_ttfFont *myFont;
 GRRLIB_texImg *background;
@@ -352,39 +352,56 @@ u32 OffsetCheck[4] = {
 	0x20D7E8, //VS4
 };
 
-bool IsTRIGame(char *Path)
+bool IsTRIGame(char *Path, u32 CurDICMD)
 {
+	FILE *f = NULL;
 	u32 DOLOffset = 0;
-	char FullPath[300];
-	sprintf(FullPath, "%s:%s", GetRootDevice(), Path);
-	FILE *f = fopen(FullPath, "rb");
-	if(f != NULL)
+	if(CurDICMD)
 	{
-		fseek(f, 0x420, SEEK_SET);
-		fread(&DOLOffset, 1, 4, f);
+		ReadRealDisc((u8*)&DOLOffset, 0x420, 4, CurDICMD);
 	}
 	else
 	{
-		char FSTPath[300];
-		sprintf(FSTPath, "%ssys/main.dol", FullPath);
-		f = fopen(FSTPath, "rb");
+		char FullPath[300];
+		sprintf(FullPath, "%s:%s", GetRootDevice(), Path);
+		f = fopen(FullPath, "rb");
+		if(f != NULL)
+		{
+			fseek(f, 0x420, SEEK_SET);
+			fread(&DOLOffset, 1, 4, f);
+		}
+		else
+		{
+			char FSTPath[300];
+			sprintf(FSTPath, "%ssys/main.dol", FullPath);
+			f = fopen(FSTPath, "rb");
+		}
+		if(f == NULL)
+			return false;
 	}
-	if(f != NULL)
+
+	u32 i;
+	u32 BufAtOffset;
+	for(i = 0; i < 4; ++i)
 	{
-		u32 i;
-		u32 BufAtOffset;
-		for(i = 0; i < 4; ++i)
+		if(f != NULL)
 		{
 			fseek(f, DOLOffset+OffsetCheck[i], SEEK_SET);
 			fread(&BufAtOffset, 1, 4, f);
-			if(BufAtOffset == 0x386000A8)
-			{
-				fclose(f);
-				gprintf("Found TRIGame %u\n", i);
-				return true;
-			}
 		}
-		fclose(f);
+		else if(CurDICMD)
+		{
+			ReadRealDisc((u8*)&BufAtOffset, DOLOffset+OffsetCheck[i], 4, CurDICMD);
+		}
+		if(BufAtOffset == 0x386000A8)
+		{
+			if(f != NULL)
+				fclose(f);
+			gprintf("Found TRIGame %u\n", i);
+			return true;
+		}
 	}
+	if(f != NULL)
+		fclose(f);
 	return false;
 }

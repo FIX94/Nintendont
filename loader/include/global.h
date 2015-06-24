@@ -138,7 +138,7 @@ void RAMInit(void);
 void Initialise();
 bool LoadNinCFG();
 bool IsGCGame(u8 *Buffer);
-bool IsTRIGame(char *Path);
+bool IsTRIGame(char *Path, u32 CurDICMD);
 void ExitToLoader(int ret);
 void ClearScreen();
 void CloseDevices();

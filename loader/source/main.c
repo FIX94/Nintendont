@@ -591,7 +591,7 @@ int main(int argc, char **argv)
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-	if(IsTRIGame(ncfg->GamePath) == false)
+	if(IsTRIGame(ncfg->GamePath, CurDICMD) == false)
 	{
 		char iplchar[32];
 		if((ncfg->GameID & 0xFF) == 'E')
@@ -615,7 +615,7 @@ int main(int argc, char **argv)
 			fclose(f);
 		}
 	}
-	else if(IsTRIGame(ncfg->GamePath) == true)
+	else
 	{
 		char iplchar[32];
 		sprintf(iplchar, "%s:/segaboot.bin", GetRootDevice());
@@ -999,6 +999,10 @@ int main(int argc, char **argv)
 	__lwp_thread_closeall();
 
 	DVDStartCache(); //waits for kernel start
+	DCInvalidateRange((void*)0x90000000, 0x1000000);
+	memset((void*)(void*)0x90000000, 0, 0x1000000); //clear ARAM
+	DCFlushRange((void*)0x90000000, 0x1000000);
+
 	gprintf("Game Start\n");
 
 	if(useipl)
