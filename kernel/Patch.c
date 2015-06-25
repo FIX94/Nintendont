@@ -3369,7 +3369,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			#endif
 		}
 	}
-	else if( TITLE_ID == 0x47505A ) /* Nintendo Puzzle Collection */
+	else if( TITLE_ID == 0x47505A ) // Nintendo Puzzle Collection
 	{
 		if(read32(0x6A28) == 0x7C7F282E && read32(0x6AF8) == 0x7C1F002E)
 		{
@@ -3379,6 +3379,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			write32(0x6AF8, 0x38000000);
 			#ifdef DEBUG_PATCH
 			dbgprintf("Patch:Patched Nintendo Puzzle Collection NTSC-J\r\n");
+			#endif
+		}
+	}
+	else if( TITLE_ID == 0x47454F ) // Capcom vs. SNK 2 EO
+	{
+		//fix for force progressive
+		if(write32A(0x1137C, 0x60000000, 0xB0010010, 0))
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Capcom vs. SNK 2 EO NTSC-U\r\n");
 			#endif
 		}
 	}
