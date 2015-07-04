@@ -3392,6 +3392,26 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			#endif
 		}
 	}
+	else if( TITLE_ID == 0x475038 ) // Pac-Man World 3
+	{
+		//fix for force progressive
+		if(write32A(0x28D2A8, 0x48000010, 0x41820010, 0))
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Pac-Man World 3 NTSC-U\r\n");
+			#endif
+		}
+	}
+	else if( TITLE_ID == 0x475134 ) // SpongeBob SquarePants CFTKK
+	{
+		//fix for force progressive
+		if(write32A(0x23007C, 0x48000010, 0x41820010, 0))
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched SpongeBob SquarePants CFTKK NTSC-U\r\n");
+			#endif
+		}
+	}
 	PatchStaticTimers();
 
 	sync_after_write( Buffer, Length );
