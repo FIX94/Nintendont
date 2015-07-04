@@ -3076,7 +3076,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if( ConfigGetConfig( NIN_CFG_CHEATS ) && TRIGame != TRI_SB && useipl == 0 )
 		{
 			FIL CodeFD;
-			if( f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+			if( Check_Cheats() == 0 && f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 			{
 				if( CodeFD.fsize > 0x2000 )
 				{
@@ -3493,46 +3493,42 @@ void PatchGame()
 s32 Check_Cheats()
 {
 #ifdef CHEATS
-	if( ConfigGetConfig( NIN_CFG_CHEATS ) )
+	if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
 	{
-		if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
+		char *cpath = ConfigGetCheatPath();
+		if (cpath[0] != 0)
 		{
-			char *cpath = ConfigGetCheatPath();
-			if (cpath[0] != 0)
+			if( fileExist(cpath) )
 			{
-				if( fileExist(cpath) )
-				{
-					memcpy(cheatPath, cpath, 255);
-					return 0;
-				}
+				memcpy(cheatPath, cpath, 255);
+				return 0;
 			}
 		}
-		u32 i;
-		char* DiscName = ConfigGetGamePath();
-		//search the string backwards for '/'
-		for( i=strlen(DiscName); i > 0; --i )
-			if( DiscName[i] == '/' )
-				break;
-		i++;
-		memcpy(cheatPath, DiscName, i);
-		//new version paths
-		_sprintf(cheatPath+i, "game.gct");
-		if( fileExist(cheatPath) )
-			return 0;
-		sync_before_read((void*)0x0, 0x20);
-		_sprintf(cheatPath+i, "%.6s.gct", (char*)0x0);
-		if( fileExist(cheatPath) )
-			return 0;
-		//gecko path
-		_sprintf(cheatPath, "/codes/%.6s.gct", (char*)0x0);
-		if( fileExist(cheatPath) )
-			return 0;
-		//oldschool backup path
-		_sprintf(cheatPath, "/games/%.6s/%.6s.gct", (char*)0x0, (char*)0x0);
-		if( fileExist(cheatPath) )
-			return 0;
-		return -1;
 	}
+	u32 i;
+	char* DiscName = ConfigGetGamePath();
+	//search the string backwards for '/'
+	for( i=strlen(DiscName); i > 0; --i )
+		if( DiscName[i] == '/' )
+			break;
+	i++;
+	memcpy(cheatPath, DiscName, i);
+	//new version paths
+	_sprintf(cheatPath+i, "game.gct");
+	if( fileExist(cheatPath) )
+		return 0;
+	sync_before_read((void*)0x0, 0x20);
+	_sprintf(cheatPath+i, "%.6s.gct", (char*)0x0);
+	if( fileExist(cheatPath) )
+		return 0;
+	//gecko path
+	_sprintf(cheatPath, "/codes/%.6s.gct", (char*)0x0);
+	if( fileExist(cheatPath) )
+		return 0;
+	//oldschool backup path
+	_sprintf(cheatPath, "/games/%.6s/%.6s.gct", (char*)0x0, (char*)0x0);
+	if( fileExist(cheatPath) )
+		return 0;
 #endif
-	return 0;
+	return -1;
 }
