@@ -15,13 +15,22 @@ __ARHandler:
 	li		%r7,	0
 	stw		%r7,	AR_DMA_LEN@l(%r3)
 
+	#adjust ARAM address for safety
+	lwz		%r5,	AR_DMA_MEM2@l(%r3)
+	rlwinm	%r5,	%r5,	0,		6,		26 # 0x03ffffe0
+	oris	%r5,	%r5,	0x9000
+
+	add		%r0,	%r5,	%r6
+	#ARAM Max Address to ensure no overwriting 
+	lis		%r7,	0x9100
+	cmplw	%r0,	%r7
+	#Out of Memory Bounds, dont do anything
+	bgt		end
+
+	#adjust MEM1 address for safety
 	lwz		%r4,	AR_DMA_MEM1@l(%r3)
 	rlwinm	%r4,	%r4,	0,		7,		26 # 0x01ffffe0
 	oris	%r4,	%r4,	0x8000
-
-	lwz		%r5,	AR_DMA_MEM2@l(%r3)
-	rlwinm	%r5,	%r5,	0,		8,		26 # 0x00ffffe0
-	oris	%r5,	%r5,	0x9000
 
 	lwz		%r0,	AR_DMA_MODE@l(%r3)
 	cmpwi	%r0,	AR_MRAM_TO_ARAM

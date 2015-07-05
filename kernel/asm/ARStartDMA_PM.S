@@ -18,11 +18,20 @@ ARStartDMA:
 	cmpwi	%r6,	0
 	beq		FakeTransfer
 
+	#adjust ARAM address for safety
+	rlwinm	%r5,	%r5,	0,		6,		26 # 0x03ffffe0
+	oris	%r5,	%r5,	0x9000
+
+	add		%r0,	%r5,	%r6
+	#ARAM Max Address to ensure no overwriting 
+	lis		%r7,	0x9100
+	cmplw	%r0,	%r7
+	#Out of Memory Bounds, dont do anything
+	bgt		FakeTransfer
+
+	#adjust MEM1 address for safety
 	rlwinm	%r4,	%r4,	0,		7,		26 # 0x01ffffe0
 	oris	%r4,	%r4,	0x8000
-
-	rlwinm	%r5,	%r5,	0,		8,		26 # 0x00ffffe0
-	oris	%r5,	%r5,	0x9000
 
 	cmpwi	%r3,	AR_MRAM_TO_ARAM
 	beq		memcpy32prep		#we dont need to invalidate main mem
