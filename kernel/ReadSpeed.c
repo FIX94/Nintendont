@@ -36,6 +36,8 @@ static u32 CMDTicks = UINT_MAX;
 static u32 CMDBaseBlock = UINT_MAX;
 static u32 CMDLastBlock = UINT_MAX;
 
+extern u32 TITLE_ID;
+
 void ReadSpeed_Init()
 {
 	CMDStartTime = 0;
@@ -44,7 +46,7 @@ void ReadSpeed_Init()
 	CMDBaseBlock = UINT_MAX;
 	CMDLastBlock = UINT_MAX;
 
-	if((read32(0) >> 8) == 0x47574B) //King Kong
+	if(TITLE_ID == 0x47574B) //King Kong
 	{
 		dbgprintf("ReadSpeed:Using Slow Settings\r\n");
 		SEEK_TICKS = 284765; // 150 ms

@@ -38,8 +38,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "codehandler.h"
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
-#define GAME_ID		(read32(0))
-#define TITLE_ID	(GAME_ID >> 8)
+u32 GAME_ID	= 0;
+u32 TITLE_ID = 0;
 
 #define PATCH_OFFSET_START (0x3000 - (sizeof(u32) * 3))
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
@@ -1103,8 +1103,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 value = 0;
 
 	// PSO 1&2 / III
+	u32 isPSO = 0;
 	if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
 	{
+		isPSO = 1;
 		if((PSOHack & PSO_STATE_SWITCH) && DiscOffset > 0)
 		{
 			#ifdef DEBUG_PATCH
@@ -1360,7 +1362,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 #ifdef DEBUG_PATCH
 	dbgprintf("Patch:Offset:0x%08X EOffset:0x%08X Length:%08X\r\n", Buffer, DOLMaxOff, Length );
-	dbgprintf("Patch:Game ID = %x\r\n", read32(0));
+	dbgprintf("Patch:Game ID = %x\r\n", GAME_ID);
 #endif
 
 	sync_before_read(Buffer, Length);
@@ -2275,6 +2277,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				continue;
 			if (AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
 				continue;
+			if (AllFPatterns[patitr].patmode == PCODE_PSO && isPSO == 0)
+				continue;				
 			if (AllFPatterns[patitr].patmode == PCODE_SI && DisableSIPatch)
 				continue;
 			FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
@@ -3153,6 +3157,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			continue;
 		if(AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
 			continue;
+		if(AllFPatterns[patitr].patmode == PCODE_PSO && isPSO == 0)
+			continue;			
 		if(AllFPatterns[patitr].patmode == PCODE_SI && DisableSIPatch)
 			continue;
 		FuncPattern *CurPatterns = AllFPatterns[patitr].pat;

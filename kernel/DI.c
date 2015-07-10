@@ -67,6 +67,9 @@ u32 WaitForRealDisc = 0;
 u8 *DI_READ_BUFFER = (u8*)0x12E80000;
 u32 DI_READ_BUFFER_LENGTH = 0x80000;
 
+extern u32 GAME_ID;
+extern u32 TITLE_ID;
+ 
 // Triforce
 extern vu32 TRIGame;
 extern vu32 useipltri;
@@ -183,6 +186,9 @@ void DIinit( bool FirstTime )
 	}
 	DI_Handle = IOS_Open( "/dev/mydi", 0 );
 
+	GAME_ID = read32(0);
+	TITLE_ID = (GAME_ID >> 8);
+
 	GCAMKeyA = read32(0);
 	GCAMKeyB = read32(4);
 	GCAMKeyC = read32(8);
@@ -225,9 +231,11 @@ void DIInterrupt()
 	/* Update DMA registers when needed */
 	if(read32(DI_CONTROL) & 2)
 	{
-		/* Yes, some games need manual invalidates */
-		write32(DI_INV_ADR, read32(DI_DMA_ADR));
-		write32(DI_INV_LEN, read32(DI_DMA_LEN));
+		if(TITLE_ID == 0x47544B) //Turok Evolution
+		{	/* Manually invalidate data */
+			write32(DI_INV_ADR, read32(DI_DMA_ADR));
+			write32(DI_INV_LEN, read32(DI_DMA_LEN));
+		}
 		write32(DI_DMA_ADR, read32(DI_DMA_ADR) + read32(DI_DMA_LEN));
 	}
 	write32( DI_CONTROL, read32(DI_CONTROL) & 2 ); // finished command
@@ -851,9 +859,8 @@ bool DICheckTGC(u32 Buffer, u32 Length)
 	}
 	else if(di_offset == 0x2440)
 	{
-		u32 gameid = (read32(0) >> 8);
 		u16 company = (read32(0x4) >> 16);
-		if(company == 0x3431 || company == 0x3730 || gameid == 0x474143 || gameid == 0x47434C || gameid == 0x475339)
+		if(company == 0x3431 || company == 0x3730 || TITLE_ID == 0x474143 || TITLE_ID == 0x47434C || TITLE_ID == 0x475339)
 		{	//we can patch the loader in this case, that works for some reason
 			dbgprintf("Game is resetting to original loader, using original\n");
 			PatchState = PATCH_STATE_PATCH;

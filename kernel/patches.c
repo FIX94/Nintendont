@@ -211,14 +211,6 @@ FuncPattern NormalFPatterns[] =
 	{   0x88,   18,    8,    2,    0,    2,	DVDLowAudioStatusNULL,	sizeof(DVDLowAudioStatusNULL),"DVDLowRequestAudioStatus",	NULL,FGROUP_NONE,			0 },
 	{   0x98,   19,    8,    2,    1,    3,	DVDLowAudioConfigNULL,	sizeof(DVDLowAudioConfigNULL),"DVDLowAudioBufferConfig",	NULL,FGROUP_NONE,			0 },
 #endif
-	{  0x23C,   66,   24,   35,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"A",		FGROUP_NONE,			    0 },
-	{  0x274,   51,   24,    7,   17,   16,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"B",		FGROUP_NONE,			    0 },
-	{  0x1B0,   11,   10,   15,   11,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"C",		FGROUP_NONE,			    0 },
-	{   0x2C,    6,    2,    1,    0,    2,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"D",		FGROUP_NONE,			    0 },
-	{  0x378,  110,   26,   52,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"E",		FGROUP_NONE,			    0 },
-	{  0x378,  109,   26,   52,    0,   10,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"F",		FGROUP_NONE,			    0 },
-	{  0x268,   52,    9,   39,    8,    7,	NULL,				FCODE_PrsLoad,				"PrsLoad",				NULL,		FGROUP_NONE,			    0 },
-	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			NULL,		FGROUP_NONE,			    0 },
 };
 
 FuncPattern TRIFPatterns[] =
@@ -364,6 +356,18 @@ FuncPattern DatelFPatterns[] =
 	{   0xF8,    8,   6,    7,    1,    6,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"DatelB",	FGROUP_NONE,				0 },
 };
 
+FuncPattern PSOFPatterns[] = 
+{
+	{  0x23C,   66,   24,   35,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"A",		FGROUP_NONE,			    0 },
+	{  0x274,   51,   24,    7,   17,   16,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"B",		FGROUP_NONE,			    0 },
+	{  0x1B0,   11,   10,   15,   11,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"C",		FGROUP_NONE,			    0 },
+	{   0x2C,    6,    2,    1,    0,    2,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"D",		FGROUP_NONE,			    0 },
+	{  0x378,  110,   26,   52,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"E",		FGROUP_NONE,			    0 },
+	{  0x378,  109,   26,   52,    0,   10,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"F",		FGROUP_NONE,			    0 },
+	{  0x268,   52,    9,   39,    8,    7,	NULL,				FCODE_PrsLoad,				"PrsLoad",				NULL,		FGROUP_NONE,			    0 },
+	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			NULL,		FGROUP_NONE,			    0 },
+};
+
 enum
 {
 	PCODE_NORMAL = 0,
@@ -371,6 +375,7 @@ enum
 	PCODE_SI,
 	PCODE_EXI,
 	PCODE_DATEL,
+	PCODE_PSO,
 	PCODE_MAX,
 } AllPGroups;
 
@@ -381,4 +386,5 @@ FuncPatterns AllFPatterns[] =
 	{ SIFPatterns, sizeof(SIFPatterns) / sizeof(FuncPattern), PCODE_SI },
 	{ EXIFPatterns, sizeof(EXIFPatterns) / sizeof(FuncPattern), PCODE_EXI },
 	{ DatelFPatterns, sizeof(DatelFPatterns) / sizeof(FuncPattern), PCODE_DATEL },
+	{ PSOFPatterns, sizeof(PSOFPatterns) / sizeof(FuncPattern), PCODE_PSO },
 };

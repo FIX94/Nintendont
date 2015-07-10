@@ -318,14 +318,6 @@ int _main( int argc, char *argv[] )
 		}
 		udelay(10); //wait for other threads
 
-		//Baten Kaitos save hax
-		/*if( read32(0) == 0x474B4245 )
-		{
-			if( read32( 0x0073E640 ) == 0xFFFFFFFF )
-			{
-				write32( 0x0073E640, 0 );
-			}
-		}*/
 		if( WaitForRealDisc == 1 )
 		{
 			if(RealDI_NewDisc())
