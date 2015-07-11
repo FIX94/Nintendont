@@ -257,6 +257,7 @@ bool LoadNinCFG()
 			if(BytesRead != 540)
 				ConfigLoaded = false;
 		} break;
+		case 3:
 		case NIN_CFG_VERSION:
 		{
 			if(BytesRead != sizeof(NIN_CFG))
@@ -271,6 +272,12 @@ bool LoadNinCFG()
 	{
 		ncfg->MemCardBlocks = 0x2;//251 blocks
 		ncfg->Version = 3;
+	}
+	if (ncfg->Version < 4)
+	{
+		ncfg->VideoScale = 0;
+		ncfg->VideoOffset = 0;
+		ncfg->Version = 4;
 	}
 	if (ncfg->Version != NIN_CFG_VERSION)
 		ConfigLoaded = false;

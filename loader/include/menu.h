@@ -37,4 +37,5 @@ void HandleWiiMoteEvent(s32 chan);
 
 bool SelectGame( void );
 void PrintInfo( void );
+void ReconfigVideo( GXRModeObj *vidmode );
 #endif

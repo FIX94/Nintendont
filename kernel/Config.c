@@ -76,6 +76,14 @@ inline u32 ConfigGetGameID(void)
 {
 	return ncfg->GameID;
 }
+inline s8 ConfigGetVideoScale(void)
+{
+	return ncfg->VideoScale;
+}
+inline s8 ConfigGetVideoOffset(void)
+{
+	return ncfg->VideoOffset;
+}
 inline u32 ConfigGetMemcardCode(void)
 {
 	return MEM_CARD_CODE(ncfg->MemCardBlocks);

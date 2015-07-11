@@ -5,7 +5,7 @@
 #include "NintendontVersion.h"
 #include "Metadata.h"
 
-#define NIN_CFG_VERSION		0x00000003
+#define NIN_CFG_VERSION		0x00000004
 
 #define NIN_CFG_MAXPAD 4
 
@@ -20,7 +20,10 @@ typedef struct NIN_CFG
 	char	CheatPath[255];
 	unsigned int		MaxPads;
 	unsigned int		GameID;
-	unsigned int		MemCardBlocks;
+	unsigned char		MemCardBlocks;
+	signed char			VideoScale;
+	signed char			VideoOffset;
+	unsigned char		Unused;
 } NIN_CFG;
 
 enum ninconfigbitpos

@@ -2175,6 +2175,21 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								break;
 						}
 					}
+					if(ConfigGetVideoScale() >= 40 && ConfigGetVideoScale() <= 120)
+					{
+						W16((u32)Buffer+i+0xE, ConfigGetVideoScale() + 600);
+						W16((u32)Buffer+i+0xA, (720 - R16((u32)Buffer+i+0xE)) / 2);
+					}
+					if(ConfigGetVideoOffset() >= -20 && ConfigGetVideoOffset() <= 20)
+					{
+						u16 xorig = R16((u32)Buffer+i+0xA);
+						if((xorig + ConfigGetVideoOffset()) < 0)
+							W16((u32)Buffer+i+0xA, 0);
+						else if((xorig + ConfigGetVideoOffset()) > 80)
+							W16((u32)Buffer+i+0xA, 80);
+						else
+							W16((u32)Buffer+i+0xA, xorig + ConfigGetVideoOffset());
+					}
 					i += 0x3C;
 					continue;
 				}

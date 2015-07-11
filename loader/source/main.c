@@ -216,8 +216,8 @@ int main(int argc, char **argv)
 	FPAD_Update();
 
 	PrintInfo();
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*1, "Home: Exit");
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*2, "A   : Select");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*0, "Home: Exit");
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*1, "A   : Select");
 	GRRLIB_Render();
 	ClearScreen();
 
@@ -297,6 +297,7 @@ int main(int argc, char **argv)
 			i++;
 		}
 	}
+	ReconfigVideo(rmode);
 	UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 
 	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
@@ -314,8 +315,8 @@ int main(int argc, char **argv)
 
 			UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 			PrintInfo();
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "Home: Exit");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "A   : Select");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
@@ -922,7 +923,7 @@ int main(int argc, char **argv)
 		while(!__SYS_SyncSram());
 	}
 	
-	VIDEO_Configure( vmode );
+	ReconfigVideo(vmode);
 	VIDEO_SetBlack(FALSE);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();

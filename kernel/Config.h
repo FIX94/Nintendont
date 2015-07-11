@@ -49,6 +49,8 @@ u32 ConfigGetVideoMode( void );
 u32 ConfigGetLanguage( void );
 u32 ConfigGetMaxPads(void);
 u32 ConfigGetGameID(void);
+s8 ConfigGetVideoScale(void);
+s8 ConfigGetVideoOffset(void);
 u32 ConfigGetMemcardCode(void);
 u32 ConfigGetMemcardSize(void);
 void ConfigSetMemcardBlocks(u32 MemCardBlocks);
