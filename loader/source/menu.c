@@ -663,9 +663,9 @@ bool SelectGame( void )
 				char vidOffset[10];
 				if(ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20)
 					ncfg->VideoOffset = 0;
-				sprintf(vidOffset, "%i", ncfg->VideoOffset);					
+				sprintf(vidOffset, "%i", ncfg->VideoOffset);
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(0), "%-18s:%-4s", "Video Width", vidWidth);
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(1), "%-18s:%-4s", "Vertical Offset", vidOffset);
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(1), "%-18s:%-4s", "Screen Position", vidOffset);
 
 				if(settingPart == 0)
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);
