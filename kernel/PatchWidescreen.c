@@ -265,6 +265,65 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			else if(Region == REGION_ID_JAP)
 				write32(0xADF1C, 0xD01E0040);
 			return false; //aspect ratio gets patched later
+		case 0x473258: //Sonic Gems Collection
+			if(Region == REGION_ID_USA)
+			{
+				if(read32(0x48A2A4) == FLT_ASPECT_1_200)
+				{
+					dbgprintf("PatchWidescreen:[Sonic R] applied\r\n");
+					//aspect ratio
+					write32(0x48A2A4,FLT_ASPECT_1_600);
+					//free space for new wide values
+					write32(0x69124,0x7C69586E);
+					write32(0x6912C,0x7E631A14);
+					//general clipping left half
+					write32(0x69134,0x3800FF96);
+					//general clipping right half
+					write32(0x69138,0x3A4002E9);
+					//stage clipping multiplier
+					PatchWideMulti(0x87CAC, 13);
+					return true;
+				}
+			}
+			else if(Region == REGION_ID_EUR)
+			{
+				if(read32(0x48A364) == FLT_ASPECT_1_200)
+				{
+					dbgprintf("PatchWidescreen:[Sonic R] applied\r\n");
+					//aspect ratio
+					write32(0x48A364,FLT_ASPECT_1_600);
+					//free space for new wide values
+					write32(0x69128,0x7C69586E);
+					write32(0x69130,0x7E631A14);
+					//general clipping left half
+					write32(0x69138,0x3800FF96);
+					//general clipping right half
+					write32(0x6913C,0x3A4002E9);
+					//stage clipping multiplier
+					PatchWideMulti(0x87CB4, 13);
+					return true;
+				}
+			}
+			else if(Region == REGION_ID_JAP)
+			{
+				if(read32(0x48A104) == FLT_ASPECT_1_200)
+				{
+					dbgprintf("PatchWidescreen:[Sonic R] applied\r\n");
+					//aspect ratio
+					write32(0x48A104,FLT_ASPECT_1_600);
+					//free space for new wide values
+					write32(0x69124,0x7C69586E);
+					write32(0x6912C,0x7E631A14);
+					//general clipping left half
+					write32(0x69134,0x3800FF96);
+					//general clipping right half
+					write32(0x69138,0x3A4002E9);
+					//stage clipping multiplier
+					PatchWideMulti(0x87BA0, 13);
+					return true;
+				}
+			}
+			return false;
 		default:
 			return false;
 	}

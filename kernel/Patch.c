@@ -3191,6 +3191,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	#endif
 	PatchState = PATCH_STATE_DONE;
 
+	//Sonic R NTSC Old Debug Prints
+	/*if(read32(0x7D49C) == 0x9421FF90 && read32(0x7D5A8) == 0x9421FF90)
+	{
+		memcpy((void*)0x7D49C, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x7D49C, sizeof(OSReportDM));
+		memcpy((void*)0x7D5A8, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x7D5A8, sizeof(OSReportDM));
+		
+	}*/
 	/*if(GAME_ID == 0x47365145) //Megaman Collection
 	{
 		memcpy((void*)0x5A110, OSReportDM, sizeof(OSReportDM));
