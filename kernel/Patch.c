@@ -3444,6 +3444,28 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			#endif
 		}
 	}
+	else if( TITLE_ID == 0x47414C ) // Super Smash Bros Melee
+	{
+		//fix for video mode breaking
+		if(write32A(0x365DB0, 0x38A00280, 0xA0A7000E, 0))
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Super Smash Bros Melee v1.00\r\n");
+			#endif
+		}
+		else if(write32A(0x366F84, 0x38A00280, 0xA0A7000E, 0))
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Super Smash Bros Melee v1.01\r\n");
+			#endif
+		}
+		else if(write32A(0x367C64, 0x38A00280, 0xA0A7000E, 0))
+		{
+			#ifdef DEBUG_PATCH
+			dbgprintf("Patch:Patched Super Smash Bros Melee v1.02\r\n");
+			#endif
+		}
+	}
 	PatchStaticTimers();
 
 	sync_after_write( Buffer, Length );
