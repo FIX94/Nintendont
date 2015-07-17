@@ -1741,7 +1741,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		);
 	}
 #endif
-	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) )
+	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) ||
+		(ConfigGetVideoOffset() != 0 && ConfigGetVideoOffset() >= -20 && ConfigGetVideoOffset() <= 20) ||
+		(ConfigGetVideoScale() != 0 && ConfigGetVideoScale() >= 40 && ConfigGetVideoScale() <= 120) )
 		PatchCount &= ~FPATCH_VideoModes;
 
 	u32 patitr;
