@@ -137,6 +137,7 @@ const char* const GetRootDevice();
 void RAMInit(void);
 void Initialise();
 bool LoadNinCFG();
+void UpdateNinCFG();
 bool IsGCGame(u8 *Buffer);
 bool IsTRIGame(char *Path, u32 CurDICMD);
 void ExitToLoader(int ret);

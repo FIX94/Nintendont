@@ -55,7 +55,6 @@ u8 *RawRumbleDataOff = NULL;
 u32 RawRumbleDataLen = 0;
 u32 RumbleTransferLen = 0;
 u32 RumbleTransfers = 0;
-u32 HIDEnabled = 0;
 unsigned char rawData[] =
 {
     0x01, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x27, 0x10, 0x00, 0x32, 
@@ -552,11 +551,6 @@ s32 HIDOpen( u32 LoaderRequest )
 	sync_after_write((void*)HID_STATUS, 0x20);
 
 	return 0;
-}
-
-void HIDEnable()
-{
-	HIDEnabled = 1;
 }
 
 void HIDClose()

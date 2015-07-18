@@ -99,7 +99,6 @@ typedef struct {
 
 void HIDInit();
 s32 HIDOpen();
-void HIDEnable();
 void HIDClose();
 void HIDUpdateRegisters(u32 LoaderRequest);
 void HIDGCInit( void );

@@ -707,8 +707,6 @@ void DIUpdateRegisters( void )
 			{
 				#ifdef PATCHALL
 				BTInit();
-				if(ConfigGetConfig(NIN_CFG_HID))
-					HIDEnable();
 				#endif
 				DIOK = 1;
 			} break;

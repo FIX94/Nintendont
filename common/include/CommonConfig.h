@@ -5,7 +5,7 @@
 #include "NintendontVersion.h"
 #include "Metadata.h"
 
-#define NIN_CFG_VERSION		0x00000004
+#define NIN_CFG_VERSION		0x00000005
 
 #define NIN_CFG_MAXPAD 4
 
@@ -36,7 +36,8 @@ enum ninconfigbitpos
 	NIN_CFG_BIT_FORCE_WIDE	= (5),
 	NIN_CFG_BIT_FORCE_PROG	= (6),
 	NIN_CFG_BIT_AUTO_BOOT	= (7),
-	NIN_CFG_BIT_HID			= (8),
+	NIN_CFG_BIT_HID			= (8),	// Old Versions
+	NIN_CFG_BIT_REMLIMIT	= (8),	// New Versions
 	NIN_CFG_BIT_OSREPORT	= (9),
 	NIN_CFG_BIT_USB			= (10),
 	NIN_CFG_BIT_LED			= (11),
@@ -59,6 +60,7 @@ enum ninconfig
 	NIN_CFG_FORCE_PROG	= (1<<NIN_CFG_BIT_FORCE_PROG),
 	NIN_CFG_AUTO_BOOT	= (1<<NIN_CFG_BIT_AUTO_BOOT),
 	NIN_CFG_HID			= (1<<NIN_CFG_BIT_HID),
+	NIN_CFG_REMLIMIT	= (1<<NIN_CFG_BIT_REMLIMIT),
 	NIN_CFG_OSREPORT	= (1<<NIN_CFG_BIT_OSREPORT),
 	NIN_CFG_USB			= (1<<NIN_CFG_BIT_USB),
 	NIN_CFG_LED			= (1<<NIN_CFG_BIT_LED),

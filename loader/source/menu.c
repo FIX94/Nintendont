@@ -397,8 +397,6 @@ bool SelectGame( void )
 						PosX++;
 					if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI))
 						PosX++;
-					if(PosX == NIN_CFG_BIT_HID) //not needed anymore
-						PosX++;
 				}
 				if ((settingPart == 0 && PosX >= ListMax)
 					|| (settingPart == 1 && PosX >= 2))
@@ -435,8 +433,6 @@ bool SelectGame( void )
 					if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
 						PosX--;
 					if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
-						PosX--;
-					if(PosX == NIN_CFG_BIT_HID) //not needed anymore
 						PosX--;
 				}
 				redraw=1;
@@ -583,8 +579,6 @@ bool SelectGame( void )
 				u32 ListLoopIndex = 0;
 				for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
 				{
-					if(ListLoopIndex == NIN_CFG_BIT_HID) //not needed anymore
-						continue;
 					if(ListLoopIndex == NIN_CFG_BIT_USB) //Option gets replaced
 						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_WIIU_WIDE)) ? "On " : "Off");
 					else

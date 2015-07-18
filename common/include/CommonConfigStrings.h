@@ -13,7 +13,7 @@ const char* OptionStrings[] =
 	"Force Widescreen",
 	"Force Progressive",
 	"Auto Boot",
-	"Use HID device",
+	"Unlock Read Speed",
 	"OSReport",
 	"WiiU Widescreen", //Replaces USB
 	"Drive Read LED",

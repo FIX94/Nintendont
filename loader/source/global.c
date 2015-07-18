@@ -247,18 +247,12 @@ bool LoadNinCFG()
 	BytesRead = fread(ncfg, 1, sizeof(NIN_CFG), cfg);
 	switch( ncfg->Version )
 	{
-		default:
-		{
-			ConfigLoaded = false;
-			break;
-		}
 		case 2:
 		{
 			if(BytesRead != 540)
 				ConfigLoaded = false;
 		} break;
-		case 3:
-		case NIN_CFG_VERSION:
+		default:
 		{
 			if(BytesRead != sizeof(NIN_CFG))
 				ConfigLoaded = false;
@@ -268,17 +262,8 @@ bool LoadNinCFG()
 	if (ncfg->Magicbytes != 0x01070CF6)
 		ConfigLoaded = false;
 
-	if (ncfg->Version < 3)	//need to upgrade config from ver 2 to ver 3
-	{
-		ncfg->MemCardBlocks = 0x2;//251 blocks
-		ncfg->Version = 3;
-	}
-	if (ncfg->Version < 4)
-	{
-		ncfg->VideoScale = 0;
-		ncfg->VideoOffset = 0;
-		ncfg->Version = 4;
-	}
+	UpdateNinCFG();
+
 	if (ncfg->Version != NIN_CFG_VERSION)
 		ConfigLoaded = false;
 
@@ -411,4 +396,25 @@ bool IsTRIGame(char *Path, u32 CurDICMD)
 	if(f != NULL)
 		fclose(f);
 	return false;
+}
+
+void UpdateNinCFG()
+{
+	if (ncfg->Version == 2)
+	{	//251 blocks, used to be there
+		ncfg->Unused = 0x2;
+		ncfg->Version = 3;
+	}
+	if (ncfg->Version == 3)
+	{	//new memcard setting space
+		ncfg->MemCardBlocks = ncfg->Unused;
+		ncfg->VideoScale = 0;
+		ncfg->VideoOffset = 0;
+		ncfg->Version = 4;
+	}
+	if (ncfg->Version == 4)
+	{	//Option got changed so not confuse it
+		ncfg->Config &= ~NIN_CFG_HID;
+		ncfg->Version = 5;
+	}
 }

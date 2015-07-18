@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
-#include "global.h"
+#include "Config.h"
 #include "ReadSpeed.h"
 #include "debug.h"
 
@@ -40,6 +40,8 @@ extern u32 TITLE_ID;
 
 void ReadSpeed_Init()
 {
+	if(ConfigGetConfig(NIN_CFG_REMLIMIT))
+		dbgprintf("ReadSpeed:Disabled\r\n");
 	CMDStartTime = 0;
 	CMDLastFinish = 0;
 	CMDTicks = UINT_MAX;
@@ -58,7 +60,7 @@ extern vu32 TRIGame;
 extern u32 RealDiscCMD;
 void ReadSpeed_Start()
 {
-	if(RealDiscCMD != 0 || TRIGame != TRI_NONE)
+	if(RealDiscCMD != 0 || TRIGame != TRI_NONE || ConfigGetConfig(NIN_CFG_REMLIMIT))
 		return;
 
 	CMDStartTime = read32(HW_TIMER);
@@ -66,7 +68,7 @@ void ReadSpeed_Start()
 
 void ReadSpeed_Setup(u32 Offset, int Length)
 {
-	if(RealDiscCMD != 0 || TRIGame != TRI_NONE)
+	if(RealDiscCMD != 0 || TRIGame != TRI_NONE || ConfigGetConfig(NIN_CFG_REMLIMIT))
 		return;
 
 	u32 CurrentBlock = ALIGN_BACKWARD(Offset, READ_BLOCK);
@@ -106,7 +108,7 @@ void ReadSpeed_Setup(u32 Offset, int Length)
 
 u32 ReadSpeed_End()
 {
-	if(RealDiscCMD != 0 || TRIGame != TRI_NONE)
+	if(RealDiscCMD != 0 || TRIGame != TRI_NONE || ConfigGetConfig(NIN_CFG_REMLIMIT))
 		return 1;
 
 	if(CMDTicks < UINT_MAX)
