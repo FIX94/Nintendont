@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "string.h"
 #include "PatchWidescreen.h"
 #include "asm/CalcWidescreen.h"
+#include "asm/CalcGXWidescreen.h"
 
 extern void PatchB(u32 dst, u32 src);
 extern u32 PatchCopy(const u8 *PatchPtr, const u32 PatchSize);
@@ -34,6 +35,16 @@ void PatchWideMulti(u32 BufferPos, u32 dstReg)
 	write32(wide+0x28, (read32(wide+0x28) & 0xFC1FF83F) | (dstReg << 6) | (dstReg << 21));
 	/* Jump back to original code */
 	PatchB(BufferPos+4, wide+CalcWidescreen_size-4);
+}
+
+void PatchGXWideMulti(u32 BufferPos, u32 dstReg)
+{
+	u32 wide = PatchCopy(CalcGXWidescreen, CalcGXWidescreen_size);
+	/* Copy original instruction and jump */
+	write32(wide+CalcGXWidescreen_size-8, read32(BufferPos));
+	PatchB(wide, BufferPos);
+	/* Jump back to original code */
+	PatchB(BufferPos+4, wide+CalcGXWidescreen_size-4);
 }
 
 //Credits to Ralf from gc-forever for the original Ocarina Codes
@@ -322,6 +333,36 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 					PatchWideMulti(0x87BA0, 13);
 					return true;
 				}
+			}
+			return false;
+		case 0x474E46: //NFL Blitz 2002
+			if(Region == REGION_ID_USA)
+			{
+				dbgprintf("PatchWidescreen:[NFL Blitz 2002] applied\r\n");
+				write32(0x199B3C,0xC0040000);
+				PatchWideMulti(0x199B3C,0);
+				write32(0x199B44,0xD01F0068);
+				return true;
+			}
+			return false;
+		case 0x474F33: //NFL Blitz 2003
+			if(Region == REGION_ID_USA)
+			{
+				dbgprintf("PatchWidescreen:[NFL Blitz 2003] applied\r\n");
+				write32(0x2037A8,0xC01D0000);
+				PatchWideMulti(0x2037A8,0);
+				write32(0x2037B0,0xD01F0068);
+				return true;
+			}
+			return false;
+		case 0x474656: //NFL Blitz Pro
+			if(Region == REGION_ID_USA)
+			{
+				dbgprintf("PatchWidescreen:[NFL Blitz Pro] applied\r\n");
+				write32(0x274114,0xC0040000);
+				PatchWideMulti(0x274114,0);
+				write32(0x27412C,0xD0030068);
+				return true;
 			}
 			return false;
 		default:

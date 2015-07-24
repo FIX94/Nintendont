@@ -1973,6 +1973,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
+				else if(BufAt0 == 0x38A00008 && read32((u32)Buffer+i+8) == 0x38000000 &&
+					read32((u32)Buffer+i+44) == 0x90BD0004 && read32((u32)Buffer+i+52) == 0x901D0008)
+				{
+					printpatchfound("__CARDUnlock", "IPL", (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
+					write32( (u32)Buffer+i+8, 0x3C001000 ); //lis r0, 0x1000
+					PatchCount |= FPATCH_CARDUnlock;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
 				else if(BufAt0 == 0x38000008 && BufAt4 == 0x90180004 && 
 					read32((u32)Buffer+i+16) == 0x38000000 && read32((u32)Buffer+i+20) == 0x90180008)
 				{
