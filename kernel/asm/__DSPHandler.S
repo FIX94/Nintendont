@@ -69,7 +69,7 @@ startcp:
 	cmplw	%r4,	%r3
 	blt		buf1
 buf2:
-	slwi	%r3,	%r3,	1		#MAXBUF=0x7000
+	slwi	%r3,	%r3,	1		#MAXBUF=0x18800
 buf1:
 	lis		%r6,	AI_ADP_BUF@h
 

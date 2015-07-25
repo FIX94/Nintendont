@@ -63,6 +63,10 @@
 #include "asm/DatelTimer.h"
 #include "asm/SonicRidersCopy.h"
 
+#include "asm/MajoraAudioStream.h"
+#include "asm/MajoraLoadRegs.h"
+#include "asm/MajoraSaveRegs.h"
+
 unsigned char SRAM[64] =
 {
     0x42, 0x8B,

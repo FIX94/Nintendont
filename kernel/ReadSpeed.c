@@ -56,11 +56,12 @@ void ReadSpeed_Init()
 	}
 }
 
+u32 UseReadLimit = 1;
 extern vu32 TRIGame;
 extern u32 RealDiscCMD;
 void ReadSpeed_Start()
 {
-	if(RealDiscCMD != 0 || TRIGame != TRI_NONE || ConfigGetConfig(NIN_CFG_REMLIMIT))
+	if(UseReadLimit == 0)
 		return;
 
 	CMDStartTime = read32(HW_TIMER);
@@ -68,7 +69,7 @@ void ReadSpeed_Start()
 
 void ReadSpeed_Setup(u32 Offset, int Length)
 {
-	if(RealDiscCMD != 0 || TRIGame != TRI_NONE || ConfigGetConfig(NIN_CFG_REMLIMIT))
+	if(UseReadLimit == 0)
 		return;
 
 	u32 CurrentBlock = ALIGN_BACKWARD(Offset, READ_BLOCK);
@@ -108,7 +109,7 @@ void ReadSpeed_Setup(u32 Offset, int Length)
 
 u32 ReadSpeed_End()
 {
-	if(RealDiscCMD != 0 || TRIGame != TRI_NONE || ConfigGetConfig(NIN_CFG_REMLIMIT))
+	if(UseReadLimit == 0)
 		return 1;
 
 	if(CMDTicks < UINT_MAX)
