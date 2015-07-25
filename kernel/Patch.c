@@ -1985,7 +1985,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				if(BufAt0 == 0x38C00008 && read32((u32)Buffer+i+16) == 0x38800008 && read32((u32)Buffer+i+28) == 0x90DD0004)
 				{
-					printpatchfound("__CARDUnlock", NULL, (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
+					printpatchfound("__CARDUnlock", "A", (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					write32( (u32)Buffer+i, 0x3CC01000 ); //lis r6, 0x1000
 					write32( (u32)Buffer+i+28, 0x909D0004 ); //stw r4, 4(r29)
 					write32( (u32)Buffer+i+36, 0x90DD0008 ); //stw r6, 8(r29)
@@ -1993,10 +1993,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
+				else if(BufAt0 == 0x38000008 && read32((u32)Buffer+i+20) == 0x901F0044 &&
+					read32((u32)Buffer+i+40) == 0x3B400000 && read32((u32)Buffer+i+48) == 0x935F0048)
+				{
+					printpatchfound("__CARDUnlock", "IPL A", (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
+					write32( (u32)Buffer+i+40, 0x3F401000 ); //lis r26, 0x1000
+					PatchCount |= FPATCH_CARDUnlock;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
 				else if(BufAt0 == 0x38A00008 && read32((u32)Buffer+i+8) == 0x38000000 &&
 					read32((u32)Buffer+i+44) == 0x90BD0004 && read32((u32)Buffer+i+52) == 0x901D0008)
 				{
-					printpatchfound("__CARDUnlock", "IPL", (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
+					printpatchfound("__CARDUnlock", "IPL B", (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 					write32( (u32)Buffer+i+8, 0x3C001000 ); //lis r0, 0x1000
 					PatchCount |= FPATCH_CARDUnlock;
 					i = GotoFuncEnd(i, (u32)Buffer);
