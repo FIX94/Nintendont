@@ -1731,17 +1731,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		dbgprintf("Patch:[Ocarina of Time PAL]\r\n");
 		IsN64Emu = 1;
 	}
-	else if(read32(0x1356B8) == 0x4F434152) //OOT Bonus Disc NTSC-U
+	else if(read32(0x1356B8) == 0x5A454C44) //OOT Bonus Disc NTSC-U
 	{
 		dbgprintf("Patch:[OOT Bonus Disc NTSC-U]\r\n");
 		IsN64Emu = 1;
 	}
-	else if(read32(0x18B178) == 0x4F434152) //OOT Bonus Disc NTSC-J
+	else if(read32(0x18B178) == 0x5A454C44) //OOT Bonus Disc NTSC-J
 	{
 		dbgprintf("Patch:[OOT Bonus Disc NTSC-J]\r\n");
 		IsN64Emu = 1;
 	}
-	else if(read32(0x1582F0) == 0x4F434152) //OOT Bonus Disc PAL
+	else if(read32(0x1582F0) == 0x5A454C44) //OOT Bonus Disc PAL
 	{
 		dbgprintf("Patch:[OOT Bonus Disc PAL]\r\n");
 		IsN64Emu = 1;
