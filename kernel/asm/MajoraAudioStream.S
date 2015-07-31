@@ -27,20 +27,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .set	audl,			10
 .set	audr,			9
 .set	oribuf,			5
-.set	glob,			28
+.set	tmp,			28
 .set	buf,			27
 .set	loc,			26
-.set	tmp,			25
-.set	cmpr,			5	#unused
+.set	glob,			25
+.set	cmpr,			6	#rarely touched
+.set	cmpstrm,		5	#unused
 
 MajoraAudioStream:
-	lis		glob,	STREAMING@h
-	lwz		tmp,	STREAMING@l(glob)
-	cmpwi	cmpr,	tmp,	0
-	beq		cmpr,	saveVars
+	#status saved in SaveRegs
+	beq		cmpstrm,saveVars
 
 check1:
-	lwz		loc,	AI_ADP_LOC@l(glob)
 	li		tmp,	0xC40
 	slwi	tmp,	tmp,	4		#BUFSIZE=0xC400
 	cmplw	cmpr,	loc,	tmp
@@ -110,7 +108,6 @@ compressNegR:
 
 exit:
 	addi	loc,	loc,	4
-	stw		loc,	AI_ADP_LOC@l(glob)
 
 saveVars:
 	sth		audl,	2(oribuf)
