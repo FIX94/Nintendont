@@ -2391,12 +2391,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							if(read32(FOffset + 0x40) == 0x801E0004)
 							{
-								PatchBL(GXLoadTlutAddr, FOffset + 0x40);
-								if(read32(FOffset + 0x6C) == 0x801E0004)
-									PatchBL(GXLoadTlutAddr, FOffset + 0x6C);
-								else if(read32(FOffset + 0x70) == 0x801E0004)
-									PatchBL(GXLoadTlutAddr, FOffset + 0x70);
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								if(TITLE_ID == 0x47424F) //Burnout
+								{
+									PatchBL(GXLoadTlutAddr, FOffset + 0x40);
+									if(read32(FOffset + 0x6C) == 0x801E0004)
+										PatchBL(GXLoadTlutAddr, FOffset + 0x6C);
+									else if(read32(FOffset + 0x70) == 0x801E0004)
+										PatchBL(GXLoadTlutAddr, FOffset + 0x70);
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								}
+								else
+									dbgprintf("Patch:[GXLoadTlut] skipped (0x%08X)\r\n", FOffset);
 							}
 							else
 								CurPatterns[j].Found = 0; // False hit
