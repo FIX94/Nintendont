@@ -109,6 +109,24 @@ const char *GCAMGetCARDName()
 	return name;
 }
 
+u8 GCAMCARDIsValid( u8 *mem )
+{
+	u8 valid = 0;
+	switch(TRIGame)
+	{
+		case TRI_GP1:
+		case TRI_GP2:
+			valid = (memcmp(mem, "MKA", 3) == 0);
+			break;
+		case TRI_AX:
+			valid = (memcmp(mem+0x8A, "SEGABGG", 7) == 0);
+			break;
+		default:
+			break;
+	}
+	return valid;
+}
+			
 void GCAMCARDCleanStatus( u32 status )
 {
 	if(status < 0x96)
@@ -335,13 +353,20 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 								FIL fi;
 								if( f_open_char( &fi, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 								{
-									if( fi.fsize > 0 )
+									if( fi.fsize > 0 && fi.fsize <= 0xD0 )
 									{
-										CARDMemorySize = fi.fsize;
-										if( TRIGame == TRI_AX )
-											CARDBit = 2;
-										else
-											CARDBit = 1;
+										u8 *cmem = (u8*)malloca( fi.fsize, 32 );
+										u32 read;
+										f_read( &fi, cmem, fi.fsize, &read );
+										if(GCAMCARDIsValid(cmem))
+										{
+											CARDMemorySize = fi.fsize;
+											if( TRIGame == TRI_AX )
+												CARDBit = 2;
+											else
+												CARDBit = 1;
+										}
+										free(cmem);
 									}
 									f_close(&fi);
 								}
@@ -393,14 +418,22 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 							FIL cf;
 							if( f_open_char( &cf, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 							{
-								if( CARDMemorySize == 0 )
-									CARDMemorySize = cf.fsize;
-
-								u32 read;
-								f_read( &cf, CARDMemory, CARDMemorySize, &read );
+								if( cf.fsize > 0 && cf.fsize <= 0xD0 )
+								{
+									u8 *cmem = (u8*)malloca( cf.fsize, 32 );
+									u32 read;
+									f_read( &cf, cmem, cf.fsize, &read );
+									if(GCAMCARDIsValid(cmem))
+									{
+										if( CARDMemorySize == 0 )
+											CARDMemorySize = cf.fsize;
+										memcpy(CARDMemory, cmem, CARDMemorySize);
+										sync_after_write(CARDMemory, CARDMemorySize);
+										CARDIsInserted = 1;
+									}
+									free(cmem);
+								}
 								f_close( &cf );
-								sync_after_write(CARDMemory, CARDMemorySize);
-								CARDIsInserted = 1;
 							}
 
 							CARDReadPacket[POff++] = 0x02;	// SUB CMD
@@ -448,21 +481,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 		#ifdef DEBUG_CARD
 							dbgprintf("CARDWrite: %u\n", CARDMemorySize );
 		#endif
-							u32 CARDIsValid;
-							switch(TRIGame)
-							{
-								case TRI_GP1:
-								case TRI_GP2:
-									CARDIsValid = (memcmp(CARDMemory, "MKA", 3) == 0);
-									break;
-								case TRI_AX:
-									CARDIsValid = (memcmp(CARDMemory+0x8A, "SEGABGG", 7) == 0);
-									break;
-								default:
-									CARDIsValid = 0;
-									break;
-							}
-							if(CARDIsValid)
+							if(GCAMCARDIsValid(CARDMemory))
 							{
 								DIFinishAsync(); //DONT ever try todo file i/o async
 								FIL cf;

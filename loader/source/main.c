@@ -302,6 +302,7 @@ int main(int argc, char **argv)
 	else
 		ncfg->VideoMode &= ~NIN_VID_PROG;
 
+//Select SD or USB base
 	if((ncfg->Config & NIN_CFG_AUTO_BOOT) == 0)
 	{
 		while (1)
@@ -346,18 +347,15 @@ int main(int argc, char **argv)
 	fwrite( (char*)0x90100000, 1, NKernelSize, out );
 	fclose(out);*/
 
-//Load config
-
-//Reset drive
-
+//Get Game Selection
 	bool SaveSettings = false;
 	if( ncfg->Config & NIN_CFG_AUTO_BOOT )
 		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
 	else
 		SaveSettings = SelectGame();
 
+//Init DI and set correct ID if needed
 	u32 CurDICMD = 0;
-	//Init DI and set correct ID if needed
 	if( memcmp(ncfg->GamePath, "di", 3) == 0 )
 	{
 		ClearScreen();
@@ -505,7 +503,7 @@ int main(int argc, char **argv)
 			{
 				PrintInfo();
 				for( i=0; i < j; ++i )
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5 + i * 20, "%50.50s [%.6s]%s", gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
 				GRRLIB_Render();
 				Screenshot();
 				ClearScreen();
@@ -515,9 +513,13 @@ int main(int argc, char **argv)
 		ISOShift = Offsets[PosX];
 		memcpy(&(ncfg->GameID), gi[PosX].ID, 4);
 	}
-	*(vu32*)0xD300300C = ISOShift; //multi-iso games
+//multi-iso game hack
+	*(vu32*)0xD300300C = ISOShift;
 
-	//Set Language
+//Check if game is Triforce game
+	u32 TRIGame = IsTRIGame(ncfg->GamePath, CurDICMD, ISOShift);
+
+//Set Language
 	if(ncfg->Language == NIN_LAN_AUTO || ncfg->Language >= NIN_LAN_LAST)
 	{
 		switch (CONF_GetLanguage())
@@ -549,6 +551,7 @@ int main(int argc, char **argv)
 		char BasePath[20];
 		sprintf(BasePath, "%s:/saves", GetRootDevice());
 		mkdir(BasePath, S_IREAD | S_IWRITE);
+
 		char MemCardName[8];
 		memset(MemCardName, 0, 8);
 		if ( ncfg->Config & NIN_CFG_MC_MULTI )
@@ -575,6 +578,33 @@ int main(int argc, char **argv)
 		}
 		else
 			fclose(f);
+
+		if(TRIGame == TRI_GP1)
+		{
+			gprintf("GP1 Memory\r\n");
+			sprintf(MemCard, "%s/GP1.bin", BasePath);
+			CreateNewFile(MemCard, 0x45);
+		}
+		else if(TRIGame == TRI_GP2)
+		{
+			gprintf("GP2 Memory\r\n");
+			sprintf(MemCard, "%s/GP2.bin", BasePath);
+			CreateNewFile(MemCard, 0x45);
+		}
+		else if(TRIGame == TRI_AX)
+		{
+			gprintf("AX Memory\r\n");
+			sprintf(MemCard, "%s/AX.bin", BasePath);
+			CreateNewFile(MemCard, 0xCF);
+			sprintf(MemCard, "%s/AXsettings.bin", BasePath);
+			CreateNewFile(MemCard, 0x2B);
+		}
+		else if(TRIGame == TRI_VS4)
+		{
+			gprintf("VS4 Memory\r\n");
+			sprintf(MemCard, "%s/VS4settings.bin", BasePath);
+			CreateNewFile(MemCard, 0x2B);
+		}
 	}
 	else //setup real sram language
 	{
@@ -588,7 +618,7 @@ int main(int argc, char **argv)
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-	if(IsTRIGame(ncfg->GamePath, CurDICMD) == false)
+	if(TRIGame == TRI_NONE)
 	{
 		char iplchar[32];
 		if((ncfg->GameID & 0xFF) == 'E')

@@ -1053,11 +1053,16 @@ void TRIReadSettings(char *name, u32 size)
 	{
 		if(backup.fsize == size)
 		{
-			dbgprintf("TRI:Reading Settings\r\n");
 			u32 read;
-			f_read(&backup, OurBase, size, &read);
-			sync_after_write_align32(OurBase, size);
-			TRI_BackupAvailable = 1;
+			u8 sbuf[size];
+			f_read(&backup, sbuf, size, &read);
+			if(memcmp(sbuf, "SB", 2) == 0)
+			{
+				dbgprintf("TRI:Reading Settings\r\n");
+				memcpy(OurBase, sbuf, size);
+				sync_after_write_align32(OurBase, size);
+				TRI_BackupAvailable = 1;
+			}
 		}
 		f_close(&backup);
 	}

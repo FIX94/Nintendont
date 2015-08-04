@@ -344,13 +344,37 @@ u32 OffsetCheck[4] = {
 	0x20D7E8, //VS4
 };
 
-bool IsTRIGame(char *Path, u32 CurDICMD)
+static char *GetTRIName(u32 i)
+{
+	char *name = "TRI_NONE";
+	switch(i)
+	{
+		case TRI_GP1:
+			name = "TRI_GP1";
+			break;
+		case TRI_GP2:
+			name = "TRI_GP2";
+			break;
+		case TRI_AX:
+			name = "TRI_AX";
+			break;
+		case TRI_VS4:
+			name = "TRI_VS4";
+			break;
+		default:
+			break;
+	}
+	return name;
+}
+
+u32 IsTRIGame(char *Path, u32 CurDICMD, u32 ISOShift)
 {
 	FILE *f = NULL;
 	u32 DOLOffset = 0;
 	if(CurDICMD)
 	{
-		ReadRealDisc((u8*)&DOLOffset, 0x420, 4, CurDICMD);
+		ReadRealDisc((u8*)&DOLOffset, 0x420+ISOShift, 4, CurDICMD);
+		DOLOffset+=ISOShift;
 	}
 	else
 	{
@@ -359,8 +383,9 @@ bool IsTRIGame(char *Path, u32 CurDICMD)
 		f = fopen(FullPath, "rb");
 		if(f != NULL)
 		{
-			fseek(f, 0x420, SEEK_SET);
+			fseek(f, 0x420+ISOShift, SEEK_SET);
 			fread(&DOLOffset, 1, 4, f);
+			DOLOffset+=ISOShift;
 		}
 		else
 		{
@@ -389,13 +414,13 @@ bool IsTRIGame(char *Path, u32 CurDICMD)
 		{
 			if(f != NULL)
 				fclose(f);
-			gprintf("Found TRIGame %u\n", i);
-			return true;
+			gprintf("Found TRIGame %s\n", GetTRIName(i+1));
+			return i+1;
 		}
 	}
 	if(f != NULL)
 		fclose(f);
-	return false;
+	return 0;
 }
 
 void UpdateNinCFG()
@@ -417,4 +442,33 @@ void UpdateNinCFG()
 		ncfg->Config &= ~NIN_CFG_HID;
 		ncfg->Version = 5;
 	}
+}
+
+int CreateNewFile(char *Path, u32 size)
+{
+	FILE *f;
+	f = fopen(Path, "rb");
+	if(f != NULL)
+	{	//create ONLY new files
+		fclose(f);
+		return -1;
+	}
+	f = fopen(Path, "wb");
+	if(f == NULL)
+	{
+		gprintf("Failed to create %s!\r\n", Path);
+		return -2;
+	}
+	void *buf = malloc(size);
+	if(buf == NULL)
+	{
+		gprintf("Failed to allocate %i bytes!\r\n", size);
+		return -3;
+	}
+	memset(buf, 0, size);
+	fwrite(buf, 1, size, f);
+	free(buf);
+	fclose(f);
+	gprintf("Created %s with %i bytes!\r\n", Path, size);
+	return 0;
 }

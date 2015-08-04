@@ -140,8 +140,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 	}
 	/* For Nintendo Puzzle Collection */
 	if( FirstVal == 0x38C00BB8 && (u32)Buffer == 0x770528 )
-	{	//the multiplier here is around 1.276, no idea why this timer isnt a smooth 1.5
-		write32(Buffer, 0x38C00EF4);
+	{	//it IS a smooth 1.5 BUT the game is actually not properly timed, good job devs
+		write32(Buffer, 0x38C01194);
 		dbgprintf("PatchTimers:[Timer Clock Panel de Pon] applied (0x%08X)\r\n", Buffer );
 		return true;
 	}

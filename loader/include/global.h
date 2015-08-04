@@ -88,6 +88,16 @@ extern GRRLIB_ttfFont *myFont;
 extern GRRLIB_texImg *background;
 extern GRRLIB_texImg *screen_buffer;
 
+enum
+{
+	TRI_NONE = 0,
+	TRI_GP1,
+	TRI_GP2,
+	TRI_AX,
+	TRI_VS4,
+	TRI_SB,
+} TRIGames;
+
 enum ContentType
 {
 	CONTENT_REQUIRED=	(1<< 0),	// not sure
@@ -139,7 +149,8 @@ void Initialise();
 bool LoadNinCFG();
 void UpdateNinCFG();
 bool IsGCGame(u8 *Buffer);
-bool IsTRIGame(char *Path, u32 CurDICMD);
+u32 IsTRIGame(char *Path, u32 CurDICMD, u32 ISOShift);
+int CreateNewFile(char *Path, u32 size);
 void ExitToLoader(int ret);
 void ClearScreen();
 void CloseDevices();
