@@ -2147,11 +2147,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								write32( (u32)Buffer+i+0x14, 0); //mode sf
 								break;
 							case 0x04: //PAL50
+								if(!(ConfigGetVideoMode() & NIN_VID_PATCH_PAL50))
+									break;
 								printvidpatch(VI_PAL, VI_480P, (u32)Buffer+i);
 								write32( (u32)Buffer+i, 0x02 );
 								//write32( (u32)Buffer+i, 0x06 );
+								memcpy( Buffer+i+0x04, GXIntDfAt04, sizeof(GXIntDfAt04) ); //terrible workaround I know
 								write32( (u32)Buffer+i+0x14, 0); //mode sf
-								//memcpy(Buffer+i, GXNtsc480Prog, sizeof(GXNtsc480Prog));
 								break;
 							case 0x08: //MPAL
 							case 0x14: //PAL60
