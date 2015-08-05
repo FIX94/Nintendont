@@ -2200,7 +2200,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								write32( (u32)Buffer+i+0x14, 1); //mode df
 								break;
 							case 0x04: //PAL50
-								if(NinForceMode == NIN_VID_FORCE_PAL50 || NinForceMode == NIN_VID_FORCE_PAL60)
+								if(NinForceMode == NIN_VID_FORCE_PAL50 || NinForceMode == NIN_VID_FORCE_PAL60
+										|| !(ConfigGetVideoMode() & NIN_VID_PATCH_PAL50))
 									break;
 								if(NinForceMode == NIN_VID_FORCE_MPAL)
 								{

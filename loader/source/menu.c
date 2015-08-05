@@ -399,7 +399,7 @@ bool SelectGame( void )
 						PosX++;
 				}
 				if ((settingPart == 0 && PosX >= ListMax)
-					|| (settingPart == 1 && PosX >= 2))
+					|| (settingPart == 1 && PosX >= 3))
 				{
 					ScrollX = 0;
 					PosX	= 0;
@@ -424,7 +424,7 @@ bool SelectGame( void )
 					if(settingPart == 0)
 						PosX = ListMax - 1;
 					else
-						PosX = 1;
+						PosX = 2;
 				}
 				if(settingPart == 0)
 				{
@@ -453,15 +453,17 @@ bool SelectGame( void )
 							if(ncfg->VideoScale < 40 || ncfg->VideoScale > 120)
 								ncfg->VideoScale = 0; //auto
 						}
+						ReconfigVideo(rmode);
+						redraw = 1;
 					}
-					else
+					else if(PosX == 1)
 					{
 						ncfg->VideoOffset--;
 						if(ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20)
 							ncfg->VideoOffset = 20;
+						ReconfigVideo(rmode);
+						redraw = 1;
 					}
-					ReconfigVideo(rmode);
-					redraw = 1;
 				}
 			}
 			else if( FPAD_Right(0) )
@@ -479,15 +481,17 @@ bool SelectGame( void )
 							if(ncfg->VideoScale < 40 || ncfg->VideoScale > 120)
 								ncfg->VideoScale = 0; //auto
 						}
+						ReconfigVideo(rmode);
+						redraw = 1;
 					}
-					else
+					else if(PosX == 1)
 					{
 						ncfg->VideoOffset++;
 						if(ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20)
-							ncfg->VideoOffset = -20;					
+							ncfg->VideoOffset = -20;
+						ReconfigVideo(rmode);
+						redraw = 1;
 					}
-					ReconfigVideo(rmode);
-					redraw = 1;
 				}
 			}
 
@@ -571,6 +575,14 @@ bool SelectGame( void )
 						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDMULTI), "%29s", "");
 					}
 					redraw = 1;
+				}
+				else if(settingPart == 1)
+				{
+					if(PosX == 2)
+					{
+						ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
+						redraw = 1;
+					}
 				}
 			}
 
@@ -658,9 +670,13 @@ bool SelectGame( void )
 				if(ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20)
 					ncfg->VideoOffset = 0;
 				sprintf(vidOffset, "%i", ncfg->VideoOffset);
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(0), "%-18s:%-4s", "Video Width", vidWidth);
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(1), "%-18s:%-4s", "Screen Position", vidOffset);
-
+				ListLoopIndex = 0; //reset on other side
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Video Width", vidWidth);
+				ListLoopIndex++;
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Screen Position", vidOffset);
+				ListLoopIndex++;
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Patch PAL50", (ncfg->VideoMode & (NIN_VID_PATCH_PAL50)) ? "On " : "Off");
+				ListLoopIndex++;
 				if(settingPart == 0)
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);
 				else

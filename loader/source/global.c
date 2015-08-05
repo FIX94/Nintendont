@@ -442,6 +442,11 @@ void UpdateNinCFG()
 		ncfg->Config &= ~NIN_CFG_HID;
 		ncfg->Version = 5;
 	}
+	if (ncfg->Version == 5)
+	{	//New Video Mode option
+		ncfg->VideoMode &= ~NIN_VID_PATCH_PAL50;
+		ncfg->Version = 6;
+	}
 }
 
 int CreateNewFile(char *Path, u32 size)
