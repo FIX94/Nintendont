@@ -1630,6 +1630,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//Set menu timer to about 51 days
 		write32( 0x00CBB7C, 0x3C800FFF );
 
+		//Hide timer updater (red font)
+		PatchBL( 0x011BDEC, 0x001738E0 );
+		PatchBL( 0x011BDEC, 0x00173950 );
+
+		//Hide timer updater (blue font)
+		PatchBL( 0x011BDEC, 0x001739D4 );
+		PatchBL( 0x011BDEC, 0x00173A44 );
+
 		//Allow test menu if requested
 		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3B804 );
 
