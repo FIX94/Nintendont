@@ -2164,7 +2164,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								break;
 						}
 					}
-					else
+					else if( ConfigGetVideoMode() & NIN_VID_FORCE )
 					{
 						u8 NinForceMode = ConfigGetVideoMode() & NIN_VID_FORCE_MASK;
 						switch(read32((u32)Buffer+i))

@@ -673,6 +673,15 @@ int main(int argc, char **argv)
 	WUPC_Shutdown();
 	WPAD_Shutdown();
 
+//before flushing do game specific patches
+	if(ncfg->Config & NIN_CFG_FORCE_PROG &&
+			ncfg->GameID == 0x47584745)
+	{	//Mega Man X Collection does progressive ingame so
+		//forcing it would mess with the interal game setup
+		gprintf("Disabling Force Progressive for this game\r\n");
+		ncfg->Config &= ~NIN_CFG_FORCE_PROG;
+	}
+
 //make sure the cfg gets to the kernel
 	DCStoreRange((void*)ncfg, sizeof(NIN_CFG));
 
@@ -874,22 +883,33 @@ int main(int argc, char **argv)
 	}
 	
 	gprintf("Region:%u\r\n", Region );
-	progressive = ncfg->Config & NIN_CFG_FORCE_PROG;
+	progressive = (ncfg->Config & NIN_CFG_FORCE_PROG)
+		&& !useipl && !useipltri;
+
 	switch(Region)
 	{
 		default:
 		case 0:
 		case 1:
 		{
-			gprintf("NTSC\r\n");
+			if( *(vu32*)0x800000CC == 3 )
+			{
+				gprintf("MPAL\r\n");
 
-			*(vu32*)0x800000CC = 0;
+				if(progressive)
+					vmode = &TVNtsc480Prog;
+				else
+					vmode = &TVMpal480IntDf;
+			} else {
+				gprintf("NTSC\r\n");
 
-			if(progressive)
-				vmode = &TVNtsc480Prog;
-			else
-				vmode = &TVNtsc480IntDf;
-			
+				*(vu32*)0x800000CC = 0;
+
+				if(progressive)
+					vmode = &TVNtsc480Prog;
+				else
+					vmode = &TVNtsc480IntDf;
+			}
 		} break;
 		case 2:
 		{
@@ -910,17 +930,15 @@ int main(int argc, char **argv)
 				else
 					vmode = &TVMpal480IntDf;
 			} else {
-				
 				gprintf("PAL50\r\n");
+
+				*(vu32*)0x800000CC = 1;
 
 				if(progressive)
 					vmode = &TVEurgb60Hz480Prog;
 				else
 					vmode = &TVPal528IntDf;
 			}
-
-			*(vu32*)0x800000CC = 1;
-
 		} break;
 	}
 	if((ncfg->Config & NIN_CFG_MEMCARDEMU) == 0) //setup real sram video
@@ -943,8 +961,8 @@ int main(int argc, char **argv)
 				sram->ntd		|= 0x40;	// Set PAL60
 				break;
 		}
-		if(*(vu32*)0x800000CC == 1)
-			sram->flags		|= 1; //PAL Video Mode
+		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5)
+			sram->flags	|= 1; //PAL Video Mode
 		__SYS_UnlockSram(1); // 1 -> write changes
 		while(!__SYS_SyncSram());
 	}
