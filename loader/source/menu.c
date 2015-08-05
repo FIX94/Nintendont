@@ -580,6 +580,7 @@ bool SelectGame( void )
 				{
 					if(PosX == 2)
 					{
+						SaveSettings = true;
 						ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
 						redraw = 1;
 					}
