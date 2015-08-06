@@ -1443,6 +1443,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write32( 0x001BF1DC, 0x60000000 ); //save record p2 (time attack on card)
 		write32( 0x000E01B4, 0x60000000 ); //select record place (time attack on card)
 
+		//Make some menu timers invisible
+		PatchB( 0x000B12EC, 0x000B12E0 );
+
+		//Make coin count (layer 7) invisible
+		write32( 0x0008650C, 0x4E800020 );
+
 		//Modify to regular GX pattern to patch later
 		write32( 0x363660, 0x00 ); //NTSC Interlaced
 
@@ -1523,6 +1529,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//Make some menu timers invisible
 		write32( 0x001B7D2C, 0x60000000 );
 		write32( 0x00231CA0, 0x60000000 );
+
+		//Make coin count (layer 7) invisible
+		write32( 0x001B87A8, 0x60000000 );
+		write32( 0x00247A68, 0x60000000 );
 
 		//Modify to regular GX pattern to patch later
 		write32( 0x3F1FD0, 0x00 ); //NTSC Interlaced
