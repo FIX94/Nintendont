@@ -884,6 +884,7 @@ bool GameNeedsHook()
 
 	return( (TITLE_ID) == 0x474234 ||	// Burnout 2
 			(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
+			(TITLE_ID) == 0x474145 ||	// Doubutsu no Mori e+
 			(TITLE_ID) == 0x474146 ||	// Animal Crossing
 			(TITLE_ID) == 0x475852 ||	// Mega Man X Command Mission
 			(TITLE_ID) == 0x474832 ||	// NFS: HP2
