@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "string.h"
 #include "PatchWidescreen.h"
 #include "asm/CalcWidescreen.h"
+#include "asm/CalcWidescreenDiv.h"
 #include "asm/CalcGXWidescreen.h"
 
 extern void PatchB(u32 dst, u32 src);
@@ -35,6 +36,18 @@ void PatchWideMulti(u32 BufferPos, u32 dstReg)
 	write32(wide+0x28, (read32(wide+0x28) & 0xFC1FF83F) | (dstReg << 6) | (dstReg << 21));
 	/* Jump back to original code */
 	PatchB(BufferPos+4, wide+CalcWidescreen_size-4);
+}
+
+void PatchWideDiv(u32 BufferPos, u32 dstReg)
+{
+	u32 wide = PatchCopy(CalcWidescreenDiv, CalcWidescreenDiv_size);
+	/* Copy original instruction and jump */
+	write32(wide, read32(BufferPos));
+	PatchB(wide, BufferPos);
+	/* Modify destination register */
+	write32(wide+0x28, (read32(wide+0x28) & 0xFC1FF83F) | (dstReg << 6) | (dstReg << 21));
+	/* Jump back to original code */
+	PatchB(BufferPos+4, wide+CalcWidescreenDiv_size-4);
 }
 
 void PatchGXWideMulti(u32 BufferPos, u32 dstReg)
@@ -369,6 +382,19 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				return true;
 			}
 			return false;
+		case 0x474541: //skies of arcadia legends
+			dbgprintf("PatchWidescreen:[Skies of Arcadia Legends] applied\r\n");
+			if(Region == REGION_ID_USA) {
+				PatchWideMulti(0x1DCE00,2); //picture effects
+				PatchWideDiv(0x299334,6); //widescreen, clipping
+			} else if(Region == REGION_ID_EUR) {
+				PatchWideMulti(0x1DEADC,2); //picture effects
+				PatchWideDiv(0x29BC5C,6); //widescreen, clipping
+			} else if(Region == REGION_ID_JAP) {
+				PatchWideMulti(0x1DCCDC,1); //picture effects
+				PatchWideDiv(0x298DE4,6); //widescreen, clipping
+			}
+			return true;
 		default:
 			return false;
 	}

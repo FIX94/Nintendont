@@ -55,13 +55,14 @@ bool GenerateMemCard(char *MemCard)
 	//Use current language for SRAM language
 	TmpU32 = ncfg->Language;
 	memcpy(MemcardBase + 0x18, &TmpU32, 4);
-	//Not sure what this area is about
-	memset(MemcardBase + 0x1C, 0, 6);
-	//Memory Card size in MBits total
-	u16 TmpShort = MEM_CARD_SIZE(ncfg->MemCardBlocks) >> 17;
-	memcpy(MemcardBase + 0x22, &TmpShort, 2);
 	//Memory Card File Mode
-	TmpShort = (ncfg->GameID & 0xFF) == 'J';
+	TmpU32 = ((ncfg->GameID & 0xFF) == 'J' ? 2 : 0);
+	memcpy(MemcardBase + 0x1C, &TmpU32, 4);
+	//Memory Card size in MBits total
+	TmpU32 = MEM_CARD_SIZE(ncfg->MemCardBlocks) >> 17;
+	memcpy(MemcardBase + 0x20, &TmpU32, 4);
+	//Memory Card File Mode
+	u16 TmpShort = (ncfg->GameID & 0xFF) == 'J';
 	memcpy(MemcardBase + 0x24, &TmpShort, 2);
 	//Generate Header Checksum
 	doChecksum((u16*)(MemcardBase),0x1FC,(u16*)(MemcardBase+0x1FC),(u16*)(MemcardBase+0x1FE));
