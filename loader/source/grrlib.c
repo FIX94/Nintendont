@@ -126,14 +126,14 @@ int  GRRLIB_Init (void) {
 			if(progressive)
 				rmode = &TVNtsc480Prog;
 			else
-				rmode = &TVNtsc480IntDf;
+				rmode = &TVNtsc480Int;
 		} break;
 		case 1:
 		{
 			if(progressive)
 				rmode = &TVEurgb60Hz480Prog;
 			else
-				rmode = &TVPal528IntDf;
+				rmode = &TVPal528Int;
 		} break;
 		case 2:
 		{
@@ -144,7 +144,7 @@ int  GRRLIB_Init (void) {
 			if(progressive)
 				rmode = &TVEurgb60Hz480Prog;
 			else
-				rmode = &TVEurgb60Hz480IntDf;
+				rmode = &TVEurgb60Hz480Int;
 		} 
 	}
 	VIDEO_Configure(rmode);

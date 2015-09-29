@@ -314,7 +314,7 @@ void PatchStaticTimers()
 		/* Values get set twice */
 		write32(0x5ECC, 0x3C60000F); //lis r3, 0xF
 		write32(0x5ED4, 0x60609060); //ori r0, r3, 0x9060
-		write32(0x5ED8, 0x38000180); //li r3, 0x180
+		write32(0x5ED8, 0x38600180); //li r3, 0x180
 		#ifdef DEBUG_PATCH
 		dbgprintf("PatchTimers:[GT Cube NTSC-J] applied\r\n");
 		#endif
