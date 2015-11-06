@@ -18,6 +18,8 @@ extern vu32 m_ptr;
 extern vu8 m_msg[0x80];
 
 extern vu32 TRIGame;
+vu32 TRICoinOffset = 0;
+void *TRICoinOffsetAligned = 0;
 static const char *TRI_SegaChar = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
 static const char *TRI_NamcoChar = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
 static const u32 TRI_DefaultCoinCount = 9;
@@ -42,56 +44,11 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 	//																DataIn[DataPos+6],
 	//																DataIn[DataPos+7] );
 
-	switch(TRIGame)
+	if(TRICoinOffset)
 	{
-		case TRI_GP1:
-		{
-			sync_before_read( (void*)0x00577760, 0x20 );
-			write32( 0x00577760, TRI_DefaultCoinCount ); // MGP credits
-			sync_after_write( (void*)0x00577760,0x20 );
-		} break;
-		case TRI_GP2:
-		{
-			sync_before_read( (void*)0x00690AC0, 0x20 );
-			write32( 0x00690AC0, TRI_DefaultCoinCount ); // MGP2 credits
-			sync_after_write( (void*)0x00690AC0, 0x20 );
-		} break;
-		case TRI_AX:
-		{
-			sync_before_read( (void*)0x00400DE0, 0x20 );
-			write32( 0x00400DE8, TRI_DefaultCoinCount ); // FZeroAX credits
-			sync_after_write( (void*)0x00400DE0, 0x20 );
-
-			sync_before_read( (void*)0x003CD6A0, 0x20 );
-			write32( 0x003CD6A0, 0x00001734 );	// FZeroAX menu timer to 99
-			sync_after_write( (void*)0x003CD6A0, 0x20 );
-
-			//sync_before_read( (void*)0x003BC400, 0x20 );
-			//write32( 0x003BC400, 0x803BB940 );	// Crash hack
-			//sync_after_write( (void*)0x003BC400, 0x20 );
-
-			//sync_before_read( (void*)0x03CFBE0, 0x20 );
-			//u32 val = read32( 0x03CFBF4 ) & 0xFFFF00FF;
-			//write32( 0x03CFBF4, val | 0x0400 ); //Difficulty=Hardest
-			//sync_after_write( (void*)0x03CFBE0, 0x20 );
-		} break;
-		case TRI_VS4:
-		{
-			if( read32( 0x0210C08 ) == 0x386000A8 )	// EXPORT
-			{
-				sync_before_read( (void*)0x064C6A0, 0x20 );
-				write32( 0x064C6B0, TRI_DefaultCoinCount ); // credits
-				sync_after_write( (void*)0x064C6A0, 0x20 );
-			}
-			if( read32( 0x024E888 ) == 0x386000A8 ) // JAPAN
-			{
-				sync_before_read( (void*)0x0694BA0, 0x20 );
-				write32( 0x0694BB0, TRI_DefaultCoinCount ); // credits
-				sync_after_write( (void*)0x0694BA0, 0x20 );
-			}
-		} break;
-		default:
-			break;
+		sync_before_read( TRICoinOffsetAligned, 0x20 );
+		write32( TRICoinOffset, TRI_DefaultCoinCount );
+		sync_after_write( TRICoinOffsetAligned, 0x20 );
 	}
 
 	JVSIOMessage();
@@ -121,7 +78,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			case 0x10:
 			{
 				addDataByte(1);
-				if( TRIGame == TRI_VS4 )
+				if( TRIGame == TRI_VS3 || TRIGame == TRI_VS4 )
 					addDataString(TRI_SegaChar);
 				else
 					addDataString(TRI_NamcoChar);
@@ -170,6 +127,15 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 				addDataByte(1);
 				switch(TRIGame)
 				{
+					case TRI_VS3:
+					{
+						// 2 Player, 1 Coin slot, no Analog-in
+						addDataBuffer((void *)"\x01\x02\x0A\x00", 4);
+						addDataBuffer((void *)"\x02\x01\x00\x00", 4);
+						addDataBuffer((void *)"\x03\x00\x00\x00", 4);
+						addDataBuffer((void *)"\x10\x01\x00\x00", 4);
+						addDataBuffer((void *)"\x00\x00\x00\x00", 4);
+					} break;
 					case TRI_VS4:
 					{
 						// 2 Player, 1 Coin slot, 4 Analog-in
@@ -284,6 +250,26 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 									PlayerData[0] |= 0x10; // Paddle Right
 							}
 							break;
+						case TRI_VS3:
+							if( PadBuff[i].button & PAD_BUTTON_START )
+								PlayerData[0] |= 0x80; // Start
+							if( PadBuff[i].triggerRight > 0x44 )
+								PlayerData[0] |= 0x40; // Service button
+							if( PadBuff[i].stickY > 0x20 )
+								PlayerData[0] |= 0x20; // Move Up
+							if( PadBuff[i].stickY < -0x20 )
+								PlayerData[0] |= 0x10; // Move Down
+							if( PadBuff[i].stickX < -0x20 )
+								PlayerData[0] |= 0x08; // Move Right
+							if( PadBuff[i].stickX > 0x20 )
+								PlayerData[0] |= 0x04; // Move Left
+							if( PadBuff[i].button & PAD_BUTTON_X )
+								PlayerData[0] |= 0x02; // Long Pass
+							if( PadBuff[i].button & PAD_BUTTON_A )
+								PlayerData[0] |= 0x01; // Shoot
+							if( PadBuff[i].button & PAD_BUTTON_Y )
+								PlayerData[1] |= 0x80; // Short Pass
+							break;
 						case TRI_VS4:
 							if( PadBuff[i].button & PAD_BUTTON_START )
 								PlayerData[0] |= 0x80; // Start
@@ -379,11 +365,12 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						val = 42 * 0x101;
 					else
 						val = 0;*/
-
-					unsigned char player_data[2] = {val1, val2};
-
-					addDataByte( player_data[0] );
-					addDataByte( player_data[1] );
+					if(TRIGame != TRI_VS3)
+					{
+						unsigned char player_data[2] = {val1, val2};
+						addDataByte( player_data[0] );
+						addDataByte( player_data[1] );
+					}
 				}
 
 			} break;

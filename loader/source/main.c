@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "titles.h"
 #include "ipl.h"
 #include "HID.h"
+#include "TRI.h"
 
 extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
@@ -516,9 +517,6 @@ int main(int argc, char **argv)
 //multi-iso game hack
 	*(vu32*)0xD300300C = ISOShift;
 
-//Check if game is Triforce game
-	u32 TRIGame = IsTRIGame(ncfg->GamePath, CurDICMD, ISOShift);
-
 //Set Language
 	if(ncfg->Language == NIN_LAN_AUTO || ncfg->Language >= NIN_LAN_LAST)
 	{
@@ -578,33 +576,6 @@ int main(int argc, char **argv)
 		}
 		else
 			fclose(f);
-
-		if(TRIGame == TRI_GP1)
-		{
-			gprintf("GP1 Memory\r\n");
-			sprintf(MemCard, "%s/GP1.bin", BasePath);
-			CreateNewFile(MemCard, 0x45);
-		}
-		else if(TRIGame == TRI_GP2)
-		{
-			gprintf("GP2 Memory\r\n");
-			sprintf(MemCard, "%s/GP2.bin", BasePath);
-			CreateNewFile(MemCard, 0x45);
-		}
-		else if(TRIGame == TRI_AX)
-		{
-			gprintf("AX Memory\r\n");
-			sprintf(MemCard, "%s/AX.bin", BasePath);
-			CreateNewFile(MemCard, 0xCF);
-			sprintf(MemCard, "%s/AXsettings.bin", BasePath);
-			CreateNewFile(MemCard, 0x2B);
-		}
-		else if(TRIGame == TRI_VS4)
-		{
-			gprintf("VS4 Memory\r\n");
-			sprintf(MemCard, "%s/VS4settings.bin", BasePath);
-			CreateNewFile(MemCard, 0x2B);
-		}
 	}
 	else //setup real sram language
 	{
@@ -618,7 +589,10 @@ int main(int argc, char **argv)
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-	if(TRIGame == TRI_NONE)
+
+//Check if game is Triforce game
+	u32 IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
+	if(IsTRIGame == 0)
 	{
 		char iplchar[32];
 		if((ncfg->GameID & 0xFF) == 'E')
