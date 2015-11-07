@@ -29,6 +29,8 @@ static const char *CARD_NAME_GP2 = "/saves/GP2.bin";
 static const char *CARD_NAME_AX = "/saves/AX.bin";
 
 static const char *SETTINGS_AX_UNK = "/saves/AX_UNKsettings.bin";
+static const char *SETTINGS_YAKRVB = "/saves/YAKRVBsettings.bin";
+static const char *SETTINGS_YAKRVC = "/saves/YAKRVCsettings.bin";
 static const char *SETTINGS_VS3V02 = "/saves/VS3V02settings.bin";
 static const char *SETTINGS_VS4JAP = "/saves/VS4JAPsettings.bin";
 static const char *SETTINGS_VS4EXP = "/saves/VS4EXPsettings.bin";
@@ -139,6 +141,20 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		gprintf("TRI:Virtua Striker 4 Ver 2006 (Export)\r\n");
 		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_VS4V06EXP);
 		CreateNewFile(SaveFile, 0x2B);
+	}
+	else if(DOLRead32(0x26B3F4, DOLOffset, f, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Gekitou Pro Yakyuu (Rev B)\r\n");
+		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_YAKRVB);
+		CreateNewFile(SaveFile, 0xF5);
+	}
+	else if(DOLRead32(0x26D9B4, DOLOffset, f, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Gekitou Pro Yakyuu (Rev C)\r\n");
+		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_YAKRVC);
+		CreateNewFile(SaveFile, 0x100);
 	}
 
 	if(f != NULL)

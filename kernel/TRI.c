@@ -32,7 +32,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "asm/PADReadVS.h"
 #include "asm/CheckTestMenu.h"
 #include "asm/CheckTestMenuVS.h"
+#include "asm/CheckTestMenuYakyuu.h"
 #include "asm/RestoreSettingsAXUnk.h"
+#include "asm/RestoreSettingsYAKRVB.h"
+#include "asm/RestoreSettingsYAKRVC.h"
 #include "asm/RestoreSettingsVS3V02.h"
 #include "asm/RestoreSettingsVS4JAP.h"
 #include "asm/RestoreSettingsVS4EXP.h"
@@ -40,6 +43,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "asm/RestoreSettingsVS4V06EXP.h"
 
 static const char *SETTINGS_AX_UNK = "/saves/AX_UNKsettings.bin";
+static const char *SETTINGS_YAKRVB = "/saves/YAKRVBsettings.bin";
+static const char *SETTINGS_YAKRVC = "/saves/YAKRVCsettings.bin";
 static const char *SETTINGS_VS3V02 = "/saves/VS3V02settings.bin";
 static const char *SETTINGS_VS4JAP = "/saves/VS4JAPsettings.bin";
 static const char *SETTINGS_VS4EXP = "/saves/VS4EXPsettings.bin";
@@ -80,7 +85,7 @@ void TRIBackupSettings()
 {
 	if(TRISettingsName == (char*)0 || TRISettingsLoc == 0 || TRISettingsSize == 0)
 		return;
-	void *GameSettingsLoc = (TRIGame == TRI_AX) ? (void*)TRISettingsLoc : (void*)P2C(read32(TRISettingsLoc));
+	void *GameSettingsLoc = (TRIGame == TRI_AX || TRIGame == TRI_YAK) ? (void*)TRISettingsLoc : (void*)P2C(read32(TRISettingsLoc));
 	sync_before_read_align32(GameSettingsLoc, TRISettingsSize);
 	sync_before_read_align32(OUR_SETTINGS_LOC, TRISettingsSize);
 	if((memcmp(OUR_SETTINGS_LOC, GameSettingsLoc, TRISettingsSize) != 0) && (memcmp(GameSettingsLoc, "SB", 2) == 0))
@@ -533,6 +538,52 @@ void TRISetupGames()
 		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3C504 );
 
 		//memcpy( (void*)0x001C2B80, OSReportDM, sizeof(OSReportDM) );
+	}
+	else if(read32(0x2995F4) == 0x386000A8)
+	{
+		dbgprintf("TRI:Gekitou Pro Yakyuu (Rev B)\r\n");
+		TRIGame = TRI_YAK;
+		SystemRegion = REGION_JAPAN;
+		TRICoinOffset = 0x0514948;
+		TRISettingsName = SETTINGS_YAKRVB;
+		TRISettingsLoc = 0x03D3D0C;
+		TRISettingsSize = 0xF5;
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuYakyuu, CheckTestMenuYakyuu_size), 0x1D1EF8 );
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings();
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchBL(PatchCopy(RestoreSettingsYAKRVB, RestoreSettingsYAKRVB_size), 0x1D21F8);
+
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadGP, PADReadGP_size), 0x1C380C );
+	}
+	else if(read32(0x29BC94) == 0x386000A8)
+	{
+		dbgprintf("TRI:Gekitou Pro Yakyuu (Rev C)\r\n");
+		TRIGame = TRI_YAK;
+		SystemRegion = REGION_JAPAN;
+		TRICoinOffset = 0x0518208;
+		TRISettingsName = SETTINGS_YAKRVC;
+		TRISettingsLoc = 0x03D67AC;
+		TRISettingsSize = 0x100;
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuYakyuu, CheckTestMenuYakyuu_size), 0x1D455C );
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings();
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchBL(PatchCopy(RestoreSettingsYAKRVC, RestoreSettingsYAKRVC_size), 0x1D486C);
+
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadGP, PADReadGP_size), 0x1C575C );
 	}
 	else if(useipltri)
 	{

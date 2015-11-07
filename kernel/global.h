@@ -191,6 +191,7 @@ enum
 	TRI_AX,
 	TRI_VS3,
 	TRI_VS4,
+	TRI_YAK,
 	TRI_SB,
 } TRIGames;
 
