@@ -50,6 +50,12 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 		write32( TRICoinOffset, TRI_DefaultCoinCount );
 		sync_after_write( TRICoinOffsetAligned, 0x20 );
 	}
+	if(TRIGame == TRI_AX)
+	{
+		sync_before_read( (void*)0x003CD6A0, 0x20 );
+		write32( 0x003CD6A0, 0x00001734 );	// FZeroAX menu timer to 99
+		sync_after_write( (void*)0x003CD6A0, 0x20 );
+	}
 
 	JVSIOMessage();
 
@@ -362,9 +368,9 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 							else if(i == 1)
 								val = PadBuff[0].stickY + 0x80; // Steering Y
 							else if(i == 4) {
-								if(PadBuff[0].button & PAD_BUTTON_A) val = 0x7F; //Gas
+								if(PadBuff[0].button & PAD_BUTTON_A) val = 0xFF; //Gas
 							} else if(i == 5) {
-								if(PadBuff[0].button & PAD_BUTTON_B) val = 0x7F; //Brake
+								if(PadBuff[0].button & PAD_BUTTON_B) val = 0xFF; //Brake
 							}
 							break;
 						case TRI_VS4:
