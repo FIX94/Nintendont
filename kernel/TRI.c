@@ -400,8 +400,12 @@ void TRISetupGames()
 		write32( 0x1C5E40, 0x7C07206C );
 
 		//Partially skip media board init (ugly for now)
-		write32(0x1C7B58, 0x60000000); 
+		write32( 0x1C7B58, 0x60000000 ); 
 
+		//I dont like the missing media board id print so...
+		memcpy( (void*)0x5D1086, "A89E-28A48984511", 17 );
+		write32( 0x14A060, 0x388DEAC6 ); //addi r4, r13, 0x153A
+		
 		//Modify to regular GX pattern to patch later
 		write32( 0x26E7E8, 0x00 ); //NTSC Interlaced
 
