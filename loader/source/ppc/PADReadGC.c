@@ -14,7 +14,6 @@ static vu32* RESET_STATUS = (u32*)0xD3003420;
 static vu32* HID_STATUS = (u32*)0xD3003440;
 static vu32* HIDMotor = (u32*)0x93002700;
 static vu32* PadUsed = (u32*)0x93002704;
-static vu32* TRIButtons = (u32*)0x93002708;
 
 static vu32* PADIsBarrel = (u32*)0xD3002830;
 static vu32* PADBarrelEnabled = (u32*)0xD3002840;
@@ -46,6 +45,8 @@ const s8 DEADZONE = 0x1A;
 #define C_NSWAP2	(1<<6)
 #define C_NSWAP3	(1<<7)
 #define C_ISWAP		(1<<8)
+
+#define ALIGN32(x) 	(((u32)x) & (~31))
 
 u32 _start(u32 calledByGame)
 {
@@ -185,11 +186,19 @@ u32 _start(u32 calledByGame)
 		_siReg[14] |= (1<<31);
 		while(_siReg[14] & (1<<31));
 	}
-
+	u32 HIDMemPrep = 0;
 	if (HIDPad == HID_PAD_NOT_SET)
 		HIDPad = MaxPads;
-	for (chan = HIDPad; (chan < HID_PAD_NONE); chan = (HID_CTRL->MultiIn == 3)? ++chan : HID_PAD_NONE) // Run once unless MultiIn == 3
+
+	for (chan = HIDPad; (chan < HID_PAD_NONE); (HID_CTRL->MultiIn == 3) ? (++chan) : (chan = HID_PAD_NONE)) // Run once unless MultiIn == 3
 	{
+		if(HIDMemPrep == 0) // first run
+		{
+			HID_Packet = (u8*)0x930050F0; // reset back to default offset
+			memInvalidate = (u32)HID_Packet; // prepare memory
+			asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+			HIDMemPrep = memInvalidate;
+		}
 		if (HID_CTRL->MultiIn == 2)		//multiple controllers connected to a single usb port
 		{
 			used |= (1<<(PrevAdapterChannel1 + chan)) | (1<<(PrevAdapterChannel2 + chan)) | (1<<(PrevAdapterChannel3 + chan))| (1<<(PrevAdapterChannel4 + chan));	//depending on adapter it may only send every 4th time
@@ -203,14 +212,14 @@ u32 _start(u32 calledByGame)
 		}
 
 		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
-			HID_Packet = (u8*)0x930050F0;	//reset back to default offset
-
-		memInvalidate = (u32)HID_Packet;
-		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
-
-		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
 		{
 			HID_Packet = (u8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
+			if(ALIGN32(HID_Packet) > HIDMemPrep) //new cache block, prepare memory
+			{
+				memInvalidate = ALIGN32(HID_Packet);
+				asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+				HIDMemPrep = memInvalidate;
+			}
 			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo wiiu Gamecube Adapter
 			{
 				// 0x04=port powered 0x10=normal controller 0x22=wavebird communicating
