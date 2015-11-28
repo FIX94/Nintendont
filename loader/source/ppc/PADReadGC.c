@@ -214,13 +214,14 @@ u32 _start(u32 calledByGame)
 		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
 		{
 			HID_Packet = (u8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
-			if(ALIGN32(HID_Packet) > HIDMemPrep) //new cache block, prepare memory
+			u32 HID_CacheEndBlock = ALIGN32(((u32)HID_Packet) + HID_CTRL->MultiInValue); //calculate upper cache block used
+			if(HID_CacheEndBlock > HIDMemPrep) //new cache block, prepare memory
 			{
-				memInvalidate = ALIGN32(HID_Packet);
+				memInvalidate = HID_CacheEndBlock;
 				asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 				HIDMemPrep = memInvalidate;
 			}
-			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo wiiu Gamecube Adapter
+			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo WiiU Gamecube Adapter
 			{
 				// 0x04=port powered 0x10=normal controller 0x22=wavebird communicating
 				if (((HID_Packet[1] & 0x10) == 0)	//normal controller not connected
