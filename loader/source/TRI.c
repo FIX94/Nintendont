@@ -29,6 +29,8 @@ static const char *CARD_NAME_GP2 = "/saves/GP2.bin";
 static const char *CARD_NAME_AX = "/saves/AX.bin";
 
 static const char *SETTINGS_AX_UNK = "/saves/AX_UNKsettings.bin";
+static const char *SETTINGS_AX_RVC = "/saves/AX_RVCsettings.bin";
+static const char *SETTINGS_AX_RVE = "/saves/AX_RVEsettings.bin";
 static const char *SETTINGS_YAKRVB = "/saves/YAKRVBsettings.bin";
 static const char *SETTINGS_YAKRVC = "/saves/YAKRVCsettings.bin";
 static const char *SETTINGS_VS3V02 = "/saves/VS3V02settings.bin";
@@ -105,6 +107,24 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		sprintf(SaveFile, "%s:%s", GetRootDevice(), CARD_NAME_AX);
 		CreateNewFile(SaveFile, 0xCF);
 		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_AX_UNK);
+		CreateNewFile(SaveFile, 0x2A);
+	}
+	else if(DOLRead32(0x181E60, DOLOffset, f, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:F-Zero AX (Rev C)\r\n");
+		sprintf(SaveFile, "%s:%s", GetRootDevice(), CARD_NAME_AX);
+		CreateNewFile(SaveFile, 0xCF);
+		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_AX_RVC);
+		CreateNewFile(SaveFile, 0x2A);
+	}
+	else if(DOLRead32(0x18275C, DOLOffset, f, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:F-Zero AX (Rev E)\r\n");
+		sprintf(SaveFile, "%s:%s", GetRootDevice(), CARD_NAME_AX);
+		CreateNewFile(SaveFile, 0xCF);
+		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_AX_RVE);
 		CreateNewFile(SaveFile, 0x2A);
 	}
 	else if(DOLRead32(0x01C2DF4, DOLOffset, f, CurDICMD) == 0x386000A8)

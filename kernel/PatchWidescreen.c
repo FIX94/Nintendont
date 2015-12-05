@@ -148,7 +148,12 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 	else if(TRIGame == TRI_AX)
 	{	//thanks CosmoCortney
 		dbgprintf("PatchWidescreen:[F-Zero AX] applied\r\n");
-		write32(0x445C34, read32(0x445C30));
+		if(read32(0x445774) == FLT_ASPECT_1_333)
+			write32(0x445774, read32(0x445770));
+		else if(read32(0x445C34) == FLT_ASPECT_1_333)
+			write32(0x445C34, read32(0x445C30));
+		else if(read32(0x4461B4) == FLT_ASPECT_1_333)
+			write32(0x4461B4, read32(0x4461B0));
 		return true;
 	}
 	u32 Buffer, PatchedWide = 0;

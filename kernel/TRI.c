@@ -34,6 +34,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "asm/CheckTestMenuVS.h"
 #include "asm/CheckTestMenuYakyuu.h"
 #include "asm/RestoreSettingsAXUnk.h"
+#include "asm/RestoreSettingsAX_RVC.h"
+#include "asm/RestoreSettingsAX_RVE.h"
 #include "asm/RestoreSettingsYAKRVB.h"
 #include "asm/RestoreSettingsYAKRVC.h"
 #include "asm/RestoreSettingsVS3V02.h"
@@ -43,6 +45,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "asm/RestoreSettingsVS4V06EXP.h"
 
 static const char *SETTINGS_AX_UNK = "/saves/AX_UNKsettings.bin";
+static const char *SETTINGS_AX_RVC = "/saves/AX_RVCsettings.bin";
+static const char *SETTINGS_AX_RVE = "/saves/AX_RVEsettings.bin";
 static const char *SETTINGS_YAKRVB = "/saves/YAKRVBsettings.bin";
 static const char *SETTINGS_YAKRVC = "/saves/YAKRVCsettings.bin";
 static const char *SETTINGS_VS3V02 = "/saves/VS3V02settings.bin";
@@ -67,6 +71,7 @@ extern u32 SystemRegion;
 
 vu32 TRIGame = TRI_NONE;
 extern vu32 TRICoinOffset;
+extern vu32 AXTimerOffset;
 extern void *TRICoinOffsetAligned;
 
 void TRIReset()
@@ -76,8 +81,10 @@ void TRIReset()
 	//F-Zero AX uses Clean CARD after 150 uses
 	if(TRIGame == TRI_AX && TRI_BackupAvailable == 1)
 	{
+		//if we dont set it to 150 it'll beep a lot
 		sync_before_read(OUR_SETTINGS_LOC, 0x20);
-		GCAMCARDCleanStatus(R16((u32)OUR_SETTINGS_LOC+0x16));
+		W16((u32)OUR_SETTINGS_LOC+0x16,150);
+		sync_after_write(OUR_SETTINGS_LOC, 0x20);
 	}
 }
 
@@ -282,12 +289,167 @@ void TRISetupGames()
 		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
 		//write32( 0x002CEF8, 0x60000000 );
 	}
+	else if( read32(0x0184E60) == 0x386000A8 )
+	{
+		dbgprintf("TRI:F-Zero AX (Rev C)\r\n");
+		TRIGame = TRI_AX;
+		SystemRegion = REGION_JAPAN;
+		TRICoinOffset = 0x00400908;
+		AXTimerOffset = 0x003CD1C0;
+		TRISettingsName = SETTINGS_AX_RVC;
+		TRISettingsLoc = 0x3CF6F0;
+		TRISettingsSize = 0x2A;
+		DISetDIMMVersion(0x12301777);
+
+		//Reset loop
+		write32( 0x01B50AC, 0x60000000 );
+
+		//DBGRead fix
+		write32( 0x01BEAAC, 0x60000000 );
+
+		//Motor init patch
+		write32( 0x01753BC, 0x60000000 );
+		write32( 0x01753C0, 0x60000000 );
+		write32( 0x0175358, 0x60000000 );
+
+		//patching system waiting stuff
+		write32( 0x0180A54, 0x48000054 );
+		write32( 0x0180AB8, 0x48000054 );
+
+		//Network waiting
+		write32( 0x0180C74, 0x4800004C );
+
+		//Goto Test menu
+		write32( 0x00DF168, 0x60000000 );
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenu, CheckTestMenu_size), 0xDF16C );
+
+		//Remove Overscan on first VIConfigure
+		write32( 0x001FB998, 0x38C00000 );
+
+		//English
+		write32( 0x000DF430, 0x38000000 );
+
+		//Remove some menu timers (thanks dj_skual)
+		// (menu gets constantly removed in JVSIO.c)
+		write32( 0x0015AE40, 0x60000000 ); //after race
+
+		//Make some menu timers invisible (thanks dj_skual)
+		write32( 0x002370DC, 0x40200000 ); //menu inner
+		write32( 0x00237114, 0x40200000 ); //menu outer
+		write32( 0x00236E74, 0x00000000 ); //after race inner
+		write32( 0x00236EAC, 0x00000000 ); //after race outer
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings();
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchB(PatchCopy(RestoreSettingsAX_RVC, RestoreSettingsAX_RVC_size), 0x17B12C);
+
+		//Replace Motor Init with Controller Setup
+		write32( 0x0024DB74, 0x801809F8 );
+		write32( 0x0024DB78, 0x8018085C );
+
+		//Call Important Init Function
+		PatchB( 0x000DA46C, 0x00180A38 );
+
+		//Modify to regular GX pattern to patch later
+		u32 NTSC480ProgTri = 0x21CF2C;
+		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
+		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		NTSC480ProgTri = 0x302600;
+		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
+		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		//PAD Hook for control updates
+		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4004 );
+	}
+	else if( read32(0x018575C) == 0x386000A8 )
+	{
+		dbgprintf("TRI:F-Zero AX (Rev E)\r\n");
+		TRIGame = TRI_AX;
+		SystemRegion = REGION_JAPAN;
+		TRICoinOffset = 0x00401368;
+		AXTimerOffset = 0x003CDC20;
+		TRISettingsName = SETTINGS_AX_RVE;
+		TRISettingsLoc = 0x3D0150;
+		TRISettingsSize = 0x2A;
+		DISetDIMMVersion(0x12301777);
+
+		//Reset loop
+		write32( 0x01B59A8, 0x60000000 );
+
+		//DBGRead fix
+		write32( 0x01BF3A8, 0x60000000 );
+
+		//Motor init patch
+		write32( 0x0175C00, 0x60000000 );
+		write32( 0x0175C04, 0x60000000 );
+		write32( 0x0175B9C, 0x60000000 );
+
+		//patching system waiting stuff
+		write32( 0x0181344, 0x48000054 );
+		write32( 0x01813A8, 0x48000054 );
+
+		//Network waiting
+		write32( 0x0181564, 0x4800004C );
+
+		//Goto Test menu
+		write32( 0x00DF550, 0x60000000 );
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenu, CheckTestMenu_size), 0xDF554 );
+
+		//Replace Motor Init with Controller Setup
+		write32( 0x0024E4B4, 0x801812E8 );
+		write32( 0x0024E4B8, 0x8018114C );
+
+		//Call Important Init Function
+		PatchB( 0x000DA81C, 0x00181328 );
+
+		//Remove Overscan on first VIConfigure
+		write32( 0x001FC2C4, 0x38C00000 );
+
+		//English
+		write32( 0x000DF818, 0x38000000 );
+
+		//Remove some menu timers (thanks dj_skual)
+		// (menu gets constantly removed in JVSIO.c)
+		write32( 0x0015B638, 0x60000000 ); //after race
+
+		//Make some menu timers invisible (thanks dj_skual)
+		write32( 0x00237A1C, 0x40200000 ); //menu inner
+		write32( 0x00237A54, 0x40200000 ); //menu outer
+		write32( 0x002377B4, 0x00000000 ); //after race inner
+		write32( 0x002377EC, 0x00000000 ); //after race outer
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings();
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchB(PatchCopy(RestoreSettingsAX_RVE, RestoreSettingsAX_RVE_size), 0x17B980);
+
+		//Modify to regular GX pattern to patch later
+		u32 NTSC480ProgTri = 0x21D86C;
+		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
+		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		NTSC480ProgTri = 0x303040;
+		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
+		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		//PAD Hook for control updates
+		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4900 );
+	}
 	else if( read32(0x01851C4) == 0x386000A8 )
 	{
 		dbgprintf("TRI:F-Zero AX (Unk)\r\n");
 		TRIGame = TRI_AX;
 		SystemRegion = REGION_JAPAN;
 		TRICoinOffset = 0x00400DE8;
+		AXTimerOffset = 0x003CD6A0;
 		TRISettingsName = SETTINGS_AX_UNK;
 		TRISettingsLoc = 0x3CFBD0;
 		TRISettingsSize = 0x2A;
@@ -422,6 +584,9 @@ void TRISetupGames()
 		TRISettingsLoc = 0x0602520-0x14C4;
 		TRISettingsSize = 0x2B;
 
+		//Set menu timer to about 51 days
+		write32( 0x00C1D0C, 0x3C800FFF );
+
 		//BOOT/FIRM version mismatch patch (not needed with SegaBoot)
 		write32( 0x005214C, 0x60000000 );
 
@@ -450,6 +615,12 @@ void TRISetupGames()
 		TRISettingsName = SETTINGS_VS4EXP;
 		TRISettingsLoc = 0x05C5FE0-0x2CA8; //NOTE:logic turned around!
 		TRISettingsSize = 0x2B;
+
+		//BOOT/FIRM version mismatch patch (not needed with SegaBoot)
+		write32( 0x0052060, 0x60000000 );
+
+		//Set menu timer to about 51 days
+		write32( 0x00C1564, 0x3C800FFF );
 
 		//Allow test menu if requested
 		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3B3E8 );
@@ -483,6 +654,9 @@ void TRISetupGames()
 
 		//BOOT/FIRM version mismatch patch (not needed with SegaBoot)
 		write32( 0x00568D8, 0x60000000 );
+
+		//Set menu timer to about 51 days
+		write32( 0x00D7420, 0x3C800FFF );
 
 		//Allow test menu if requested
 		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3ECD8 );

@@ -19,6 +19,7 @@ extern vu8 m_msg[0x80];
 
 extern vu32 TRIGame;
 vu32 TRICoinOffset = 0;
+vu32 AXTimerOffset = 0;
 void *TRICoinOffsetAligned = 0;
 static const char *TRI_SegaChar = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
 static const char *TRI_NamcoChar = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
@@ -50,11 +51,11 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 		write32( TRICoinOffset, TRI_DefaultCoinCount );
 		sync_after_write( TRICoinOffsetAligned, 0x20 );
 	}
-	if(TRIGame == TRI_AX)
+	if(AXTimerOffset)
 	{
-		sync_before_read( (void*)0x003CD6A0, 0x20 );
-		write32( 0x003CD6A0, 0x00001734 );	// FZeroAX menu timer to 99
-		sync_after_write( (void*)0x003CD6A0, 0x20 );
+		sync_before_read( (void*)AXTimerOffset, 0x20 );
+		write32( AXTimerOffset, 0x00001734 );	// FZeroAX menu timer to 99
+		sync_after_write( (void*)AXTimerOffset, 0x20 );
 	}
 
 	JVSIOMessage();
