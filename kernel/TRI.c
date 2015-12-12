@@ -69,6 +69,9 @@ extern int dbgprintf( const char *fmt, ...);
 extern vu32 useipltri, TRI_BackupAvailable;
 extern u32 SystemRegion;
 
+extern u32 GAME_ID;
+extern u16 GAME_ID6;
+
 vu32 TRIGame = TRI_NONE;
 extern vu32 TRICoinOffset;
 extern vu32 AXTimerOffset;
@@ -536,11 +539,14 @@ void TRISetupGames()
 		dbgprintf("TRI:Virtua Striker 3 Ver 2002\r\n");
 		TRIGame = TRI_VS3;
 
-		//Japanese Language
-		//SystemRegion = REGION_JAPAN;
-		//English Language
-		SystemRegion = REGION_EXPORT;
-
+		if(GAME_ID == 0x47565333 && GAME_ID6 == 0x324A)
+		{	//Japanese Language
+			SystemRegion = REGION_JAPAN;
+		}
+		else
+		{	//English Language
+			SystemRegion = REGION_EXPORT;
+		}
 		TRICoinOffset = 0x05C5338;
 		TRISettingsName = SETTINGS_VS3V02;
 		TRISettingsLoc = 0x05D25C0-0x1408;

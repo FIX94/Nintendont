@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
 u32 GAME_ID	= 0;
+u16 GAME_ID6 = 0;
 u32 TITLE_ID = 0;
 
 #define PATCH_OFFSET_START (0x3000 - (sizeof(u32) * 3))

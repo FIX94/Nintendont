@@ -68,6 +68,7 @@ u8 *DI_READ_BUFFER = (u8*)0x12E80000;
 u32 DI_READ_BUFFER_LENGTH = 0x80000;
 
 extern u32 GAME_ID;
+extern u16 GAME_ID6;
 extern u32 TITLE_ID;
  
 // Triforce
@@ -187,6 +188,7 @@ void DIinit( bool FirstTime )
 	DI_Handle = IOS_Open( "/dev/mydi", 0 );
 
 	GAME_ID = read32(0);
+	GAME_ID6 = R16(4);
 	TITLE_ID = (GAME_ID >> 8);
 
 	GCAMKeyA = read32(0);
