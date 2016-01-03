@@ -422,14 +422,13 @@ int main(int argc, char **argv)
 	}
 	u32 ISOShift = 0;
 	if(memcmp(&(ncfg->GameID), "COBR", 4) == 0 || memcmp(&(ncfg->GameID), "GGCO", 4) == 0
-		|| memcmp(&(ncfg->GameID), "GCOP", 4) == 0 || memcmp(&(ncfg->GameID), "RGCO", 4) == 0)
+		|| memcmp(&(ncfg->GameID), "GCO", 3) == 0 || memcmp(&(ncfg->GameID), "RGCO", 4) == 0)
 	{
 		u32 i, j = 0;
 		u32 Offsets[15];
 		gameinfo gi[15];
 		FILE *f = NULL;
 		u8 *MultiHdr = memalign(32, 0x800);
-		u8 *GameHdr = memalign(32, 0x800);
 		if(CurDICMD)
 		{
 			ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
@@ -441,78 +440,89 @@ int main(int argc, char **argv)
 			f = fopen(GamePath, "rb");
 			fread(MultiHdr,1,0x800,f);
 		}
-		u32 NeedShift = (*(vu32*)(MultiHdr+4) == 0x44564439);
-		for(i = 0x40; i < 0x100; i += 4)
+		//Damn you COD for sharing this ID!
+		if(memcmp(MultiHdr, "GCO", 3) == 0 && memcmp(MultiHdr+4, "52", 3) == 0)
 		{
-			u32 TmpOffset = *(vu32*)(MultiHdr+i);
-			if(TmpOffset > 0)
+			free(MultiHdr);
+			if(f) fclose(f);
+		}
+		else
+		{
+			u8 *GameHdr = memalign(32, 0x800);
+			u32 NeedShift = (*(vu32*)(MultiHdr+4) == 0x44564439);
+			for(i = 0x40; i < 0x100; i += 4)
 			{
-				Offsets[j] = NeedShift ? TmpOffset << 2 : TmpOffset;
-				if(CurDICMD)
+				u32 TmpOffset = *(vu32*)(MultiHdr+i);
+				if(TmpOffset > 0)
 				{
-					ReadRealDisc(GameHdr, Offsets[j], 0x800, CurDICMD);
+					Offsets[j] = NeedShift ? TmpOffset << 2 : TmpOffset;
+					if(CurDICMD)
+					{
+						ReadRealDisc(GameHdr, Offsets[j], 0x800, CurDICMD);
+					}
+					else
+					{
+						fseek(f, Offsets[j], SEEK_SET);
+						fread(GameHdr, 1, 0x800, f);
+					}
+					memcpy(gi[j].ID, GameHdr, 6);
+					gi[j].Name = strdup((char*)GameHdr+0x20);
+					j++;
+					if(j == 15) break;
+				}
+			}
+			free(GameHdr);
+			free(MultiHdr);
+			if(f) fclose(f);
+			bool redraw = 1;
+			ClearScreen();
+			u32 PosX = 0;
+			u32 UpHeld = 0, DownHeld = 0;
+			while(1)
+			{
+				VIDEO_WaitVSync();
+				FPAD_Update();
+				if( FPAD_OK(0) )
+					break;
+				else if( FPAD_Down(1) )
+				{
+					if(DownHeld == 0 || DownHeld > 10)
+					{
+						PosX++;
+						if(PosX == j) PosX = 0;
+						redraw = true;
+					}
+					DownHeld++;
 				}
 				else
+					DownHeld = 0;
+				if( FPAD_Up(1) )
 				{
-					fseek(f, Offsets[j], SEEK_SET);
-					fread(GameHdr, 1, 0x800, f);
+					if(UpHeld == 0 || UpHeld > 10)
+					{
+						if(PosX == 0) PosX = j;
+						PosX--;
+						redraw = true;
+					}
+					UpHeld++;
 				}
-				memcpy(gi[j].ID, GameHdr, 6);
-				gi[j].Name = strdup((char*)GameHdr+0x20);
-				j++;
-				if(j == 15) break;
+				else
+					UpHeld = 0;
+				if( redraw )
+				{
+					PrintInfo();
+					for( i=0; i < j; ++i )
+						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
+							gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
+					GRRLIB_Render();
+					Screenshot();
+					ClearScreen();
+					redraw = false;
+				}
 			}
+			ISOShift = Offsets[PosX];
+			memcpy(&(ncfg->GameID), gi[PosX].ID, 4);
 		}
-		free(GameHdr);
-		free(MultiHdr);
-		if(f) fclose(f);
-		bool redraw = 1;
-		ClearScreen();
-		u32 PosX = 0;
-		u32 UpHeld = 0, DownHeld = 0;
-		while(1)
-		{
-			VIDEO_WaitVSync();
-			FPAD_Update();
-			if( FPAD_OK(0) )
-				break;
-			else if( FPAD_Down(1) )
-			{
-				if(DownHeld == 0 || DownHeld > 10)
-				{
-					PosX++;
-					if(PosX == j) PosX = 0;
-					redraw = true;
-				}
-				DownHeld++;
-			}
-			else
-				DownHeld = 0;
-			if( FPAD_Up(1) )
-			{
-				if(UpHeld == 0 || UpHeld > 10)
-				{
-					if(PosX == 0) PosX = j;
-					PosX--;
-					redraw = true;
-				}
-				UpHeld++;
-			}
-			else
-				UpHeld = 0;
-			if( redraw )
-			{
-				PrintInfo();
-				for( i=0; i < j; ++i )
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
-				GRRLIB_Render();
-				Screenshot();
-				ClearScreen();
-				redraw = false;
-			}
-		}
-		ISOShift = Offsets[PosX];
-		memcpy(&(ncfg->GameID), gi[PosX].ID, 4);
 	}
 //multi-iso game hack
 	*(vu32*)0xD300300C = ISOShift;
