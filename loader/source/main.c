@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <wupc/wupc.h>
 #include <di/di.h>
 #include <fat.h>
+#include <ntfs.h>
 
 #include <unistd.h>
 #include <sys/dir.h>
@@ -204,10 +205,20 @@ int main(int argc, char **argv)
 			break;
 		usleep(50000);
 	}
-	fatInitDefault();
 
+        char* fstype;
+        ntfs_md *mounts = NULL;
+        if (fatInitDefault())
+                fstype = "fat";
+        else if (ntfsMountAll(&mounts, NTFS_READ_ONLY) > 0)
+                fstype = "ntfs_readonly";
+        else
+                fstype = "<failed>";
+
+	gprintf("usb fs type = []\r\n", fstype);
 	gprintf("Nintendont at your service!\r\n%s\r\n", NIN_BUILD_STRING);
 	KernelLoaded = 1;
+
 
 	char* first_slash = strrchr(argv[0], '/');
 	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);

@@ -33,3 +33,14 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 
 ### Quick Installation:
 Get the [loader.dol](loader/loader.dol?raw=true), rename it to boot.dol and put it in /apps/Nintendont/ along with the files [meta.xml](nintendont/meta.xml?raw=true) and [icon.png](nintendont/icon.png?raw=true).
+
+### Build envionment
+1. setup devkitpro and devkitPPC as described http://devkitpro.org/wiki/Getting_Started/devkitPPC
+2. Setup devkitARM.
+3. Set the following variables
+export DEVKITPRO=/opt/devkitpro  # or your install location
+export DEVKITPPC=$DEVKITPRO/devkitPPC
+export DEVKITARM=$DEVKITPRO/devkitARM
+4. checkout
+5. (mac os only) Build bin2h
+cd Nintendont/kernel/bin2h; sed -i.bak 's/malloc.h/stdlib.h/' main.c; ./make.sh; export PATH="$PATH":`pwd`; cd -
