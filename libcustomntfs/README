@@ -1,0 +1,23 @@
+This is pretty much just libntfs-wii:/libntfs-2013.1.13.zip, only 2 things were modified,
+
+source/ntfsinternal.c line 48 from
+
+static const DISC_INTERFACE* get_io_usbstorage (void) {
+48     { "usb", &__io_usbstorage },
+
+to:
+
+46 extern DISC_INTERFACE __io_custom_usbstorage;
+49     { "usb", &__io_custom_usbstorage },
+
+to run via nintendonts custom usbstorage.c.
+
+and
+
+source/Makefile added 
+ 28 export PORTLIBS := ../../loader/extlibs
+
+because invoking make on sources with "@$(MAKE)" resets the PORTLIBS envvar to devkitppc defaults.
+
+Installing
+ make install 
