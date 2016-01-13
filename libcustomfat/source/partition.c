@@ -163,6 +163,7 @@ sec_t FindFirstValidPartition_buf(const DISC_INTERFACE* disc, uint8_t *sectorBuf
 		if (memcmp(sectorBuffer, GPT_SIG, sizeof(GPT_SIG)) != 0) return 0;
 
 		// Get the partition array information.
+		// NOTE: Starting LBA is 64-bit, but it's almost always 2.
 		partition_lba[0] = u8array_to_u32(sectorBuffer, GPT_Partition_Array_Start_LBA);
 		partition_count = u8array_to_u32(sectorBuffer, GPT_Partition_Count);
 		partition_entry_size = u8array_to_u32(sectorBuffer, GPT_Partition_Entry_Size);
