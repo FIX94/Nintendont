@@ -48,6 +48,10 @@
 bool _FAT_findEntry(const char *path, DIR_ENTRY *dirEntry) {
 	PARTITION *partition = _FAT_partition_getPartitionFromPath(path);
 
+	// Check Partition
+	if( !partition )
+		return false;
+
 	// Move the path pointer to the start of the actual path
 	if (strchr (path, ':') != NULL) {
 		path = strchr (path, ':') + 1;
@@ -58,22 +62,22 @@ bool _FAT_findEntry(const char *path, DIR_ENTRY *dirEntry) {
 
 	// Search for the file on the disc
 	return _FAT_directory_entryFromPath (partition, dirEntry, path, NULL);
-	
+
 }
 
 int	FAT_getAttr(const char *file) {
 	DIR_ENTRY dirEntry;
 	if (!_FAT_findEntry(file,&dirEntry)) return -1;
-	 
+
 	return dirEntry.entryData[DIR_ENTRY_attributes];
 }
 
-int FAT_setAttr(const char *file, int attr) {
+int FAT_setAttr(const char *file, uint8_t attr) {
 
 	// Defines...
 	DIR_ENTRY_POSITION entryEnd;
 	PARTITION *partition = NULL;
-	DIR_ENTRY* dirEntry = NULL;
+	DIR_ENTRY dirEntry;
 
 	// Get Partition
 	partition = _FAT_partition_getPartitionFromPath( file );
@@ -81,7 +85,7 @@ int FAT_setAttr(const char *file, int attr) {
 	// Check Partition
 	if( !partition )
 		return -1;
-	
+
 	// Move the path pointer to the start of the actual path
 	if (strchr (file, ':') != NULL)
 		file = strchr (file, ':') + 1;
@@ -89,11 +93,11 @@ int FAT_setAttr(const char *file, int attr) {
 		return -1;
 
 	// Get DIR_ENTRY
-	if( !_FAT_directory_entryFromPath (partition, dirEntry, file, NULL) )
+	if( !_FAT_directory_entryFromPath (partition, &dirEntry, file, NULL) )
 		return -1;
 
 	// Get Entry-End
-	entryEnd = dirEntry->dataEnd;
+	entryEnd = dirEntry.dataEnd;
 
 	// Lock Partition
 	_FAT_lock(&partition->lock);
