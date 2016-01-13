@@ -186,7 +186,7 @@ sec_t FindFirstValidPartition_buf(const DISC_INTERFACE* disc, uint8_t *sectorBuf
 			    !memcmp(&sectorBuffer[n + GPT_Partition_Unique_GUID], GPT_Invalid_GUID, sizeof(GPT_Invalid_GUID)))
 			{
 				// Invalid GUID. We're done processing.
-				return 0;
+				break;
 			}
 
 			// Save the partition LBA for later.
