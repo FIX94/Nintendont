@@ -334,13 +334,17 @@ int ff_del_syncobj (_SYNC_t sobj);				/* Delete a sync object */
 #if _WORD_ACCESS == 1	/* Enable word access to the FAT structure */
 #define	LD_WORD(ptr)		(WORD)(*(WORD*)(BYTE*)(ptr))
 #define	LD_DWORD(ptr)		(DWORD)(*(DWORD*)(BYTE*)(ptr))
+#define LD_QWORD(ptr)		(QWORD)(*(QWORD*)(BYTE*)(ptr))
 #define	ST_WORD(ptr,val)	*(WORD*)(BYTE*)(ptr)=(WORD)(val)
 #define	ST_DWORD(ptr,val)	*(DWORD*)(BYTE*)(ptr)=(DWORD)(val)
+#define	ST_QWORD(ptr,val)	*(QWORD*)(BYTE*)(ptr)=(QWORD)(val)
 #else					/* Use byte-by-byte access to the FAT structure */
 #define	LD_WORD(ptr)		(WORD)(((WORD)*((BYTE*)(ptr)+1)<<8)|(WORD)*(BYTE*)(ptr))
 #define	LD_DWORD(ptr)		(DWORD)(((DWORD)*((BYTE*)(ptr)+3)<<24)|((DWORD)*((BYTE*)(ptr)+2)<<16)|((WORD)*((BYTE*)(ptr)+1)<<8)|*(BYTE*)(ptr))
+#define LD_QWORD(ptr)		(QWORD)LD_DWORD((BYTE*)(ptr)) |((QWORD)LD_DWORD((BYTE*)(ptr)+4)<<32)
 #define	ST_WORD(ptr,val)	*(BYTE*)(ptr)=(BYTE)(val); *((BYTE*)(ptr)+1)=(BYTE)((WORD)(val)>>8)
 #define	ST_DWORD(ptr,val)	*(BYTE*)(ptr)=(BYTE)(val); *((BYTE*)(ptr)+1)=(BYTE)((WORD)(val)>>8); *((BYTE*)(ptr)+2)=(BYTE)((DWORD)(val)>>16); *((BYTE*)(ptr)+3)=(BYTE)((DWORD)(val)>>24)
+#define ST_QWORD(ptr,val)	ST_DWORD((ptr),((val)&0xFFFFFFFFU)); ST_DWORD((((BYTE*)ptr)+4),((val)>>32))
 #endif
 
 #ifdef __cplusplus

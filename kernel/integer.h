@@ -30,4 +30,8 @@ typedef unsigned long	DWORD;
 
 #endif
 
+/* These types MUST be 64 bit (Nintendont) */
+typedef long long		LONGLONG;
+typedef unsigned long long	QWORD;
+
 #endif
