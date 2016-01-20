@@ -601,7 +601,10 @@ int main(int argc, char **argv)
 	bool useipltri = false;
 
 //Check if game is Triforce game
-	u32 IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
+	u32 IsTRIGame = 0;
+	if(ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
+		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
+
 	if(IsTRIGame == 0)
 	{
 		char iplchar[32];
