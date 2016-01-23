@@ -2986,6 +2986,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 		}
 	}
+	else if( GAME_ID == 0x5043534A ) // Colosseum Bonus
+	{
+		// Memory Card inserted hack
+		if( DisableEXIPatch == 0 && write32A(0x000B0474, 0x38600001, 0x4801C0B5, 0) )
+			dbgprintf("Patch:Patched Pokemon Colosseum Bonus NTSC-J\r\n");
+	}
 	else if( TITLE_ID == 0x475A4C )	// GZL=Wind Waker
 	{
 		//Anti FrameDrop Panic
