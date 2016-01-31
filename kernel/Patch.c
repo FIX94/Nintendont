@@ -1331,7 +1331,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	TRISetupGames();
 	if(TRIGame == TRI_NONE)
 	{
-		if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 )) // Pokemon
+		if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ) // Colosseum and XD
+			|| ( GAME_ID == 0x5043534A && Length == 0x479900 )) // Colosseum Bonus
 		{
 			dbgprintf("Patch:[Pokemon memset] applied\r\n");
 			// patch out initial memset(0x1800, 0, 0x1800)
@@ -2984,6 +2985,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				dbgprintf("Patch:Patched Pokemon Colosseum PAL\r\n");
 			}
 		}
+	}
+	else if( GAME_ID == 0x5043534A ) // Colosseum Bonus
+	{
+		// Memory Card inserted hack
+		if( DisableEXIPatch == 0 && write32A(0x000B0474, 0x38600001, 0x4801C0B5, 0) )
+			dbgprintf("Patch:Patched Pokemon Colosseum Bonus NTSC-J\r\n");
 	}
 	else if( TITLE_ID == 0x475A4C )	// GZL=Wind Waker
 	{
