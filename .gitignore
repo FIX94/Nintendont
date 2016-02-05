@@ -1,0 +1,8 @@
+*.d
+*.o
+*.bin
+*.elf
+kernel/asm/*.h
+kernel/kernel.map
+loader/build/
+nintendont/boot.dol
