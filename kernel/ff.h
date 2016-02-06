@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------/
-/  FatFs - FAT file system module include R0.11     (C)ChaN, 2015
+/  FatFs - FAT file system module include R0.11a    (C)ChaN, 2015
 /----------------------------------------------------------------------------/
 / FatFs module is a free software that opened under license policy of
 / following conditions.
@@ -17,7 +17,7 @@
 
 
 #ifndef _FATFS
-#define _FATFS	32020	/* Revision ID */
+#define _FATFS	64180	/* Revision ID */
 
 #ifdef __cplusplus
 extern "C" {
@@ -200,7 +200,7 @@ typedef enum {
 	FR_TIMEOUT,				/* (15) Could not get a grant to access the volume within defined period */
 	FR_LOCKED,				/* (16) The operation is rejected according to the file sharing policy */
 	FR_NOT_ENOUGH_CORE,		/* (17) LFN working buffer could not be allocated */
-	FR_TOO_MANY_OPEN_FILES,	/* (18) Number of open files > _FS_SHARE */
+	FR_TOO_MANY_OPEN_FILES,	/* (18) Number of open files > _FS_LOCK */
 	FR_INVALID_PARAMETER	/* (19) Given parameter is invalid */
 } FRESULT;
 
@@ -334,17 +334,17 @@ int ff_del_syncobj (_SYNC_t sobj);				/* Delete a sync object */
 #if _WORD_ACCESS == 1	/* Enable word access to the FAT structure */
 #define	LD_WORD(ptr)		(WORD)(*(WORD*)(BYTE*)(ptr))
 #define	LD_DWORD(ptr)		(DWORD)(*(DWORD*)(BYTE*)(ptr))
-#define LD_QWORD(ptr)		(QWORD)(*(QWORD*)(BYTE*)(ptr))
+#define	LD_QWORD(ptr)		(QWORD)(*(QWORD*)(BYTE*)(ptr))
 #define	ST_WORD(ptr,val)	*(WORD*)(BYTE*)(ptr)=(WORD)(val)
 #define	ST_DWORD(ptr,val)	*(DWORD*)(BYTE*)(ptr)=(DWORD)(val)
 #define	ST_QWORD(ptr,val)	*(QWORD*)(BYTE*)(ptr)=(QWORD)(val)
 #else					/* Use byte-by-byte access to the FAT structure */
 #define	LD_WORD(ptr)		(WORD)(((WORD)*((BYTE*)(ptr)+1)<<8)|(WORD)*(BYTE*)(ptr))
 #define	LD_DWORD(ptr)		(DWORD)(((DWORD)*((BYTE*)(ptr)+3)<<24)|((DWORD)*((BYTE*)(ptr)+2)<<16)|((WORD)*((BYTE*)(ptr)+1)<<8)|*(BYTE*)(ptr))
-#define LD_QWORD(ptr)		(QWORD)LD_DWORD((BYTE*)(ptr)) |((QWORD)LD_DWORD((BYTE*)(ptr)+4)<<32)
+#define	LD_QWORD(ptr)		(QWORD)LD_DWORD((BYTE*)(ptr)) |((QWORD)LD_DWORD((BYTE*)(ptr)+4)<<32)
 #define	ST_WORD(ptr,val)	*(BYTE*)(ptr)=(BYTE)(val); *((BYTE*)(ptr)+1)=(BYTE)((WORD)(val)>>8)
 #define	ST_DWORD(ptr,val)	*(BYTE*)(ptr)=(BYTE)(val); *((BYTE*)(ptr)+1)=(BYTE)((WORD)(val)>>8); *((BYTE*)(ptr)+2)=(BYTE)((DWORD)(val)>>16); *((BYTE*)(ptr)+3)=(BYTE)((DWORD)(val)>>24)
-#define ST_QWORD(ptr,val)	ST_DWORD((ptr),((val)&0xFFFFFFFFU)); ST_DWORD((((BYTE*)ptr)+4),((val)>>32))
+#define	ST_QWORD(ptr,val)	ST_DWORD((ptr),((val)&0xFFFFFFFFU)); ST_DWORD((((BYTE*)ptr)+4),((val)>>32))
 #endif
 
 #ifdef __cplusplus
