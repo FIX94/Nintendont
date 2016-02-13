@@ -67,7 +67,7 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 	else
 	{
 		char FullPath[300];
-		sprintf(FullPath, "%s:%s", GetRootDevice(), Path);
+		snprintf(FullPath, sizeof(FullPath), "%s:%s", GetRootDevice(), Path);
 		f = fopen(FullPath, "rb");
 		if(f != NULL)
 		{
@@ -78,7 +78,7 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		else
 		{
 			char FSTPath[300];
-			sprintf(FSTPath, "%ssys/main.dol", FullPath);
+			snprintf(FSTPath, sizeof(FSTPath), "%ssys/main.dol", FullPath);
 			f = fopen(FSTPath, "rb");
 		}
 		if(f == NULL)
@@ -90,90 +90,90 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 	{
 		res = 1;
 		gprintf("TRI:Mario Kart GP1\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), CARD_NAME_GP1);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP1);
 		CreateNewFile(SaveFile, 0x45);
 	}
 	else if(DOLRead32(0x25C0AC, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:Mario Kart GP2\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), CARD_NAME_GP2);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2);
 		CreateNewFile(SaveFile, 0x45);
 	}
 	else if(DOLRead32(0x1821C4, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:F-Zero AX (Unk)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), CARD_NAME_AX);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_AX);
 		CreateNewFile(SaveFile, 0xCF);
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_AX_UNK);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_AX_UNK);
 		CreateNewFile(SaveFile, 0x2A);
 	}
 	else if(DOLRead32(0x181E60, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:F-Zero AX (Rev C)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), CARD_NAME_AX);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_AX);
 		CreateNewFile(SaveFile, 0xCF);
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_AX_RVC);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_AX_RVC);
 		CreateNewFile(SaveFile, 0x2A);
 	}
 	else if(DOLRead32(0x18275C, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:F-Zero AX (Rev E)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), CARD_NAME_AX);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_AX);
 		CreateNewFile(SaveFile, 0xCF);
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_AX_RVE);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_AX_RVE);
 		CreateNewFile(SaveFile, 0x2A);
 	}
 	else if(DOLRead32(0x01C2DF4, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:Virtua Striker 3 Ver 2002\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_VS3V02);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS3V02);
 		CreateNewFile(SaveFile, 0x12);
 	}
 	else if(DOLRead32(0x01CF1C4, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:Virtua Striker 4 (Japan)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_VS4JAP);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4JAP);
 		CreateNewFile(SaveFile, 0x2B);
 	}
 	else if(DOLRead32(0x1C5514, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:Virtua Striker 4 (Export)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_VS4EXP);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4EXP);
 		CreateNewFile(SaveFile, 0x2B);
 	}
 	else if(DOLRead32(0x24B248, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:Virtua Striker 4 Ver 2006 (Japan)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_VS4V06JAP);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4V06JAP);
 		CreateNewFile(SaveFile, 0x2E);
 	}
 	else if(DOLRead32(0x20D7E8, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:Virtua Striker 4 Ver 2006 (Export)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_VS4V06EXP);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4V06EXP);
 		CreateNewFile(SaveFile, 0x2B);
 	}
 	else if(DOLRead32(0x26B3F4, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:Gekitou Pro Yakyuu (Rev B)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_YAKRVB);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_YAKRVB);
 		CreateNewFile(SaveFile, 0xF5);
 	}
 	else if(DOLRead32(0x26D9B4, DOLOffset, f, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
 		gprintf("TRI:Gekitou Pro Yakyuu (Rev C)\r\n");
-		sprintf(SaveFile, "%s:%s", GetRootDevice(), SETTINGS_YAKRVC);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_YAKRVC);
 		CreateNewFile(SaveFile, 0x100);
 	}
 
