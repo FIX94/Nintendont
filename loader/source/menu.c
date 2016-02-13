@@ -176,6 +176,7 @@ bool SelectGame( void )
 		if (gamecount >= MAX_GAMES)	//if array is full
 			break;
 	}
+	closedir(pdir);
 
 	if( IsWiiU() )
 		qsort(gi, gamecount, sizeof(gameinfo), compare_names);
