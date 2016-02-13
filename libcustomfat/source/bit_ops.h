@@ -47,10 +47,10 @@ static inline uint64_t u8array_to_u64 (const uint8_t* item, int offset) {
 	         ((uint64_t)(item[offset + 1]) << 8) |
 	         ((uint64_t)(item[offset + 2]) << 16) |
 	         ((uint64_t)(item[offset + 3]) << 24) |
-	         ((uint64_t)(item[offset + 3]) << 32) |
-	         ((uint64_t)(item[offset + 3]) << 40) |
-	         ((uint64_t)(item[offset + 3]) << 48) |
-	         ((uint64_t)(item[offset + 3]) << 56));
+	         ((uint64_t)(item[offset + 4]) << 32) |
+	         ((uint64_t)(item[offset + 5]) << 40) |
+	         ((uint64_t)(item[offset + 6]) << 48) |
+	         ((uint64_t)(item[offset + 7]) << 56));
 }
 
 static inline void u16_to_u8array (uint8_t* item, int offset, uint16_t value) {
