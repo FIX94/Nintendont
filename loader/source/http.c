@@ -334,11 +334,12 @@ bool http_request (const char *url, const u32 max_size) {
 			return false;
 		}
 	}
-	char *request = (char *) memalign (32, 1024*6);
-	char *r = request;
-	r += sprintf (r, "GET %s HTTP/1.1\r\n", http_path);
-	r += sprintf (r, "Host: %s\r\n", http_host);
-	r += sprintf (r, "Cache-Control: no-cache\r\n\r\n");
+	char *request = (char *) memalign (32, 1024*2);
+	snprintf(request, 1024*2,
+		"GET %s HTTP/1.1\r\n"
+		"Host: %s\r\n"
+		"Cache-Control: no-cache\r\n\r\n",
+		http_path, http_host);
 
 	bool b = tcp_write (http_port == 443 ? sslcontext : s, (u8 *) request, strlen (request));
 
@@ -422,12 +423,13 @@ bool http_post (const char *url, const u32 max_size, const char *postData) {
 	}
 
 	char *request = (char *) memalign (32, 1024*6);
-	char *r = request;
-	r += sprintf (r, "POST %s HTTP/1.1\r\n", http_path);
-	r += sprintf (r, "Host: %s\r\n", http_host);
-	r += sprintf (r, "Content-type: application/x-www-form-urlencoded\r\n");
-	r += sprintf (r, "Content-length: %d\r\n\r\n", strlen(postData));
-	r += sprintf (r, "%s", postData);
+	snprintf(request, 1024*6,
+		"POST %s HTTP/1.1\r\n"
+		"Host: %s\r\n"
+		"Content-type: application/x-www-form-urlencoded\r\n"
+		"Content-length: %d\r\n\r\n"
+		"%s",
+		http_path, http_host, strlen(postData), postData); 
 	
 	gprintf("\n request:\n");
 	//gprintf(request);

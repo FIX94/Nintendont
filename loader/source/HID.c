@@ -19,11 +19,11 @@ void HIDUpdateRegisters()
 	/* I hope this covers all possible ini files */
 	gprintf("Trying to get VID%04x PID%04x\n", DeviceVID, DevicePID);
 	char filename[50];
-	sprintf(filename, "sd:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
+	snprintf(filename, sizeof(filename), "sd:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
 	FILE *f = fopen(filename, "rb");
 	if(f == NULL)
 	{
-		sprintf(filename, "usb:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
+		snprintf(filename, sizeof(filename), "usb:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
 		f = fopen(filename, "rb");
 		if(f == NULL)
 		{

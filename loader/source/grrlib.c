@@ -1438,7 +1438,7 @@ void  GRRLIB_PrintBMF (const f32 xpos, const f32 ypos,
 
 	va_list argp;
 	va_start(argp, text);
-	size = vsprintf(tmp, text, argp);
+	size = vsnprintf(tmp, sizeof(tmp), text, argp);
 	va_end(argp);
 
 	for (i=0; i<size; i++) {
@@ -1490,7 +1490,7 @@ void  GRRLIB_GeckoPrintf (const char *text, ...) {
 
 	va_list argp;
 	va_start(argp, text);
-	size = vsprintf(tmp, text, argp);
+	size = vsnprintf(tmp, sizeof(tmp), text, argp);
 	va_end(argp);
 
 	usb_sendbuffer_safe(1, tmp, size);

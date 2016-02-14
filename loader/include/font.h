@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef __FONT_H__
 #define __FONT_H__
 
-void PrintFormat(u8 size, const u32 color, int x, int y, const char *str, ... );
+void PrintFormat(u8 size, const u32 color, int x, int y, const char *str, ... )
+	__attribute__ ((format (printf, 5, 6)));
 
 #endif

@@ -405,14 +405,14 @@ int main(int argc, char **argv)
 		FILE *cfg;
 		char ConfigPath[20];
 		// Todo: detects the boot device to prevent writing twice on the same one
-		sprintf(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch
+		strcpy(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch
 		cfg = fopen(ConfigPath, "wb");
 		if( cfg != NULL )
 		{
 			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
 			fclose( cfg );
 		}
-		sprintf(ConfigPath, "%s:/nincfg.bin", GetRootDevice()); // writes config to game device, used by kernel
+		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/nincfg.bin", GetRootDevice()); // writes config to game device, used by kernel
 		cfg = fopen(ConfigPath, "wb");
 		if( cfg != NULL )
 		{
@@ -436,7 +436,7 @@ int main(int argc, char **argv)
 		else if(strstr(ncfg->GamePath, ".iso") != NULL)
 		{
 			char GamePath[255];
-			sprintf( GamePath, "%s:%s", GetRootDevice(), ncfg->GamePath );
+			snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
 			f = fopen(GamePath, "rb");
 			fread(MultiHdr,1,0x800,f);
 		}
@@ -557,7 +557,7 @@ int main(int argc, char **argv)
 	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
 	{
 		char BasePath[20];
-		sprintf(BasePath, "%s:/saves", GetRootDevice());
+		snprintf(BasePath, sizeof(BasePath), "%s:/saves", GetRootDevice());
 		mkdir(BasePath, S_IREAD | S_IWRITE);
 
 		char MemCardName[8];
@@ -572,7 +572,7 @@ int main(int argc, char **argv)
 		else
 			memcpy(MemCardName, &(ncfg->GameID), 4);
 		char MemCard[30];
-		sprintf(MemCard, "%s/%s.raw", BasePath, MemCardName);
+		snprintf(MemCard, sizeof(MemCard), "%s/%s.raw", BasePath, MemCardName);
 		gprintf("Using %s as Memory Card.\r\n", MemCard);
 		FILE *f = fopen(MemCard, "rb");
 		if(f == NULL)
@@ -609,11 +609,11 @@ int main(int argc, char **argv)
 	{
 		char iplchar[32];
 		if((ncfg->GameID & 0xFF) == 'E')
-			sprintf(iplchar, "%s:/iplusa.bin", GetRootDevice());
+			snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
 		else if((ncfg->GameID & 0xFF) == 'J')
-			sprintf(iplchar, "%s:/ipljap.bin", GetRootDevice());
+			snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
 		else
-			sprintf(iplchar, "%s:/iplpal.bin", GetRootDevice());
+			snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
 		FILE *f = fopen(iplchar, "rb");
 		if(f != NULL)
 		{
@@ -632,7 +632,7 @@ int main(int argc, char **argv)
 	else
 	{
 		char iplchar[32];
-		sprintf(iplchar, "%s:/segaboot.bin", GetRootDevice());
+		snprintf(iplchar, sizeof(iplchar), "%s:/segaboot.bin", GetRootDevice());
 		FILE *f = fopen(iplchar, "rb");
 		if(f != NULL)
 		{

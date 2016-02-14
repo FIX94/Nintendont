@@ -86,7 +86,7 @@ bool SelectGame( void )
 	struct dirent *pent;
 	struct stat statbuf;
 
-	sprintf(filename, "%s:/games", GetRootDevice());
+	snprintf(filename, sizeof(filename), "%s:/games", GetRootDevice());
 	pdir = opendir(filename);
 	if( !pdir )
 	{
@@ -125,7 +125,7 @@ bool SelectGame( void )
 			u32 DiscNumber;
 			for (DiscNumber = 0; DiscNumber < 2; DiscNumber++)
 			{
-				sprintf( filename, "%s:/games/%s/%s.iso", GetRootDevice(), pent->d_name, DiscNumber ? "disc2" : "game" );
+				snprintf(filename, sizeof(filename), "%s:/games/%s/%s.iso", GetRootDevice(), pent->d_name, DiscNumber ? "disc2" : "game");
 
 				FILE *in = fopen( filename, "rb" );
 				if( in != NULL )
@@ -150,7 +150,7 @@ bool SelectGame( void )
 			}
 			if ( !found ) // Check for FST format
 			{
-				sprintf(filename, "%s:/games/%s/sys/boot.bin", GetRootDevice(), pent->d_name);
+				snprintf(filename, sizeof(filename), "%s:/games/%s/sys/boot.bin", GetRootDevice(), pent->d_name);
 
 				FILE *in = fopen( filename, "rb" );
 				if( in != NULL )
@@ -161,7 +161,7 @@ bool SelectGame( void )
 
 					if( IsGCGame((u8*)buf) )	// Must be GC game
 					{
-						sprintf(filename, "%s:/games/%s/", GetRootDevice(), pent->d_name);
+						snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
 
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						gi[gamecount].Name = strdup( buf + 0x20 );
@@ -176,6 +176,7 @@ bool SelectGame( void )
 		if (gamecount >= MAX_GAMES)	//if array is full
 			break;
 	}
+	closedir(pdir);
 
 	if( IsWiiU() )
 		qsort(gi, gamecount, sizeof(gameinfo), compare_names);
@@ -663,14 +664,16 @@ bool SelectGame( void )
 				if(ncfg->VideoScale < 40 || ncfg->VideoScale > 120)
 				{
 					ncfg->VideoScale = 0;
-					sprintf(vidWidth, "Auto");
+					snprintf(vidWidth, sizeof(vidWidth), "Auto");
 				}	
 				else
-					sprintf(vidWidth, "%i", ncfg->VideoScale + 600);
+					snprintf(vidWidth, sizeof(vidWidth), "%i", ncfg->VideoScale + 600);
+
 				char vidOffset[10];
 				if(ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20)
 					ncfg->VideoOffset = 0;
-				sprintf(vidOffset, "%i", ncfg->VideoOffset);
+				snprintf(vidOffset, sizeof(vidOffset), "%i", ncfg->VideoOffset);
+
 				ListLoopIndex = 0; //reset on other side
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Video Width", vidWidth);
 				ListLoopIndex++;
