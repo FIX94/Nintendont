@@ -2200,6 +2200,9 @@ BYTE check_fs (	/* 0:Valid FAT-BS, 1:Valid BS but not FAT, 2:Not a BS, 3:Disk er
 /* Get the partitions from a GPT-partitioned drive. (Nintendont)         */
 /*-----------------------------------------------------------------------*/
 
+#define GPT_PARTITION_ENTRY_SIZE 128
+#define GPT_PARTITION_COUNT_MAX 128
+
 static
 BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:GPT is invalid, 3:Disk error */
 	FATFS* fs,	/* File system object */
@@ -2208,8 +2211,8 @@ BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:
 )
 {
 	DWORD partition_count;
-	DWORD partition_entry_size;
 	int n, idx;
+	DWORD sect_max;
 
 	// Read the GPT pseudo-MBR.
 	fs->wflag = 0; fs->winsect = 0xFFFFFFFF;	/* Invalidate window */
@@ -2226,33 +2229,56 @@ BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:
 		return 2;
 	}
 
+	// Assuming each partition entry is 128 bytes.
+	if (LD_DWORD(&fs->win[0x54]) != GPT_PARTITION_ENTRY_SIZE) {
+		// Partition entry size isn't 128 bytes.
+		return 2;
+	}
+
 	// Get the partition array information.
 	// NOTE: Starting LBA is 64-bit, but it's almost always 2.
 	sect = LD_DWORD(&fs->win[0x48]);		// Starting LBA of partition array
 	partition_count = LD_DWORD(&fs->win[0x50]);	// Partition count
-	partition_entry_size = LD_DWORD(&fs->win[0x54]);	// Partition entry size
-
-	// Read the first sector of the partition array.
-	fs->wflag = 0; fs->winsect = 0xFFFFFFFF;	/* Invalidate window */
-	if (move_window(fs, sect) != FR_OK)		/* Load sector */
-		return 3;
-
-	// Process the partitions.
-	for (n = 0, idx = 0; n < SS(fs) && idx < 4 && idx < partition_count;
-	     n += partition_entry_size) {
-		QWORD lba64_start, lba64_end;
-		
-		// Save the partition LBA for later.
-		lba64_start = LD_QWORD(&fs->win[n+0x20]);
-		lba64_end = LD_QWORD(&fs->win[n+0x28]);
-		if (lba64_start > 0xFFFFFFFFULL || lba64_end > 0xFFFFFFFFULL) {
-			// Partition is over the 32-bit sector limit.
-			// FatFS doesn't support this.
-			continue;
-		}
-
-		br[idx++] = (DWORD)lba64_start;
+	if (partition_count > GPT_PARTITION_COUNT_MAX) {
+		// We're only supporting the first 128 partitions.
+		// (Why do you have more than 128 partitions on a Wii HDD?)
+		partition_count = GPT_PARTITION_COUNT_MAX;
 	}
+
+	// Read from sect to sect + ((partition_count - 1) / 4).
+	// This assumes 512-byte sectors, 128 bytes per partition entry.
+	// 4096-byte sectors has fewer LBAs.
+	sect_max = ((partition_count - 1) / 4);
+	sect_max += sect;
+
+	for (idx = 0; sect < sect_max && idx < partition_count; sect++) {
+		// Read the current sector.
+		fs->wflag = 0; fs->winsect = 0xFFFFFFFF;	/* Invalidate window */
+		if (move_window(fs, sect) != FR_OK)		/* Load sector */
+			return 3;
+
+		// Process partition entries.
+		for (n = 0; n < SS(fs) && idx < partition_count;
+		     n += GPT_PARTITION_ENTRY_SIZE)
+		{
+			QWORD lba64_start, lba64_end;
+			
+			// Save the partition LBA for later.
+			lba64_start = LD_QWORD(&fs->win[n+0x20]);
+			lba64_end = LD_QWORD(&fs->win[n+0x28]);
+			if (lba64_start > 0xFFFFFFFFULL || lba64_end > 0xFFFFFFFFULL) {
+				// Partition is over the 32-bit sector limit.
+				// FatFS doesn't support this.
+				continue;
+			}
+
+			br[idx++] = (DWORD)lba64_start;
+		}
+	}
+
+	// If br[] isn't full, set the last entry to 0.
+	if (idx < 128)
+		br[idx] = 0;
 
 	// GPT partitions processed.
 	// We're not checking for FAT here, since find_volume() does that.
@@ -2278,7 +2304,8 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	BYTE fmt, *pt;
 	int vol;
 	DSTATUS stat;
-	DWORD bsect, fasize, tsect, sysect, nclst, szbfat, br[4];
+	DWORD bsect, fasize, tsect, sysect, nclst, szbfat;
+	DWORD br[128];	// 128 for GPT support; MBR only uses 4.
 	WORD nrsv;
 	FATFS *fs;
 	UINT i;
@@ -2324,12 +2351,14 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	fmt = check_fs(fs, bsect);					/* Load sector 0 and check if it is an FAT boot sector as SFD */
 	if (fmt == 1 || (!fmt && (LD2PT(vol)))) {	/* Not an FAT boot sector or forced partition number */
 		/* Check for GPT. */
+		int br_max = 4;
 		pt = fs->win + MBR_Table;
 		if (pt[4] == 0xEE) {
 			/* GPT found. Read up to the first four paritions. */
 			bsect = LD_DWORD(&pt[8]);
 			fmt = read_gpt(fs, bsect, br);
 			if (fmt != 0) return FR_DISK_ERR;
+			br_max = 128;
 		} else {
 			/* Not GPT. Check the MBR partitions. */
 			for (i = 0; i < 4; i++) {			/* Get partition offset */
@@ -2342,7 +2371,7 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 		do {								/* Find an FAT volume */
 			bsect = br[i];
 			fmt = bsect ? check_fs(fs, bsect) : 2;	/* Check the partition */
-		} while (!LD2PT(vol) && fmt && ++i < 4);
+		} while (!LD2PT(vol) && fmt && ++i < br_max);
 	}
 	if (fmt == 3) return FR_DISK_ERR;		/* An error occured in the disk I/O layer */
 	if (fmt) return FR_NO_FILESYSTEM;		/* No FAT volume is found */
