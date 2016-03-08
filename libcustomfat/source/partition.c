@@ -134,6 +134,9 @@ static const char FS_INFO_SIG2[4] = {'r', 'r', 'A', 'a'};
 static const char GPT_SIG[8] = {'E', 'F', 'I', ' ', 'P', 'A', 'R', 'T'};
 static const uint32_t GPT_Invalid_GUID[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
 
+#define GPT_PARTITION_ENTRY_SIZE 128
+#define GPT_PARTITION_COUNT_MAX 128
+
 /**
  * Find the first valid partition on a GPT device.
  * @param disc Disk device.
@@ -143,10 +146,10 @@ static const uint32_t GPT_Invalid_GUID[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
  */
 static sec_t FindFirstValidPartition_GPT_buf(const DISC_INTERFACE *disc, sec_t gpt_lba, uint8_t *sectorBuffer)
 {
-	sec_t partition_lba[4];
+	sec_t partition_lba[128];
 	unsigned int partition_count;
 	unsigned int partition_entry_size;
-	int n, idx;
+	int n, idx, gpt_lba_max;
 
 	if (!_FAT_disc_readSectors (disc, gpt_lba, 1, sectorBuffer)) return 0;
 
@@ -154,44 +157,58 @@ static sec_t FindFirstValidPartition_GPT_buf(const DISC_INTERFACE *disc, sec_t g
 	// NOTE: Not checking GPT version or CRC32.
 	if (memcmp(sectorBuffer, GPT_SIG, sizeof(GPT_SIG)) != 0) return 0;
 
+	// Assuming each partition entry is 128 bytes.
+	if (u8array_to_u32(sectorBuffer, GPT_Partition_Entry_Size) != GPT_PARTITION_ENTRY_SIZE)
+		return 0;
+
 	// Get the partition array information.
 	// NOTE: Starting LBA is 64-bit, but it's almost always 2.
 	gpt_lba = u8array_to_u32(sectorBuffer, GPT_Partition_Array_Start_LBA);
 	partition_count = u8array_to_u32(sectorBuffer, GPT_Partition_Count);
+	if (partition_count > GPT_PARTITION_COUNT_MAX) {
+		// We're only supporting the first 128 partitions.
+		// (Why do you have more than 128 partitions on a Wii HDD?)
+		partition_count = GPT_PARTITION_COUNT_MAX;
+	}
 	partition_entry_size = u8array_to_u32(sectorBuffer, GPT_Partition_Entry_Size);
 
-	// Read the first sector of partition information.
-	// NOTE: We're only going to read up to 4 partitions.
-	// If there's more than 4 partitions, the FAT partition
-	// should be one of the first.
+	// Read from gpt_lba to gpt_lba + ((partition_count - 1) / 4).
+	// This assumes 512-byte sectors, 128 bytes per partition entry.
+	// 4096-byte sectors has fewer LBAs.
+	gpt_lba_max = ((partition_count - 1) / 4);
+	gpt_lba_max += gpt_lba;
+	idx = 0;	// index in partition_lba[]
 
-	// Read the first sector of the partition array.
-	memset(sectorBuffer, 0xFF, MAX_SECTOR_SIZE);
-	if (!_FAT_disc_readSectors (disc, gpt_lba, 1, sectorBuffer)) return 0;
+	for (; gpt_lba < gpt_lba_max && idx < partition_count; gpt_lba++) {
+		// Read the current sector.
+		memset(sectorBuffer, 0xFF, MAX_SECTOR_SIZE);
+		if (!_FAT_disc_readSectors (disc, gpt_lba, 1, sectorBuffer)) return 0;
 
-	// Process partition entries.
-	for (n = 0, idx = 0; n < MAX_SECTOR_SIZE && idx < 4 && idx < partition_count;
-		n += partition_entry_size) {
-		uint64_t lba64_start, lba64_end;
-
-		// Check if the partition GUIDs are valid.
-		if (!memcmp(&sectorBuffer[n + GPT_Partition_Type_GUID], GPT_Invalid_GUID, sizeof(GPT_Invalid_GUID)) ||
-			!memcmp(&sectorBuffer[n + GPT_Partition_Unique_GUID], GPT_Invalid_GUID, sizeof(GPT_Invalid_GUID)))
+		// Process partition entries.
+		for (n = 0; n < MAX_SECTOR_SIZE && idx < partition_count;
+		     n += partition_entry_size)
 		{
-			// Invalid GUID. We're done processing.
-			break;
-		}
+			uint64_t lba64_start, lba64_end;
 
-		// Save the partition LBA for later.
-		lba64_start = u8array_to_u64(sectorBuffer, n+GPT_Partition_First_LBA);
-		lba64_end = u8array_to_u64(sectorBuffer, n+GPT_Partition_Last_LBA);
-		if (lba64_start > 0xFFFFFFFFULL || lba64_end > 0xFFFFFFFFULL) {
-			// Partition is over the 32-bit sector limit.
-			// libcustomfat doesn't support this.
-			continue;
-		}
+			// Check if the partition GUIDs are valid.
+			if (!memcmp(&sectorBuffer[n + GPT_Partition_Type_GUID], GPT_Invalid_GUID, sizeof(GPT_Invalid_GUID)) ||
+			    !memcmp(&sectorBuffer[n + GPT_Partition_Unique_GUID], GPT_Invalid_GUID, sizeof(GPT_Invalid_GUID)))
+			{
+				// Invalid GUID. We're done processing this sector.
+				break;
+			}
 
-		partition_lba[idx++] = (sec_t)lba64_start;
+			// Save the partition LBA for later.
+			lba64_start = u8array_to_u64(sectorBuffer, n+GPT_Partition_First_LBA);
+			lba64_end = u8array_to_u64(sectorBuffer, n+GPT_Partition_Last_LBA);
+			if (lba64_start > 0xFFFFFFFFULL || lba64_end > 0xFFFFFFFFULL) {
+				// Partition is over the 32-bit sector limit.
+				// libcustomfat doesn't support this.
+				continue;
+			}
+
+			partition_lba[idx++] = (sec_t)lba64_start;
+		}
 	}
 
 	// Check the partitions to see which one is FAT.
