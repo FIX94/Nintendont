@@ -27,9 +27,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 typedef struct GameInfo 
 {
-	char ID[6];
-	char *Name;
-	char *Path;
+	char ID[6];		// ID6 of the game.
+	uint8_t NameAlloc;	// If non-zero, Name was allocated via strdup().
+	                        // Otherwise, it should NOT be free()'d!
+	uint8_t DiscNumber;	// Disc number.
+	char *Name;		// Game name. (If NameAlloc, strdup()'d.)
+	char *Path;		// File path.
 } gameinfo;
 
 void HandleSTMEvent(u32 event);

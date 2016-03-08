@@ -23,6 +23,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define __TITLES_H__
 
 s32 LoadTitles(void);
-bool SearchTitles(const char *titleID, char *titleName);
+const char *SearchTitles(const char *titleID);
 
 #endif

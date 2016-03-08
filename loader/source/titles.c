@@ -31,13 +31,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "exi.h"
 
 
-#define MAX_TITLES		740		// That should cover every GC game
-#define LINE_LENGTH 	61
+#define MAX_TITLES	740		// That should cover every GC game
+#define LINE_LENGTH	64		// Max is actually 61, but this improves performance.
 #define MAX_ELEMENTS(x) ((sizeof((x))) / (sizeof((x)[0])))
 
 typedef struct {
 	const char titleID[6];
-	const char titleName[LINE_LENGTH - 4];
+	const char titleName[LINE_LENGTH];
 } SpecialTitles_t;
 
 static const SpecialTitles_t TriforceTitles[] = {
@@ -56,14 +56,14 @@ static const SpecialTitles_t TriforceTitles[] = {
 };
 	
 
-char __title_list[MAX_TITLES][LINE_LENGTH] = {{0}};
+static char __title_list[MAX_TITLES][LINE_LENGTH] = {{0}};
 static u32 title_count = 0;
 static bool loaded = false;
 
 s32 LoadTitles(void) {
 	int c = 0, line_char = 0;
 	FILE *titles_txt = NULL;
-	char buffer[LINE_LENGTH] = {0};
+	char buffer[LINE_LENGTH+4] = {0};
 	titles_txt = fopen("titles.txt", "rb");
 	if (titles_txt == NULL) return 0;
 	loaded = true;
@@ -71,7 +71,7 @@ s32 LoadTitles(void) {
 		c = fgetc(titles_txt);
 		if (c == '\r') continue;
 		buffer[line_char] = c;
-		
+
 		if ((c == '\n') || (line_char == LINE_LENGTH - 1)) {
 			buffer[line_char] = 0;
 			if (line_char > 5) {
@@ -80,26 +80,36 @@ s32 LoadTitles(void) {
 			}
 			line_char = 0;
 		} else line_char++;
-    } while (c != EOF);
+	} while (c != EOF);
+
 	fclose(titles_txt);
 	return title_count;
 }
 
-inline bool SearchTitles(const char *titleID, char *titleName) {
-	if (!loaded) return false;
+/**
+ * Find a title in the titles database.
+ * Loaded from titles.txt, plus special exceptions for Triforce.
+ * @param titleID Title ID. (ID6)
+ * @return Title, or null pointer if not found.
+ * WARNING: DO NOT FREE the returned title!
+ */
+const char *SearchTitles(const char *titleID) {
+	// FIXME: This is a linear search, which can be slow...
+	if (!loaded) return NULL;
 	int i;
 	for(i=0; i < MAX_ELEMENTS(TriforceTitles); i++) { // Check for Triforce arcade games first
 		if (!strncmp(titleID, TriforceTitles[i].titleID, 6)) {
-			strcpy(titleName, TriforceTitles[i].titleName);
-			gprintf("Found special title %s, replacing name with %s\r\n", titleID, TriforceTitles[i].titleName);
-			return true;
+			gprintf("Found special title %.6s, replacing name with %s\r\n", titleID, TriforceTitles[i].titleName);
+			return TriforceTitles[i].titleName;
 		}
 	}
 	for(i=0; i < title_count; i++) {
+		// __title_list[] format: ID3-Title
 		if (!strncmp(titleID, __title_list[i], 3)) {
-			strcpy(titleName, __title_list[i] + 4);
-			return true;
+			return __title_list[i] + 4;
 		}
 	}
-	return false;
+
+	// Title not found.
+	return NULL;
 }

@@ -74,13 +74,25 @@ int compare_names(const void *a, const void *b)
 	const gameinfo *da = (const gameinfo *) a;
 	const gameinfo *db = (const gameinfo *) b;
 
-	return strcasecmp(da->Name, db->Name);
+	int ret = strcasecmp(da->Name, db->Name);
+	if (ret == 0)
+	{
+		// Names are equal. Check disc number.
+		if (da->DiscNumber < db->DiscNumber)
+			ret = -1;
+		else if (da->DiscNumber > db->DiscNumber)
+			ret = 1;
+		else
+			ret = 0;
+	}
+	return ret;
 }
+
 bool SelectGame( void )
 {
 //Create a list of games
 	char filename[MAXPATHLEN];
-	char gamename[MAXPATHLEN];
+	char gamename[65];
 
 	DIR *pdir;
 	struct dirent *pent;
@@ -103,9 +115,11 @@ bool SelectGame( void )
 	memset( gi, 0, sizeof(gameinfo) * MAX_GAMES );
 	if( !IsWiiU() )
 	{
-		gi[0].Name = strdup("Boot GC Disc in Drive");
 		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
 		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
+		gi[0].Name = strdup("Boot GC Disc in Drive");
+		gi[0].NameAlloc = 0;
+		gi[0].DiscNumber = 0;
 		gi[0].Path = strdup("di:di");
 		gamecount++;
 	}
@@ -137,12 +151,27 @@ bool SelectGame( void )
 					if( IsGCGame((u8*)buf) )	// Must be GC game
 					{
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						if(!SearchTitles(gi[gamecount].ID, gamename)) strcpy( gamename, buf + 0x20 );
-						if (DiscNumber)
-							strcat( gamename, " (2)" );
-						gi[gamecount].Name = strdup( gamename );
-						gi[gamecount].Path = strdup( filename );
+						gi[gamecount].DiscNumber = DiscNumber;
 
+						// Check if this title is in titles.txt.
+						const char *dbTitle = SearchTitles(gi[gamecount].ID);
+						if (dbTitle)
+						{
+							// Title found.
+							gi[gamecount].Name = (char*)dbTitle;
+							gi[gamecount].NameAlloc = 0;
+						}
+						else
+						{
+							// Title not found.
+							// Use the title from the disc header.
+							strncpy(gamename, buf + 0x20, sizeof(gamename));
+							gamename[sizeof(gamename)] = 0;
+							gi[gamecount].Name = strdup(gamename);
+							gi[gamecount].NameAlloc = 1;
+						}
+
+						gi[gamecount].Path = strdup( filename );
 						gamecount++;
 						found = true;
 					}
@@ -164,10 +193,15 @@ bool SelectGame( void )
 						snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
 
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						gi[gamecount].Name = strdup( buf + 0x20 );
-						gi[gamecount].Path = strdup( filename );
-						
+						gi[gamecount].DiscNumber = DiscNumber;
 
+						// TODO: Check titles.txt?
+						strncpy(gamename, buf + 0x20, sizeof(gamename));
+						gamename[sizeof(gamename)] = 0;
+						gi[gamecount].Name = strdup(gamename);
+						gi[gamecount].NameAlloc = 1;
+
+						gi[gamecount].Path = strdup( filename );
 						gamecount++;
 					}
 				}
@@ -369,7 +403,27 @@ bool SelectGame( void )
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, MenuMode ? "X/1 : Update" : "");
 				for( i=0; i < ListMax; ++i )
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", gi[i+ScrollX].Name, gi[i+ScrollX].ID, i == PosX ? ARROW_LEFT : " " );
+				{
+					// FIXME: Print all 64 characters of the game name?
+					// Currently truncated to 50.
+					const gameinfo *cur_gi = &gi[i+ScrollX];
+					if (cur_gi->DiscNumber == 0)
+					{
+						// Disc 1.
+						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20,
+							    "%50.50s [%.6s]%s",
+							    cur_gi->Name, cur_gi->ID,
+							    i == PosX ? ARROW_LEFT : " ");
+					}
+					else
+					{
+						// Disc 2 or higher.
+						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20,
+							    "%46.46s (%d) [%.6s]%s",
+							    cur_gi->Name, cur_gi->DiscNumber+1, cur_gi->ID,
+							    i == PosX ? ARROW_LEFT : " ");
+					}
+				}
 				GRRLIB_Render();
 				Screenshot();
 				ClearScreen();
@@ -712,7 +766,8 @@ bool SelectGame( void )
 
 	for( i=0; i < gamecount; ++i )
 	{
-		free(gi[i].Name);
+		if (gi[i].NameAlloc)
+			free(gi[i].Name);
 		free(gi[i].Path);
 	}
 	return SaveSettings;
