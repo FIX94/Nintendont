@@ -148,7 +148,6 @@ static sec_t FindFirstValidPartition_GPT_buf(const DISC_INTERFACE *disc, sec_t g
 {
 	sec_t partition_lba[128];
 	unsigned int partition_count;
-	unsigned int partition_entry_size;
 	int n, idx, gpt_lba_max;
 
 	if (!_FAT_disc_readSectors (disc, gpt_lba, 1, sectorBuffer)) return 0;
@@ -170,7 +169,6 @@ static sec_t FindFirstValidPartition_GPT_buf(const DISC_INTERFACE *disc, sec_t g
 		// (Why do you have more than 128 partitions on a Wii HDD?)
 		partition_count = GPT_PARTITION_COUNT_MAX;
 	}
-	partition_entry_size = u8array_to_u32(sectorBuffer, GPT_Partition_Entry_Size);
 
 	// Read from gpt_lba to gpt_lba + ((partition_count - 1) / 4).
 	// This assumes 512-byte sectors, 128 bytes per partition entry.
@@ -186,7 +184,7 @@ static sec_t FindFirstValidPartition_GPT_buf(const DISC_INTERFACE *disc, sec_t g
 
 		// Process partition entries.
 		for (n = 0; n < MAX_SECTOR_SIZE && idx < partition_count;
-		     n += partition_entry_size)
+		     n += GPT_PARTITION_ENTRY_SIZE)
 		{
 			uint64_t lba64_start, lba64_end;
 
