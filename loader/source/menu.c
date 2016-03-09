@@ -124,31 +124,6 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	struct dirent *pent;
 	struct stat statbuf;
 
-	snprintf(filename, sizeof(filename), "%s:/games", GetRootDevice());
-	pdir = opendir(filename);
-	if( !pdir )
-	{
-		// Could not open the "games" directory.
-		if (pGameCount)
-			*pGameCount = 0;
-
-		// Attempt to open the device root.
-		char root_filename[8];
-		snprintf(root_filename, sizeof(root_filename), "%s:/", GetRootDevice());
-		pdir = opendir(root_filename);
-		if ( !pdir )
-		{
-			// Could not open the device root.
-			return DEV_NO_OPEN;
-		}
-
-		// Device root opened.
-		// This means the device is usable, but it
-		// doesn't have a "games" directory.
-		closedir(pdir);
-		return DEV_NO_GAMES;
-	}
-
 	if( !IsWiiU() )
 	{
 		// Pseudo game for booting a GameCube disc on Wii.
@@ -159,6 +134,33 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		gi[0].DiscNumber = 0;
 		gi[0].Path = strdup("di:di");
 		gamecount++;
+	}
+
+	snprintf(filename, sizeof(filename), "%s:/games", GetRootDevice());
+	pdir = opendir(filename);
+	if( !pdir )
+	{
+		// Could not open the "games" directory.
+
+		// Attempt to open the device root.
+		char root_filename[8];
+		snprintf(root_filename, sizeof(root_filename), "%s:/", GetRootDevice());
+		pdir = opendir(root_filename);
+		if ( !pdir )
+		{
+			// Could not open the device root.
+			if (pGameCount)
+				*pGameCount = 0;
+			return DEV_NO_OPEN;
+		}
+
+		// Device root opened.
+		// This means the device is usable, but it
+		// doesn't have a "games" directory.
+		closedir(pdir);
+		if (pGameCount)
+			*pGameCount = gamecount;
+		return DEV_NO_GAMES;
 	}
 
 	// Process the directory.
