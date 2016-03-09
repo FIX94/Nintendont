@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <gctypes.h>
 
-#define MAX_GAMES 500
+#define MAX_GAMES 1024
 
 typedef struct GameInfo 
 {
