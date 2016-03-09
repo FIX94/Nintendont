@@ -38,7 +38,17 @@ typedef struct GameInfo
 void HandleSTMEvent(u32 event);
 void HandleWiiMoteEvent(s32 chan);
 
-bool SelectGame( void );
+/**
+ * Select the source device and game.
+ * @return TRUE to save settings; FALSE if no settings have been changed.
+ */
+bool SelectDevAndGame(void);
+
+/**
+ * Show the "Loading, please wait..." screen.
+ * */
+void ShowLoadingScreen(void);
+
 void PrintInfo( void );
 void ReconfigVideo( GXRModeObj *vidmode );
 #endif

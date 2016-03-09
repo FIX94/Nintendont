@@ -303,66 +303,24 @@ int main(int argc, char **argv)
 	else
 		ncfg->VideoMode &= ~NIN_VID_PROG;
 
-//Select SD or USB base
-	if((ncfg->Config & NIN_CFG_AUTO_BOOT) == 0)
-	{
-		while (1)
-		{
-			VIDEO_WaitVSync();
-			FPAD_Update();
-
-			UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
-			PrintInfo();
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
-
-			if (FPAD_OK(0))
-				break;
-
-			if (FPAD_Start(1))
-			{
-				ClearScreen();
-				PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader...");
-				ExitToLoader(0);
-			}
-			if (FPAD_Down(0))
-				ncfg->Config = ncfg->Config | NIN_CFG_USB;
-
-			if (FPAD_Up(0))
-				ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
-
-			GRRLIB_Render();
-			ClearScreen();
-		}
-		ClearScreen();
-		PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
-		GRRLIB_Render();
-		ClearScreen();
-	}
-
-	/*FILE *out = fopen("/kernel.bin", "wb");
-	fwrite( (char*)0x90100000, 1, NKernelSize, out );
-	fclose(out);*/
-
-//Get Game Selection
 	bool SaveSettings = false;
-	if( ncfg->Config & NIN_CFG_AUTO_BOOT )
-		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
+	if(!(ncfg->Config & NIN_CFG_AUTO_BOOT))
+	{
+		// Not autobooting.
+		// Prompt the user to select a device and game.
+		SaveSettings = SelectDevAndGame();
+	}
 	else
-		SaveSettings = SelectGame();
+	{
+		// Autobooting.
+		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
+	}
 
 //Init DI and set correct ID if needed
 	u32 CurDICMD = 0;
 	if( memcmp(ncfg->GamePath, "di", 3) == 0 )
 	{
-		ClearScreen();
-		PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
-		GRRLIB_Render();
-		ClearScreen();
+		ShowLoadingScreen();
 
 		DI_UseCache(false);
 		DI_Init();

@@ -88,9 +88,17 @@ int compare_names(const void *a, const void *b)
 	return ret;
 }
 
-bool SelectGame( void )
+/**
+ * Select a game from the specified device.
+ * @return Bitfield indicating the user's selection:
+ * - 0 == go back
+ * - 1 == game selected
+ * - 2 == go back and save settings (UNUSED)
+ * - 3 == game selected and save settings
+ */
+static int SelectGame(void)
 {
-//Create a list of games
+	// Create a list of games
 	char filename[MAXPATHLEN];
 	char gamename[65];
 
@@ -98,10 +106,16 @@ bool SelectGame( void )
 	struct dirent *pent;
 	struct stat statbuf;
 
+	// Depending on how many games are on the storage device,
+	// this could take a while.
+	ShowLoadingScreen();
+
 	snprintf(filename, sizeof(filename), "%s:/games", GetRootDevice());
 	pdir = opendir(filename);
 	if( !pdir )
 	{
+		// FIXME: Go back to the previous screen.
+		// FIXME: Check this before letting the user select the device.
 		ClearScreen();
 		gprintf("No FAT device found, or missing %s dir!\n", filename);
 		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found, or missing %s dir!", filename );
@@ -111,6 +125,7 @@ bool SelectGame( void )
 	u32 gamecount = 0;
 	char buf[0x100];
 	gameinfo gi[MAX_GAMES];
+	bool selected = false;	// Set to TRUE if the user selected a game.
 
 	memset( gi, 0, sizeof(gameinfo) * MAX_GAMES );
 	if( !IsWiiU() )
@@ -253,9 +268,9 @@ bool SelectGame( void )
 
 		if( FPAD_Start(1) )
 		{
-			ClearScreen();
-			PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader..." );
-			ExitToLoader(0);
+			// Go back to the Settings menu.
+			selected = false;
+			break;
 		}
 
 		if( FPAD_Cancel(0) )
@@ -392,13 +407,15 @@ bool SelectGame( void )
 
 			if( FPAD_OK(0) )
 			{
+				// User selected a game.
+				selected = true;
 				break;
 			}
 
 			if( redraw )
 			{
 				PrintInfo();
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, MenuMode ? "X/1 : Update" : "");
@@ -751,10 +768,6 @@ bool SelectGame( void )
 			}
 		}
 	}
-	ClearScreen();
-	PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
-	GRRLIB_Render();
-	ClearScreen();
 
 	u32 SelectedGame = PosX + ScrollX;
 	char* StartChar = gi[SelectedGame].Path + 3;
@@ -770,7 +783,80 @@ bool SelectGame( void )
 			free(gi[i].Name);
 		free(gi[i].Path);
 	}
+
+	if (!selected)
+	{
+		// No game selected.
+		return 0;
+	}
+
+	// Game is selected.
+	// TODO: Return an enum.
+	return (SaveSettings ? 3 : 1);
+}
+
+/**
+ * Select the source device and game.
+ * @return TRUE to save settings; FALSE if no settings have been changed.
+ */
+bool SelectDevAndGame(void)
+{
+	// Select the source device. (SD or USB)
+	bool SaveSettings = false;
+	while (1)
+	{
+		VIDEO_WaitVSync();
+		FPAD_Update();
+
+		UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
+		PrintInfo();
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
+
+		// Render the screen here to prevent a blank frame
+		// when returning from SelectGame().
+		GRRLIB_Render();
+		ClearScreen();
+
+		if (FPAD_OK(0))
+		{
+			// Select a game from the specified device.
+			int ret = SelectGame();
+			if (ret & 2) SaveSettings = true;
+			if (ret & 1) break;
+		}
+		else if (FPAD_Start(0))
+		{
+			ClearScreen();
+			PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader...");
+			ExitToLoader(0);
+		}
+		else if (FPAD_Down(0))
+		{
+			ncfg->Config = ncfg->Config | NIN_CFG_USB;
+		}
+		else if (FPAD_Up(0))
+		{
+			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
+		}
+	}
+
 	return SaveSettings;
+}
+
+/**
+ * Show the "Loading, please wait..." screen.
+ * */
+void ShowLoadingScreen(void)
+{
+	ClearScreen();
+	PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
+	GRRLIB_Render();
+	ClearScreen();
 }
 
 void PrintInfo()
