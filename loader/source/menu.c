@@ -53,6 +53,11 @@ typedef enum {
 } DevState;
 static u8 devState = DEV_OK;
 
+/**
+ * Print information about the selected device.
+ */
+static void PrintDevInfo(void);
+
 extern NIN_CFG* ncfg;
 
 u32 Shutdown = 0;
@@ -304,19 +309,22 @@ static int SelectGame(void)
 
 		case DEV_NO_GAMES:
 			// No "games" directory was found.
-			// TODO: Allow viewing the list on Wii only in order
-			// to allow booting GCN discs?
+			// The list will still be shown, since there's a
+			// "Boot GC Disc in Drive" option on Wii.
 			gprintf("WARNING: %s was not found.\n", filename);
 			break;
 
 		case DEV_NO_OPEN:
 		default:
+		{
 			// Could not open the device at all.
-			// FIXME: Go back to the previous screen.
-			ClearScreen();
-			gprintf("No FAT device found!\n");
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found!");
-			ExitToLoader(1);
+			// The list won't be shown, since a storage device
+			// is required for various functionality, but the
+			// user will be able to go back to the previous menu.
+			const char *s_devType = (UseSD ? "SD" : "USB");
+			gprintf("No %s FAT device found.\n", s_devType);
+			break;
+		}
 	}
 
 	bool selected = false;	// Set to TRUE if the user selected a game.
@@ -508,7 +516,18 @@ static int SelectGame(void)
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, MenuMode ? "X/1 : Update" : "");
-				for( i=0; i < ListMax; ++i )
+				PrintDevInfo();
+
+				// Starting position.
+				int gamelist_y = MENU_POS_Y + 20*4;
+				if (devState != DEV_OK)
+				{
+					// The warning message overlaps "Boot GC Disc in Drive".
+					// Move the list down by one row.
+					gamelist_y += 20;
+				}
+
+				for (i = 0; i < ListMax; ++i, gamelist_y += 20)
 				{
 					// FIXME: Print all 64 characters of the game name?
 					// Currently truncated to 50.
@@ -516,7 +535,7 @@ static int SelectGame(void)
 					if (cur_gi->DiscNumber == 0)
 					{
 						// Disc 1.
-						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20,
+						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, gamelist_y,
 							    "%50.50s [%.6s]%s",
 							    cur_gi->Name, cur_gi->ID,
 							    i == PosX ? ARROW_LEFT : " ");
@@ -524,7 +543,7 @@ static int SelectGame(void)
 					else
 					{
 						// Disc 2 or higher.
-						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20,
+						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, gamelist_y,
 							    "%46.46s (%d) [%.6s]%s",
 							    cur_gi->Name, cur_gi->DiscNumber+1, cur_gi->ID,
 							    i == PosX ? ARROW_LEFT : " ");
@@ -846,10 +865,16 @@ static int SelectGame(void)
 				else
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(PosX), ARROW_RIGHT);
 				PrintInfo();
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, MenuMode ? "X/1 : Update" : "");
+				if (devState == DEV_OK)
+				{
+					// FIXME: If devState != DEV_OK,
+					// the device info overlaps with the settings menu.
+					PrintDevInfo();
+				}
 				GRRLIB_Render();
 				Screenshot();
 				ClearScreen();
@@ -980,6 +1005,33 @@ void PrintInfo(void)
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%d.%d (%s)", NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : %s %s", __DATE__, __TIME__ );
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
+}
+
+/**
+ * Print information about the selected device.
+ */
+static void PrintDevInfo(void)
+{
+	// Device type.
+	const char *s_devType = (UseSD ? "SD" : "USB");
+
+	// Device state.
+	// NOTE: If this is showing a message, the game list
+	// will be moved down by 1 row, which usually isn't
+	// a problem, since it will either be empty or showing
+	// "Boot GC Disc in Drive".
+	switch (devState) {
+		case DEV_NO_OPEN:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4,
+				"WARNING: %s FAT device could not be opened.", s_devType);
+			break;
+		case DEV_NO_GAMES:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4,
+				"WARNING: %s:/games/ was not found.", GetRootDevice());
+			break;
+		default:
+			break;
+	}
 }
 
 void ReconfigVideo(GXRModeObj *vidmode)
