@@ -130,6 +130,9 @@ int main(int argc, char **argv)
 
 	Initialise();
 
+	// Checking for storage devices...
+	ShowMessageScreen("Checking storage devices...");
+
 	u32 u;
 	//Disables MEMPROT for patches
 	write16(MEM_PROT, 0);
@@ -156,8 +159,7 @@ int main(int argc, char **argv)
 	{
 		ClearScreen();
 		gprintf("Failed to load kernel from NAND!\r\n");
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "Failed to load kernel from NAND!" );
-		ExitToLoader(1);
+		ShowMessageScreenAndExit("Failed to load kernel from NAND!", 1);
 	}
 	InsertModule((char*)kernel_bin, kernel_bin_size);
 
@@ -215,12 +217,6 @@ int main(int argc, char **argv)
 
 	FPAD_Init();
 	FPAD_Update();
-
-	PrintInfo();
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*0, "Home: Exit");
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + + 430, MENU_POS_Y + 20*1, "A   : Select");
-	GRRLIB_Render();
-	ClearScreen();
 
 	/* Read IPL Font before doing any patches */
 	void *fontbuffer = memalign(32, 0x50000);
@@ -314,6 +310,9 @@ int main(int argc, char **argv)
 	{
 		// Autobooting.
 		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
+		PrintInfo();
+		GRRLIB_Render();
+		ClearScreen();
 	}
 
 //Init DI and set correct ID if needed
@@ -329,9 +328,7 @@ int main(int argc, char **argv)
 			usleep(20000);
 		if(!(DI_GetStatus() & DVD_READY))
 		{
-			ClearScreen();
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc Drive could not be initialized!" );
-			ExitToLoader(1);
+			ShowMessageScreenAndExit("The Disc Drive could not be initialized!", 1);
 		}
 		DI_Close();
 
@@ -349,9 +346,7 @@ int main(int argc, char **argv)
 			if( IsGCGame(DIBuf) == false )
 			{
 				free(DIBuf);
-				ClearScreen();
-				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "The Disc in the Drive is not a GC Disc!" );
-				ExitToLoader(1);
+				ShowMessageScreenAndExit("The Disc in the Drive is not a GC Disc!", 1);
 			}
 		}
 		memcpy(&(ncfg->GameID), DIBuf, 4);
@@ -538,8 +533,7 @@ int main(int argc, char **argv)
 			if(GenerateMemCard(MemCard) == false)
 			{
 				ClearScreen();
-				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "Failed to create Memory Card File!" );
-				ExitToLoader(1);
+				ShowMessageScreenAndExit("Failed to create Memory Card File!", 1);
 			}
 		}
 		else

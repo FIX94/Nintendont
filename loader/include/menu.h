@@ -45,9 +45,29 @@ void HandleWiiMoteEvent(s32 chan);
 bool SelectDevAndGame(void);
 
 /**
- * Show the "Loading, please wait..." screen.
- * */
-void ShowLoadingScreen(void);
+ * Show a single message screen.
+ * @param msg Message.
+ */
+void ShowMessageScreen(const char *msg);
+
+/**
+ * Show a single message screen and then exit to loader..
+ * @param msg Message.
+ * @param ret Return value. If non-zero, text will be printed in red.
+ */
+void ShowMessageScreenAndExit(const char *msg, int ret)
+	__attribute__ ((noreturn));
+
+// Predefined messages.
+static inline void ShowLoadingScreen(void)
+{
+	ShowMessageScreen("Loading, please wait...");
+}
+
+/**
+ * Print Nintendont version and system hardware information.
+ */
+void PrintInfo(void);
 
 void PrintInfo( void );
 void ReconfigVideo( GXRModeObj *vidmode );

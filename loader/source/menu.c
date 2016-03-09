@@ -831,9 +831,7 @@ bool SelectDevAndGame(void)
 		}
 		else if (FPAD_Start(0))
 		{
-			ClearScreen();
-			PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader...");
-			ExitToLoader(0);
+			ShowMessageScreenAndExit("Returning to loader...", 0);
 		}
 		else if (FPAD_Down(0))
 		{
@@ -849,17 +847,45 @@ bool SelectDevAndGame(void)
 }
 
 /**
- * Show the "Loading, please wait..." screen.
- * */
-void ShowLoadingScreen(void)
+ * Show a single message screen.
+ * @param msg Message.
+ */
+void ShowMessageScreen(const char *msg)
 {
+	const int len = strlen(msg);
+	const int x = (640 - (len*10)) / 2;
+
 	ClearScreen();
-	PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
+	PrintInfo();
+	PrintFormat(DEFAULT_SIZE, BLACK, x, 232, "%s", msg);
 	GRRLIB_Render();
 	ClearScreen();
 }
 
-void PrintInfo()
+/**
+ * Show a single message screen and then exit to loader..
+ * @param msg Message.
+ * @param ret Return value. If non-zero, text will be printed in red.
+ */
+void ShowMessageScreenAndExit(const char *msg, int ret)
+{
+	const int len = strlen(msg);
+	const int x = (640 - (len*10)) / 2;
+	const u32 color = (ret == 0 ? BLACK : MAROON);
+
+	ClearScreen();
+	PrintInfo();
+	PrintFormat(DEFAULT_SIZE, color, x, 232, "%s", msg);
+	ExitToLoader(ret);
+
+	// gcc doesn't know ExitToLoader() exits.
+	exit(ret);
+}
+
+/**
+ * Print Nintendont version and system hardware information.
+ */
+void PrintInfo(void)
 {
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%d.%d (%s)", NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : %s %s", __DATE__, __TIME__ );
