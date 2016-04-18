@@ -80,7 +80,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	((typeof(x))(((u32)(x)) & (~(align-1))))
 
 extern bool UseSD;
-extern u32 Region;
 extern u32 POffset;
 extern NIN_CFG *ncfg;
 extern FILE *cfg;

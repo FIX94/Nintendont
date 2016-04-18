@@ -72,80 +72,26 @@ int  GRRLIB_Init (void) {
 	if (is_setup)  return 0;
 	
 	VIDEO_Init();
-	
-	// Grab a pointer to the video mode attributes
-	if ( !(rmode = VIDEO_GetPreferredMode(NULL)) )  return -1;
-	#ifdef DEBUG
-	if( !IsWiiU() )
-	{
-		if( rmode == &TVNtsc480Int )
-			gprintf("VI:TVNtsc480Int\r\n");
-		else if( rmode == &TVNtsc480IntDf )
-			gprintf("VI:TVNtsc480IntDf\r\n");
-		else if( rmode == &TVNtsc480IntAa )
-			gprintf("VI:TVNtsc480IntAa\r\n");
-		else if( rmode == &TVNtsc480Prog )
-			gprintf("VI:TVNtsc480Prog\r\n");
-		else if( rmode == &TVNtsc480ProgSoft )
-			gprintf("VI:TVNtsc480ProgSoft\r\n");
-		else if( rmode == &TVNtsc480ProgAa )
-			gprintf("VI:TVNtsc480ProgAa\r\n");
 
-		else if( rmode == &TVPal524IntAa )
-			gprintf("VI:TVPal524IntAa\r\n");
-		else if( rmode == &TVPal528Int )
-			gprintf("VI:TVPal528Int\r\n");
-		else if( rmode == &TVPal528IntDf )
-			gprintf("VI:TVPal528IntDf\r\n");
-		else if( rmode == &TVPal528IntDf )
-			gprintf("VI:TVPal528IntDf\r\n");
-		else if( rmode == &TVPal528IntDf )
-			gprintf("VI:TVPal528IntDf\r\n");
-	
-		else if( rmode == &TVEurgb60Hz480Int )
-			gprintf("VI:TVEurgb60Hz480Int\r\n");
-		else if( rmode == &TVEurgb60Hz480IntDf )
-			gprintf("VI:TVEurgb60Hz480IntDf\r\n");
-		else if( rmode == &TVEurgb60Hz480IntAa )
-			gprintf("VI:TVEurgb60Hz480IntAa\r\n");
-		else if( rmode == &TVEurgb60Hz480Prog )
-			gprintf("VI:TVEurgb60Hz480Prog\r\n");
-		else if( rmode == &TVEurgb60Hz480ProgSoft )
-			gprintf("VI:TVEurgb60Hz480ProgSoft\r\n");
-		else if( rmode == &TVEurgb60Hz480ProgAa )
-			gprintf("VI:TVEurgb60Hz480ProgAa\r\n");
-	}
-	#endif
-
-	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
-	switch( *(vu32*)0x800000CC )
+	if(CONF_GetProgressiveScan() > 0 && VIDEO_HaveComponentCable())
+		rmode = &TVNtsc480Prog;
+	else
 	{
-		default:
-		case 0:
+		switch(CONF_GetVideo())
 		{
-			if(progressive)
-				rmode = &TVNtsc480Prog;
-			else
+			case CONF_VIDEO_PAL:
+				if (CONF_GetEuRGB60() > 0)
+					rmode = &TVEurgb60Hz480Int;
+				else rmode = &TVPal576IntDfScale;
+				break;
+			case CONF_VIDEO_MPAL:
+				rmode = &TVMpal480IntDf;
+				break;
+			case CONF_VIDEO_NTSC:
+			default:
 				rmode = &TVNtsc480Int;
-		} break;
-		case 1:
-		{
-			if(progressive)
-				rmode = &TVEurgb60Hz480Prog;
-			else
-				rmode = &TVPal528Int;
-		} break;
-		case 2:
-		{
-			rmode = &TVMpal480IntDf;
-		} break;
-		case 5:
-		{
-			if(progressive)
-				rmode = &TVEurgb60Hz480Prog;
-			else
-				rmode = &TVEurgb60Hz480Int;
-		} 
+				break;
+		}
 	}
 	VIDEO_Configure(rmode);
 

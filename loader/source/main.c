@@ -608,11 +608,12 @@ int main(int argc, char **argv)
 	if(IsTRIGame == 0)
 	{
 		char iplchar[32];
+		memset(iplchar,0,32);
 		if((ncfg->GameID & 0xFF) == 'E')
 			snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
 		else if((ncfg->GameID & 0xFF) == 'J')
 			snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
-		else
+		else if(!IsWiiU())
 			snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
 		FILE *f = fopen(iplchar, "rb");
 		if(f != NULL)
@@ -814,124 +815,85 @@ int main(int argc, char **argv)
 
 	gprintf("GameRegion:");
 
-	if( ncfg->VideoMode & NIN_VID_FORCE )
-	{
-		gprintf("Force:%02X\r\n", ncfg->VideoMode & NIN_VID_FORCE_MASK );
+	u32 vidForce = (ncfg->VideoMode & NIN_VID_FORCE);
+	u32 vidForceMode = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
 
-		switch( ncfg->VideoMode & NIN_VID_FORCE_MASK )
-		{
-			case NIN_VID_FORCE_NTSC:
-			{
-				*(vu32*)0x800000CC = 0;
-				Region = 0;
-			} break;
-			case NIN_VID_FORCE_MPAL:
-			{
-				*(vu32*)0x800000CC = 3;
-				Region = 2;
-			} break;
-			case NIN_VID_FORCE_PAL50:
-			{
-				*(vu32*)0x800000CC = 1;
-				Region = 2;
-			} break;
-			case NIN_VID_FORCE_PAL60:
-			{
-				*(vu32*)0x800000CC = 5;
-				Region = 2;
-			} break;
-		}
-	}
-	else
-	{
-		switch (ncfg->GameID & 0x000000FF)
-		{
-			// EUR
-			case 'D':
-			case 'F':
-			case 'H':
-			case 'I':
-			case 'M':
-			case 'P':
-			case 'S':
-			case 'U':
-			case 'X':
-			case 'Y':
-			case 'Z':
-				Region = 2;
-				break;
-			// JP and US
-			case 'J':
-			case 'E':
-			default:
-				Region = 0;
-				break;
-		}
-	}
-	
-	gprintf("Region:%u\r\n", Region );
 	progressive = (ncfg->Config & NIN_CFG_FORCE_PROG)
 		&& !useipl && !useipltri;
 
-	switch(Region)
+	switch (ncfg->GameID & 0x000000FF)
 	{
-		default:
-		case 0:
-		case 1:
-		{
-			if( *(vu32*)0x800000CC == 3 )
+		// EUR
+		case 'D':
+		case 'F':
+		case 'H':
+		case 'I':
+		case 'M':
+		case 'P':
+		case 'S':
+		case 'U':
+		case 'X':
+		case 'Y':
+		case 'Z':
+			if(!progressive && vidForce && 
+				vidForceMode == NIN_VID_FORCE_PAL50)
 			{
-				gprintf("MPAL\r\n");
-
-				if(progressive)
-					vmode = &TVNtsc480Prog;
-				else
-					vmode = &TVMpal480IntDf;
-			} else {
-				gprintf("NTSC\r\n");
-
-				*(vu32*)0x800000CC = 0;
-
-				if(progressive)
-					vmode = &TVNtsc480Prog;
-				else
-					vmode = &TVNtsc480IntDf;
-			}
-		} break;
-		case 2:
-		{
-			if( *(vu32*)0x800000CC == 5 )
-			{
-				gprintf("PAL60\r\n");
-
-				if(progressive)
-					vmode = &TVNtsc480Prog;
-				else
-					vmode = &TVEurgb60Hz480IntDf;
-
-			} else if( *(vu32*)0x800000CC == 3 ) {
-				gprintf("MPAL\r\n");
-
-				if(progressive)
-					vmode = &TVNtsc480Prog;
-				else
-					vmode = &TVMpal480IntDf;
-			} else {
-				gprintf("PAL50\r\n");
-
 				*(vu32*)0x800000CC = 1;
-
-				if(progressive)
-					vmode = &TVEurgb60Hz480Prog;
-				else
-					vmode = &TVPal528IntDf;
 			}
-		} break;
+			else
+			{
+				*(vu32*)0x800000CC = 5;
+			}
+			vmode = &TVPal528IntDf;
+			break;
+		//US
+		case 'E':
+			if((vidForce && vidForceMode == NIN_VID_FORCE_MPAL)
+				|| (!vidForce && CONF_GetVideo() == CONF_VIDEO_MPAL))
+			{
+				*(vu32*)0x800000CC = 3;
+				vmode = &TVMpal480IntDf;
+			}
+			else
+			{
+				*(vu32*)0x800000CC = 0;
+				vmode = &TVNtsc480IntDf;
+			}
+			break;
+		//JP
+		case 'J':
+		default:
+			*(vu32*)0x800000CC = 0;
+			vmode = &TVNtsc480IntDf;
+			break;
+	}
+
+	if(progressive)
+		vmode = &TVNtsc480Prog;
+	else if(vidForce)
+	{
+		switch(vidForceMode)
+		{
+			case NIN_VID_FORCE_PAL50:
+				vmode = &TVPal528IntDf;
+				break;
+			case NIN_VID_FORCE_PAL60:
+				vmode = &TVEurgb60Hz480IntDf;
+				break;
+			case NIN_VID_FORCE_MPAL:
+				vmode = &TVMpal480IntDf;
+				break;
+			case NIN_VID_FORCE_NTSC:
+			default:
+				vmode = &TVNtsc480IntDf;
+				break;
+		}
 	}
 	if((ncfg->Config & NIN_CFG_MEMCARDEMU) == 0) //setup real sram video
 	{
 		syssram *sram;
 		sram = __SYS_LockSram();
+		sram->display_offsetH = 0;	// Clear Offset
 		sram->ntd		&= ~0x40;	// Clear PAL60
 		sram->flags		&= ~0x80;	// Clear Progmode
 		sram->flags		&= ~3;		// Clear Videomode

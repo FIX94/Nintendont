@@ -43,7 +43,6 @@ GRRLIB_ttfFont *myFont;
 GRRLIB_texImg *background;
 GRRLIB_texImg *screen_buffer;
 
-u32 Region;
 u32 POffset;
 
 NIN_CFG* ncfg = (NIN_CFG*)0x93002900;
