@@ -1640,6 +1640,19 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					continue;
 				}
 			}
+			if( (PatchCount & FPATCH_getTiming) == 0 )
+			{
+				if( BufAt0 == 0x386500BE && BufAt4 == 0x4E800020 && read32((u32)Buffer+i+8) == 0x386500E4 &&
+					read32((u32)Buffer+i+12) == 0x4E800020 && read32((u32)Buffer+i+16) == 0x38600000 &&
+					read32((u32)Buffer+i+20) == 0x4E800020 )
+				{
+					printpatchfound("getTiming", NULL, (u32)Buffer + i + 16);
+					write32( (u32)Buffer + i + 16, 0x7CA32B78 ); //mr r5, r3
+					PatchCount |= FPATCH_getTiming;
+					i += 20;
+					continue;
+				}
+			}
 			if( (PatchCount & FPATCH_GXInit) == 0 )
 			{
 				if( BufAt0 == 0x3C80CC00 ) /* Release SDK */
