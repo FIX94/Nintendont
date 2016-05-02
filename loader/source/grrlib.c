@@ -74,21 +74,33 @@ int  GRRLIB_Init (void) {
 	VIDEO_Init();
 
 	if(CONF_GetProgressiveScan() > 0 && VIDEO_HaveComponentCable())
+	{
 		rmode = &TVNtsc480Prog;
+		gprintf("PROG\n");
+	}
 	else
 	{
 		switch(CONF_GetVideo())
 		{
 			case CONF_VIDEO_PAL:
 				if (CONF_GetEuRGB60() > 0)
+				{
+					gprintf("PAL60\n");
 					rmode = &TVEurgb60Hz480Int;
-				else rmode = &TVPal576IntDfScale;
+				}
+				else
+				{
+					gprintf("PAL50\n");
+					rmode = &TVPal576IntDfScale;
+				}
 				break;
 			case CONF_VIDEO_MPAL:
+				gprintf("MPAL\n");
 				rmode = &TVMpal480IntDf;
 				break;
 			case CONF_VIDEO_NTSC:
 			default:
+				gprintf("NTSC\n");
 				rmode = &TVNtsc480Int;
 				break;
 		}

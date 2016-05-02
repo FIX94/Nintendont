@@ -773,10 +773,20 @@ void TRISetupGames()
 	{
 		if( read32( 0x00055F98 ) == 0x386000A8 )
 		{
-			write32(0x000627A4, 0x3C808006); //lis r4, 0x8006
-			write32(0x000627AC, 0x6084E93C); //ori r4, r4, 0xE93C
-			write32(0x0006E93C, 0x01010A01); //modify 0x8006E93C for Free Play
-			dbgprintf("TRI:SegaBoot (Patched Free Play)\r\n");
+			if( read32( 0x0006E938 ) == 0x63090400 )
+			{
+				write32(0x000627A4, 0x3C808006); //lis r4, 0x8006
+				write32(0x000627AC, 0x6084E93C); //ori r4, r4, 0xE93C
+				write32(0x0006E93C, 0x01010A01); //modify 0x8006E93C for Free Play
+				dbgprintf("TRI:SegaBoot 3.01.2 (Patched Free Play)\r\n");
+			}
+			else if( read32( 0x0006E968 ) == 0x63090400 )
+			{
+				write32(0x000627A4, 0x3C808006); //lis r4, 0x8006
+				write32(0x000627AC, 0x6084E96C); //ori r4, r4, 0xE96C
+				write32(0x0006E96C, 0x01010A01); //modify 0x8006E96C for Free Play
+				dbgprintf("TRI:SegaBoot 3.11.2 (Patched Free Play)\r\n");
+			}
 		}
 		else
 			dbgprintf("TRI:SegaBoot\r\n");
