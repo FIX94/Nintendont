@@ -4043,7 +4043,7 @@ FRESULT f_lseek (
 #if !_FS_READONLY
 					if (fp->flag & _FA_DIRTY) {		/* Write-back dirty sector cache */
 						if (disk_write(fs->drv, fp->buf, fp->sect, 1) != RES_OK) {
-							ABORT(fp, FR_DISK_ERR);
+							ABORT(fs, FR_DISK_ERR);
 						}
 						fp->flag &= ~_FA_DIRTY;
 					}
