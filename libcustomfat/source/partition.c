@@ -133,6 +133,8 @@ static const char FS_INFO_SIG1[4] = {'R', 'R', 'a', 'A'};
 static const char FS_INFO_SIG2[4] = {'r', 'r', 'A', 'a'};
 static const char GPT_SIG[8] = {'E', 'F', 'I', ' ', 'P', 'A', 'R', 'T'};
 static const uint32_t GPT_Invalid_GUID[4] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
+// EFI System Partition: {C12A7328-F81F-11D2-BA4B-00A0C93EC93B}
+static const uint32_t GPT_EFISYS_GUID[4] = {0x28732AC1, 0x1FF8D211, 0xBA4B00A0, 0xC93EC93B};
 
 #define GPT_PARTITION_ENTRY_SIZE 128
 #define GPT_PARTITION_COUNT_MAX 128
@@ -194,6 +196,11 @@ static sec_t FindFirstValidPartition_GPT_buf(const DISC_INTERFACE *disc, sec_t g
 			{
 				// Invalid GUID. We're done processing this sector.
 				break;
+			}
+			else if (!memcmp(&sectorBuffer[n + GPT_Partition_Type_GUID], GPT_EFISYS_GUID, sizeof(GPT_EFISYS_GUID)))
+			{
+				// EFI System Partition. Ignore it.
+				continue;
 			}
 
 			// Save the partition LBA for later.
