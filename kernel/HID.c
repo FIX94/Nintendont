@@ -271,11 +271,11 @@ s32 HIDOpen( u32 LoaderRequest )
 			dbgprintf("HID:Failed to open config file:%u\r\n", ret );
 		else
 		{
-			Data = (char*)malloc( f.fsize + 1 );
+			Data = (char*)malloc( f.obj.objsize + 1 );
 			if(Data)
 			{
-				f_read( &f, Data, f.fsize, &read );
-				Data[f.fsize] = 0x00;	//null terminate the file
+				f_read( &f, Data, f.obj.objsize, &read );
+				Data[f.obj.objsize] = 0x00;	//null terminate the file
 			}
 			f_close(&f);
 		}

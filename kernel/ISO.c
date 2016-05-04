@@ -64,6 +64,8 @@ bool ISOInit()
 	s32 ret = f_open_char( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
 	if( ret != FR_OK )
 		return false;
+
+#if _USE_FASTSEEK
 	/* Setup table */
 	u32 tblsize = 4; //minimum default size
 	GameFile.cltbl = malloc(tblsize * sizeof(DWORD));
@@ -78,6 +80,7 @@ bool ISOInit()
 		GameFile.cltbl[0] = tblsize;
 		f_lseek(&GameFile, CREATE_LINKMAP);
 	}
+#endif /* _USE_FASTSEEK */
 
 	/* Setup direct reader */
 	ISOFileOpen = 1;
@@ -106,8 +109,10 @@ void ISOClose()
 	if(ISOFileOpen)
 	{
 		f_close( &GameFile );
+#if _USE_FASTSEEK
 		free(GameFile.cltbl);
 		GameFile.cltbl = NULL;
+#endif /* _USE_FASTSEEK */
 	}
 	ISOFileOpen = 0;
 }

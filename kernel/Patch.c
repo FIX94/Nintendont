@@ -2950,16 +2950,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			FIL CodeFD;
 			if( Check_Cheats() == 0 && f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 			{
-				if( CodeFD.fsize > 0x2000 )
+				if( CodeFD.obj.objsize > 0x2000 )
 				{
 					dbgprintf( "Patch:Cheatfile is too large, it must not be larger than 8KB!\r\n" );
 				}
 				else
 				{
-					void *CMem = malloc(CodeFD.fsize);
-					if( f_read( &CodeFD, CMem, CodeFD.fsize, &read ) == FR_OK )
+					void *CMem = malloc(CodeFD.obj.objsize);
+					if( f_read( &CodeFD, CMem, CodeFD.obj.objsize, &read ) == FR_OK )
 					{
-						memcpy((void*)0x13006000, CMem, CodeFD.fsize);
+						memcpy((void*)0x13006000, CMem, CodeFD.obj.objsize);
 						sync_after_write((void*)0x13006000, 0x2000);
 						dbgprintf("Patch:Copied %s to memory\r\n", cheatPath);
 					}

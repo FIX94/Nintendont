@@ -353,14 +353,14 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 								FIL fi;
 								if( f_open_char( &fi, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 								{
-									if( fi.fsize > 0 && fi.fsize <= 0xD0 )
+									if( fi.obj.objsize > 0 && fi.obj.objsize <= 0xD0 )
 									{
-										u8 *cmem = (u8*)malloca( fi.fsize, 32 );
+										u8 *cmem = (u8*)malloca( fi.obj.objsize, 32 );
 										u32 read;
-										f_read( &fi, cmem, fi.fsize, &read );
+										f_read( &fi, cmem, fi.obj.objsize, &read );
 										if(GCAMCARDIsValid(cmem))
 										{
-											CARDMemorySize = fi.fsize;
+											CARDMemorySize = fi.obj.objsize;
 											if( TRIGame == TRI_AX )
 												CARDBit = 2;
 											else
@@ -418,15 +418,15 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 							FIL cf;
 							if( f_open_char( &cf, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 							{
-								if( cf.fsize > 0 && cf.fsize <= 0xD0 )
+								if( cf.obj.objsize > 0 && cf.obj.objsize <= 0xD0 )
 								{
-									u8 *cmem = (u8*)malloca( cf.fsize, 32 );
+									u8 *cmem = (u8*)malloca( cf.obj.objsize, 32 );
 									u32 read;
-									f_read( &cf, cmem, cf.fsize, &read );
+									f_read( &cf, cmem, cf.obj.objsize, &read );
 									if(GCAMCARDIsValid(cmem))
 									{
 										if( CARDMemorySize == 0 )
-											CARDMemorySize = cf.fsize;
+											CARDMemorySize = cf.obj.objsize;
 										memcpy(CARDMemory, cmem, CARDMemorySize);
 										sync_after_write(CARDMemory, CARDMemorySize);
 										CARDIsInserted = 1;
