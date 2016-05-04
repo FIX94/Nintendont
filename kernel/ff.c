@@ -1380,7 +1380,7 @@ DWORD create_chain (	/* 0:No free cluster, 1:Internal error, 0xFFFFFFFF:Disk err
 static
 DWORD clmt_clust (	/* <2:Error, >=2:Cluster number */
 	FIL* fp,		/* Pointer to the file object */
-	DWORD ofs		/* File offset to be converted to cluster# */
+	FSIZE_t ofs		/* File offset to be converted to cluster# */
 )
 {
 	DWORD cl, ncl, *tbl;
@@ -1388,7 +1388,7 @@ DWORD clmt_clust (	/* <2:Error, >=2:Cluster number */
 
 
 	tbl = fp->cltbl + 1;	/* Top of CLMT */
-	cl = ofs / SS(fs) / fs->csize;	/* Cluster order from top of the file */
+	cl = (DWORD)(ofs / SS(fs) / fs->csize);	/* Cluster order from top of the file */
 	for (;;) {
 		ncl = *tbl++;			/* Number of cluters in the fragment */
 		if (ncl == 0) return 0;	/* End of table? (error) */
@@ -4008,14 +4008,14 @@ FRESULT f_lseek (
 		if (ofs == CREATE_LINKMAP) {	/* Create CLMT */
 			tbl = fp->cltbl;
 			tlen = *tbl++; ulen = 2;	/* Given table size and required table size */
-			cl = fp->sclust;			/* Top of the chain */
+			cl = fp->obj.sclust;		/* Top of the chain */
 			if (cl) {
 				do {
 					/* Get a fragment */
 					tcl = cl; ncl = 0; ulen += 2;	/* Top, length and used items */
 					do {
 						pcl = cl; ncl++;
-						cl = get_fat(fs, cl);
+						cl = get_fat(&fp->obj, cl);
 						if (cl <= 1) ABORT(fs, FR_INT_ERR);
 						if (cl == 0xFFFFFFFF) ABORT(fs, FR_DISK_ERR);
 					} while (cl == pcl + 1);
@@ -4031,9 +4031,7 @@ FRESULT f_lseek (
 				res = FR_NOT_ENOUGH_CORE;	/* Given table size is smaller than required */
 			}
 		} else {						/* Fast seek */
-			if (ofs > fp->fsize) {		/* Clip offset at the file size */
-				ofs = fp->fsize;
-			}
+			if (ofs > fp->obj.objsize) ofs = fp->obj.objsize;	/* Clip offset at the file size */
 			fp->fptr = ofs;				/* Set file pointer */
 			if (ofs) {
 				fp->clust = clmt_clust(fp, ofs - 1);
@@ -5194,9 +5192,9 @@ FRESULT f_expand (
 
 
 /*-----------------------------------------------------------------------*/
-/* Forward data to the stream directly (available on only tiny cfg)      */
+/* Forward data to the stream directly                                   */
 /*-----------------------------------------------------------------------*/
-#if _USE_FORWARD && _FS_TINY
+#if _USE_FORWARD
 
 FRESULT f_forward (
 	FIL* fp, 						/* Pointer to the file object */
@@ -5210,6 +5208,7 @@ FRESULT f_forward (
 	DWORD clst, sect;
 	FSIZE_t remain;
 	UINT rcnt, csect;
+	const BYTE *dbuf;
 
 
 	*bf = 0;	/* Clear transfer byte counter */
@@ -5217,16 +5216,16 @@ FRESULT f_forward (
 	if (res != FR_OK || (res = (FRESULT)fp->err) != FR_OK) LEAVE_FF(fs, res);	/* Check validity */
 	if (!(fp->flag & FA_READ)) LEAVE_FF(fs, FR_DENIED);	/* Check access mode */
 
-	remain = fp->fsize - fp->fptr;
+	remain = fp->obj.objsize - fp->fptr;
 	if (btf > remain) btf = (UINT)remain;			/* Truncate btf by remaining bytes */
 
-	for ( ;  btf && (*func)(0, 0);					/* Repeat until all data transferred or stream becomes busy */
+	for ( ;  btf && (*func)(0, 0);					/* Repeat until all data transferred or stream goes busy */
 		fp->fptr += rcnt, *bf += rcnt, btf -= rcnt) {
 		csect = (UINT)(fp->fptr / SS(fs) & (fs->csize - 1));	/* Sector offset in the cluster */
-		if ((fp->fptr % SS(fs)) == 0) {				/* On the sector boundary? */
+		if (fp->fptr % SS(fs) == 0) {				/* On the sector boundary? */
 			if (csect == 0) {						/* On the cluster boundary? */
 				clst = (fp->fptr == 0) ?			/* On the top of the file? */
-					fp->sclust : get_fat(fs, fp->clust);
+					fp->obj.sclust : get_fat(&fp->obj, fp->clust);
 				if (clst <= 1) ABORT(fs, FR_INT_ERR);
 				if (clst == 0xFFFFFFFF) ABORT(fs, FR_DISK_ERR);
 				fp->clust = clst;					/* Update current cluster */
@@ -5235,13 +5234,25 @@ FRESULT f_forward (
 		sect = clust2sect(fs, fp->clust);			/* Get current data sector */
 		if (!sect) ABORT(fs, FR_INT_ERR);
 		sect += csect;
-		if (move_window(fs, sect) != FR_OK) {		/* Move sector window */
-			ABORT(fs, FR_DISK_ERR);
+#if _FS_TINY
+		if (move_window(fs, sect) != FR_OK) ABORT(fs, FR_DISK_ERR);	/* Move sector window to the file data */
+		dbuf = fs->win;
+#else
+		if (fp->sect != sect) {		/* Fill sector cache with file data */
+#if !_FS_READONLY
+			if (fp->flag & _FA_DIRTY) {		/* Write-back dirty sector cache */
+				if (disk_write(fs->drv, fp->buf, fp->sect, 1) != RES_OK) ABORT(fs, FR_DISK_ERR);
+				fp->flag &= ~_FA_DIRTY;
+			}
+#endif
+			if (disk_read(fs->drv, fp->buf, sect, 1) != RES_OK) ABORT(fs, FR_DISK_ERR);
 		}
+		dbuf = fp->buf;
+#endif
 		fp->sect = sect;
-		rcnt = SS(fs) - (WORD)(fp->fptr % SS(fs));	/* Forward data from sector window */
-		if (rcnt > btf) rcnt = btf;
-		rcnt = (*func)(&fs->win[(WORD)fp->fptr % SS(fs)], rcnt);
+		rcnt = SS(fs) - (UINT)fp->fptr % SS(fs);	/* Number of bytes left in the sector */
+		if (rcnt > btf) rcnt = btf;					/* Clip it by btr if needed */
+		rcnt = (*func)(dbuf + ((UINT)fp->fptr % SS(fs)), rcnt);	/* Forward the file data */
 		if (!rcnt) ABORT(fs, FR_INT_ERR);
 	}
 
