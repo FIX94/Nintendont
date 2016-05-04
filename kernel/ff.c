@@ -3075,7 +3075,7 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 		do {								/* Find an FAT volume */
 			bsect = br[i];
 			fmt = bsect ? check_fs(fs, bsect) : 3;	/* Check the partition */
-		} while (!LD2PT(vol) && fmt >= 2 && ++i < 4);
+		} while (!LD2PT(vol) && fmt >= 2 && ++i < br_max);
 	}
 	if (fmt == 4) return FR_DISK_ERR;		/* An error occured in the disk I/O layer */
 	if (fmt >= 2) return FR_NO_FILESYSTEM;	/* No FAT volume is found */
