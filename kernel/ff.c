@@ -2902,6 +2902,8 @@ BYTE check_fs (	/* 0:FAT, 1:exFAT, 2:Valid BS but not FAT, 3:Not a BS, 4:Disk er
 
 #define GPT_PARTITION_ENTRY_SIZE 128
 #define GPT_PARTITION_COUNT_MAX 128
+// EFI System Partition: {C12A7328-F81F-11D2-BA4B-00A0C93EC93B}
+static const DWORD GPT_EFISYS_GUID[4] = {0x28732AC1, 0x1FF8D211, 0xBA4B00A0, 0xC93EC93B};
 
 static
 BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:GPT is invalid, 3:Disk error */
@@ -2969,6 +2971,13 @@ BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:
 			if (lba64_start > 0xFFFFFFFFULL || lba64_end > 0xFFFFFFFFULL) {
 				// Partition is over the 32-bit sector limit.
 				// FatFS doesn't support this.
+				// FIXME: FSIZE_t is 64-bit when exFAT is enabled.
+				continue;
+			}
+
+			// Check if this is an EFI System Partition.
+			if (!mem_cmp(&fs->win[n], GPT_EFISYS_GUID, sizeof(GPT_EFISYS_GUID))) {
+				// EFI System Partition. Ignore it.
 				continue;
 			}
 
