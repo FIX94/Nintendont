@@ -5434,7 +5434,7 @@ FRESULT f_mkfs (
 	if (n_vol < 0x10000) {					/* Number of total sectors */
 		st_word(tbl + BPB_TotSec16, (WORD)n_vol);
 	} else {
-		st_dword(tbl + BPB_TotSec32, (WORD)n_vol);
+		st_dword(tbl + BPB_TotSec32, n_vol);
 	}
 	tbl[BPB_Media] = md;					/* Media descriptor */
 	st_word(tbl + BPB_SecPerTrk, 63);		/* Number of sectors per track */
