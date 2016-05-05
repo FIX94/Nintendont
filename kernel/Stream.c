@@ -1,7 +1,7 @@
 /*
 Stream.c for Nintendont (Kernel)
 
-Copyright (C) 2014 FIX94
+Copyright (C) 2014 - 2016 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -104,7 +104,8 @@ void StreamUpdate()
 	u32 i;
 	for(i = 0; i < cur_chunksize; i += ONE_BLOCK_SIZE)
 	{
-		ADPdecodebuffer(StreamBuffer+i,outl,outr,&hist[0],&hist[1],&hist[2],&hist[3]);
+		//outl and outr needed to be swapped here to be correct
+		ADPdecodebuffer(StreamBuffer+i,outr,outl,&hist[0],&hist[1],&hist[2],&hist[3]);
 		CurrentWriter();
 	}
 	sync_after_write((void*)cur_buf, BUFSIZE);
