@@ -3,7 +3,7 @@
 Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
 
 Copyright (C) 2013  crediar
-Copyright (C) 2014  FIX94
+Copyright (C) 2014 - 2016 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -2596,6 +2596,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									break;
 								}
 							}
+						} break;
+						case FCODE___PADSetSamplingRate:
+						{
+							if(read32(FOffset+0x60) != 0x40800014 || read32(FOffset+0x8C) != 0xA003206C)
+							{
+								CurPatterns[j].Found = 0; // False hit
+								break;
+							}
+							write32(FOffset+0x60, 0x60000000); //anti-crash
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
 						case FCODE_PADControlAllMotors:
 						{

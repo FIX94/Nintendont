@@ -3,7 +3,7 @@
 Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
 
 Copyright (C) 2013  crediar
-Copyright (C) 2014  FIX94
+Copyright (C) 2014 - 2016 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -92,6 +92,7 @@ enum
 										//EXIntrruptHandler_B,	
 										//EXIntrruptHandler_C,
 	FCODE_PADRead,
+	FCODE___PADSetSamplingRate,
 	FCODE_PADControlAllMotors,
 	FCODE_PADControlMotor,
 	FCODE_PADIsBarrel,
@@ -183,6 +184,8 @@ FuncPattern NormalFPatterns[] =
 
 	{  0x158,   26,   22,    5,   13,    2,	ARQPostRequest,		ARQPostRequest_size,		"ARQPostRequest",		NULL,		FGROUP_NONE,				0 },
 //	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",						FGROUP_NONE,				0 },
+
+	{   0xE8,   14,    7,    6,   10,    6,	NULL,				FCODE___PADSetSamplingRate,	"__PADSetSamplingRate",	NULL,		FGROUP_NONE,				0 },
 #ifdef PATCHALL
 	{   0xCC,    3,    3,    1,    0,    3,	NULL,				FCODE_C_MTXPerspective,		"C_MTXPerspective",		NULL,		FGROUP_NONE,				0 },
 	{   0xC8,    3,    3,    1,    0,    3,	NULL,				FCODE_C_MTXLightPerspective,"C_MTXLightPerspective",NULL,		FGROUP_NONE,				0 },
