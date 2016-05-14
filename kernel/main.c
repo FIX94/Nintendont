@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SDI.h"
 
 //#undef DEBUG
-
+bool access_led = false;
 u32 USBReadTimer = 0;
 extern u32 s_size;
 extern u32 s_cnt;
@@ -234,12 +234,16 @@ int _main( int argc, char *argv[] )
 	USBReadTimer = Now;
 	u32 Reset = 0;
 	bool SaveCard = false;
-	if( ConfigGetConfig(NIN_CFG_LED) )
+
+	//enable ios led use
+	access_led = ConfigGetConfig(NIN_CFG_LED);
+	if(access_led)
 	{
 		set32(HW_GPIO_ENABLE, GPIO_SLOT_LED);
 		clear32(HW_GPIO_DIR, GPIO_SLOT_LED);
 		clear32(HW_GPIO_OWNER, GPIO_SLOT_LED);
 	}
+
 	set32(HW_GPIO_ENABLE, GPIO_SENSOR_BAR);
 	clear32(HW_GPIO_DIR, GPIO_SENSOR_BAR);
 	clear32(HW_GPIO_OWNER, GPIO_SENSOR_BAR);
@@ -466,9 +470,6 @@ int _main( int argc, char *argv[] )
 		wait_for_ppc(1);
 	}
 
-	if( ConfigGetConfig(NIN_CFG_LED) )
-		clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
-
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
 
@@ -488,6 +489,9 @@ int _main( int argc, char *argv[] )
 		USBStorage_Shutdown();
 	else
 		SDHCShutdown();
+
+//make sure drive led is off before quitting
+	if( access_led ) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);

@@ -172,7 +172,7 @@ void ClearRealDiscBuffer(void)
 	memset32(DISC_DRIVE_BUFFER, 0, DISC_DRIVE_BUFFER_LENGTH);
 	sync_after_write(DISC_DRIVE_BUFFER, DISC_DRIVE_BUFFER_LENGTH);
 }
-
+extern bool access_led;
 u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 {
 	//dbgprintf("ReadRealDisc(%08x %08x)\r\n", *Length, Offset);
@@ -201,8 +201,9 @@ u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 		while(WaitForWrite == 1)
 			udelay(20);
 	}
-	if (ConfigGetConfig(NIN_CFG_LED))
-		set32(HW_GPIO_OUT, GPIO_SLOT_LED);	//turn on drive light
+
+	//turn on drive led
+	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	if (*Length > DISC_DRIVE_BUFFER_LENGTH - ReadDiff)
 	{
@@ -246,8 +247,8 @@ u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 		udelay(70);
 	}
 
-	if (ConfigGetConfig(NIN_CFG_LED))
-		clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
+	//turn off drive led
+	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	if(RealDiscCMD == DIP_CMD_DVDR)
 	{

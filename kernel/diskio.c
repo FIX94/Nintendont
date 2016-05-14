@@ -7,7 +7,7 @@
 #include "usbstorage.h"
 #include "alloc.h"
 #include "common.h"
-
+extern bool access_led;
 u32 s_size;
 u32 s_cnt;
 
@@ -15,8 +15,8 @@ DRESULT disk_read_sd( BYTE drv, BYTE *buff, DWORD sector, BYTE count )
 {
 	s32 Retry=10;
 
-	if (ConfigGetConfig(NIN_CFG_LED))
-		set32(HW_GPIO_OUT, GPIO_SLOT_LED);	//turn on drive light
+	//turn on drive led
+	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	while(1)
 	{
@@ -26,52 +26,70 @@ DRESULT disk_read_sd( BYTE drv, BYTE *buff, DWORD sector, BYTE count )
 		Retry--;
 		if( Retry < 0 )
 		{
-			if (ConfigGetConfig(NIN_CFG_LED))
-				clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
+			//turn off drive led
+			if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 			return RES_ERROR;
 		}
 	}
 
-	if (ConfigGetConfig(NIN_CFG_LED))
-		clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
+	//turn off drive led
+	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }
-// Write Sector(s)
+
 DRESULT disk_write_sd( BYTE drv, const BYTE *buff, DWORD sector, BYTE count )
 {
+	//turn on drive led
+	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
+
 	if( sdio_WriteSectors( sector, count, buff ) < 0 )
+	{
+		//turn off drive led
+		if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 		return RES_ERROR;
+	}
+
+	//turn off drive led
+	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }
 
 DRESULT disk_read_usb(BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 {
-	if (ConfigGetConfig(NIN_CFG_LED))
-		set32(HW_GPIO_OUT, GPIO_SLOT_LED);	//turn on drive light
+	//turn on drive led
+	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	if(USBStorage_ReadSectors(sector, count, buff) != 1)
 	{
-		if (ConfigGetConfig(NIN_CFG_LED))
-			clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
+		//turn off drive led
+		if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 		dbgprintf("USB:Failed to read from USB device... Sector: %d Count: %d dst: %p\r\n", sector, count, buff);
 		return RES_ERROR;
 	}
 
-	if (ConfigGetConfig(NIN_CFG_LED))
-		clear32(HW_GPIO_OUT, GPIO_SLOT_LED); //turn off drive light
+	//turn off drive led
+	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }
 
 DRESULT disk_write_usb(BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
 {
+	//turn on drive led
+	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
+
 	if(USBStorage_WriteSectors(sector, count, buff) != 1)
 	{
+		//turn off drive led
+		if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 		dbgprintf("USB: Failed to write to USB device... Sector: %d Count: %d dst: %p\r\n", sector, count, buff);
 		return RES_ERROR;
 	}
+
+	//turn off drive led
+	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }
