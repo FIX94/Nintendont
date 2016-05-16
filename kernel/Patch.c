@@ -2202,8 +2202,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE___OSReadROM:	//	__OSReadROM
 						{
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-							memcpy( (void*)FOffset, __OSReadROM, sizeof(__OSReadROM) );
+							if(read32(FOffset+0x80) == 0x38A00004)
+							{
+								memcpy((void*)FOffset, ReadROM, ReadROM_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else
+								CurPatterns[j].Found = 0;
 						} break;
 						case FCODE___OSInitAudioSystem_A:
 						{
@@ -2364,7 +2369,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_ReadROM:
 						{
-							if(read32(FOffset+0x3C) == 0x3BE00100)
+							if(read32(FOffset+0x3C) == 0x3BE00100 || 
+								read32(FOffset+0x44) == 0x38800100)
 							{
 								memcpy((void*)FOffset, ReadROM, ReadROM_size);
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);

@@ -147,11 +147,12 @@ enum
 	FGROUP_CARDStat,
 	FGROUP_OSGetResetState,
 	FGROUP___OSInitAudioSystem,
+	FGROUP_ReadROM,
 } FPatternGroups;
 
 FuncPattern NormalFPatterns[] =
 {
-	{   0xA8,   10,    4,    4,    6,    3,	DVDGetDriveStatus,	sizeof(DVDGetDriveStatus),	"DVDGetDriveStatus",	NULL,		FGROUP_NONE,				0 },
+//	{   0xA8,   10,    4,    4,    6,    3,	DVDGetDriveStatus,	sizeof(DVDGetDriveStatus),	"DVDGetDriveStatus",	NULL,		FGROUP_NONE,				0 },
 #ifndef AUDIOSTREAM
 	{   0xD4,   13,    8,   11,    2,    7,	NULL,				FCODE_AIResetStreamCount,"AIResetStreamSampleCount",NULL,		FGROUP_NONE,				0 },
 #endif
@@ -183,7 +184,6 @@ FuncPattern NormalFPatterns[] =
 	{   0x74,   10,    3,    4,    1,    3,	NULL,				FCODE___ARHandler,			"__ARHandler",			NULL,		FGROUP_NONE,				0 },
 
 	{  0x158,   26,   22,    5,   13,    2,	ARQPostRequest,		ARQPostRequest_size,		"ARQPostRequest",		NULL,		FGROUP_NONE,				0 },
-//	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",						FGROUP_NONE,				0 },
 
 	{   0xE8,   14,    7,    6,   10,    6,	NULL,				FCODE___PADSetSamplingRate,	"__PADSetSamplingRate",	NULL,		FGROUP_NONE,				0 },
 #ifdef PATCHALL
@@ -351,7 +351,10 @@ FuncPattern EXIFPatterns[] =
 //	{   0x60,    7,    6,    1,    1,    3,	__CARDRead,			sizeof(__CARDRead),			"__CARDRead",						FGROUP_NONE,				0 },
 //	{   0xDC,   17,    9,    4,    3,    2,	__CARDEraseSector,	sizeof(__CARDEraseSector),	"__CARDEraseSector",				FGROUP_NONE,				0 },
 
-	{   0x88,    9,    6,    1,    3,    2,	NULL,				FCODE_ReadROM,				"ReadROM",				NULL,		FGROUP_NONE,				0 },
+	{   0x88,    9,    6,    1,    3,    2,	NULL,				FCODE_ReadROM,				"ReadROM",				"A",		FGROUP_ReadROM,				0 },
+	{   0x80,    8,    6,    1,    4,    6,	NULL,				FCODE_ReadROM,				"ReadROM",				"B",		FGROUP_ReadROM,				0 },
+
+	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",			NULL,		FGROUP_NONE,				0 },
 };
 
 FuncPattern DatelFPatterns[] =

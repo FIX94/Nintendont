@@ -581,9 +581,9 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 		{
 			case IPL_READ_FONT:
 			{
-#ifdef DEBUG_SRAM
-				dbgprintf("EXI: IPLRead( %p, %08X, %u)\r\n", Data, IPLReadOffset, Length );
-#endif
+//#ifdef DEBUG_SRAM
+				dbgprintf("EXI: IPLRead( %p, %08X, %u), No ReadROM Patch?\r\n", Data, IPLReadOffset, Length );
+//#endif
 				EXIReadFontFile(Data, Length);
 			} break;
 			case RTC_READ:
