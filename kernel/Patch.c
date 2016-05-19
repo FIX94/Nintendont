@@ -87,6 +87,8 @@ static char cheatPath[255];
 extern u32 prs_decompress(void* source,void* dest);
 extern u32 prs_decompress_size(void* source);
 
+static FuncPattern curFunc;
+
 #ifndef DEBUG_PATCH
 #define dbgprintf(...)
 #else
@@ -1457,8 +1459,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PatchWide = false;
 
 	PatchFuncInterface( Buffer, Length );
-	sync_after_write( Buffer, Length );
-	sync_before_read( Buffer, Length );
 
 	u32 PatchCount = FPATCH_VideoModes | 
 		FPATCH_OSSleepThread | FPATCH_GXBegin | FPATCH_GXDrawDone;
@@ -1477,14 +1477,40 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		(ConfigGetVideoOffset() != 0 && ConfigGetVideoOffset() >= -20 && ConfigGetVideoOffset() <= 20) ||
 		(ConfigGetVideoScale() != 0 && ConfigGetVideoScale() >= 40 && ConfigGetVideoScale() <= 120) )
 		PatchCount &= ~FPATCH_VideoModes;
-
+	/* Set up patch pattern lists */
+	FuncPatterns CurFPatternsList[PCODE_MAX];
+	u32 CurFPatternsListLen = 0;
+	u32 minPatternSize = 0xFFFFFFFF;
+	u32 maxPatternSize = 0;
 	u32 patitr;
 	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
 	{
+		/* only handle used patterns */
+		if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == TRI_NONE)
+			continue;
+		if(AllFPatterns[patitr].patmode == PCODE_EXI && DisableEXIPatch)
+			continue;
+		if (AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
+			continue;
+		if (AllFPatterns[patitr].patmode == PCODE_PSO && isPSO == 0)
+			continue;
+		if (AllFPatterns[patitr].patmode == PCODE_SI && DisableSIPatch)
+			continue;
+		/* clear from pervious patches */
 		FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
 		u32 CurPatternsLen = AllFPatterns[patitr].patlen;
 		for( j=0; j < CurPatternsLen; ++j )
+		{
 			CurPatterns[j].Found = 0;
+			if(CurPatterns[j].Length < minPatternSize)
+				minPatternSize = CurPatterns[j].Length;
+			if(CurPatterns[j].Length > maxPatternSize)
+				maxPatternSize = CurPatterns[j].Length;
+		}
+		/* we use this pattern type */
+		CurFPatternsList[CurFPatternsListLen].pat = CurPatterns;
+		CurFPatternsList[CurFPatternsListLen].patlen = CurPatternsLen;
+		CurFPatternsListLen++;
 	}
 	/* Cheats */
 	u32 DebuggerHook = 0, DebuggerHook2 = 0, DebuggerHook3 = 0;
@@ -1706,7 +1732,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
-				else if(BufAt0 == 0x38000008 && read32((u32)Buffer+i+4) == 0x54A47820 && 
+				else if(BufAt0 == 0x38000008 && BufAt4 == 0x54A47820 && 
 					read32((u32)Buffer+i+20) == 0x901F0044 && read32((u32)Buffer+i+28) == 0x7C801A78 && 
 					read32((u32)Buffer+i+40) == 0x3B400000 && read32((u32)Buffer+i+60) == 0x38800008)
 				{
@@ -2039,31 +2065,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 		i+=4;
 
-		FuncPattern fp;
-		MPattern( (u8*)(Buffer+i), Length, &fp );
+		MPattern( (u8*)(Buffer+i), Length, &curFunc );
+		/* only deal with functions with potentially correct function sizes */
+		if(curFunc.Length < minPatternSize || curFunc.Length > maxPatternSize)
+			continue;
 		//if ((((u32)Buffer + i) & 0x7FFFFFFF) == 0x00000000) //(FuncPrint)
-		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d\r\n", fp.Length, fp.Loads, fp.Stores, fp.FCalls, fp.Branch, fp.Moves);
-		for(patitr = 0; patitr < PCODE_MAX; ++patitr)
+		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d\r\n", 
+		//	curFunc.Length, curFunc.Loads, curFunc.Stores, curFunc.FCalls, curFunc.Branch, curFunc.Moves);
+		for(patitr = 0; patitr < CurFPatternsListLen; ++patitr)
 		{
-			if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == TRI_NONE)
-				continue;
-			if(AllFPatterns[patitr].patmode == PCODE_EXI && DisableEXIPatch)
-				continue;
-			if (AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
-				continue;
-			if (AllFPatterns[patitr].patmode == PCODE_PSO && isPSO == 0)
-				continue;				
-			if (AllFPatterns[patitr].patmode == PCODE_SI && DisableSIPatch)
-				continue;
-			FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
-			u32 CurPatternsLen = AllFPatterns[patitr].patlen;
+			FuncPattern *CurPatterns = CurFPatternsList[patitr].pat;
+			u32 CurPatternsLen = CurFPatternsList[patitr].patlen;
 			bool patfound = false;
 			for( j=0; j < CurPatternsLen; ++j )
 			{
 				if( CurPatterns[j].Found ) //Skip already found patches
 					continue;
 
-				if( CPattern( &fp, &(CurPatterns[j]) ) )
+				if( CPattern( &curFunc, &(CurPatterns[j]) ) )
 				{
 					u32 FOffset = (u32)Buffer + i;
 
@@ -2902,20 +2921,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	//if( (PatchCount & FPATCH_DSP_ROM) == 0 )
 	//	dbgprintf("Patch:Unknown DSP ROM\r\n");
 
-	for(patitr = 0; patitr < PCODE_MAX; ++patitr)
+	for(patitr = 0; patitr < CurFPatternsListLen; ++patitr)
 	{
-		if(AllFPatterns[patitr].patmode == PCODE_TRI && TRIGame == TRI_NONE)
-			continue;
-		if(AllFPatterns[patitr].patmode == PCODE_EXI && DisableEXIPatch)
-			continue;
-		if(AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
-			continue;
-		if(AllFPatterns[patitr].patmode == PCODE_PSO && isPSO == 0)
-			continue;			
-		if(AllFPatterns[patitr].patmode == PCODE_SI && DisableSIPatch)
-			continue;
-		FuncPattern *CurPatterns = AllFPatterns[patitr].pat;
-		u32 CurPatternsLen = AllFPatterns[patitr].patlen;
+		FuncPattern *CurPatterns = CurFPatternsList[patitr].pat;
+		u32 CurPatternsLen = CurFPatternsList[patitr].patlen;
 		for( j=0; j < CurPatternsLen; ++j )
 		{
 			if(!CurPatterns[j].Found)
@@ -2961,6 +2970,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if(read32(0x1341514) == 0x38600001)
 		{
 			write32(0x1341514, 0x38600000);
+			//fix up dsp init for cardunlock
+			write32(0x134F28C, 0x64001000); //oris r0, r0, 0x1000
 			dbgprintf("Patch:Patched Gamecube NTSC IPL v1.0\r\n");
 		}
 		else if(read32(0x13693D4) == 0x38600001)
