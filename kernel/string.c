@@ -120,7 +120,7 @@ int memcmp(const void *s1, const void *s2, size_t n)
 
 void *memset(void *dst, int x, size_t n)
 {
-	unsigned char *p;
+	volatile unsigned char *p;
 
 	for (p = dst; n; n--)
 		*p++ = x;

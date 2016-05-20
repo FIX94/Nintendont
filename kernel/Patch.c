@@ -745,7 +745,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 }
 
 u32 piReg = 0;
-bool PatchProcessorInterface( u32 BufAt0, u32 Buffer )
+static inline bool PatchProcessorInterface( u32 BufAt0, u32 Buffer )
 {
 	/* Pokemon XD - PI_FIFO_WP Direct */
 	if(BufAt0 == 0x80033014 && (read32(Buffer+12) & 0xFC00FFFF) == 0x540037FE) //extrwi rZ, rY, 1,5
@@ -925,7 +925,7 @@ void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
 
 	memset32( FunctionPattern, 0, sizeof(FuncPattern) );
 
-	for( i = 0; i < Length; i+=4 )
+	for( i = 0; i <= Length; i+=4 )
 	{
 		u32 word = *(u32*)(Data + i);
 
@@ -2065,7 +2065,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 		i+=4;
 
-		MPattern( (u8*)(Buffer+i), Length, &curFunc );
+		MPattern( (u8*)(Buffer+i), maxPatternSize, &curFunc );
 		/* only deal with functions with potentially correct function sizes */
 		if(curFunc.Length < minPatternSize || curFunc.Length > maxPatternSize)
 			continue;

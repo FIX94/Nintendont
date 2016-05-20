@@ -347,9 +347,6 @@ FuncPattern EXIFPatterns[] =
 	{  0x1B0,   32,    6,    8,   13,   14,	NULL,				FCODE___CARDStat_A,			"__CARDStat",			"A",		FGROUP_CARDStat,			0 },
 	{  0x19C,   38,    8,    6,   13,   14,	NULL,				FCODE___CARDStat_B,			"__CARDStat",			"B",		FGROUP_CARDStat,			0 },
 	{  0x220,   37,    6,    9,   15,   25,	NULL,				FCODE___CARDStat_C,			"__CARDStat",			"C",		FGROUP_CARDStat,			0 },
-//	{  0x130,   33,    8,    6,    5,    2,	__CARDReadSegment,	sizeof(__CARDReadSegment),	"__CARDReadSegment",				FGROUP_NONE,				0 },
-//	{   0x60,    7,    6,    1,    1,    3,	__CARDRead,			sizeof(__CARDRead),			"__CARDRead",						FGROUP_NONE,				0 },
-//	{   0xDC,   17,    9,    4,    3,    2,	__CARDEraseSector,	sizeof(__CARDEraseSector),	"__CARDEraseSector",				FGROUP_NONE,				0 },
 
 	{   0x88,    9,    6,    1,    3,    2,	NULL,				FCODE_ReadROM,				"ReadROM",				"A",		FGROUP_ReadROM,				0 },
 	{   0x80,    8,    6,    1,    4,    6,	NULL,				FCODE_ReadROM,				"ReadROM",				"B",		FGROUP_ReadROM,				0 },

@@ -46,5 +46,5 @@ $(HFILES): $(BINFILES)
 
 clean:
 	@echo clean ...
-	@rm -fr $(HFILES) $(BINFILES) $(ELFFILES)
+	@rm -fr *.h *.bin *.elf
 
