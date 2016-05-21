@@ -58,6 +58,10 @@ es_launchtitle(u64 titleID)
 	ret = ios_ioctlvreboot(es_fd, IOCTL_ES_LAUNCH, 2, 0, vecs);
 	return ret;
 }
+#define HBC_LULZ			0x000100014c554c5aULL
+#define HBC_108				0x00010001af1bf516ULL
+#define HBC_JODI			0x0001000148415858ULL
+#define HBC_HAXX			0x000100014a4f4449ULL
 #define SYSTEM_MENU			0x0000000100000002ULL
 void
 _main(void)
@@ -106,6 +110,10 @@ _main(void)
 #if DEBUG
 	usbgecko_printf("es_init()\n");
 #endif
+	es_launchtitle(HBC_LULZ);
+	es_launchtitle(HBC_108);
+	es_launchtitle(HBC_JODI);
+	es_launchtitle(HBC_HAXX);
 	es_launchtitle(SYSTEM_MENU);
 #if DEBUG
 	usbgecko_printf("es_launchtitle()\n");

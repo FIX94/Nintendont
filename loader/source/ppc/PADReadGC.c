@@ -5,8 +5,9 @@
 #define PAD_CHAN0_BIT				0x80000000
 
 static u32 stubsize = 0x1800;
-static vu32 *stubdest = (u32*)0x81330000;
+static vu32 *stubdest = (u32*)0x80004000;
 static vu32 *stubsrc = (u32*)0x93011810;
+static vu16* const _memReg = (u16*)0xCC004000;
 static vu16* const _dspReg = (u16*)0xCC005000;
 static vu32* const _siReg = (u32*)0xCD006400;
 static vu32* const MotorCommand = (u32*)0x93003010;
@@ -1258,26 +1259,27 @@ u32 _start(u32 calledByGame)
 	return Rumble;
 
 Shutdown:
+	/* disable interrupts */
+	asm volatile("mfmsr 3 ; rlwinm 3,3,0,17,15 ; mtmsr 3");
 	/* stop audio dma */
 	_dspReg[27] = (_dspReg[27]&~0x8000);
+	/* disable dcache and icache */
+	asm volatile("sync ; isync ; mfspr 3,1008 ; rlwinm 3,3,0,18,15 ; mtspr 1008,3");
+	/* disable memory protection */
+	_memReg[15] = 0xF;
+	_memReg[16] = 0;
+	_memReg[8] = 0xFF;
 	/* reset status 1 */
 	*RESET_STATUS = 0x1DEA;
 	while(*RESET_STATUS == 0x1DEA) ;
 	/* load in stub */
-	memFlush = (u32)stubdest;
-	u32 end = memFlush + stubsize;
-	for ( ; memFlush < end; memFlush += 32)
-	{
-		memInvalidate = (u32)stubsrc;
-		asm volatile("dcbi 0,%0 ; sync" : : "b"(memInvalidate) : "memory");
-		u8 b;
-		for(b = 0; b < 8; ++b)
-			*stubdest++ = *stubsrc++;
-		asm volatile("dcbst 0,%0; sync ; icbi 0,%0" : : "b"(memFlush));
-	}
+	do {
+		*stubdest++ = *stubsrc++;
+	} while((stubsize-=4) > 0);
+	/* jump to it */
 	asm volatile(
-		"isync\n"
-		"lis %r3, 0x8133\n"
+		"lis %r3, 0x8000\n"
+		"ori %r3, %r3, 0x4000\n"
 		"mtlr %r3\n"
 		"blr\n"
 	);

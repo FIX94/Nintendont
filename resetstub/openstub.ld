@@ -15,7 +15,7 @@ PHDRS {
 }
 
 SECTIONS {
-	. = 0x81330000;
+	. = 0x80004000;
 
 	.text : { *(.text) *(.text.*) } :app
 
@@ -26,7 +26,6 @@ SECTIONS {
 	.bss : { *(.bss) *(.bss.*) }
 	__bss_end = .;
 
-	. = 0x81331800;
 	__stack_end = .;
 	.stack : {
 		. = . + 0x8000;

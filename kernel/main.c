@@ -231,6 +231,10 @@ int _main( int argc, char *argv[] )
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
 	u32 InterruptTimer = Now;
+#ifdef PERFMON
+	u32 loopCnt = 0;
+	u32 loopPrintTimer = Now;
+#endif
 	USBReadTimer = Now;
 	u32 Reset = 0;
 	bool SaveCard = false;
@@ -271,7 +275,15 @@ int _main( int argc, char *argv[] )
 	while (1)
 	{
 		_ahbMemFlush(0);
-
+#ifdef PERFMON
+		loopCnt++;
+		if(TimerDiffTicks(loopPrintTimer) > 1898437)
+		{
+			dbgprintf("%08i\r\n",loopCnt);
+			loopPrintTimer = read32(HW_TIMER);
+			loopCnt = 0;
+		}
+#endif
 		//Does interrupts again if needed
 		if(TimerDiffTicks(InterruptTimer) > 15820) //about 120 times a second
 		{
@@ -320,7 +332,7 @@ int _main( int argc, char *argv[] )
 			DIFinishAsync();
 			USBReadTimer = read32(HW_TIMER);
 		}
-		udelay(10); //wait for other threads
+		udelay(20); //wait for other threads
 
 		if( WaitForRealDisc == 1 )
 		{
@@ -383,6 +395,7 @@ int _main( int argc, char *argv[] )
 		vu32 reset_status = read32(RESET_STATUS);
 		if (reset_status == 0x1DEA)
 		{
+			dbgprintf("Game Exit\r\n");
 			write32(RESET_STATUS, 0);
 			sync_after_write((void*)RESET_STATUS, 0x20);
 			DIFinishAsync();
@@ -392,7 +405,7 @@ int _main( int argc, char *argv[] )
 		{
 			if (Reset == 0)
 			{
-				dbgprintf("Fake Reset IRQ\n");
+				dbgprintf("Fake Reset IRQ\r\n");
 				write32( RSW_INT, 0x2 ); // Reset irq
 				sync_after_write( (void*)RSW_INT, 0x20 );
 				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
