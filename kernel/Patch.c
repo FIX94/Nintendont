@@ -149,6 +149,9 @@ const unsigned char DSPHashes[][0x14] =
 	{
 		0x9F, 0x3C, 0x9F, 0x9E, 0x05, 0xC7, 0xD5, 0x0B, 0x38, 0x49, 0x2F, 0x2C, 0x68, 0x75, 0x30, 0xFD, 0xE8, 0x6F, 0x9B, 0xCA,			//	15 Dolphin=0x3389a79e=Metroid Prime Trilogy Wii (Needed?)
 	},
+	{
+		0x13, 0x07, 0xEF, 0xAF, 0x7E, 0x66, 0x96, 0x60, 0xCE, 0x00, 0x2B, 0x89, 0x6E, 0x7E, 0xD4, 0xE7, 0xD8, 0x0F, 0x11, 0xF7,			//	16 Dolphin=0xdf059f68=Pikmin US Demo (Unknown to Dolphin)
+	},
 };
 
 const unsigned char DSPPattern[][0x10] =
@@ -157,7 +160,7 @@ const unsigned char DSPPattern[][0x10] =
 		0x02, 0x9F, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	0 Hash 12, 1, 0, 5, 8
 	},
 	{
-		0x02, 0x9F, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	1 Hash 14, 13, 11, 10
+		0x02, 0x9F, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	1 Hash 14, 13, 11, 10, 16
 	},
 	{
 		0x00, 0x00, 0x00, 0x00, 0x02, 0x9F, 0x0C, 0x10, 0x02, 0x9F, 0x0C, 0x1F, 0x02, 0x9F, 0x0C, 0x3B,		//	2 Hash 2
@@ -199,6 +202,7 @@ const DspMatch DspMatches[] =
 	{ 0x00001760,    1,     13 },
 	{ 0x000017E0,    1,     11 },
 	{ 0x00001A00,    1,     10 },
+	{ 0x00001B80,    1,     16 },
 	{ 0x000019E0,    2,      2 },
 	{ 0x00001EC0,    3,      3 },
 	{ 0x00001F20,    4,      4 },
@@ -401,6 +405,12 @@ void DoDSPPatch( char *ptr, u32 Version )
 		case 15:	// Metroid Prime Trilogy Wii (needed?)
 		{
 			PatchAX_Dsp( (u32)ptr, 0x69E, 0x753, AX_DSP_NO_DUP3, 0xA4 );
+		} break;
+		case 16:	// Pikmin US Demo (Unknown to Dolphin)
+		{
+			// DB8 - unused
+			PatchZelda_Dsp( (u32)ptr, 0x0DB8, 0x00CD, false, false );
+			PatchZelda_Dsp( (u32)ptr, 0x0DB8, 0x0118, false, false );  // same orig instructions
 		} break;
 		default:
 		{
@@ -880,6 +890,80 @@ void PatchPatchBuffer(char *dst)
 	}
 }
 
+bool IsPokemonDemo()
+{
+	if( (DOLSize == 4101476 && DOLMinOff == 0x3100 && DOLMaxOff == 0x4CCFE0 &&
+		read32(0x27EA58) == 0x504F4BE9 && read32(0x27EA5C) == 0x4D4F4E20) || //Colosseum EUR
+		(DOLSize == 4336100 && DOLMinOff == 0x3100 && DOLMaxOff == 0x4F14C0 &&
+		read32(0x2F89DC) == 0x504F4B65 && read32(0x2F89E0) == 0x4D4F4E20) || //Pokemon XD USA
+		(DOLSize == 4548516 && DOLMinOff == 0x3100 && DOLMaxOff == 0x520D20 &&
+		read32(0x2F3AE4) == 0x504F4B65 && read32(0x2F3AE8) == 0x4D4F4E20) )  //Pokemon XD EUR
+	{
+		dbgprintf("Patch:Detected Pokemon Demo, using memset patches\r\n");
+		return true;
+	}
+	return false;
+}
+
+bool DemoNeedsPaperMarioDMA()
+{
+	if( (DOLSize == 3983396 && DOLMinOff == 0x3100 && DOLMaxOff == 0x41E4E0 &&
+		read32(0x2BB458) == 0x50415045 && read32(0x2BB45C) == 0x52435241) || //Paper Mario RPG JAP
+		(DOLSize == 3984836 && DOLMinOff == 0x3100 && DOLMaxOff == 0x41EA80 &&
+		read32(0x2BB818) == 0x50415045 && read32(0x2BB81C) == 0x52435241) || //Paper Mario 2 USA
+		(DOLSize == 4019876 && DOLMinOff == 0x3100 && DOLMaxOff == 0x429140 &&
+		read32(0x2BF4C0) == 0x50415045 && read32(0x2BF4C4) == 0x52435241) || //Paper Mario TTYD USA
+		(DOLSize == 4068836 && DOLMinOff == 0x3100 && DOLMaxOff == 0x4359C0 &&
+		read32(0x2CAF00) == 0x50415045 && read32(0x2CAF04) == 0x52435241) )  //Paper Mario TTYD EUR
+	{
+		dbgprintf("Patch:Known Problematic Demo, using ARStartDMA_PM\r\n");
+		return true;
+	}
+	return false;
+}
+
+bool DemoNeedsPostRequest()
+{
+	if( (DOLSize == 4107972 && DOLMinOff == 0x3100 && DOLMaxOff == 0x412760 &&
+		read32(0x3768E0) == 0x53756E73 && read32(0x3768E4) == 0x68696E65) || //Sunshine JAP
+		(DOLSize == 4123684 && DOLMinOff == 0x3100 && DOLMaxOff == 0x416460 &&
+		read32(0x3A61AC) == 0x53756E73 && read32(0x3A61B0) == 0x68696E65) || //Sunshine EUR
+		(DOLSize == 4124068 && DOLMinOff == 0x3100 && DOLMaxOff == 0x4165E0 &&
+		read32(0x3A632C) == 0x53756E73 && read32(0x3A6330) == 0x68696E65) || //Sunshine USA
+		(DOLSize == 3731268 && DOLMinOff == 0x3100 && DOLMaxOff == 0x4CD360 &&
+		read32(0x377900) == 0x4D616E73 && read32(0x377904) == 0x696F6E00) || //Luigis Mansion EUR
+		(DOLSize == 3808868 && DOLMinOff == 0x3100 && DOLMaxOff == 0x4DFE80 &&
+		read32(0x38AAD0) == 0x4D616E73 && read32(0x38AAD4) == 0x696F6E00) || //Luigis Mansion USA
+		(DOLSize == 3102820 && DOLMinOff == 0x3100 && DOLMaxOff == 0x3EC180 &&
+		read32(0x2AA53C) == 0x50696B6D && read32(0x2AA540) == 0x696E2064) || //Pikmin EUR
+		(DOLSize == 3110372 && DOLMinOff == 0x3100 && DOLMaxOff == 0x3EE780 &&
+		read32(0x2AC2BC) == 0x50696B6D && read32(0x2AC2C0) == 0x696E2064) )  //Pikmin USA
+	{
+		dbgprintf("Patch:Known Problematic Demo, using ARQPostRequest\r\n");
+		return true;
+	}
+	return false;
+}
+
+bool DemoNeedsHookPatch()
+{
+	if( (DOLSize == 2044804 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2EE600 &&
+		read32(0x1A9CA8) == 0x4A4F4520 && read32(0x1A9CAC) == 0x4D555354) || //Viewtiful Joe USA
+		(DOLSize == 2044804 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2EE600 &&
+		read32(0x1A9CE8) == 0x4A4F4520 && read32(0x1A9CEC) == 0x4D555354) || //Viewtiful Joe JAP
+		(DOLSize == 2556708 && DOLMinOff == 0x3100 && DOLMaxOff == 0x3732A0 &&
+		read32(0x20A1D0) == 0x4A4F4520 && read32(0x20A1D4) == 0x4D555354) || //Viewtiful Joe EUR
+		(DOLSize == 2176260 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2D99A0 &&
+		read32(0x1CF268) == 0x62696F68 && read32(0x1CF26C) == 0x617A6172) || //Biohazard 4 JAP
+		(DOLSize == 2177508 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2FDCE0 &&
+		read32(0x1D2A00) == 0x62696F68 && read32(0x1D2A04) == 0x617A6172) )  //Resident Evil 4 USA
+	{
+		dbgprintf("Patch:Known Problematic Demo, using ARStartDMA_Hook\r\n");
+		return true;
+	}
+	return false;
+}
+
 bool GameNeedsHook()
 {
 	if( (TITLE_ID) == 0x473258 )	// Sonic Gems Collection
@@ -894,7 +978,6 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x474156 ||	// Avatar Last Airbender
 			(TITLE_ID) == 0x47484E ||	// Hunter the Reckoning
 			(TITLE_ID) == 0x473442 ||	// Resident Evil 4
-			(TITLE_ID) == 0x503442 ||	// Resident Evil 4 (Demo)
 			(TITLE_ID) == 0x474856 ||	// Disneys Hide and Sneak
 			(TITLE_ID) == 0x474353 ||	// Street Racing Syndicate
 			(TITLE_ID) == 0x474241 ||	// NBA 2k2
@@ -904,7 +987,8 @@ bool GameNeedsHook()
 			(TITLE_ID) == 0x47504C ||	// Piglet's Big Game
 			(TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 			(TITLE_ID) == 0x47534F ||	// Sonic Mega Collection
-			(GAME_ID) == 0x4747504A);	// SD Gundam Gashapon Wars
+			(GAME_ID) == 0x4747504A ||	// SD Gundam Gashapon Wars
+			DemoNeedsHookPatch() );
 }
 
 bool PADSwitchRequired()
@@ -1172,9 +1256,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				//	DOLMinOff = (u32)Buffer;
 				//	DOLMaxOff = (u32)Buffer + DOLSize;
 				//}
-#ifdef DEBUG_DI
+//#ifdef DEBUG_DI
 				dbgprintf("DIP:DOL Size:%d MinOff:0x%08X MaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
-#endif
+//#endif
 				/* Hack Position */
 				GameEntry = dol->entrypoint;
 				if (!(PSOHack & PSO_STATE_NOENTRY))
@@ -1224,9 +1308,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			DOLMinOff -= 0x80000000;
 			DOLMaxOff -= 0x80000000;
-#ifdef DEBUG_DI
+//#ifdef DEBUG_DI
 			dbgprintf("DIP:ELF Size:%d MinOff:0x%08X MaxOff:0x%08X\r\n", DOLSize, DOLMinOff, DOLMaxOff );
-#endif
+//#endif
 			/* Hack Position */
 			GameEntry = ehdr->e_entry;
 			ehdr->e_entry = PATCH_OFFSET_ENTRY + 0x80000000;
@@ -1242,7 +1326,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			NewVal |= 0x48000000;
 			FirstLine = read32((u32)Buffer+0xB4);
 			write32((u32)Buffer+0xB4, NewVal);
-			dbgprintf("DIP:Hacked ELF FirstLine:0x%08X MinOff:0x%08X MaxOff:0x%08X\r\n", FirstLine, DOLMinOff, DOLMaxOff );
+			dbgprintf("DIP:Hacked ELF FirstLine:0x%08X Size:%d MinOff:0x%08X MaxOff:0x%08X\r\n", FirstLine, DOLSize, DOLMinOff, DOLMaxOff );
 			PatchState |= PATCH_STATE_LOAD;
 		}
 	}
@@ -1334,7 +1418,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	if(TRIGame == TRI_NONE)
 	{
 		if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ) // Colosseum and XD
-			|| ( GAME_ID == 0x5043534A && Length == 0x479900 )) // Colosseum Bonus
+			|| ( GAME_ID == 0x5043534A && Length == 0x479900 ) // Colosseum Bonus
+			|| IsPokemonDemo() )
 		{
 			dbgprintf("Patch:[Pokemon memset] applied\r\n");
 			// patch out initial memset(0x1800, 0, 0x1800)
@@ -2447,7 +2532,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 									 (TITLE_ID) == 0x474D4F ||	// Micro Machines
 									 (TITLE_ID) == 0x475355 ||	// Superman: Shadow of Apokolips
 									 (TITLE_ID) == 0x474859 ||	// Disney's The Haunted Mansion
-									 (TITLE_ID) == 0x443737 )	// Multi-Game Demo Disc 18
+									 DemoNeedsPaperMarioDMA())
 							{
 								memcpy( (void*)FOffset, ARStartDMA_PM, ARStartDMA_PM_size );
 							}
@@ -2773,7 +2858,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								if ((  (TITLE_ID) != 0x474D53  // Super Mario Sunshine
 									&& (TITLE_ID) != 0x474C4D  // Luigis Mansion
 									&& (TITLE_ID) != 0x475049  // Pikmin
-									&& (TITLE_ID) != 0x474C56) // Chronicles of Narnia
+									&& (TITLE_ID) != 0x474C56  // Chronicles of Narnia
+									&& !DemoNeedsPostRequest())
 									|| useipl == 1)
 								{
 									dbgprintf("Patch:[ARQPostRequest] skipped (0x%08X)\r\n", FOffset);
