@@ -79,7 +79,7 @@ DRESULT disk_read_sd (
 	}
 
 	//turn off drive led
-	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
+	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }
