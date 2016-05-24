@@ -1,23 +1,17 @@
-/*-----------------------------------------------------------------------
-/  Low level disk interface modlue include file  R0.07   (C)ChaN, 2009
-/-----------------------------------------------------------------------
-/ FatFs module is an open source project to implement FAT file system to small
-/ embedded systems. It is opened for education, research and development under
-/ license policy of following trems.
-/
-/  Copyright (C) 2009, ChaN, all right reserved.
-/
-/ * The FatFs module is a free software and there is no warranty.
-/ * You can use, modify and/or redistribute it for personal, non-profit or
-/   commercial use without any restriction under your responsibility.
-/ * Redistributions of source code must retain the above copyright notice.
-/
-/----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------/
+/  Low level disk interface modlue include file   (C)ChaN, 2014          /
+/-----------------------------------------------------------------------*/
 // original source: http://elm-chan.org/fsw/ff/00index_e.html
 
-#ifndef _DISKIO
+#ifndef _DISKIO_DEFINED
+#define _DISKIO_DEFINED
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "integer.h"
+
 
 /* Status of Disk Functions */
 typedef BYTE	DSTATUS;
@@ -35,24 +29,32 @@ typedef enum {
 /*---------------------------------------*/
 /* Prototypes for disk control functions */
 
-void SetDiskFunctions(DWORD);
+DSTATUS disk_initialize (BYTE pdrv);
+DSTATUS disk_status (BYTE pdrv);
+DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
+DWORD get_fattime(void);
 
-typedef DRESULT (*DiskReadFunc)(BYTE, BYTE*, DWORD, BYTE);
-typedef DRESULT (*DiskWriteFunc)(BYTE, const BYTE*, DWORD, BYTE);
-
+/* Nintendont: R/W functions are pointers in order to *
+ * allow support for both SD cards and USB storage.   *
+ * NOTE: This *could* be implemented by using the     *
+ * "Physical Drive Number" (pdrv) parameter.          */
+typedef DRESULT (*DiskReadFunc)(BYTE pdrv, BYTE* buff, DWORD sector, UINT count);
+typedef DRESULT (*DiskWriteFunc)(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count);
 extern DiskReadFunc disk_read;
 extern DiskWriteFunc disk_write;
 
-DSTATUS disk_initialize(BYTE);
-DSTATUS disk_status(BYTE);
-DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
-DWORD get_fattime(void);
+/**
+ * Nintendont: Initialize disk drive functions.
+ * @param usb 1 for USB; 0 for SD.
+ */
+void SetDiskFunctions(DWORD usb);
 
 /* Disk Status Bits (DSTATUS) */
 
 #define STA_NOINIT		0x01	/* Drive not initialized */
 #define STA_NODISK		0x02	/* No medium in the drive */
 #define STA_PROTECT		0x04	/* Write protected */
+
 
 /* Command code for disk_ioctrl fucntion */
 
@@ -75,11 +77,17 @@ DWORD get_fattime(void);
 #define MMC_GET_CID			12	/* Get CID */
 #define MMC_GET_OCR			13	/* Get OCR */
 #define MMC_GET_SDSTAT		14	/* Get SD status */
+#define ISDIO_READ			55	/* Read data form SD iSDIO register */
+#define ISDIO_WRITE			56	/* Write data to SD iSDIO register */
+#define ISDIO_MRITE			57	/* Masked write data to SD iSDIO register */
 
 /* ATA/CF specific ioctl command */
 #define ATA_GET_REV			20	/* Get F/W revision */
 #define ATA_GET_MODEL		21	/* Get model name */
 #define ATA_GET_SN			22	/* Get serial number */
 
-#define _DISKIO
+#ifdef __cplusplus
+}
+#endif
+
 #endif

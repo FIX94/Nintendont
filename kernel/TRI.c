@@ -121,7 +121,7 @@ void TRIReadSettings()
 	FIL backup;
 	if (f_open_char(&backup, TRISettingsName, FA_OPEN_EXISTING | FA_READ) == FR_OK)
 	{
-		if(backup.fsize == TRISettingsSize)
+		if(backup.obj.objsize == TRISettingsSize)
 		{
 			u32 read;
 			u8 sbuf[TRISettingsSize];

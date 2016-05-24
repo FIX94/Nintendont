@@ -37,7 +37,7 @@ extern int dbgprintf( const char *fmt, ...);
 #define ControlMessage 18
 #define InterruptMessage 19
 
-static u8 ss_led_pattern[8] = {0x0, 0x02, 0x04, 0x08, 0x10, 0x12, 0x14, 0x18};
+static const u8 ss_led_pattern[8] = {0x0, 0x02, 0x04, 0x08, 0x10, 0x12, 0x14, 0x18};
 
 s32 HIDHandle = -1;
 u32 PS3LedSet = 0;
@@ -55,13 +55,13 @@ u8 *RawRumbleDataOff = NULL;
 u32 RawRumbleDataLen = 0;
 u32 RumbleTransferLen = 0;
 u32 RumbleTransfers = 0;
-unsigned char rawData[] =
+static const unsigned char rawData[] =
 {
-    0x01, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x27, 0x10, 0x00, 0x32, 
-    0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-	0x00, 
-} ;
+	0x01, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x27, 0x10, 0x00, 0x32, 
+	0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0xFF, 0x27, 0x10, 0x00, 0x32, 0x00, 
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x00,
+};
 
 struct _usb_msg readreq ALIGNED(32);
 struct _usb_msg writereq ALIGNED(32);
@@ -271,11 +271,11 @@ s32 HIDOpen( u32 LoaderRequest )
 			dbgprintf("HID:Failed to open config file:%u\r\n", ret );
 		else
 		{
-			Data = (char*)malloc( f.fsize + 1 );
+			Data = (char*)malloc( f.obj.objsize + 1 );
 			if(Data)
 			{
-				f_read( &f, Data, f.fsize, &read );
-				Data[f.fsize] = 0x00;	//null terminate the file
+				f_read( &f, Data, f.obj.objsize, &read );
+				Data[f.obj.objsize] = 0x00;	//null terminate the file
 			}
 			f_close(&f);
 		}
@@ -777,64 +777,74 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 	str += strlen(entryname); // Skip '='
 
 	char *strEnd = strchr( str, 0x0A );
+	u32 ret = 0;
+	u32 i;
 
-	if( Entry == 0 )
+	switch (Entry)
 	{
-		return atox(str);
+		case 0:
+			ret = atox(str);
+			break;
 
-	} else if ( Entry == 1 ) {
+		case 1:
+			str = strstr( str, "," );
+			if( str == (char*)NULL || str > strEnd )
+			{
+				dbgprintf("No \",\" found in entry.\r\n");
+				break;
+			}
 
-		str = strstr( str, "," );
-		if( str == (char*)NULL || str > strEnd )
-		{
-			dbgprintf("No \",\" found in entry.\r\n");
-			return 0;
-		}
+			str++; //Skip ,
 
-		str++; //Skip ,
+			ret = atox(str);
+			break;
 
-		return atox(str);
-	} else if ( Entry == 2 ) {
+		case 2:
+			str = strstr( str, "," );
+			if( str == (char*)NULL || str > strEnd )
+			{
+				dbgprintf("No \",\" found in entry.\r\n");
+				break;
+			}
 
-		str = strstr( str, "," );
-		if( str == (char*)NULL || str > strEnd )
-		{
-			dbgprintf("No \",\" found in entry.\r\n");
-			return 0;
-		}
+			str++; //Skip the first ,
 
-		str++; //Skip the first ,
+			str = strstr( str, "," );
+			if( str == (char*)NULL || str > strEnd )
+			{
+				dbgprintf("No \",\" found in entry.\r\n");
+				break;
+			}
 
-		str = strstr( str, "," );
-		if( str == (char*)NULL || str > strEnd )
-		{
-			dbgprintf("No \",\" found in entry.\r\n");
-			return 0;
-		}
+			str++; //Skip the second ,
 
-		str++; //Skip the second ,
+			ret = atox(str);
+			break;
 
-		return atox(str);
-	} else if ( Entry == 3 ) {
-		u32 i;
-		for(i = 0; i < RawRumbleDataLen; ++i)
-		{
-			RawRumbleDataOn[i] = atox(str);
-			str = strstr( str, "," )+1;
-		}
-	} else if ( Entry == 4 ) {
-		u32 i;
-		for(i = 0; i < RawRumbleDataLen; ++i)
-		{
-			RawRumbleDataOff[i] = atox(str);
-			str = strstr( str, "," )+1;
-		}
+		case 3:
+			for(i = 0; i < RawRumbleDataLen; ++i)
+			{
+				RawRumbleDataOn[i] = atox(str);
+				str = strstr( str, "," )+1;
+			}
+			break;
+
+		case 4:
+			for(i = 0; i < RawRumbleDataLen; ++i)
+			{
+				RawRumbleDataOff[i] = atox(str);
+				str = strstr( str, "," )+1;
+			}
+			break;
+
+		default:
+			break;
 	}
 
-	return 0;
+	return ret;
 }
 
-int atoi(char *s)
+static int atoi(char *s)
 {
 	int i=0;
 	int val = 0;
@@ -846,6 +856,7 @@ int atoi(char *s)
 	}
 	return val;
 }
+
 u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 {
 	char entryname[128];
@@ -861,47 +872,54 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 	str += strlen(entryname); // Skip '='
 
 	char *strEnd = strchr( str, 0x0A );
+	u32 ret = 0;
 
-	if( Entry == 0 )
+	switch (Entry)
 	{
-		return atoi(str);
+		case 0:
+			ret = atoi(str);
+			break;
 
-	} else if ( Entry == 1 ) {
+		case 1:
+			str = strstr( str, "," );
+			if( str == (char*)NULL || str > strEnd )
+			{
+				dbgprintf("No \",\" found in entry.\r\n");
+				break;
+			}
 
-		str = strstr( str, "," );
-		if( str == (char*)NULL || str > strEnd )
-		{
-			dbgprintf("No \",\" found in entry.\r\n");
-			return 0;
-		}
+			str++; //Skip ,
 
-		str++; //Skip ,
+			ret = atoi(str);
+			break;
 
-		return atoi(str);
-	} else if ( Entry == 2 ) {
+		case 2:
+			str = strstr( str, "," );
+			if( str == (char*)NULL  || str > strEnd )
+			{
+				dbgprintf("No \",\" found in entry.\r\n");
+				break;
+			}
 
-		str = strstr( str, "," );
-		if( str == (char*)NULL  || str > strEnd )
-		{
-			dbgprintf("No \",\" found in entry.\r\n");
-			return 0;
-		}
+			str++; //Skip the first ,
 
-		str++; //Skip the first ,
+			str = strstr( str, "," );
+			if( str == (char*)NULL  || str > strEnd )
+			{
+				dbgprintf("No \",\" found in entry.\r\n");
+				break;
+			}
 
-		str = strstr( str, "," );
-		if( str == (char*)NULL  || str > strEnd )
-		{
-			dbgprintf("No \",\" found in entry.\r\n");
-			return 0;
-		}
+			str++; //Skip the second ,
 
-		str++; //Skip the second ,
+			ret = atoi(str);
+			break;
 
-		return atoi(str);
+		default:
+			break;
 	}
 
-	return 0;
+	return ret;
 }
 
 void HIDUpdateRegisters(u32 LoaderRequest)
