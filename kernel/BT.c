@@ -48,7 +48,7 @@ static vu32* BTPadFree = (u32*)0x13002730;
 static vu32* IRSensitivity = (u32*)0x132C0490;
 static vu32* SensorBarPosition = (u32*)0x132C0494;
 
-u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
+static const u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 
 #define CHAN_NOT_SET 4
 
@@ -346,15 +346,16 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 	{
 		if(stat->transferstate == TRANSFER_GET_IDENT)
 		{
-			if((R32((u32)((u8*)buffer+8)) == 0xA4200101) ||	//CLASSIC_CONTROLLER
-			   (R32((u32)((u8*)buffer+8)) == 0x90908f00) ||	//CLASSIC_CONTROLLER_NYKOWING
-			   (R32((u32)((u8*)buffer+8)) == 0x9e9f9c00) ||	//CLASSIC_CONTROLLER_NYKOWING2
-			   (R32((u32)((u8*)buffer+8)) == 0x908f8f00) ||	//CLASSIC_CONTROLLER_NYKOWING3
-			   (R32((u32)((u8*)buffer+8)) == 0xa5a2a300) ||	//CLASSIC_CONTROLLER_GENERIC
-			   (R32((u32)((u8*)buffer+8)) == 0x98999900) ||	//CLASSIC_CONTROLLER_GENERIC2
-			   (R32((u32)((u8*)buffer+8)) == 0xa0a1a000) ||	//CLASSIC_CONTROLLER_GENERIC3
-			   (R32((u32)((u8*)buffer+8)) == 0x8d8d8e00) ||	//CLASSIC_CONTROLLER_GENERIC4
-			   (R32((u32)((u8*)buffer+8)) == 0x93949400))		//CLASSIC_CONTROLLER_GENERIC5
+			const u32 ext_ctrl_id = R32((u32)((u8*)buffer+8));
+			if((ext_ctrl_id == 0xA4200101) ||	//CLASSIC_CONTROLLER
+			   (ext_ctrl_id == 0x90908f00) ||	//CLASSIC_CONTROLLER_NYKOWING
+			   (ext_ctrl_id == 0x9e9f9c00) ||	//CLASSIC_CONTROLLER_NYKOWING2
+			   (ext_ctrl_id == 0x908f8f00) ||	//CLASSIC_CONTROLLER_NYKOWING3
+			   (ext_ctrl_id == 0xa5a2a300) ||	//CLASSIC_CONTROLLER_GENERIC
+			   (ext_ctrl_id == 0x98999900) ||	//CLASSIC_CONTROLLER_GENERIC2
+			   (ext_ctrl_id == 0xa0a1a000) ||	//CLASSIC_CONTROLLER_GENERIC3
+			   (ext_ctrl_id == 0x8d8d8e00) ||	//CLASSIC_CONTROLLER_GENERIC4
+			   (ext_ctrl_id == 0x93949400))		//CLASSIC_CONTROLLER_GENERIC5
 			{
 				if(*((u8*)buffer+6) == 0)
 				{
@@ -376,7 +377,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				stat->transferstate = TRANSFER_CALIBRATE;
 				sync_after_write(arg, sizeof(struct BTPadStat));
 			}
-			else if(R32((u32)((u8*)buffer+8)) == 0xA4200000)
+			else if(ext_ctrl_id == 0xA4200000)
 			{
 				stat->controller = C_NUN;
 				//dbgprintf("Connected NUNCHUCK\n");
@@ -635,7 +636,7 @@ static s32 BTHandleDisconnect(void *arg,struct bte_pcb *pcb,u8 err)
 	return ERR_OK;
 }
 
-int RegisterBTPad(struct BTPadStat *stat, struct bd_addr *_bdaddr)
+static int RegisterBTPad(struct BTPadStat *stat, struct bd_addr *_bdaddr)
 {
 	stat->bdaddr = *_bdaddr;
 	stat->sock = bte_new();

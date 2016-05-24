@@ -126,36 +126,38 @@ extern vu32 TRIGame;
 extern u32 IsN64Emu;
 bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
-	if(TRIGame == TRI_GP1)
+	switch (TRIGame)
 	{
-		dbgprintf("PatchWidescreen:[Mario Kart GP1] applied\r\n");
-		PatchWideMulti(0x28C800, 1);
-		return true;
+		case TRI_GP1:
+			dbgprintf("PatchWidescreen:[Mario Kart GP1] applied\r\n");
+			PatchWideMulti(0x28C800, 1);
+			return true;
+		case TRI_GP2:
+			dbgprintf("PatchWidescreen:[Mario Kart GP2] applied\r\n");
+			PatchWideMulti(0x2C80D4, 1);
+			return true;
+		case TRI_VS4:
+			if (read32(0x5E418) == 0xEC020024)
+			{
+				dbgprintf("PatchWidescreen:[Virtua Striker 4v06 Exp] applied\r\n");
+				PatchWideMulti(0x5E418, 0); //clipping
+				PatchWideMulti(0x7FA58, 0); //widescreen
+				return true;
+			}
+			break;
+		case TRI_AX:
+			dbgprintf("PatchWidescreen:[F-Zero AX] applied\r\n");
+			if(read32(0x445774) == FLT_ASPECT_1_333)
+				write32(0x445774, read32(0x445770));
+			else if(read32(0x445C34) == FLT_ASPECT_1_333)
+				write32(0x445C34, read32(0x445C30));
+			else if(read32(0x4461B4) == FLT_ASPECT_1_333)
+				write32(0x4461B4, read32(0x4461B0));
+			return true;
+		default:
+			break;
 	}
-	else if(TRIGame == TRI_GP2)
-	{
-		dbgprintf("PatchWidescreen:[Mario Kart GP2] applied\r\n");
-		PatchWideMulti(0x2C80D4, 1);
-		return true;
-	}
-	else if(TRIGame == TRI_VS4 && read32(0x5E418) == 0xEC020024)
-	{
-		dbgprintf("PatchWidescreen:[Virtua Striker 4v06 Exp] applied\r\n");
-		PatchWideMulti(0x5E418, 0); //clipping
-		PatchWideMulti(0x7FA58, 0); //widescreen
-		return true;
-	}
-	else if(TRIGame == TRI_AX)
-	{	//thanks CosmoCortney
-		dbgprintf("PatchWidescreen:[F-Zero AX] applied\r\n");
-		if(read32(0x445774) == FLT_ASPECT_1_333)
-			write32(0x445774, read32(0x445770));
-		else if(read32(0x445C34) == FLT_ASPECT_1_333)
-			write32(0x445C34, read32(0x445C30));
-		else if(read32(0x4461B4) == FLT_ASPECT_1_333)
-			write32(0x4461B4, read32(0x4461B0));
-		return true;
-	}
+
 	u32 Buffer, PatchedWide = 0;
 	if(IsN64Emu)
 	{

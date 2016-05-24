@@ -99,7 +99,7 @@ extern u32 UseReadLimit;
 extern u32 RealDiscCMD;
 u32 IsN64Emu = 0;
 
-const unsigned char DSPHashes[][0x14] =
+static const unsigned char DSPHashes[][0x14] =
 {
 	{
 		0xC9, 0x7D, 0x1E, 0xD0, 0x71, 0x90, 0x47, 0x3F, 0x6A, 0x66, 0x42, 0xB2, 0x7E, 0x4A, 0xDB, 0xCD, 0xB6, 0xF8, 0x8E, 0xC3,			//	0 Dolphin=0x86840740=Zelda WW
@@ -154,7 +154,7 @@ const unsigned char DSPHashes[][0x14] =
 	},
 };
 
-const unsigned char DSPPattern[][0x10] =
+static const unsigned char DSPPattern[][0x10] =
 {
 	{
 		0x02, 0x9F, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00, 0x02, 0xFF, 0x00, 0x00,		//	0 Hash 12, 1, 0, 5, 8
@@ -189,7 +189,7 @@ typedef struct DspMatch
 	u32 SHA1;
 } DspMatch;
 
-const DspMatch DspMatches[] =
+static const DspMatch DspMatches[] =
 {
 	// Order Patterns together by increasing Length
 	// Length, Pattern,   SHA1
@@ -212,7 +212,7 @@ const DspMatch DspMatches[] =
 };
 
 #define AX_DSP_NO_DUP3 (0xFFFF)
-void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
+static void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 {
 	static const u32 MoveLength = 0x22;
 	static const u32 CopyLength = 0x12;
@@ -290,7 +290,7 @@ void PatchAX_Dsp(u32 ptr, u32 Dup1, u32 Dup2, u32 Dup3, u32 Dup2Offset)
 	return;
 }
 
-void PatchZelda_Dsp(u32 DspAddress, u32 PatchAddr, u32 OrigAddress, bool Split, bool KeepOrig)
+static void PatchZelda_Dsp(u32 DspAddress, u32 PatchAddr, u32 OrigAddress, bool Split, bool KeepOrig)
 {
 	u32 Tmp = R32(DspAddress + (OrigAddress + 0) * 2); // original instructions at OrigAddress
 	if (Split)
@@ -313,14 +313,14 @@ void PatchZelda_Dsp(u32 DspAddress, u32 PatchAddr, u32 OrigAddress, bool Split, 
 	W32(DspAddress + (PatchAddr + 4) * 2, Tmp);
 	W32(DspAddress + (OrigAddress + 0) * 2, 0x02BF0000 | PatchAddr);  // call PatchAddr
 }
-void PatchZeldaInPlace_Dsp(u32 DspAddress, u32 OrigAddress)
+static void PatchZeldaInPlace_Dsp(u32 DspAddress, u32 OrigAddress)
 {
 	W32(DspAddress + (OrigAddress + 0) * 2, 0x009AFFFF); // lri $AX0.H, #0xffff
 	W32(DspAddress + (OrigAddress + 2) * 2, 0x2AD62AD7); // srs @ACEAH, $AX0.H/srs @ACEAL, $AX0.H
 	W32(DspAddress + (OrigAddress + 4) * 2, 0x02601000); // ori $AC0.M, 0x1000
 }
 
-void DoDSPPatch( char *ptr, u32 Version )
+static void DoDSPPatch( char *ptr, u32 Version )
 {
 	switch (Version)
 	{
@@ -444,13 +444,14 @@ void PatchBL( u32 dst, u32 src )
 	newval|= 0x48000001;
 	*(vu32*)src = newval;
 }
+
 /*
 	This area gets used by IOS, this workaround fixes that problem.
 */
-u32 Pach31A0Backup = 0;
-void Patch31A0( void )
+u32 Patch31A0Backup = 0;
+static void Patch31A0( void )
 {
-	if(Pach31A0Backup == 0)
+	if(Patch31A0Backup == 0)
 		return;
 	u32 PatchOffset = PATCH_OFFSET_START;
 	//From Russia with Love stores data here not code so
@@ -481,7 +482,7 @@ void Patch31A0( void )
 		PatchOffset += 4;
 	}
 
-	u32 CurBuf = Pach31A0Backup;
+	u32 CurBuf = Patch31A0Backup;
 	if ((CurBuf & 0xFC000002) == 0x40000000)
 	{
 		u32 Orig = CurBuf;
@@ -754,7 +755,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 	dbgprintf("Patch:[DI] applied %u times\r\n", DIPatched);
 }
 
-u32 piReg = 0;
+static u32 piReg = 0;
 static inline bool PatchProcessorInterface( u32 BufAt0, u32 Buffer )
 {
 	/* Pokemon XD - PI_FIFO_WP Direct */
@@ -890,7 +891,7 @@ void PatchPatchBuffer(char *dst)
 	}
 }
 
-bool IsPokemonDemo()
+static bool IsPokemonDemo()
 {
 	if( (DOLSize == 4101476 && DOLMinOff == 0x3100 && DOLMaxOff == 0x4CCFE0 &&
 		read32(0x27EA58) == 0x504F4BE9 && read32(0x27EA5C) == 0x4D4F4E20) || //Colosseum EUR
@@ -905,7 +906,7 @@ bool IsPokemonDemo()
 	return false;
 }
 
-bool DemoNeedsPaperMarioDMA()
+static bool DemoNeedsPaperMarioDMA()
 {
 	if( (DOLSize == 3983396 && DOLMinOff == 0x3100 && DOLMaxOff == 0x41E4E0 &&
 		read32(0x2BB458) == 0x50415045 && read32(0x2BB45C) == 0x52435241) || //Paper Mario RPG JAP
@@ -922,7 +923,7 @@ bool DemoNeedsPaperMarioDMA()
 	return false;
 }
 
-bool DemoNeedsPostRequest()
+static bool DemoNeedsPostRequest()
 {
 	if( (DOLSize == 4107972 && DOLMinOff == 0x3100 && DOLMaxOff == 0x412760 &&
 		read32(0x3768E0) == 0x53756E73 && read32(0x3768E4) == 0x68696E65) || //Sunshine JAP
@@ -945,7 +946,7 @@ bool DemoNeedsPostRequest()
 	return false;
 }
 
-bool DemoNeedsHookPatch()
+static bool DemoNeedsHookPatch()
 {
 	if( (DOLSize == 2044804 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2EE600 &&
 		read32(0x1A9CA8) == 0x4A4F4520 && read32(0x1A9CAC) == 0x4D555354) || //Viewtiful Joe USA
@@ -964,7 +965,7 @@ bool DemoNeedsHookPatch()
 	return false;
 }
 
-bool GameNeedsHook()
+static bool GameNeedsHook()
 {
 	if( (TITLE_ID) == 0x473258 )	// Sonic Gems Collection
 		return (DOLSize != 1440100 && DOLSize != 1439812); //Everything except Sonic Fighters
@@ -991,14 +992,14 @@ bool GameNeedsHook()
 			DemoNeedsHookPatch() );
 }
 
-bool PADSwitchRequired()
+static inline bool PADSwitchRequired()
 {
 	return( (TITLE_ID) == 0x47434F ||	// Call of Duty
 			(TITLE_ID) == 0x475449 ||	// Tiger Woods PGA Tour 2003
 			(TITLE_ID) == 0x475734 );	// Tiger Woods PGA Tour 2004
 }
 
-bool PADForceConnected()
+static inline bool PADForceConnected()
 {
 	return( (TITLE_ID) == 0x474C5A ); // 007 From Russia With Love
 }
@@ -1066,7 +1067,8 @@ void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2)
 	//dbgprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
 }
 
-char *getVidStr(u32 in)
+#ifdef DEBUG_PATCH
+static const char *getVidStr(u32 in)
 {
 	switch(in)
 	{
@@ -1085,7 +1087,6 @@ char *getVidStr(u32 in)
 	}
 }
 
-#ifdef DEBUG_PATCH
 static inline void printvidpatch(u32 ori_v, u32 new_v, u32 addr)
 {
 	dbgprintf("Patch:Replaced %s with %s (0x%08X)\r\n", getVidStr(ori_v), getVidStr(new_v), addr );
@@ -1100,14 +1101,14 @@ static inline void printpatchfound(const char *name, const char *type, u32 offse
 #define printpatchfound(...)
 #endif
 
-int GotoFuncStart(int i, u32 Buffer)
+static int GotoFuncStart(int i, u32 Buffer)
 {
 	while( read32(Buffer + i - 4) != 0x4E800020 )
 		i -= 4;
 	return i;
 }
 
-int GotoFuncEnd(int i, u32 Buffer)
+static int GotoFuncEnd(int i, u32 Buffer)
 {
 	do {
 		i += 4; //known function, skip over it
@@ -1115,7 +1116,7 @@ int GotoFuncEnd(int i, u32 Buffer)
 	return i;
 }
 
-bool fileExist( char *path )
+static bool fileExist( char *path )
 {
 	FIL fd;
 	if( f_open_char( &fd, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
