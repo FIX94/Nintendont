@@ -27,8 +27,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "update.h"
 #include "titles.h"
 #include "dip.h"
-#include <dirent.h>
-#include <sys/dir.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -79,25 +77,31 @@ int compare_names(const void *a, const void *b)
 bool SelectGame( void )
 {
 //Create a list of games
+	char incurdir[MAXPATHLEN];
 	char filename[MAXPATHLEN];
 	char gamename[MAXPATHLEN];
 
-	DIR *pdir;
-	struct dirent *pent;
-	struct stat statbuf;
+	DIR pdir;
 
-	snprintf(filename, sizeof(filename), "%s:/games", GetRootDevice());
-	pdir = opendir(filename);
-	if( !pdir )
+	snprintf(filename, sizeof(filename), "%s:", GetRootDevice());
+	f_chdrive_char(filename);
+	if( f_chdir_char("games") != FR_OK || f_opendir_char(&pdir,".") != FR_OK )
 	{
 		ClearScreen();
-		gprintf("No FAT device found, or missing %s dir!\n", filename);
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found, or missing %s dir!", filename );
+		gprintf("No FAT device found, or missing %s:/games dir!\n", GetRootDevice());
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found, or missing %s:/games dir!", GetRootDevice());
 		ExitToLoader(1);
 	}
 
 	u32 gamecount = 0;
 	char buf[0x100];
+	//"cache" paths first by using a huge array
+	char *tmpPaths[1024];
+	u32 i;
+	for(i = 0; i < 1024; ++i)
+		tmpPaths[i] = malloc(1024);
+	u32 curPathPos = 0;
+
 	gameinfo gi[MAX_GAMES];
 
 	memset( gi, 0, sizeof(gameinfo) * MAX_GAMES );
@@ -109,74 +113,81 @@ bool SelectGame( void )
 		gi[0].Path = strdup("di:di");
 		gamecount++;
 	}
-	while( ( pent = readdir(pdir) ) != NULL )
+	gprintf("reading dir start\n");
+	FILINFO fInfo;
+	FIL in;
+	while( f_readdir(&pdir,&fInfo) == FR_OK && fInfo.fname[0] )
 	{
-		stat( pent->d_name, &statbuf );
-		if( pent->d_type == DT_DIR )
+		if( fInfo.fattrib & AM_DIR )
 		{
-			if( pent->d_name[0] == '.' )	//skip current and previous directories
-				continue;
-
-		//	gprintf( "%s", pent->d_name );
-
-			//Test if game.iso exists and add to list
-
-			bool found = false;
-			u32 DiscNumber;
-			for (DiscNumber = 0; DiscNumber < 2; DiscNumber++)
+			strncpy(tmpPaths[curPathPos],wchar_to_char(fInfo.fname),1023);
+			curPathPos++;
+			if(curPathPos == 1024)
+				break;
+		}
+	}
+	f_closedir(&pdir);
+	gprintf("reading dir finish\n");
+	for(i = 0; i < curPathPos; i++)
+	{
+		//Test if game.iso exists and add to list
+		char *cDirChar = tmpPaths[i];
+		bool found = false;
+		u32 DiscNumber;
+		for (DiscNumber = 0; DiscNumber < 2; DiscNumber++)
+		{
+			snprintf(incurdir,sizeof(incurdir), "%s/%s.iso", cDirChar, DiscNumber ? "disc2" : "game");
+			if( f_open_char(&in,incurdir,FA_READ|FA_OPEN_EXISTING) == FR_OK )
 			{
-				snprintf(filename, sizeof(filename), "%s:/games/%s/%s.iso", GetRootDevice(), pent->d_name, DiscNumber ? "disc2" : "game");
+			//	gprintf("(%s) ok\n", incurdir );
+				UINT read;
+				f_read(&in,buf,0x100,&read);
+				f_close(&in);
 
-				FILE *in = fopen( filename, "rb" );
-				if( in != NULL )
+				if( IsGCGame((u8*)buf) )	// Must be GC game
 				{
-				//	gprintf("(%s) ok\n", filename );
-					fread( buf, 1, 0x100, in );
-					fclose(in);
+					snprintf(filename, sizeof(filename), "%s:/games/%s/%s.iso", GetRootDevice(), cDirChar, DiscNumber ? "disc2" : "game");
 
-					if( IsGCGame((u8*)buf) )	// Must be GC game
-					{
-						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						if(!SearchTitles(gi[gamecount].ID, gamename)) strcpy( gamename, buf + 0x20 );
-						if (DiscNumber)
-							strcat( gamename, " (2)" );
-						gi[gamecount].Name = strdup( gamename );
-						gi[gamecount].Path = strdup( filename );
+					memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
+					if(!SearchTitles(gi[gamecount].ID, gamename)) strcpy( gamename, buf + 0x20 );
+					if (DiscNumber)
+						strcat( gamename, " (2)" );
+					gi[gamecount].Name = strdup( gamename );
+					gi[gamecount].Path = strdup( filename );
 
-						gamecount++;
-						found = true;
-					}
+					gamecount++;
+					found = true;
 				}
 			}
-			if ( !found ) // Check for FST format
+		}
+		if ( !found ) // Check for FST format
+		{
+			snprintf(incurdir, sizeof(incurdir), "%s/sys/boot.bin", cDirChar);
+			if( f_open_char(&in,incurdir,FA_READ|FA_OPEN_EXISTING) == FR_OK )
 			{
-				snprintf(filename, sizeof(filename), "%s:/games/%s/sys/boot.bin", GetRootDevice(), pent->d_name);
+			//	gprintf("(%s) ok\n", incurdir );
+				UINT read;
+				f_read(&in,buf,0x100,&read);
+				f_close(&in);
 
-				FILE *in = fopen( filename, "rb" );
-				if( in != NULL )
+				if( IsGCGame((u8*)buf) )	// Must be GC game
 				{
-				//	gprintf("(%s) ok\n", filename );
-					fread( buf, 1, 0x100, in );
-					fclose(in);
+					snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), cDirChar);
 
-					if( IsGCGame((u8*)buf) )	// Must be GC game
-					{
-						snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
+					memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
+					gi[gamecount].Name = strdup( buf + 0x20 );
+					gi[gamecount].Path = strdup( filename );
+					
 
-						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						gi[gamecount].Name = strdup( buf + 0x20 );
-						gi[gamecount].Path = strdup( filename );
-						
-
-						gamecount++;
-					}
+					gamecount++;
 				}
 			}
 		}
 		if (gamecount >= MAX_GAMES)	//if array is full
 			break;
 	}
-	closedir(pdir);
+	for(i = 0; i < 1024; ++i)
+		free(tmpPaths[i]);
 
 	if( IsWiiU() )
 		qsort(gi, gamecount, sizeof(gameinfo), compare_names);
@@ -184,7 +195,6 @@ bool SelectGame( void )
 		qsort(&gi[1], gamecount-1, sizeof(gameinfo), compare_names);
 
 	u32 redraw = 1;
-	u32 i;
 	u32 settingPart = 0;
 	s32 PosX = 0, prevPosX = 0;
 	s32 ScrollX = 0, prevScrollX = 0;

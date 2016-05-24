@@ -38,8 +38,8 @@ bool GenerateMemCard(char *MemCard)
 {
 	if(MemCard == NULL)
 		return false;
-	FILE *f = fopen(MemCard, "wb");
-	if(f == NULL)
+	FIL f;
+	if(f_open_char(&f,MemCard,FA_WRITE|FA_CREATE_NEW) != FR_OK)
 		return false;
 	//Get memory to format
 	u8 *MemcardBase = malloc(MEM_CARD_SIZE(ncfg->MemCardBlocks));
@@ -91,8 +91,9 @@ bool GenerateMemCard(char *MemCard)
 	doChecksum((u16*)(MemcardBase+0x6004),0x1FFC,(u16*)(MemcardBase+0x6000),(u16*)(MemcardBase+0x6002));
 	doChecksum((u16*)(MemcardBase+0x8004),0x1FFC,(u16*)(MemcardBase+0x8000),(u16*)(MemcardBase+0x8002));
 	//Write it into a file
-	fwrite(MemcardBase, 1, MEM_CARD_SIZE(ncfg->MemCardBlocks), f);
-	fclose(f);
+	UINT wrote;
+	f_write(&f, MemcardBase, MEM_CARD_SIZE(ncfg->MemCardBlocks), &wrote);
+	f_close(&f);
 	free(MemcardBase);
 	gprintf("Memory Card File created!\r\n");
 	return true;

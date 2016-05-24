@@ -1473,35 +1473,35 @@ void  GRRLIB_GeckoPrintf (const char *text, ...) {
  */
 int  GRRLIB_LoadFile(const char* filename, unsigned char* *data) {
 	int   len;
-	FILE  *fd;
+	FIL  fd;
 
 	// Open the file
-	if ( !(fd = fopen(filename, "rb")) ) {
+	if ( f_open_char(&fd,filename,FA_READ|FA_OPEN_EXISTING) != FR_OK ) {
 		return -1;
 	}
 
 	// Get file length
-	fseek(fd, 0, SEEK_END);
-	if ( !(len = ftell(fd)) ) {
-		fclose(fd);
+	len = fd.obj.objsize;
+	if ( len == 0 ) {
+		f_close(&fd);
 		*data = NULL;
 		return 0;
 	}
-	fseek(fd, 0, SEEK_SET);
 
 	// Grab some memory in which to store the file
 	if ( !(*data = malloc(len)) ) {
-		fclose(fd);
+		f_close(&fd);
 		return -2;
 	}
 
-	if ( fread(*data, 1, len, fd) != len) {
-		fclose(fd);
+	UINT read;
+	if ( f_read(&fd, *data, len, &read) != FR_OK || read != len ) {
+		f_close(&fd);
 		free(*data);  *data = NULL;
 		return -3;
 	}
 
-	fclose(fd);
+	f_close(&fd);
 	return len;
 }
 

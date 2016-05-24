@@ -26,11 +26,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <unistd.h>
 #include <malloc.h>
 #include <network.h>
-#include <fat.h>
-#include <dirent.h>
 #include <zlib.h>
 #include <ogc/lwp_watchdog.h>
-
+#include "ff.h"
 #include "exi.h"
 #include "FPad.h"
 #include "font.h"
@@ -65,9 +63,11 @@ static const downloads_t Downloads[] = {
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/common/include/NintendontVersion.h", "Checking Latest Version", "", 0x400} // 1KB
 };
 
-static int UnzipControllers(const char* filepath) {
+static int UnzipControllers(const void *buf, size_t fSize) {
+	char fake_zip_dir[20];
+	snprintf(fake_zip_dir,20,"%x+%x",(u32)buf,(u32)fSize);
 	char unzip_directory[20];
-	unzFile uf = unzOpen(filepath);
+	unzFile uf = unzOpen(fake_zip_dir);
 	if (uf==NULL)
 	{
 		gprintf("Cannot open %s, aborting\r\n", Downloads[DOWNLOAD_CONTROLLERS].filename);
@@ -76,14 +76,14 @@ static int UnzipControllers(const char* filepath) {
 	gprintf("%s opened\n", Downloads[DOWNLOAD_CONTROLLERS].filename);
 	
 	sprintf(unzip_directory, "%s:/controllers", UseSD ? "sd" : "usb");
-	mkdir(unzip_directory,S_IWRITE|S_IREAD); // attempt to make dir
-	if(chdir(unzip_directory)) {
+	f_mkdir_char(unzip_directory); // attempt to make dir
+	if(f_chdir_char(unzip_directory) != FR_OK) {
 		gprintf("Error changing into %s, aborting\r\n", unzip_directory);
 		return -2;
 	}
 
 	if (extractZip(uf,0,1,0)) {
-		gprintf("Failed to extract %s\r\n", filepath);
+		gprintf("Failed to extract downloaded file!\r\n");
 		return -3;
 	}
 
@@ -159,15 +159,12 @@ static s32 Download(DOWNLOADS download_number)  {
 	u32 http_status = 0;
 	u8* outbuf = NULL;
 	u32 filesize;
-	char filepath[MAXPATHLEN];
-	FILE *file;
 	bool dir_argument_exists = strlen(launch_dir);
-	snprintf(filepath, sizeof(filepath), "%s%s", dir_argument_exists ? launch_dir : "/apps/Nintendont/", Downloads[download_number].filename);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, Downloads[download_number].text);
 	UpdateScreen();
 	
 	line++;
-	gprintf("Downloading %s to %s\r\n", Downloads[download_number].url, filepath);
+	gprintf("Downloading %s\r\n", Downloads[download_number].url);
 	ret = net_init();
 	if(ret < 0) {
 		gprintf("Failed to init network\r\n");
@@ -215,24 +212,14 @@ static s32 Download(DOWNLOADS download_number)  {
 	line++;
 	if (!dir_argument_exists) {
 		gprintf("Creating new directory\r\n");
-		mkdir("/apps", S_IWRITE|S_IREAD);
-		mkdir("/apps/Nintendont", S_IWRITE|S_IREAD);
+		f_mkdir_char("/apps");
+		f_mkdir_char("/apps/Nintendont");
 	}
-	file = fopen(filepath, "wb");
-	if(!file)
-	{
-		gprintf("File Error\r\n");
-		ret = -3;
-		goto end;
-	} else {
-		fwrite(outbuf, filesize, 1, file);
-		fclose(file);
-		if (download_number == DOWNLOAD_CONTROLLERS) ret = UnzipControllers(filepath);
-		if (ret == 1) {
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Update Complete");
-			UpdateScreen();
-			line++;
-		}
+	if (download_number == DOWNLOAD_CONTROLLERS) ret = UnzipControllers(outbuf, filesize);
+	if (ret == 1) {
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Update Complete");
+		UpdateScreen();
+		line++;
 	}
 
 end:

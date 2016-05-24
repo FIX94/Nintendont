@@ -20,6 +20,7 @@ TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source
 SOURCES		+=	source/unzip
+SOURCES		+=	source/fatfs source/fatfs/option
 DATA		:=	data
 INCLUDES	:=	include
 
@@ -27,7 +28,7 @@ INCLUDES	:=	include
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	= -g -O1 -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH
+CFLAGS	= -g -O3 -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH
 CXXFLAGS	=	$(CFLAGS)
 
 LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
@@ -36,7 +37,7 @@ LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
 LIBS	:= -lfreetype -lpngu -lpng -lz \
-	-lwiiuse -lwupc -lbte -lcustomfat -logc -ldi -lm
+	-lwiiuse -lwupc -lbte -logc -ldi -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

@@ -20,34 +20,30 @@ void HIDUpdateRegisters()
 	gprintf("Trying to get VID%04x PID%04x\n", DeviceVID, DevicePID);
 	char filename[50];
 	snprintf(filename, sizeof(filename), "sd:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
-	FILE *f = fopen(filename, "rb");
-	if(f == NULL)
+	FIL f;
+	FRESULT res = FR_OK;
+	if(f_open_char(&f,filename,FA_READ|FA_OPEN_EXISTING) != FR_OK)
 	{
 		snprintf(filename, sizeof(filename), "usb:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
-		f = fopen(filename, "rb");
-		if(f == NULL)
+		if(f_open_char(&f,filename,FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		{
-			f = fopen("sd:/controller.ini", "rb");
-			if(f == NULL)
+			if(f_open_char(&f,"sd:/controller.ini",FA_READ|FA_OPEN_EXISTING) != FR_OK)
 			{
-				fopen("sd:/controller.ini.ini", "rb");
-				if(f == NULL)
+				if(f_open_char(&f,"sd:/controller.ini.ini",FA_READ|FA_OPEN_EXISTING) != FR_OK)
 				{
-					f = fopen("usb:/controller.ini", "rb");
-					if(f == NULL)
-						f = fopen("usb:/controller.ini.ini", "rb");
+					if(f_open_char(&f,"usb:/controller.ini",FA_READ|FA_OPEN_EXISTING) != FR_OK)
+						res = f_open_char(&f,"usb:/controller.ini.ini",FA_READ|FA_OPEN_EXISTING);
 				}
 			}
 		}
 	}
-	if(f != NULL)
+	if(res == FR_OK)
 	{
-		fseek(f, 0, SEEK_END);
-		size_t fsize = ftell(f);
-		rewind(f);
-		fread((void*)HID_CFG_FILE, 1, fsize, f);
+		size_t fsize = f.obj.objsize;
+		UINT read;
+		f_read(&f, (void*)HID_CFG_FILE, fsize, &read);
 		DCFlushRange((void*)HID_CFG_FILE, fsize);
-		fclose(f);
+		f_close(&f);
 		*(vu32*)HID_CFG_SIZE = fsize;
 	}
 	else

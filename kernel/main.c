@@ -494,9 +494,9 @@ int _main( int argc, char *argv[] )
 #endif
 
 //unmount FAT device
+	f_mount(NULL, fatDevName, 1);
 	free(fatfs);
 	fatfs = NULL;
-	f_mount(NULL, fatDevName, 1);
 
 	if(UseUSB)
 		USBStorage_Shutdown();

@@ -59,7 +59,7 @@ loop:
 
 int gprintf( const char *str, ... )
 {
-	if( IsWiiU() )
+	/*if( IsWiiU() )
 	{
 		if(wiiu_done == true)
 			return 0;
@@ -84,7 +84,9 @@ int gprintf( const char *str, ... )
 		} else {
 			return -1; // Couldn't open the file
 		}
-	} else {
+	} else {*/
+	if( !IsWiiU() )
+	{
 		// We're running on a real Wii, send the results to a USB Gecko
 		if(!GeckoFound)
 			return 0; // No USB Gecko found

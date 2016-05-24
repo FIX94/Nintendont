@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "background_png.h"
 #include "Config.h"
 #include "grrlib.h"
+#include "ff.h"
 
 #ifndef HW_RVL
 #define HW_RVL
@@ -160,6 +161,14 @@ void UpdateScreen(void);
 void Screenshot(void);
 raw_irq_handler_t BeforeIOSReload();
 void AfterIOSReload(raw_irq_handler_t handle, u32 rev);
+
+FRESULT f_open_char(FIL* fp, const char* path, BYTE mode);
+FRESULT f_mount_char(FATFS* fs, const char* path, BYTE opt);
+FRESULT f_chdrive_char(const char* path);
+FRESULT f_mkdir_char(const char* path);
+FRESULT f_chdir_char(const char* path);
+FRESULT f_opendir_char(DIR* dp, const char* path);
+char *wchar_to_char(WCHAR *in);
 
 #endif
 

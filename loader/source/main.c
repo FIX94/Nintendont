@@ -24,10 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <wiiuse/wpad.h>
 #include <wupc/wupc.h>
 #include <di/di.h>
-#include <fat.h>
-
 #include <unistd.h>
-#include <sys/dir.h>
 
 #include "exi.h"
 #include "dip.h"
@@ -104,6 +101,9 @@ s32 __IOS_LoadStartupIOS(void)
 	return 0;
 }
 
+FATFS *sdCard = NULL;
+FATFS *usbDev = NULL;
+extern DISC_INTERFACE __io_wiisd;
 extern DISC_INTERFACE __io_custom_usbstorage;
 extern vu32 FoundVersion;
 vu32 KernelLoaded = 0;
@@ -195,7 +195,23 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
-
+	/* Go for SD first */
+	__io_wiisd.startup();
+	if(__io_wiisd.isInserted())
+	{
+		sdCard = (FATFS*)memalign( 32, sizeof(FATFS) );
+		s32 res = f_mount_char( sdCard, "sd:", 1 );
+		if( res == FR_OK )
+		{
+			gprintf("Mounted SD!\n");
+			f_chdrive_char("sd:");
+		}
+		else
+		{
+			free(sdCard);
+			sdCard = NULL;
+		}
+	}
 	/* For slow USB HDDs */
 	time_t timeout = time(NULL);
 	while(time(NULL) - timeout < 10)
@@ -204,7 +220,30 @@ int main(int argc, char **argv)
 			break;
 		usleep(50000);
 	}
-	fatInitDefault();
+	if(__io_custom_usbstorage.isInserted())
+	{
+		usbDev = (FATFS*)memalign( 32, sizeof(FATFS) );
+		s32 res = f_mount_char( usbDev, "usb:", 1 );
+		if(res == FR_OK)
+		{
+			gprintf("Mounted USB!\n");
+			if(!sdCard)
+				f_chdrive_char("usb:");
+		}
+		else
+		{
+			free(usbDev);
+			usbDev = NULL;
+		}
+	}
+
+	if(!sdCard && !usbDev)
+	{
+		ClearScreen();
+		gprintf("No FAT device found!\n");
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found!");
+		ExitToLoader(1);
+	}
 
 	gprintf("Nintendont at your service!\r\n%s\r\n", NIN_BUILD_STRING);
 	KernelLoaded = 1;
@@ -231,16 +270,20 @@ int main(int argc, char **argv)
 	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
 
 	// Simple code to autoupdate the meta.xml in Nintendont's folder
-	FILE *meta = fopen("meta.xml", "w");
-	if(meta != NULL)
+	FIL meta;
+	if(f_open_char(&meta,"meta.xml",FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 	{
-		fprintf(meta, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
-		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);
-		fprintf(meta, "\t<release_date>20150531000000</release_date>\r\n");
-		fprintf(meta, "\t<short_description>%s</short_description>\r\n", META_SHORT);
-		fprintf(meta, "\t<long_description>%s\r\n\r\n%s</long_description>\r\n", META_LONG1, META_LONG2);
-		fprintf(meta, "\t<ahb_access/>\r\n</app>");
-		fclose(meta);
+		char str[1024];
+		int pos = 0;
+		pos+=sprintf(str+pos, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
+		pos+=sprintf(str+pos, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);
+		pos+=sprintf(str+pos, "\t<release_date>20150531000000</release_date>\r\n");
+		pos+=sprintf(str+pos, "\t<short_description>%s</short_description>\r\n", META_SHORT);
+		pos+=sprintf(str+pos, "\t<long_description>%s\r\n\r\n%s</long_description>\r\n", META_LONG1, META_LONG2);
+		pos+=sprintf(str+pos, "\t<ahb_access/>\r\n</app>");
+		UINT wrote;
+		f_write(&meta,str,pos,&wrote);
+		f_close(&meta);
 	}
 	LoadTitles();
 
@@ -402,22 +445,22 @@ int main(int argc, char **argv)
 
 	if(SaveSettings)
 	{
-		FILE *cfg;
+		FIL cfg;
 		char ConfigPath[20];
 		// Todo: detects the boot device to prevent writing twice on the same one
 		strcpy(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch
-		cfg = fopen(ConfigPath, "wb");
-		if( cfg != NULL )
+		if(f_open_char(&cfg,ConfigPath,FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
-			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
-			fclose( cfg );
+			UINT wrote;
+			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
+			f_close(&cfg);
 		}
 		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/nincfg.bin", GetRootDevice()); // writes config to game device, used by kernel
-		cfg = fopen(ConfigPath, "wb");
-		if( cfg != NULL )
+		if(f_open_char(&cfg,ConfigPath,FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
-			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
-			fclose( cfg );
+			UINT wrote;
+			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
+			f_close(&cfg);
 		}
 	}
 	u32 ISOShift = 0;
@@ -427,7 +470,9 @@ int main(int argc, char **argv)
 		u32 i, j = 0;
 		u32 Offsets[15];
 		gameinfo gi[15];
-		FILE *f = NULL;
+		FIL f;
+		UINT read;
+		FRESULT fres = FR_DISK_ERR;
 		u8 *MultiHdr = memalign(32, 0x800);
 		if(CurDICMD)
 		{
@@ -437,14 +482,14 @@ int main(int argc, char **argv)
 		{
 			char GamePath[255];
 			snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
-			f = fopen(GamePath, "rb");
-			fread(MultiHdr,1,0x800,f);
+			fres = f_open_char(&f,GamePath,FA_READ|FA_OPEN_EXISTING);
+			if(fres == FR_OK) f_read(&f,MultiHdr,0x800,&read);
 		}
 		//Damn you COD for sharing this ID!
-		if(memcmp(MultiHdr, "GCO", 3) == 0 && memcmp(MultiHdr+4, "52", 3) == 0)
+		if((memcmp(MultiHdr, "GCO", 3) == 0 && memcmp(MultiHdr+4, "52", 3) == 0) || (fres != FR_OK))
 		{
 			free(MultiHdr);
-			if(f) fclose(f);
+			if(fres == FR_OK) f_close(&f);
 		}
 		else
 		{
@@ -462,8 +507,8 @@ int main(int argc, char **argv)
 					}
 					else
 					{
-						fseek(f, Offsets[j], SEEK_SET);
-						fread(GameHdr, 1, 0x800, f);
+						f_lseek(&f, Offsets[j]);
+						f_read(&f, GameHdr, 0x800, &read);
 					}
 					memcpy(gi[j].ID, GameHdr, 6);
 					gi[j].Name = strdup((char*)GameHdr+0x20);
@@ -473,7 +518,7 @@ int main(int argc, char **argv)
 			}
 			free(GameHdr);
 			free(MultiHdr);
-			if(f) fclose(f);
+			f_close(&f);
 			bool redraw = 1;
 			ClearScreen();
 			u32 PosX = 0;
@@ -558,7 +603,7 @@ int main(int argc, char **argv)
 	{
 		char BasePath[20];
 		snprintf(BasePath, sizeof(BasePath), "%s:/saves", GetRootDevice());
-		mkdir(BasePath, S_IREAD | S_IWRITE);
+		f_mkdir_char(BasePath);
 
 		char MemCardName[8];
 		memset(MemCardName, 0, 8);
@@ -574,8 +619,8 @@ int main(int argc, char **argv)
 		char MemCard[30];
 		snprintf(MemCard, sizeof(MemCard), "%s/%s.raw", BasePath, MemCardName);
 		gprintf("Using %s as Memory Card.\r\n", MemCard);
-		FILE *f = fopen(MemCard, "rb");
-		if(f == NULL)
+		FIL f;
+		if(f_open_char(&f,MemCard,FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		{
 			if(GenerateMemCard(MemCard) == false)
 			{
@@ -585,7 +630,7 @@ int main(int argc, char **argv)
 			}
 		}
 		else
-			fclose(f);
+			f_close(&f);
 	}
 	else //setup real sram language
 	{
@@ -615,39 +660,36 @@ int main(int argc, char **argv)
 			snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
 		else if(!IsWiiU())
 			snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
-		FILE *f = fopen(iplchar, "rb");
-		if(f != NULL)
+		FIL f;
+		if(f_open_char(&f,iplchar,FA_READ|FA_OPEN_EXISTING) == FR_OK)
 		{
-			fseek(f, 0, SEEK_END);
-			size_t fsize = ftell(f);
-			if(fsize == 2097152)
+			if(f.obj.objsize == 2097152)
 			{
-				fseek(f, 0, SEEK_SET);
 				iplbuf = malloc(2097152);
-				fread(iplbuf, 1, 2097152, f);
+				UINT read;
+				f_read(&f, iplbuf, 2097152, &read);
 				useipl = true;
 			}
-			fclose(f);
+			f_close(&f);
 		}
 	}
 	else
 	{
 		char iplchar[32];
 		snprintf(iplchar, sizeof(iplchar), "%s:/segaboot.bin", GetRootDevice());
-		FILE *f = fopen(iplchar, "rb");
-		if(f != NULL)
+		FIL f;
+		if(f_open_char(&f,iplchar,FA_READ|FA_OPEN_EXISTING) == FR_OK)
 		{
-			fseek(f, 0, SEEK_END);
-			size_t fsize = ftell(f);
-			if(fsize == 1048576)
+			if(f.obj.objsize == 1048576)
 			{
-				fseek(f, 0x20, SEEK_SET);
+				f_lseek(&f, 0x20);
 				void *iplbuf = (void*)0x92A80000;
-				fread(iplbuf, 1, 1048576 - 0x20, f);
+				UINT read;
+				f_read(&f, iplbuf, 1048576 - 0x20, &read);
 				DCFlushRange(iplbuf, 1048576);
 				useipltri = true;
 			}
-			fclose(f);
+			f_close(&f);
 		}
 	}
 //sync changes

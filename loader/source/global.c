@@ -19,7 +19,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 
-#include <fat.h>
 #include <gccore.h>
 #include <ogc/audio.h>
 #include <ogc/consol.h>
@@ -238,12 +237,13 @@ void ExitToLoader(int ret)
 bool LoadNinCFG()
 {
 	bool ConfigLoaded = true;
-	FILE *cfg = fopen("/nincfg.bin", "rb+");
-	if (cfg == NULL)
+	FIL cfg;
+	if (f_open_char(&cfg,"/nincfg.bin",FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		return false;
 
-	size_t BytesRead;
-	BytesRead = fread(ncfg, 1, sizeof(NIN_CFG), cfg);
+	UINT BytesRead;
+	f_read(&cfg,ncfg,sizeof(NIN_CFG),&BytesRead);
+	f_close(&cfg);
 	switch( ncfg->Version )
 	{
 		case 2:
@@ -272,8 +272,6 @@ bool LoadNinCFG()
 	if (ncfg->MaxPads < 0)
 		ConfigLoaded = false;
 
-	fclose(cfg);
-
 	return ConfigLoaded;
 }
 inline void ClearScreen()
@@ -283,13 +281,23 @@ inline void ClearScreen()
 extern bool sdio_Deinitialize();
 extern void USBStorageOGC_Deinitialize();
 #include "usb_ogc.h"
-
+extern FATFS *sdCard, *usbDev;
 void CloseDevices()
 {
 	closeLog();
-	fatUnmount("sd");
+	if(sdCard != NULL)
+	{
+		f_mount_char(NULL, "sd:", 1);
+		free(sdCard);
+		sdCard = NULL;
+	}
 	sdio_Deinitialize();
-	fatUnmount("usb");
+	if(usbDev != NULL)
+	{
+		f_mount_char(NULL, "usb:", 1);
+		free(usbDev);
+		usbDev = NULL;
+	}
 	USBStorageOGC_Deinitialize();
 	USB_OGC_Deinitialize();
 }
@@ -364,15 +372,13 @@ void UpdateNinCFG()
 
 int CreateNewFile(char *Path, u32 size)
 {
-	FILE *f;
-	f = fopen(Path, "rb");
-	if(f != NULL)
+	FIL f;
+	if(f_open_char(&f,Path,FA_READ|FA_OPEN_EXISTING) == FR_OK)
 	{	//create ONLY new files
-		fclose(f);
+		f_close(&f);
 		return -1;
 	}
-	f = fopen(Path, "wb");
-	if(f == NULL)
+	if(f_open_char(&f,Path,FA_WRITE|FA_CREATE_NEW) != FR_OK)
 	{
 		gprintf("Failed to create %s!\r\n", Path);
 		return -2;
@@ -384,9 +390,77 @@ int CreateNewFile(char *Path, u32 size)
 		return -3;
 	}
 	memset(buf, 0, size);
-	fwrite(buf, 1, size, f);
+	UINT wrote;
+	f_write(&f, buf, size, &wrote);
 	free(buf);
-	fclose(f);
-	gprintf("Created %s with %i bytes!\r\n", Path, size);
+	f_close(&f);
+	gprintf("Created %s with %i bytes!\r\n", Path, wrote);
 	return 0;
+}
+wchar_t tmpwchar[512]; //2kb right here, everything but threadsafe
+extern size_t mbstowcs(wchar_t*,const char*,size_t);
+bool char_on_tmpwchar(const char *in)
+{
+	if(in == NULL || strlen(in) == 0)
+		return false;
+	size_t charnum = mbstowcs(tmpwchar, in, 512);
+	if(charnum == 0)
+		return false;
+	size_t i;
+	WCHAR *u16char = (WCHAR*)tmpwchar; //saves on 4 byte but only uses 2 byte
+	for(i = 0; i < charnum; ++i) //so we can just remove the rest
+		u16char[i] = (WCHAR)(tmpwchar[i]&0xFFFF);
+	u16char[charnum] = 0x0000; //mbstowcs doesnt close
+	return true;
+}
+char tmpchar[512];
+char *wchar_to_char(WCHAR *in)
+{
+	wchar_t *chrptr = tmpwchar;
+	size_t i;
+	for(i = 0; i < 512; i++)
+	{
+		if(*in == 0)
+			break;
+		*chrptr++ = *in++;
+	}
+	*chrptr = 0;
+	wcstombs(tmpchar,tmpwchar,512);
+	return tmpchar;
+}
+FRESULT f_open_char(FIL* fp, const char* path, BYTE mode)
+{
+	if(char_on_tmpwchar(path) == false)
+		return FR_INVALID_NAME;
+	return f_open(fp, (WCHAR*)tmpwchar, mode);
+}
+FRESULT f_mount_char(FATFS* fs, const char* path, BYTE opt)
+{
+	if(char_on_tmpwchar(path) == false)
+		return FR_INVALID_NAME;
+	return f_mount(fs, (WCHAR*)tmpwchar, opt);
+}
+FRESULT f_chdrive_char(const char* path)
+{
+	if(char_on_tmpwchar(path) == false)
+		return FR_INVALID_NAME;
+	return f_chdrive((WCHAR*)tmpwchar);
+}
+FRESULT f_mkdir_char(const char* path)
+{
+	if(char_on_tmpwchar(path) == false)
+		return FR_INVALID_NAME;
+	return f_mkdir((WCHAR*)tmpwchar);
+}
+FRESULT f_chdir_char(const char* path)
+{
+	if(char_on_tmpwchar(path) == false)
+		return FR_INVALID_NAME;
+	return f_chdir((WCHAR*)tmpwchar);
+}
+FRESULT f_opendir_char(DIR* dp, const char* path)
+{
+	if(char_on_tmpwchar(path) == false)
+		return FR_INVALID_NAME;
+	return f_opendir(dp, (WCHAR*)tmpwchar);
 }

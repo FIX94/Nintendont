@@ -62,13 +62,15 @@ static bool loaded = false;
 
 s32 LoadTitles(void) {
 	int c = 0, line_char = 0;
-	FILE *titles_txt = NULL;
+	FIL titles_txt;
 	char buffer[LINE_LENGTH] = {0};
-	titles_txt = fopen("titles.txt", "rb");
-	if (titles_txt == NULL) return 0;
+	if(f_open_char(&titles_txt,"titles.txt",FA_READ|FA_OPEN_EXISTING) != FR_OK)
+		return 0;
 	loaded = true;
+	UINT read;
 	do {
-		c = fgetc(titles_txt);
+		if(f_read(&titles_txt,(void*)c,1,&read) != FR_OK || read == 0)
+			c = EOF; //hack I know...
 		if (c == '\r') continue;
 		buffer[line_char] = c;
 		
@@ -81,7 +83,7 @@ s32 LoadTitles(void) {
 			line_char = 0;
 		} else line_char++;
     } while (c != EOF);
-	fclose(titles_txt);
+	f_close(&titles_txt);
 	return title_count;
 }
 
