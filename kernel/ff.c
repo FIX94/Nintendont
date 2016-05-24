@@ -2844,7 +2844,8 @@ static
 BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:GPT is invalid, 3:Disk error */
 	FATFS* fs,	/* File system object */
 	DWORD sect,	/* GPT partition table header sector (usually 1) */
-	DWORD br[4]	/* Array to store partition LBAs in */
+	DWORD br[128],	/* Array to store partition LBAs in */
+	DWORD *part_count	/* Number of partitions read (output) */
 )
 {
 	DWORD partition_count;
@@ -2924,7 +2925,90 @@ BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:
 	if (idx < 128)
 		br[idx] = 0;
 
+	// Save the partition count.
+	if (part_count)
+		*part_count = idx;
+
 	// GPT partitions processed.
+	// We're not checking for FAT here, since find_volume() does that.
+	// If no valid partitions were found, return 1.
+	// Otherwise, return 0 to indicate we found at least one.
+	return (idx == 0 ? 1 : 0);
+}
+
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Get the logical partitions from an Extended partition. (Nintendont)   */
+/*-----------------------------------------------------------------------*/
+static
+BYTE read_mbr_extended (/* 0:EBR is valid and partitions read, 1:No partitions found, 2:EBR is invalid, 3:Disk error */
+	FATFS* fs,      /* File system object */
+	DWORD sect,     /* Extended partition table header sector */
+	DWORD br[8],    /* Array to store partition LBAs in */
+	DWORD *part_count /* Number of partitions read (output) */
+)
+{
+	int n;			// Current EBR index.
+	int idx = 0;		// Index in br[] array. (partition count)
+	DWORD lba_part;		// Logical partition start.
+	DWORD lba_ebr_next;	// Next EBR.
+	BYTE *pt;		// Pointer to the partition table in the EBR.
+
+	// Read up to 8 Extended Partition Boot Records.
+	// Reference: https://en.wikipedia.org/wiki/Extended_boot_record
+	for (n = 0; n < 8; n++) {
+		// Read the current EBR.
+		fs->wflag = 0; fs->winsect = 0xFFFFFFFF;	/* Invalidate window */
+		if (move_window(fs, sect) != FR_OK) {		/* Load sector */
+			// Could not load sector.
+			if (idx == 0) {
+				// No partitions found.
+				// Assume the entire Extended partition is invalid.
+				return 3;
+			}
+			break;
+		}
+
+		// Validate the EBR signature.
+		if (fs->win[510] != 0x55 || fs->win[511] != 0xAA) {
+			// Invalid EBR signature.
+			if (idx == 0) {
+				// No partitions found.
+				// Assume the entire Extended partition is invalid.
+				return 2;
+			}
+			break;
+		}
+
+		// EBR contains an MBR-like partition table.
+		// NOTE: All LBAs are relative to the EBR starting LBA.
+		// Partition 1: Logical partition.
+		// Partition 2: Next EBR, or 0 if end of Extended partition.
+		// Partitions 3 and 4 are unused.
+		pt = fs->win + MBR_Table;
+		lba_part = ld_dword(&pt[8]) + sect;
+		lba_ebr_next = ld_dword(&pt[8+SZ_PTE]) + sect;
+
+		// TODO: Validate lba_part?
+		br[idx++] = lba_part;
+		if (lba_ebr_next <= sect) {
+			// Finished reading the Extended partition.
+			break;
+		}
+		sect = lba_ebr_next;
+	}
+
+	// If br[] isn't full, set the last entry to 0.
+	if (idx < 8)
+		br[idx] = 0;
+
+	// Save the partition count.
+	if (part_count)
+		*part_count = idx;
+
+	// EBR partitions processed.
 	// We're not checking for FAT here, since find_volume() does that.
 	// If no valid partitions were found, return 1.
 	// Otherwise, return 0 to indicate we found at least one.
@@ -2999,19 +3083,37 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	fmt = check_fs(fs, bsect);			/* Load sector 0 and check if it is an FAT boot sector as SFD */
 	if (fmt == 2 || (fmt < 2 && LD2PT(vol))) {	/* Not an FAT boot sector or forced partition number */
 		/* Check for GPT. */
-		int br_max = 4;
+		DWORD part_count = 0;
 		pt = fs->win + MBR_Table;
 		if (pt[4] == 0xEE) {
 			/* GPT found. Read up to the first four paritions. */
 			bsect = ld_dword(&pt[8]);
-			fmt = read_gpt(fs, bsect, br);
+			fmt = read_gpt(fs, bsect, br, &part_count);
 			if (fmt != 0) return FR_DISK_ERR;
-			br_max = 128;
 		} else {
 			/* Not GPT. Check the MBR partitions. */
-			for (i = 0; i < 4; i++) {			/* Get partition offset */
-				pt = fs->win + MBR_Table + i * SZ_PTE;
-				br[i] = pt[4] ? ld_dword(&pt[8]) : 0;
+			int mbr_idx;		// MBR partition index
+			DWORD ebr_count;	// Extended partition count from read_mbr_extended()
+			int ebr_fmt;		// read_mbr_extended() return value.
+			for (mbr_idx = 0; mbr_idx < 4; mbr_idx++) {     /* Get partition offset */
+				pt = fs->win + MBR_Table + mbr_idx * SZ_PTE;
+				switch (pt[4]) {
+					case 0:
+						br[part_count++] = 0;
+						break;
+					case 0xF:
+						// Extended partition.
+						// FIXME: Disable if LD2PT(vol) != 0?
+						bsect = ld_dword(&pt[8]);
+						ebr_fmt = read_mbr_extended(fs, bsect, &br[part_count], &ebr_count);
+						if (ebr_fmt > 1) return FR_DISK_ERR;
+						part_count += ebr_count;
+						break;
+					default:
+						// Primary partition.
+						br[part_count++] = pt[4] ? ld_dword(&pt[8]) : 0;
+						break;
+				}
 			}
 		}
 		i = LD2PT(vol);						/* Partition number: 0:auto, 1-4:forced */
@@ -3019,7 +3121,7 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 		do {								/* Find an FAT volume */
 			bsect = br[i];
 			fmt = bsect ? check_fs(fs, bsect) : 3;	/* Check the partition */
-		} while (!LD2PT(vol) && fmt >= 2 && ++i < br_max);
+		} while (!LD2PT(vol) && fmt >= 2 && ++i < part_count);
 	}
 	if (fmt == 4) return FR_DISK_ERR;		/* An error occured in the disk I/O layer */
 	if (fmt >= 2) return FR_NO_FILESYSTEM;	/* No FAT volume is found */
