@@ -193,28 +193,6 @@ DRESULT disk_ioctl (
 
 
 
-// Get the current system time as a FAT timestamp.
-DWORD get_fattime(void)
-{
-	// TODO: Implement this for Nintendont.
-	//rtc_time tm;
-	//DWORD ret;
-
-	//MkTime(&tm);
-	//ret =
-	//	((DWORD)(tm.tm_year + 20) << 25)
-	//	| ((DWORD)(tm.tm_mon + 1) << 21)
-	//	| ((DWORD)tm.tm_mday  << 16)
-	//	| ((DWORD)tm.tm_hour << 11)
-	//	| ((DWORD)tm.tm_min << 5)
-	//	| ((DWORD)tm.tm_sec >> 1);
-	//return ret;
-
-	return 0;
-}
-
-
-
 /*-----------------------------------------------------------------------*/
 /* Nintendont: Device type selection.                                    */
 /*-----------------------------------------------------------------------*/

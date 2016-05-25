@@ -32,7 +32,6 @@ typedef enum {
 DSTATUS disk_initialize (BYTE pdrv);
 DSTATUS disk_status (BYTE pdrv);
 DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
-DWORD get_fattime(void);
 
 /* Nintendont: R/W functions are pointers in order to *
  * allow support for both SD cards and USB storage.   *
