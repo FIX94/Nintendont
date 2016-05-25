@@ -27,8 +27,8 @@ echo "Building FatFS libraries"
 echo " "
 make -f Makefile.arm clean
 make -f Makefile.arm
-#make -f Makefile.ppc clean
-#make -f Makefile.ppc
+make -f Makefile.ppc clean
+make -f Makefile.ppc
 
 cd ../kernel
 echo " "
