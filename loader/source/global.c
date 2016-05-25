@@ -165,6 +165,7 @@ void Initialise()
 	ClearScreen();
 	gprintf("Initialize Finished\r\n");
 }
+
 static void (*stub)() = (void*)0x80001800;
 inline void DrawBuffer(void) {
 	GRRLIB_DrawImg(0, 0, screen_buffer, 0, 1, 1, 0xFFFFFFFF);

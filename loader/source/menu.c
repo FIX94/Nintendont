@@ -42,6 +42,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "menu.h"
 #include "../../common/include/CommonConfigStrings.h"
 
+// Device state.
+typedef enum {
+	// Device is open and has a "games" directory.
+	DEV_OK = 0,
+	// Device could not be opened.
+	DEV_NO_OPEN = 1,
+	// Device was opened but has no "games" directory.
+	DEV_NO_GAMES = 2,
+} DevState;
+static u8 devState = DEV_OK;
+
+/**
+ * Print information about the selected device.
+ */
+static void PrintDevInfo(void);
+
 extern NIN_CFG* ncfg;
 
 u32 Shutdown = 0;
@@ -74,114 +90,250 @@ int compare_names(const void *a, const void *b)
 	const gameinfo *da = (const gameinfo *) a;
 	const gameinfo *db = (const gameinfo *) b;
 
-	return strcasecmp(da->Name, db->Name);
+	int ret = strcasecmp(da->Name, db->Name);
+	if (ret == 0)
+	{
+		// Names are equal. Check disc number.
+		if (da->DiscNumber < db->DiscNumber)
+			ret = -1;
+		else if (da->DiscNumber > db->DiscNumber)
+			ret = 1;
+		else
+			ret = 0;
+	}
+	return ret;
 }
-bool SelectGame( void )
+
+/**
+ * Get all games from the games/ directory on the selected storage device.
+ * On Wii, this also adds a pseudo-game for loading GameCube games from disc.
+ *
+ * @param gi           [out] Array of gameinfo structs.
+ * @param sz           [in]  Maximum number of elements in gi.
+ * @param pGameCount   [out] Number of games loaded. (Includes GCN pseudo-game for Wii.)
+ *
+ * @return DevState value:
+ * - DEV_OK: Device opened and has a "games/" directory.
+ * - DEV_NO_OPEN: Could not open the storage device.
+ * - DEV_NO_GAMES: No "games/" directory was found.
+ */
+static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 {
-//Create a list of games
-	char filename[MAXPATHLEN];
-	char gamename[MAXPATHLEN];
+	// Create a list of games
+	char filename[MAXPATHLEN];	// Current filename.
+	char gamename[65];		// Game title.
+	char buf[0x100];		// Disc header.
+	int gamecount = 0;		// Current game count.
 
 	DIR *pdir;
 	struct dirent *pent;
 	struct stat statbuf;
 
+	if( !IsWiiU() )
+	{
+		// Pseudo game for booting a GameCube disc on Wii.
+		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
+		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
+		gi[0].Name = "Boot GC Disc in Drive";
+		gi[0].NameAlloc = 0;
+		gi[0].DiscNumber = 0;
+		gi[0].Path = strdup("di:di");
+		gamecount++;
+	}
+
 	snprintf(filename, sizeof(filename), "%s:/games", GetRootDevice());
 	pdir = opendir(filename);
 	if( !pdir )
 	{
-		ClearScreen();
-		gprintf("No FAT device found, or missing %s dir!\n", filename);
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found, or missing %s dir!", filename );
-		ExitToLoader(1);
+		// Could not open the "games" directory.
+
+		// Attempt to open the device root.
+		char root_filename[8];
+		snprintf(root_filename, sizeof(root_filename), "%s:/", GetRootDevice());
+		pdir = opendir(root_filename);
+		if ( !pdir )
+		{
+			// Could not open the device root.
+			if (pGameCount)
+				*pGameCount = 0;
+			return DEV_NO_OPEN;
+		}
+
+		// Device root opened.
+		// This means the device is usable, but it
+		// doesn't have a "games" directory.
+		closedir(pdir);
+		if (pGameCount)
+			*pGameCount = gamecount;
+		return DEV_NO_GAMES;
 	}
 
-	u32 gamecount = 0;
-	char buf[0x100];
-	gameinfo gi[MAX_GAMES];
-
-	memset( gi, 0, sizeof(gameinfo) * MAX_GAMES );
-	if( !IsWiiU() )
-	{
-		gi[0].Name = strdup("Boot GC Disc in Drive");
-		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
-		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
-		gi[0].Path = strdup("di:di");
-		gamecount++;
-	}
+	// Process the directory.
 	while( ( pent = readdir(pdir) ) != NULL )
 	{
+		// Game layout should be: /games/GAMEID/game.iso
+		// Search for subdirectories.
 		stat( pent->d_name, &statbuf );
 		if( pent->d_type == DT_DIR )
 		{
-			if( pent->d_name[0] == '.' )	//skip current and previous directories
+			// Skip "." and "..".
+			// This will also skip "hidden" directories.
+			if( pent->d_name[0] == '.' )
 				continue;
 
-		//	gprintf( "%s", pent->d_name );
+			// Prepare the filename buffer with the directory name.
+			// game.iso/disc2.iso will be appended later.
+			int fnlen = snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
 
 			//Test if game.iso exists and add to list
-
 			bool found = false;
 			u32 DiscNumber;
 			for (DiscNumber = 0; DiscNumber < 2; DiscNumber++)
 			{
-				snprintf(filename, sizeof(filename), "%s:/games/%s/%s.iso", GetRootDevice(), pent->d_name, DiscNumber ? "disc2" : "game");
+				if (DiscNumber)
+					memcpy(&filename[fnlen], "disc2.iso", 10);
+				else
+					memcpy(&filename[fnlen], "game.iso", 9);
 
 				FILE *in = fopen( filename, "rb" );
 				if( in != NULL )
 				{
-				//	gprintf("(%s) ok\n", filename );
+					// Read the disc header
+					//gprintf("(%s) ok\n", filename );
 					fread( buf, 1, 0x100, in );
 					fclose(in);
 
 					if( IsGCGame((u8*)buf) )	// Must be GC game
 					{
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						if(!SearchTitles(gi[gamecount].ID, gamename)) strcpy( gamename, buf + 0x20 );
-						if (DiscNumber)
-							strcat( gamename, " (2)" );
-						gi[gamecount].Name = strdup( gamename );
-						gi[gamecount].Path = strdup( filename );
+						gi[gamecount].DiscNumber = DiscNumber;
 
+						// Check if this title is in titles.txt.
+						const char *dbTitle = SearchTitles(gi[gamecount].ID);
+						if (dbTitle)
+						{
+							// Title found.
+							gi[gamecount].Name = (char*)dbTitle;
+							gi[gamecount].NameAlloc = 0;
+						}
+						else
+						{
+							// Title not found.
+							// Use the title from the disc header.
+							strncpy(gamename, buf + 0x20, sizeof(gamename));
+							gamename[sizeof(gamename)] = 0;
+							gi[gamecount].Name = strdup(gamename);
+							gi[gamecount].NameAlloc = 1;
+						}
+
+						gi[gamecount].Path = strdup( filename );
 						gamecount++;
 						found = true;
 					}
 				}
 			}
-			if ( !found ) // Check for FST format
+
+			// If game.iso wasn't found, check for FST format.
+			if ( !found )
 			{
-				snprintf(filename, sizeof(filename), "%s:/games/%s/sys/boot.bin", GetRootDevice(), pent->d_name);
+				memcpy(&filename[fnlen], "sys/boot.bin", 13);
 
 				FILE *in = fopen( filename, "rb" );
 				if( in != NULL )
 				{
-				//	gprintf("(%s) ok\n", filename );
+					//gprintf("(%s) ok\n", filename );
 					fread( buf, 1, 0x100, in );
 					fclose(in);
 
 					if( IsGCGame((u8*)buf) )	// Must be GC game
 					{
-						snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
+						filename[fnlen] = 0;
 
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						gi[gamecount].Name = strdup( buf + 0x20 );
-						gi[gamecount].Path = strdup( filename );
-						
+						gi[gamecount].DiscNumber = DiscNumber;
 
+						// TODO: Check titles.txt?
+						strncpy(gamename, buf + 0x20, sizeof(gamename));
+						gamename[sizeof(gamename)] = 0;
+						gi[gamecount].Name = strdup(gamename);
+						gi[gamecount].NameAlloc = 1;
+
+						gi[gamecount].Path = strdup( filename );
 						gamecount++;
 					}
 				}
 			}
 		}
-		if (gamecount >= MAX_GAMES)	//if array is full
+
+		if (gamecount >= sz)	//if array is full
 			break;
 	}
 	closedir(pdir);
 
+	// Sort the list alphabetically.
+	// On Wii, the pseudo-entry for GameCube discs is always
+	// kept at the top.
 	if( IsWiiU() )
 		qsort(gi, gamecount, sizeof(gameinfo), compare_names);
 	else if( gamecount > 1 )
 		qsort(&gi[1], gamecount-1, sizeof(gameinfo), compare_names);
+
+	// Save the game count.
+	if (pGameCount)
+		*pGameCount = gamecount;
+
+	return DEV_OK;
+}
+
+/**
+ * Select a game from the specified device.
+ * @return Bitfield indicating the user's selection:
+ * - 0 == go back
+ * - 1 == game selected
+ * - 2 == go back and save settings (UNUSED)
+ * - 3 == game selected and save settings
+ */
+static int SelectGame(void)
+{
+	// Create a list of games
+	char filename[MAXPATHLEN];
+
+	// Depending on how many games are on the storage device,
+	// this could take a while.
+	ShowLoadingScreen();
+
+	// Load the game list.
+	u32 gamecount = 0;
+	gameinfo gi[MAX_GAMES];
+
+	devState = LoadGameList(&gi[0], MAX_GAMES, &gamecount);
+	switch (devState)
+	{
+		case DEV_OK:
+			// Game list loaded successfully.
+			break;
+
+		case DEV_NO_GAMES:
+			// No "games" directory was found.
+			// The list will still be shown, since there's a
+			// "Boot GC Disc in Drive" option on Wii.
+			gprintf("WARNING: %s was not found.\n", filename);
+			break;
+
+		case DEV_NO_OPEN:
+		default:
+		{
+			// Could not open the device at all.
+			// The list won't be shown, since a storage device
+			// is required for various functionality, but the
+			// user will be able to go back to the previous menu.
+			const char *s_devType = (UseSD ? "SD" : "USB");
+			gprintf("No %s FAT device found.\n", s_devType);
+			break;
+		}
+	}
+
+	bool selected = false;	// Set to TRUE if the user selected a game.
 
 	u32 redraw = 1;
 	u32 i;
@@ -195,7 +347,7 @@ bool SelectGame( void )
 		ListMax = 15;
 	bool SaveSettings = false;
 
-//	set default game to game that currently set in configuration
+	// set default game to game that currently set in configuration
 	for (i = 0; i < gamecount; ++i)
 	{
 		if (strcasecmp(strchr(gi[i].Path,':')+1, ncfg->GamePath) == 0)
@@ -219,9 +371,9 @@ bool SelectGame( void )
 
 		if( FPAD_Start(1) )
 		{
-			ClearScreen();
-			PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader..." );
-			ExitToLoader(0);
+			// Go back to the Settings menu.
+			selected = false;
+			break;
 		}
 
 		if( FPAD_Cancel(0) )
@@ -358,18 +510,51 @@ bool SelectGame( void )
 
 			if( FPAD_OK(0) )
 			{
+				// User selected a game.
+				selected = true;
 				break;
 			}
 
 			if( redraw )
 			{
 				PrintInfo();
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, MenuMode ? "X/1 : Update" : "");
-				for( i=0; i < ListMax; ++i )
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", gi[i+ScrollX].Name, gi[i+ScrollX].ID, i == PosX ? ARROW_LEFT : " " );
+				PrintDevInfo();
+
+				// Starting position.
+				int gamelist_y = MENU_POS_Y + 20*4;
+				if (devState != DEV_OK)
+				{
+					// The warning message overlaps "Boot GC Disc in Drive".
+					// Move the list down by one row.
+					gamelist_y += 20;
+				}
+
+				for (i = 0; i < ListMax; ++i, gamelist_y += 20)
+				{
+					// FIXME: Print all 64 characters of the game name?
+					// Currently truncated to 50.
+					const gameinfo *cur_gi = &gi[i+ScrollX];
+					if (cur_gi->DiscNumber == 0)
+					{
+						// Disc 1.
+						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, gamelist_y,
+							    "%50.50s [%.6s]%s",
+							    cur_gi->Name, cur_gi->ID,
+							    i == PosX ? ARROW_LEFT : " ");
+					}
+					else
+					{
+						// Disc 2 or higher.
+						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, gamelist_y,
+							    "%46.46s (%d) [%.6s]%s",
+							    cur_gi->Name, cur_gi->DiscNumber+1, cur_gi->ID,
+							    i == PosX ? ARROW_LEFT : " ");
+					}
+				}
 				GRRLIB_Render();
 				Screenshot();
 				ClearScreen();
@@ -686,10 +871,16 @@ bool SelectGame( void )
 				else
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(PosX), ARROW_RIGHT);
 				PrintInfo();
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, MenuMode ? "X/1 : Update" : "");
+				if (devState == DEV_OK)
+				{
+					// FIXME: If devState != DEV_OK,
+					// the device info overlaps with the settings menu.
+					PrintDevInfo();
+				}
 				GRRLIB_Render();
 				Screenshot();
 				ClearScreen();
@@ -697,10 +888,6 @@ bool SelectGame( void )
 			}
 		}
 	}
-	ClearScreen();
-	PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Loading, please wait...");
-	GRRLIB_Render();
-	ClearScreen();
 
 	u32 SelectedGame = PosX + ScrollX;
 	char* StartChar = gi[SelectedGame].Path + 3;
@@ -710,19 +897,147 @@ bool SelectGame( void )
 	memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
 	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 
-	for( i=0; i < gamecount; ++i )
+	// Free allocated memory in the game list.
+	for (i = 0; i < gamecount; ++i)
 	{
-		free(gi[i].Name);
+		if (gi[i].NameAlloc)
+			free(gi[i].Name);
 		free(gi[i].Path);
 	}
+
+	if (!selected)
+	{
+		// No game selected.
+		return 0;
+	}
+
+	// Game is selected.
+	// TODO: Return an enum.
+	return (SaveSettings ? 3 : 1);
+}
+
+/**
+ * Select the source device and game.
+ * @return TRUE to save settings; FALSE if no settings have been changed.
+ */
+bool SelectDevAndGame(void)
+{
+	// Select the source device. (SD or USB)
+	bool SaveSettings = false;
+	while (1)
+	{
+		VIDEO_WaitVSync();
+		FPAD_Update();
+
+		UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
+		PrintInfo();
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
+
+		// Render the screen here to prevent a blank frame
+		// when returning from SelectGame().
+		GRRLIB_Render();
+		ClearScreen();
+
+		if (FPAD_OK(0))
+		{
+			// Select a game from the specified device.
+			int ret = SelectGame();
+			if (ret & 2) SaveSettings = true;
+			if (ret & 1) break;
+		}
+		else if (FPAD_Start(0))
+		{
+			ShowMessageScreenAndExit("Returning to loader...", 0);
+		}
+		else if (FPAD_Down(0))
+		{
+			ncfg->Config = ncfg->Config | NIN_CFG_USB;
+		}
+		else if (FPAD_Up(0))
+		{
+			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
+		}
+	}
+
 	return SaveSettings;
 }
 
-void PrintInfo()
+/**
+ * Show a single message screen.
+ * @param msg Message.
+ */
+void ShowMessageScreen(const char *msg)
+{
+	const int len = strlen(msg);
+	const int x = (640 - (len*10)) / 2;
+
+	ClearScreen();
+	PrintInfo();
+	PrintFormat(DEFAULT_SIZE, BLACK, x, 232, "%s", msg);
+	GRRLIB_Render();
+	ClearScreen();
+}
+
+/**
+ * Show a single message screen and then exit to loader..
+ * @param msg Message.
+ * @param ret Return value. If non-zero, text will be printed in red.
+ */
+void ShowMessageScreenAndExit(const char *msg, int ret)
+{
+	const int len = strlen(msg);
+	const int x = (640 - (len*10)) / 2;
+	const u32 color = (ret == 0 ? BLACK : MAROON);
+
+	ClearScreen();
+	PrintInfo();
+	PrintFormat(DEFAULT_SIZE, color, x, 232, "%s", msg);
+	ExitToLoader(ret);
+
+	// gcc doesn't know ExitToLoader() exits.
+	exit(ret);
+}
+
+/**
+ * Print Nintendont version and system hardware information.
+ */
+void PrintInfo(void)
 {
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%d.%d (%s)", NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : %s %s", __DATE__, __TIME__ );
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
+}
+
+/**
+ * Print information about the selected device.
+ */
+static void PrintDevInfo(void)
+{
+	// Device type.
+	const char *s_devType = (UseSD ? "SD" : "USB");
+
+	// Device state.
+	// NOTE: If this is showing a message, the game list
+	// will be moved down by 1 row, which usually isn't
+	// a problem, since it will either be empty or showing
+	// "Boot GC Disc in Drive".
+	switch (devState) {
+		case DEV_NO_OPEN:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4,
+				"WARNING: %s FAT device could not be opened.", s_devType);
+			break;
+		case DEV_NO_GAMES:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4,
+				"WARNING: %s:/games/ was not found.", GetRootDevice());
+			break;
+		default:
+			break;
+	}
 }
 
 void ReconfigVideo(GXRModeObj *vidmode)

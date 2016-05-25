@@ -25,19 +25,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <stdio.h>
 #include <malloc.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include "font.h"
 #include "global.h"
 #include "exi.h"
 
 
-#define MAX_TITLES		740		// That should cover every GC game
-#define LINE_LENGTH 	61
+#define MAX_TITLES	740		// That should cover every GC game
+#define LINE_LENGTH	64		// Max is actually 61, but this improves performance.
 #define MAX_ELEMENTS(x) ((sizeof((x))) / (sizeof((x)[0])))
+
+extern char launch_dir[MAXPATHLEN];
 
 typedef struct {
 	const char titleID[6];
-	const char titleName[LINE_LENGTH - 4];
+	const char titleName[LINE_LENGTH];
 } SpecialTitles_t;
 
 static const SpecialTitles_t TriforceTitles[] = {
@@ -54,52 +57,110 @@ static const SpecialTitles_t TriforceTitles[] = {
 	{"GVS46J", "Virtua Striker 4 Ver.2006"},
 	{"GVS46E", "Virtua Striker 4 Ver.2006"}
 };
-	
 
-char __title_list[MAX_TITLES][LINE_LENGTH] = {{0}};
+
+static char __title_list[MAX_TITLES][LINE_LENGTH] = {{0}};
 static u32 title_count = 0;
 static bool loaded = false;
 
-s32 LoadTitles(void) {
-	int c = 0, line_char = 0;
-	FILE *titles_txt = NULL;
-	char buffer[LINE_LENGTH] = {0};
-	titles_txt = fopen("titles.txt", "rb");
-	if (titles_txt == NULL) return 0;
+/**
+ * qsort() comparison function for titles.
+ * Checks the ID3.
+ * @param p1
+ * @param p2
+ */
+static int compare_title(const void *p1, const void *p2)
+{
+       return strncmp((const char*)p1, (const char*)p2, 3);
+}
+
+s32 LoadTitles(void)
+{
+	// Determine the titles.txt path.
+	// If loaded from network, launch_dir[] is empty,
+	// so use /apps/Nintendont/ as a fallback.
+	char filepath[MAXPATHLEN];
+	snprintf(filepath, sizeof(filepath), "%stitles.txt",
+		 launch_dir[0] != 0 ? launch_dir : "/apps/Nintendont/");
+
+	FILE *titles_txt = fopen(filepath, "rb");
+	if (!titles_txt)
+		return 0;
+
+	char *cur_title = &__title_list[0][0];
+	title_count = 0;
 	loaded = true;
 	do {
-		c = fgetc(titles_txt);
-		if (c == '\r') continue;
-		buffer[line_char] = c;
-		
-		if ((c == '\n') || (line_char == LINE_LENGTH - 1)) {
-			buffer[line_char] = 0;
-			if (line_char > 5) {
-				snprintf(__title_list[title_count], LINE_LENGTH, buffer);
-				title_count++;
+		if (!fgets(cur_title, LINE_LENGTH, titles_txt))
+			break;
+
+		// Trim newlines and/or carriage returns.
+		int len = (int)strlen(cur_title)-1;
+		for (; len > 5; len--) {
+			if (cur_title[len] == '\n' || cur_title[len] == '\r') {
+				cur_title[len] = 0;
+			} else {
+				break;
 			}
-			line_char = 0;
-		} else line_char++;
-    } while (c != EOF);
+		}
+
+		if (len > 5) {
+			// Valid title.
+			title_count++;
+			cur_title = &__title_list[title_count][0];
+		}
+	} while (!feof(titles_txt) && title_count < MAX_TITLES);
+
+	// Sort the titles so we can do a binary search later.
+	// __title_list[] format: "ID3-Title"
+	qsort(__title_list, title_count, LINE_LENGTH, compare_title);
+
 	fclose(titles_txt);
 	return title_count;
 }
 
-inline bool SearchTitles(const char *titleID, char *titleName) {
-	if (!loaded) return false;
+/**
+ * Find a title in the titles database.
+ * Loaded from titles.txt, plus special exceptions for Triforce.
+ * @param titleID Title ID. (ID6)
+ * @return Title, or null pointer if not found.
+ * WARNING: DO NOT FREE the returned title!
+ */
+const char *SearchTitles(const char *titleID) {
+	if (!loaded) {
+		// Titles haven't been loaded.
+		return NULL;
+	}
+
+	// Check for Triforce arcade games first.
 	int i;
-	for(i=0; i < MAX_ELEMENTS(TriforceTitles); i++) { // Check for Triforce arcade games first
+	for (i = 0; i < MAX_ELEMENTS(TriforceTitles); i++) {
 		if (!strncmp(titleID, TriforceTitles[i].titleID, 6)) {
-			strcpy(titleName, TriforceTitles[i].titleName);
-			gprintf("Found special title %s, replacing name with %s\r\n", titleID, TriforceTitles[i].titleName);
-			return true;
+			gprintf("Found special title %.6s, replacing name with %s\r\n", titleID, TriforceTitles[i].titleName);
+			return TriforceTitles[i].titleName;
 		}
 	}
-	for(i=0; i < title_count; i++) {
-		if (!strncmp(titleID, __title_list[i], 3)) {
-			strcpy(titleName, __title_list[i] + 4);
-			return true;
+
+	// Do a binary search for the ID3.
+	// __title_list[] format: "ID3-Title"
+	// Reference: http://www.programmingsimplified.com/c/source-code/c-program-binary-search
+	// TODO: Do timing tests.
+	int first = 0;
+	int last = title_count - 1;
+	int middle = (first + last) / 2;
+	while (first <= last) {
+		int res = strncmp(__title_list[middle], titleID, 3);
+		if (res < 0) {
+			first = middle + 1;
+		} else if (res > 0) {
+			last = middle - 1;
+		} else {
+			// Found a match.
+			return __title_list[middle] + 4;
 		}
+		middle = (first + last) / 2;
 	}
-	return false;
+
+	// Title not found.
+	return NULL;
 }

@@ -262,9 +262,7 @@ void UpdateNintendont(void) {
 		FPAD_Update();
 		if (delay > ticks_to_millisecs(gettime())) continue;
 		if (FPAD_Start(1)) {
-			ClearScreen();
-			PrintFormat(DEFAULT_SIZE, BLACK, 212, 232, "Returning to loader...");
-			ExitToLoader(0);
+			ShowMessageScreenAndExit("Returning to loader...", 0);
 		}
 		if (FPAD_OK(1)) {
 			if (selected <= DOWNLOAD_CONTROLLERS)
