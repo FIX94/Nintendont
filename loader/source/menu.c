@@ -181,14 +181,19 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			if( pent->d_name[0] == '.' )
 				continue;
 
-			//gprintf( "%s", pent->d_name );
+			// Prepare the filename buffer with the directory name.
+			// game.iso/disc2.iso will be appended later.
+			int fnlen = snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
 
 			//Test if game.iso exists and add to list
 			bool found = false;
 			u32 DiscNumber;
 			for (DiscNumber = 0; DiscNumber < 2; DiscNumber++)
 			{
-				snprintf(filename, sizeof(filename), "%s:/games/%s/%s.iso", GetRootDevice(), pent->d_name, DiscNumber ? "disc2" : "game");
+				if (DiscNumber)
+					memcpy(&filename[fnlen], "disc2.iso", 10);
+				else
+					memcpy(&filename[fnlen], "game.iso", 9);
 
 				FILE *in = fopen( filename, "rb" );
 				if( in != NULL )
@@ -231,7 +236,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			// If game.iso wasn't found, check for FST format.
 			if ( !found )
 			{
-				snprintf(filename, sizeof(filename), "%s:/games/%s/sys/boot.bin", GetRootDevice(), pent->d_name);
+				memcpy(&filename[fnlen], "sys/boot.bin", 13);
 
 				FILE *in = fopen( filename, "rb" );
 				if( in != NULL )
@@ -242,7 +247,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 
 					if( IsGCGame((u8*)buf) )	// Must be GC game
 					{
-						snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
+						filename[fnlen] = 0;
 
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						gi[gamecount].DiscNumber = DiscNumber;
@@ -300,6 +305,7 @@ static int SelectGame(void)
 	// Load the game list.
 	u32 gamecount = 0;
 	gameinfo gi[MAX_GAMES];
+
 	devState = LoadGameList(&gi[0], MAX_GAMES, &gamecount);
 	switch (devState)
 	{
