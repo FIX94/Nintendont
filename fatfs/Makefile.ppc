@@ -1,0 +1,36 @@
+# FatFS Makefile for PowerPC (Nintendont loader)
+
+#---------------------------------------------------------------------------------
+# Clear the implicit built in rules
+#---------------------------------------------------------------------------------
+
+.SUFFIXES:
+#---------------------------------------------------------------------------------
+ifeq ($(strip $(DEVKITPPC)),)
+$(error "Please set DEVKITPPC in your environment. export DEVKITPPC=<path to>devkitPPC")
+endif
+
+include $(DEVKITPPC)/wii_rules
+
+CFLAGS	:= -g -O2 -Wall $(MACHDEP) $(INCLUDE)
+ARFLAGS	:= cru
+
+TARGET	:= libfat-ppc.a
+OBJECTS	:= ff-ppc.o option/ccsbcs-ppc.o
+
+.PHONY: FORCE
+
+all: $(TARGET)
+
+-include $(OBJECTS:.o=.d)
+
+$(TARGET): $(OBJECTS)
+	@echo  "AR	$@"
+	@$(AR) $(ARFLAGS) $@ $(OBJECTS)
+
+%-ppc.o : %.c
+	@echo  "CC	$@"
+	@$(CC) $(CFLAGS) -c -MMD -MP -MF $(@:.o=.d) -o $@ $<
+
+clean:
+	-rm -f *-ppc.a *-ppc.o *-ppc.d
