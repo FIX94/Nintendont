@@ -64,9 +64,6 @@ static bool loaded = false;
 
 s32 LoadTitles(void)
 {
-	int c = 0, line_char = 0;
-	char buffer[LINE_LENGTH+4] = {0};
-
 	// Determine the titles.txt path.
 	// If loaded from network, launch_dir[] is empty,
 	// so use /apps/Nintendont/ as a fallback.
@@ -78,21 +75,29 @@ s32 LoadTitles(void)
 	if (!titles_txt)
 		return 0;
 
+	char *cur_title = &__title_list[0][0];
+	title_count = 0;
 	loaded = true;
 	do {
-		c = fgetc(titles_txt);
-		if (c == '\r') continue;
-		buffer[line_char] = c;
+		if (!fgets(cur_title, LINE_LENGTH, titles_txt))
+			break;
 
-		if ((c == '\n') || (line_char == LINE_LENGTH - 1)) {
-			buffer[line_char] = 0;
-			if (line_char > 5) {
-				snprintf(__title_list[title_count], LINE_LENGTH, buffer);
-				title_count++;
+		// Trim newlines and/or carriage returns.
+		int len = (int)strlen(cur_title)-1;
+		for (; len > 5; len--) {
+			if (cur_title[len] == '\n' || cur_title[len] == '\r') {
+				cur_title[len] = 0;
+			} else {
+				break;
 			}
-			line_char = 0;
-		} else line_char++;
-	} while (c != EOF);
+		}
+
+		if (len > 5) {
+			// Valid title.
+			title_count++;
+			cur_title = &__title_list[title_count][0];
+		}
+	} while (!feof(titles_txt) && title_count < MAX_TITLES);
 
 	fclose(titles_txt);
 	return title_count;
