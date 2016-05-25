@@ -35,6 +35,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define LINE_LENGTH	64		// Max is actually 61, but this improves performance.
 #define MAX_ELEMENTS(x) ((sizeof((x))) / (sizeof((x)[0])))
 
+extern char launch_dir[MAXPATHLEN];
+
 typedef struct {
 	const char titleID[6];
 	const char titleName[LINE_LENGTH];
@@ -60,12 +62,22 @@ static char __title_list[MAX_TITLES][LINE_LENGTH] = {{0}};
 static u32 title_count = 0;
 static bool loaded = false;
 
-s32 LoadTitles(void) {
+s32 LoadTitles(void)
+{
 	int c = 0, line_char = 0;
-	FILE *titles_txt = NULL;
 	char buffer[LINE_LENGTH+4] = {0};
-	titles_txt = fopen("titles.txt", "rb");
-	if (titles_txt == NULL) return 0;
+
+	// Determine the titles.txt path.
+	// If loaded from network, launch_dir[] is empty,
+	// so use /apps/Nintendont/ as a fallback.
+	char filepath[MAXPATHLEN];
+	snprintf(filepath, sizeof(filepath), "%stitles.txt",
+		 launch_dir[0] != 0 ? launch_dir : "/apps/Nintendont/");
+
+	FILE *titles_txt = fopen(filepath, "rb");
+	if (!titles_txt)
+		return 0;
+
 	loaded = true;
 	do {
 		c = fgetc(titles_txt);
