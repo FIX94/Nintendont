@@ -6,3 +6,4 @@ kernel/asm/*.h
 kernel/kernel.map
 loader/build/
 nintendont/boot.dol
+fatfs/*.a
