@@ -28,6 +28,15 @@ DSTATUS disk_status (
 	return RES_OK;
 }
 
+/* simple but very effective sector cache */
+#define CACHE_SIZE 64
+typedef struct _fatCache {
+	bool valid;
+	DWORD sectorNum;
+	BYTE data[_MAX_SS];
+} fatCache;
+static fatCache cache[_VOLUMES][CACHE_SIZE];
+static u32 cachePos[_VOLUMES];
 
 
 /*-----------------------------------------------------------------------*/
@@ -38,11 +47,14 @@ DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive number to identify the drive */
 )
 {
+	/* Clear out cache so we wont get any false positives */
+	u32 i;
+	for(i = 0; i < CACHE_SIZE; i++)
+		cache[pdrv][i].valid = false;
+	cachePos[pdrv] = 0;
 	/* Nintendont initializes devices outside of FatFS. */
 	return RES_OK;
 }
-
-
 
 /*-----------------------------------------------------------------------*/
 /* Read Sector(s)                                           */
@@ -56,7 +68,20 @@ DRESULT disk_read (
 )
 {
 	s32 Retry=10;
-
+	/* Only cache on single sectors */
+	if(count == 1)
+	{
+		u32 i;
+		for(i = 0; i < CACHE_SIZE; i++)
+		{
+			if(cache[pdrv][i].valid == true && 
+				cache[pdrv][i].sectorNum == sector)
+			{
+				memcpy(buff,cache[pdrv][i].data,__sector_size);
+				return RES_OK;
+			}
+		}
+	}
 	while(1)
 	{
 		if( driver[pdrv]->readSectors( sector, count, buff ) )
@@ -68,7 +93,19 @@ DRESULT disk_read (
 			return RES_ERROR;
 		}
 	}
-
+	/* Got done reading sector, copy to cache */
+	if(count == 1)
+	{
+		u32 cPos = cachePos[pdrv];
+		cache[pdrv][cPos].valid = true;
+		cache[pdrv][cPos].sectorNum = sector;
+		memcpy(cache[pdrv][cPos].data,buff,__sector_size);
+		cPos++;
+		/* Wrap cache around */
+		if(cPos == CACHE_SIZE)
+			cPos = 0;
+		cachePos[pdrv] = cPos;
+	}
 	return RES_OK;
 }
 
@@ -85,6 +122,16 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
+	/* Make sure to invalidate cache on changes */
+	u32 i;
+	for(i = 0; i < CACHE_SIZE; i++)
+	{
+		if(cache[pdrv][i].valid == true &&
+			cache[pdrv][i].sectorNum >= sector && 
+			cache[pdrv][i].sectorNum < (sector+count))
+			cache[pdrv][i].valid = false;
+	}
+
 	if( driver[pdrv]->writeSectors( sector, count, buff ) < 0 )
 	{
 		return RES_ERROR;

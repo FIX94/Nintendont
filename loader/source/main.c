@@ -252,6 +252,11 @@ int main(int argc, char **argv)
 	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
 	gprintf("launch_dir = %s\r\n", launch_dir);
 
+	//get into our directory
+	f_chdir_char("/");
+	if(*launch_dir)
+		f_chdir_char(launch_dir);
+
 	FPAD_Init();
 	FPAD_Update();
 
@@ -396,8 +401,18 @@ int main(int argc, char **argv)
 	if( ncfg->Config & NIN_CFG_AUTO_BOOT )
 		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
 	else
+	{
 		SaveSettings = SelectGame();
-
+		//Reset device changes
+		if(sdCard)
+			f_chdrive_char("sd:");
+		else if(usbDev)
+			f_chdrive_char("usb:");
+		//get back into our directory
+		f_chdir_char("/");
+		if(*launch_dir)
+			f_chdir_char(launch_dir);
+	}
 //Init DI and set correct ID if needed
 	u32 CurDICMD = 0;
 	if( memcmp(ncfg->GamePath, "di", 3) == 0 )

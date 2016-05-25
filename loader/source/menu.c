@@ -84,7 +84,8 @@ bool SelectGame( void )
 	DIR pdir;
 
 	snprintf(filename, sizeof(filename), "%s:", GetRootDevice());
-	f_chdrive_char(filename);
+	f_chdrive_char(filename); //get on needed drive
+	f_chdir_char("/"); //start out from the root
 	if( f_chdir_char("games") != FR_OK || f_opendir_char(&pdir,".") != FR_OK )
 	{
 		ClearScreen();
@@ -95,12 +96,6 @@ bool SelectGame( void )
 
 	u32 gamecount = 0;
 	char buf[0x100];
-	//"cache" paths first by using a huge array
-	char *tmpPaths[1024];
-	u32 i;
-	for(i = 0; i < 1024; ++i)
-		tmpPaths[i] = malloc(1024);
-	u32 curPathPos = 0;
 
 	gameinfo gi[MAX_GAMES];
 
@@ -113,81 +108,70 @@ bool SelectGame( void )
 		gi[0].Path = strdup("di:di");
 		gamecount++;
 	}
-	gprintf("reading dir start\n");
 	FILINFO fInfo;
 	FIL in;
 	while( f_readdir(&pdir,&fInfo) == FR_OK && fInfo.fname[0] )
 	{
 		if( fInfo.fattrib & AM_DIR )
 		{
-			strncpy(tmpPaths[curPathPos],wchar_to_char(fInfo.fname),1023);
-			curPathPos++;
-			if(curPathPos == 1024)
+			//Test if game.iso exists and add to list
+			char *cDirChar = wchar_to_char(fInfo.fname);
+			bool found = false;
+			u32 DiscNumber;
+			for (DiscNumber = 0; DiscNumber < 2; DiscNumber++)
+			{
+				snprintf(incurdir,sizeof(incurdir), "%s/%s.iso", cDirChar, DiscNumber ? "disc2" : "game");
+				if( f_open_char(&in,incurdir,FA_READ|FA_OPEN_EXISTING) == FR_OK )
+				{
+				//	gprintf("(%s) ok\n", incurdir );
+					UINT read;
+					f_read(&in,buf,0x100,&read);
+					f_close(&in);
+
+					if( IsGCGame((u8*)buf) )	// Must be GC game
+					{
+						snprintf(filename, sizeof(filename), "%s:/games/%s/%s.iso", GetRootDevice(), cDirChar, DiscNumber ? "disc2" : "game");
+
+						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
+						if(!SearchTitles(gi[gamecount].ID, gamename)) strcpy( gamename, buf + 0x20 );
+						if (DiscNumber)
+							strcat( gamename, " (2)" );
+						gi[gamecount].Name = strdup( gamename );
+						gi[gamecount].Path = strdup( filename );
+
+						gamecount++;
+						found = true;
+					}
+				}
+			}
+			if ( !found ) // Check for FST format
+			{
+				snprintf(incurdir, sizeof(incurdir), "%s/sys/boot.bin", cDirChar);
+				if( f_open_char(&in,incurdir,FA_READ|FA_OPEN_EXISTING) == FR_OK )
+				{
+				//	gprintf("(%s) ok\n", incurdir );
+					UINT read;
+					f_read(&in,buf,0x100,&read);
+					f_close(&in);
+
+					if( IsGCGame((u8*)buf) )	// Must be GC game
+					{
+						snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), cDirChar);
+
+						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
+						gi[gamecount].Name = strdup( buf + 0x20 );
+						gi[gamecount].Path = strdup( filename );
+						
+
+						gamecount++;
+					}
+				}
+			}
+			if (gamecount >= MAX_GAMES)	//if array is full
 				break;
 		}
 	}
 	f_closedir(&pdir);
-	gprintf("reading dir finish\n");
-	for(i = 0; i < curPathPos; i++)
-	{
-		//Test if game.iso exists and add to list
-		char *cDirChar = tmpPaths[i];
-		bool found = false;
-		u32 DiscNumber;
-		for (DiscNumber = 0; DiscNumber < 2; DiscNumber++)
-		{
-			snprintf(incurdir,sizeof(incurdir), "%s/%s.iso", cDirChar, DiscNumber ? "disc2" : "game");
-			if( f_open_char(&in,incurdir,FA_READ|FA_OPEN_EXISTING) == FR_OK )
-			{
-			//	gprintf("(%s) ok\n", incurdir );
-				UINT read;
-				f_read(&in,buf,0x100,&read);
-				f_close(&in);
-
-				if( IsGCGame((u8*)buf) )	// Must be GC game
-				{
-					snprintf(filename, sizeof(filename), "%s:/games/%s/%s.iso", GetRootDevice(), cDirChar, DiscNumber ? "disc2" : "game");
-
-					memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-					if(!SearchTitles(gi[gamecount].ID, gamename)) strcpy( gamename, buf + 0x20 );
-					if (DiscNumber)
-						strcat( gamename, " (2)" );
-					gi[gamecount].Name = strdup( gamename );
-					gi[gamecount].Path = strdup( filename );
-
-					gamecount++;
-					found = true;
-				}
-			}
-		}
-		if ( !found ) // Check for FST format
-		{
-			snprintf(incurdir, sizeof(incurdir), "%s/sys/boot.bin", cDirChar);
-			if( f_open_char(&in,incurdir,FA_READ|FA_OPEN_EXISTING) == FR_OK )
-			{
-			//	gprintf("(%s) ok\n", incurdir );
-				UINT read;
-				f_read(&in,buf,0x100,&read);
-				f_close(&in);
-
-				if( IsGCGame((u8*)buf) )	// Must be GC game
-				{
-					snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), cDirChar);
-
-					memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-					gi[gamecount].Name = strdup( buf + 0x20 );
-					gi[gamecount].Path = strdup( filename );
-					
-
-					gamecount++;
-				}
-			}
-		}
-		if (gamecount >= MAX_GAMES)	//if array is full
-			break;
-	}
-	for(i = 0; i < 1024; ++i)
-		free(tmpPaths[i]);
 
 	if( IsWiiU() )
 		qsort(gi, gamecount, sizeof(gameinfo), compare_names);
@@ -199,7 +183,7 @@ bool SelectGame( void )
 	s32 PosX = 0, prevPosX = 0;
 	s32 ScrollX = 0, prevScrollX = 0;
 	u32 MenuMode = 0;
-
+	u32 i;
 	u32 ListMax = gamecount;
 	if( ListMax > 15 )
 		ListMax = 15;
