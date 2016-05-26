@@ -8,8 +8,7 @@ STRIP	:= $(PREFIX)strip
 
 CFLAGS	:= -mbig-endian -O3 -g -I. -Wall -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft \
 	   -fdata-sections -ffunction-sections -fno-builtin-toupper -fno-builtin-memcpy \
-	   -fno-builtin-memset -fno-builtin-memcmp -fno-builtin-malloc -fno-builtin-free \
-	   -mthumb -mthumb-interwork
+	   -fno-builtin-memset -fno-builtin-memcmp -fno-builtin-malloc -fno-builtin-free
 CPPFLAGS := -I. -I../fatfs
 
 ASFLAGS	:= -mbig-endian -mcpu=arm926ej-s
