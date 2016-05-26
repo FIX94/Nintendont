@@ -194,7 +194,7 @@ DRESULT disk_ioctl (
 
 
 /*-----------------------------------------------------------------------*/
-/* Nintendont: Device type selection.                                    */
+/* Nintendont kernel: Device type selection.                             */
 /*-----------------------------------------------------------------------*/
 
 DiskReadFunc disk_read;
