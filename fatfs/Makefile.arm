@@ -22,7 +22,7 @@ CFLAGS	:= -mbig-endian -O3 -g -I. -Wall -mcpu=arm926ej-s -msoft-float -mfloat-ab
 
 ARFLAGS	:= cru
 
-TARGET	:= libfat-arm.a
+TARGET	:= libfatfs-arm.a
 OBJECTS	:= ff-arm.o ff_utf8-arm.o option/ccsbcs-arm.o
 
 .PHONY: FORCE
