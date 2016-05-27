@@ -225,6 +225,9 @@ int main(int argc, char **argv)
 	{
 		// Attempt to initialize this device
 		// TODO: Do initialization asynchronously.
+		// FIXME: We depend on loading nincfg.bin from the
+		// storage device before doing anything, so we can't
+		// easily do an async init...
 		if (fatDevices[i].timeout > 0)
 		{
 			// Attempt multiple inits within a timeout period.

@@ -20,6 +20,16 @@ extern DISC_INTERFACE __io_custom_usbstorage;
 DISC_INTERFACE *driver[_VOLUMES] = { &__io_wiisd, &__io_custom_usbstorage };
 static bool disk_isInit[_VOLUMES] = {0};
 
+/* simple but very effective sector cache */
+#define CACHE_SIZE 64
+typedef struct _fatCache {
+       bool valid;
+       DWORD sectorNum;
+       BYTE data[_MAX_SS];
+} fatCache;
+static fatCache cache[_VOLUMES][CACHE_SIZE];
+static u32 cachePos[_VOLUMES];
+
 //from usbstorage.c
 extern u32 __sector_size;
 
@@ -71,6 +81,12 @@ DSTATUS disk_initialize (
 	if (!driver[pdrv]->isInserted())
 		return STA_NODISK;
 
+	// Initialize the sector cache.
+	for (int i = CACHE_SIZE-1; i >= 0; i--) {
+		cache[pdrv][i].valid = false;
+	}
+	cachePos[pdrv] = 0;
+
 	// Device initialized.
 	disk_isInit[pdrv] = true;
 	return 0;
@@ -90,15 +106,39 @@ DRESULT disk_read (
 	if (pdrv < DEV_SD || pdrv > DEV_USB)
 		return RES_PARERR;
 
+	// For single-sector reads, check the cache first.
+	if (count == 1) {
+		for (int i = 0; i < CACHE_SIZE; i++) {
+			if (cache[pdrv][i].valid &&
+			    cache[pdrv][i].sectorNum == sector)
+			{
+				memcpy(buff, cache[pdrv][i].data, __sector_size);
+				return RES_OK;
+			}
+		}
+	}
+
 	int retry = 10;
-	for (; retry >= 0; retry--)
-	{
+	for (; retry >= 0; retry--) {
 		if (driver[pdrv]->readSectors(sector, count, buff))
 			break;
 	}
 
 	if (retry < 0)
 		return RES_ERROR;
+
+	// Copy the sector to the cache.
+	if (count == 1) {
+		u32 cPos = cachePos[pdrv];
+		cache[pdrv][cPos].valid = true;
+		cache[pdrv][cPos].sectorNum = sector;
+		memcpy(cache[pdrv][cPos].data, buff, __sector_size);
+		cPos++;
+		/* Wrap cache around */
+		if(cPos == CACHE_SIZE)
+			cPos = 0;
+		cachePos[pdrv] = cPos;
+	}
 
 	return RES_OK;
 }
@@ -121,6 +161,16 @@ DRESULT disk_write (
 
 	if (driver[pdrv]->writeSectors(sector, count, buff) < 0)
 		return RES_ERROR;
+
+	// If any of these sectors were cached, invalidate them.
+	for (int i = CACHE_SIZE-1; i >= 0; i--) {
+		if (cache[pdrv][i].valid &&
+		    cache[pdrv][i].sectorNum >= sector &&
+		    cache[pdrv][i].sectorNum < (sector+count))
+		{	
+			cache[pdrv][i].valid = false;
+		}
+	}
 
 	return RES_OK;
 }
