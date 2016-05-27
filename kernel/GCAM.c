@@ -2,6 +2,8 @@
 #include "JVSIO.h"
 #include "Config.h"
 #include "DI.h"
+#include "ff_utf8.h"
+
 #ifndef DEBUG_GCAM
 #define dbgprintf(...)
 #else

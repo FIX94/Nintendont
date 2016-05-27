@@ -21,10 +21,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "Patch.h"
 #include "string.h"
-#include "ff.h"
 #include "TRI.h"
 #include "GCAM.h"
 #include "DI.h"
+
+#include "ff_utf8.h"
 
 #include "asm/PADReadGP.h"
 #include "asm/PADReadF.h"

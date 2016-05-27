@@ -4,7 +4,6 @@
 #include "global.h"
 #include "string.h"
 #include "Config.h"
-#include "ff.h"
 #include "NAND.h"
 
 #define TICKET_SIZE		0x2A4

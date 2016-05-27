@@ -12,11 +12,11 @@ endif
 
 include $(DEVKITPPC)/wii_rules
 
-CFLAGS	:= -g -O2 -Wall $(MACHDEP) $(INCLUDE)
+CFLAGS	:= -g -O3 -Wall $(MACHDEP) $(INCLUDE)
 ARFLAGS	:= cru
 
 TARGET	:= libfat-ppc.a
-OBJECTS	:= ff-ppc.o option/ccsbcs-ppc.o
+OBJECTS	:= ff-ppc.o ff_utf8-ppc.o option/ccsbcs-ppc.o
 
 .PHONY: FORCE
 

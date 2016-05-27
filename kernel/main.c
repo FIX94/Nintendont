@@ -34,9 +34,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "debug.h"
 #include "GCAM.h"
 #include "Patch.h"
+
 #include "diskio.h"
 #include "usbstorage.h"
 #include "SDI.h"
+#include "ff_utf8.h"
 
 //#undef DEBUG
 bool access_led = false;

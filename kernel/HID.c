@@ -19,11 +19,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include "HID.h"
-#include "ff.h"
 #include "Config.h"
 #include "hidmem.h"
 #include "usb.h"
 #include "HID_controllers.h"
+
+#include "ff_utf8.h"
+
 #ifndef DEBUG_HID
 #define dbgprintf(...)
 #else

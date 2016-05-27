@@ -26,7 +26,6 @@ void udelay(int us);
 void mdelay(int ms);
 void Asciify( char *str );
 unsigned int atox( char *String );
-FRESULT f_open_char( FIL* fp, const char* path, BYTE mode );
 void Shutdown( void );
 void W16(u32 Address, u16 Data);
 void W32(u32 Address, u32 Data);

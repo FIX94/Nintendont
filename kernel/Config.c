@@ -1,6 +1,6 @@
 #include "Config.h"
-#include "ff.h"
 #include "debug.h"
+#include "ff_utf8.h"
 
 NIN_CFG *ncfg = (NIN_CFG*)0x13002900;
 

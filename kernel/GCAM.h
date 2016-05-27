@@ -4,7 +4,6 @@
 #include "string.h"
 #include "global.h"
 #include "alloc.h"
-#include "ff.h"
 #include "vsprintf.h"
 
 #define		GCAM_BASE		0x13026100

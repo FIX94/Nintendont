@@ -21,7 +21,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "Patch.h"
 #include "string.h"
-#include "ff.h"
 #include "dol.h"
 #include "elf.h"
 #include "PatchCodes.h"
@@ -36,6 +35,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SI.h"
 #include "EXI.h"
 #include "codehandler.h"
+
+#include "ff_utf8.h"
+
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
 u32 GAME_ID	= 0;
