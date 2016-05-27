@@ -18,6 +18,7 @@
 extern DISC_INTERFACE __io_wiisd;
 extern DISC_INTERFACE __io_custom_usbstorage;
 DISC_INTERFACE *driver[_VOLUMES] = { &__io_wiisd, &__io_custom_usbstorage };
+static bool disk_isInit[_VOLUMES] = {0};
 
 //from usbstorage.c
 extern u32 __sector_size;
@@ -34,8 +35,16 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive number to identify the drive */
 )
 {
-	// TODO
-	return RES_OK;
+	if (pdrv < DEV_SD || pdrv > DEV_USB)
+		return STA_NOINIT;
+
+	if (disk_isInit[pdrv]) {
+		// TODO: Check write protection on SD?
+		return (driver[pdrv]->isInserted() ? 0 : STA_NODISK);
+	}
+
+	// Disk isn't initialized.
+	return STA_NOINIT;
 }
 
 
@@ -49,15 +58,26 @@ DSTATUS disk_initialize (
 )
 {
 	if (pdrv < DEV_SD || pdrv > DEV_USB)
-		return RES_PARERR;
+		return STA_NOINIT;
 
-	/* Nintendont initializes devices outside of FatFS. */
-	// TODO: Move device initialization here?
-	return RES_OK;
+	// Attempt to initialize the device.
+	// NOTE: For USB, this may have to be run multiple times.
+	// That should be done by the caller in order to allow
+	// for asynchronous startup.
+	if (!disk_isInit[pdrv]) {
+		if (!driver[pdrv]->startup())
+			return STA_NOINIT;
+	}
+	if (!driver[pdrv]->isInserted())
+		return STA_NODISK;
+
+	// Device initialized.
+	disk_isInit[pdrv] = true;
+	return 0;
 }
 
 /*-----------------------------------------------------------------------*/
-/* Read Sector(s)                                           */
+/* Read Sector(s)                                                        */
 /*-----------------------------------------------------------------------*/
 
 DRESULT disk_read (
@@ -86,7 +106,7 @@ DRESULT disk_read (
 
 
 /*-----------------------------------------------------------------------*/
-/* Write Sector(s)                                            */
+/* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
 
 DRESULT disk_write (

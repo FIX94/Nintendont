@@ -45,6 +45,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "TRI.h"
 
 #include "ff_utf8.h"
+#include "diskio.h"
+// from diskio.c
+extern DISC_INTERFACE *driver[_VOLUMES];
 
 extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
@@ -204,50 +207,63 @@ int main(int argc, char **argv)
 		}
 	}
 
-	// Initialize the SD card.
-	// TOOD: Move to diskio.c?
-	__io_wiisd.startup();
-	if (__io_wiisd.isInserted())
-	{
-		sdCard = (FATFS*)memalign(32, sizeof(FATFS));
-		int res = f_mount_char(sdCard, "sd:", 1);
-		if (res == FR_OK)
-		{
-			gprintf("Mounted SD!\n");
-			// Use SD as primary.
-			f_chdrive_char("sd:");
-		}
-		else
-		{
-			free(sdCard);
-			sdCard = NULL;
-		}
-	}
+	// Initialize devices.
+	static const struct {
+		const WCHAR devNameFF[8];
+		const char devNameDisplay[4];
+		FATFS **const fatFs;
 
-	// Initialize the USB storage device.
-	// TODO: Move to diskio.c, and run this asynchronously?
-	time_t timeout = time(NULL);
-	while(time(NULL) - timeout < 10)
+		// Maximum init timeout, in seconds.
+		// (0 = only try once)
+		int timeout;
+	} fatDevices[2] = {
+		{{'s', 'd', ':', 0}, "SD", &sdCard, 0},
+		{{'u', 's', 'b', ':', 0}, "USB", &usbDev, 10}
+	};
+	bool foundOneDevice = false;
+	for (int i = 0; i < 2; i++)
 	{
-		if(__io_custom_usbstorage.startup() && __io_custom_usbstorage.isInserted())
-			break;
-		usleep(50000);
-	}
-	if (__io_custom_usbstorage.isInserted())
-	{
-		usbDev = (FATFS*)memalign(32, sizeof(FATFS));
-		int res = f_mount_char(usbDev, "usb:", 1);
-		if (res == FR_OK)
+		// Attempt to initialize this device
+		// TODO: Do initialization asynchronously.
+		if (fatDevices[i].timeout > 0)
 		{
-			gprintf("Mounted USB!\n");
-			// If no SD card, chdrive to USB.
-			if (!sdCard)
-				f_chdrive_char("usb:");
+			// Attempt multiple inits within a timeout period.
+			time_t timeout = time(NULL);
+			while (time(NULL) - timeout < fatDevices[i].timeout)
+			{
+				if (disk_initialize(i) == 0)
+					break;
+				usleep(50000);
+			}
 		}
 		else
+		{
+			// Only attempt a single init.
+			disk_initialize(i);
+		}
+
+		if (disk_status(i) == 0)
 		{
 			free(usbDev);
 			usbDev = NULL;
+			// Device initialized.
+			*(fatDevices[i].fatFs) = (FATFS*)memalign(32, sizeof(FATFS));
+			if (f_mount(*(fatDevices[i].fatFs), fatDevices[i].devNameFF, 1) == FR_OK)
+			{
+				gprintf("Mounted %s!\n", fatDevices[i].devNameDisplay);
+				if (!foundOneDevice)
+				{
+					// Set this device as primary.
+					f_chdrive(fatDevices[i].devNameFF);
+					foundOneDevice = true;
+				}
+			}
+			else
+			{
+				// Could not mount the filesystem.
+				free(*(fatDevices[i].fatFs));
+				*(fatDevices[i].fatFs) = NULL;
+			}
 		}
 	}
 
