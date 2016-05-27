@@ -21,14 +21,12 @@ DISC_INTERFACE *driver[_VOLUMES] = { &__io_wiisd, &__io_custom_usbstorage };
 static bool disk_isInit[_VOLUMES] = {0};
 
 /* simple but very effective sector cache */
-#define CACHE_SIZE 64
-typedef struct _fatCache {
-       bool valid;
-       DWORD sectorNum;
-       BYTE data[_MAX_SS];
-} fatCache;
-static fatCache cache[_VOLUMES][CACHE_SIZE];
-static u32 cachePos[_VOLUMES];
+#define CACHE_SIZE 64  /* 64 sectors per device */
+static struct {
+	u32 pos;			// Next cache entry to use.
+	DWORD sectorNum[CACHE_SIZE];	// Sector numbers. (0 == invalid entry)
+	BYTE data[CACHE_SIZE][_MAX_SS];	// Cache entries.
+} cache[_VOLUMES];
 
 //from usbstorage.c
 extern u32 __sector_size;
@@ -83,9 +81,9 @@ DSTATUS disk_initialize (
 
 	// Initialize the sector cache.
 	for (int i = CACHE_SIZE-1; i >= 0; i--) {
-		cache[pdrv][i].valid = false;
+		cache[pdrv].sectorNum[i] = 0;
 	}
-	cachePos[pdrv] = 0;
+	cache[pdrv].pos = 0;
 
 	// Device initialized.
 	disk_isInit[pdrv] = true;
@@ -103,16 +101,18 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (pdrv < DEV_SD || pdrv > DEV_USB || count == 0)
 		return RES_PARERR;
 
 	// For single-sector reads, check the cache first.
-	if (count == 1) {
+	// NOTE: Sector 0 is not cached, since '0' is used
+	// to indicate an invalid cache entry. (It's also
+	// only read once per volume on startup when
+	// finding partitions.)
+	if (count == 1 && sector != 0) {
 		for (int i = 0; i < CACHE_SIZE; i++) {
-			if (cache[pdrv][i].valid &&
-			    cache[pdrv][i].sectorNum == sector)
-			{
-				memcpy(buff, cache[pdrv][i].data, __sector_size);
+			if (cache[pdrv].sectorNum[i] == sector) {
+				memcpy(buff, cache[pdrv].data[i], __sector_size);
 				return RES_OK;
 			}
 		}
@@ -129,15 +129,14 @@ DRESULT disk_read (
 
 	// Copy the sector to the cache.
 	if (count == 1) {
-		u32 cPos = cachePos[pdrv];
-		cache[pdrv][cPos].valid = true;
-		cache[pdrv][cPos].sectorNum = sector;
-		memcpy(cache[pdrv][cPos].data, buff, __sector_size);
+		u32 cPos = cache[pdrv].pos;
+		cache[pdrv].sectorNum[cPos] = sector;
+		memcpy(cache[pdrv].data[cPos], buff, __sector_size);
 		cPos++;
 		/* Wrap cache around */
 		if(cPos == CACHE_SIZE)
 			cPos = 0;
-		cachePos[pdrv] = cPos;
+		cache[pdrv].pos = cPos;
 	}
 
 	return RES_OK;
@@ -156,7 +155,7 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (pdrv < DEV_SD || pdrv > DEV_USB || count == 0)
 		return RES_PARERR;
 
 	if (driver[pdrv]->writeSectors(sector, count, buff) < 0)
@@ -164,11 +163,10 @@ DRESULT disk_write (
 
 	// If any of these sectors were cached, invalidate them.
 	for (int i = CACHE_SIZE-1; i >= 0; i--) {
-		if (cache[pdrv][i].valid &&
-		    cache[pdrv][i].sectorNum >= sector &&
-		    cache[pdrv][i].sectorNum < (sector+count))
+		if (cache[pdrv].sectorNum[i] >= sector &&
+		    cache[pdrv].sectorNum[i] < (sector+count))
 		{	
-			cache[pdrv][i].valid = false;
+			cache[pdrv].sectorNum[i] = 0;
 		}
 	}
 
