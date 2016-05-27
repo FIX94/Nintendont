@@ -3101,14 +3101,26 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 					case 0:
 						br[part_count++] = 0;
 						break;
-					case 0xF:
+
+					case 0x05:
+					case 0x0F:
 						// Extended partition.
 						// FIXME: Disable if LD2PT(vol) != 0?
 						bsect = ld_dword(&pt[8]);
+						if (bsect == 0) {
+							// CHS extended partition. Not supported.
+							// NOTE: This is type 0x05, but Linux tools
+							// like fdisk and gparted use 0x05 even for
+							// LBA extended partitions. Hence, we have
+							// to check bsect as well.
+							break;
+						}
+
 						ebr_fmt = read_mbr_extended(fs, bsect, &br[part_count], &ebr_count);
 						if (ebr_fmt > 1) return FR_DISK_ERR;
 						part_count += ebr_count;
 						break;
+
 					default:
 						// Primary partition.
 						br[part_count++] = pt[4] ? ld_dword(&pt[8]) : 0;
