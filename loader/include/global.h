@@ -142,10 +142,17 @@ typedef struct
 } __attribute__((packed)) TitleMetaData;
 
 bool IsWiiU( void );
+// FIXME: This return type isn't quite correct...
 const char* const GetRootDevice();
 void RAMInit(void);
 void Initialise();
-bool LoadNinCFG();
+
+/**
+ * Load the configuration file from the root device.
+ * @return True if loaded successfully; false if not.
+ */
+bool LoadNinCFG(void);
+
 void UpdateNinCFG();
 bool IsGCGame(u8 *Buffer);
 u32 IsTRIGame(char *Path, u32 CurDICMD, u32 ISOShift);

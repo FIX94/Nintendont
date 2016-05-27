@@ -2,6 +2,8 @@
 #ifndef _FATFS_UTF8
 #define _FATFS_UTF8
 
+#include "ff.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

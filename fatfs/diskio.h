@@ -33,11 +33,11 @@ DSTATUS disk_initialize (BYTE pdrv);
 DSTATUS disk_status (BYTE pdrv);
 DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
 
-#ifdef __ppc__
+#ifdef __PPC__
 // Nintendont loader: Use the standard FatFS read/write interface.
 DRESULT disk_read (BYTE pdrv, BYTE* buff, DWORD sector, UINT count);
 DRESULT disk_write (BYTE pdrv, const BYTE* buff, DWORD sector, UINT count);
-#else /* !__ppc__ */
+#else /* !__PPC__ */
 // Nintendont kernel: Use function pointers for the read/write functions.
 // This allows us to support both SD cards and USB storage, but since
 // only one is active, we don't need to maintain the overhead for both
@@ -52,7 +52,7 @@ extern DiskWriteFunc disk_write;
  * @param usb 1 for USB; 0 for SD.
  */
 void SetDiskFunctions(DWORD usb);
-#endif /* __ppc__ */
+#endif /* __PPC__ */
 
 /* Disk Status Bits (DSTATUS) */
 

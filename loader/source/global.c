@@ -19,7 +19,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 
-#include <fat.h>
 #include <gccore.h>
 #include <ogc/audio.h>
 #include <ogc/consol.h>
@@ -32,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/wiilaunch.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "ff_utf8.h"
 
 #include "Config.h"
 #include "exi.h"
@@ -236,27 +236,33 @@ void ExitToLoader(int ret)
 	SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
 	exit(ret);
 }
-bool LoadNinCFG()
+
+/**
+ * Load the configuration file from the root device.
+ * @return True if loaded successfully; false if not.
+ */
+bool LoadNinCFG(void)
 {
 	bool ConfigLoaded = true;
-	FILE *cfg = fopen("/nincfg.bin", "rb+");
-	if (cfg == NULL)
+	FIL cfg;
+	if (f_open_char(&cfg, "/nincfg.bin", FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		return false;
 
-	size_t BytesRead;
-	BytesRead = fread(ncfg, 1, sizeof(NIN_CFG), cfg);
-	switch( ncfg->Version )
-	{
+	// Read the configuration file into memory.
+	UINT BytesRead;
+	f_read(&cfg, ncfg, sizeof(NIN_CFG), &BytesRead);
+	f_close(&cfg);
+
+	switch( ncfg->Version ) {
 		case 2:
-		{
-			if(BytesRead != 540)
+			if (BytesRead != 540)
 				ConfigLoaded = false;
-		} break;
+			break;
+
 		default:
-		{
-			if(BytesRead != sizeof(NIN_CFG))
+			if (BytesRead != sizeof(NIN_CFG))
 				ConfigLoaded = false;
-		} break;
+			break;
 	}
 
 	if (ncfg->Magicbytes != 0x01070CF6)
@@ -273,10 +279,9 @@ bool LoadNinCFG()
 	if (ncfg->MaxPads < 0)
 		ConfigLoaded = false;
 
-	fclose(cfg);
-
 	return ConfigLoaded;
 }
+
 inline void ClearScreen()
 {
 	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
@@ -287,19 +292,34 @@ extern void USBStorageOGC_Deinitialize();
 
 void CloseDevices()
 {
+	extern FATFS *sdCard, *usbDev;
 	closeLog();
-	fatUnmount("sd");
+
+	if (sdCard != NULL)
+	{
+		f_mount_char(NULL, "sd:", 1);
+		free(sdCard);
+		sdCard = NULL;
+	}
 	sdio_Deinitialize();
-	fatUnmount("usb");
+
+	if (usbDev != NULL)
+	{
+		f_mount_char(NULL, "usb:", 1);
+		free(usbDev);
+		usbDev = NULL;
+	}
 	USBStorageOGC_Deinitialize();
 	USB_OGC_Deinitialize();
 }
-static char ascii(char s)
+
+static inline char ascii(char s)
 {
-  if(s < 0x20) return '.';
-  if(s > 0x7E) return '.';
-  return s;
+	if (s < 0x20) return '.';
+	else if (s > 0x7E) return '.';
+	return s;
 }
+
 void hexdump(void *d, int len)
 {
 	if( d == (void*)NULL )

@@ -20,6 +20,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef __MEMCARD_H__
 #define __MEMCARD_H__
 
-bool GenerateMemCard(char *MemCard);
+/**
+ * Create a blank memory card image.
+ * @param MemCard Memory card filename.
+ * @return True on success; false on error.
+ */
+bool GenerateMemCard(const char *MemCard);
 
 #endif

@@ -31,7 +31,19 @@ void CheckForGecko(void);
 void closeLog(void);
 
 #ifdef DEBUG
-int gprintf(const char *str, ...);
+// FIXME: Commit this first, and find other
+// printf-style functions to add printf
+// attributes to.
+/**
+ * Log a debug message.
+ * - Wii: Logs to USB Gecko.
+ * - Wii U: Logs to a file on the root device.
+ * @param str printf-style format string.
+ * @param ... printf arguments.
+ * @return vsnprintf() return value; 0 if nothing was written; or -1 on error.
+ */
+int gprintf(const char *str, ...)
+	__attribute__ ((format (printf, 1, 2)));
 #else
 #define gprintf(...) 0
 #endif

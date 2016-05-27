@@ -31,6 +31,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "exi.h"
 
+#include "ff_utf8.h"
+
 
 #define MAX_TITLES	740		// That should cover every GC game
 #define LINE_LENGTH	64		// Max is actually 61, but this improves performance.
@@ -60,7 +62,7 @@ static const SpecialTitles_t TriforceTitles[] = {
 
 
 static char __title_list[MAX_TITLES][LINE_LENGTH] = {{0}};
-static u32 title_count = 0;
+static int title_count = 0;
 static bool loaded = false;
 
 /**
@@ -74,7 +76,11 @@ static int compare_title(const void *p1, const void *p2)
        return strncmp((const char*)p1, (const char*)p2, 3);
 }
 
-s32 LoadTitles(void)
+/**
+ * Load game titles from titles.txt.
+ * @return Number of titles loaded.
+ */
+int LoadTitles(void)
 {
 	// Determine the titles.txt path.
 	// If loaded from network, launch_dir[] is empty,
@@ -83,39 +89,49 @@ s32 LoadTitles(void)
 	snprintf(filepath, sizeof(filepath), "%stitles.txt",
 		 launch_dir[0] != 0 ? launch_dir : "/apps/Nintendont/");
 
-	FILE *titles_txt = fopen(filepath, "rb");
-	if (!titles_txt)
+	FIL titles_txt;
+	if (f_open_char(&titles_txt, filepath, FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		return 0;
 
 	char *cur_title = &__title_list[0][0];
 	title_count = 0;
 	loaded = true;
-	do {
-		if (!fgets(cur_title, LINE_LENGTH, titles_txt))
-			break;
 
-		// Trim newlines and/or carriage returns.
-		int len = (int)strlen(cur_title)-1;
-		for (; len > 5; len--) {
-			if (cur_title[len] == '\n' || cur_title[len] == '\r') {
-				cur_title[len] = 0;
-			} else {
-				break;
+	// FIXME: Optimize title loading by reading chunks at a time
+	// instead of single bytes.
+	char c;
+	int pos = 0;
+	UINT read;
+	do {
+		if (f_read(&titles_txt, &c, 1, &read) != FR_OK || read == 0)
+			c = 0;
+		if (c == '\r') {
+			continue;
+		}
+
+		if (c == '\n' || c == 0 || pos == (LINE_LENGTH - 1))
+		{
+			// End of the line.
+			if (pos > 5) {
+				// Valid title.
+				*cur_title = 0;
+				title_count++;
+				cur_title = &__title_list[title_count][0];
+				pos = 0;
 			}
 		}
-
-		if (len > 5) {
-			// Valid title.
-			title_count++;
-			cur_title = &__title_list[title_count][0];
+		else
+		{
+			// Append the character.
+			*cur_title++ = c;
+			pos++;
 		}
-	} while (!feof(titles_txt) && title_count < MAX_TITLES);
+	} while (!f_eof(&titles_txt) && c != 0);
+	f_close(&titles_txt);
 
 	// Sort the titles so we can do a binary search later.
 	// __title_list[] format: "ID3-Title"
 	qsort(__title_list, title_count, LINE_LENGTH, compare_title);
-
-	fclose(titles_txt);
 	return title_count;
 }
 
@@ -123,7 +139,7 @@ s32 LoadTitles(void)
  * Find a title in the titles database.
  * Loaded from titles.txt, plus special exceptions for Triforce.
  * @param titleID Title ID. (ID6)
- * @return Title, or null pointer if not found.
+ * @return Title, or NULL if not found.
  * WARNING: DO NOT FREE the returned title!
  */
 const char *SearchTitles(const char *titleID) {

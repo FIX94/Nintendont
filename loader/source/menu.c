@@ -27,8 +27,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "update.h"
 #include "titles.h"
 #include "dip.h"
-#include <dirent.h>
-#include <sys/dir.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -41,6 +39,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <di/di.h>
 #include "menu.h"
 #include "../../common/include/CommonConfigStrings.h"
+
+#include "ff_utf8.h"
 
 // Device state.
 typedef enum {
@@ -125,10 +125,6 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	char buf[0x100];		// Disc header.
 	int gamecount = 0;		// Current game count.
 
-	DIR *pdir;
-	struct dirent *pent;
-	struct stat statbuf;
-
 	if( !IsWiiU() )
 	{
 		// Pseudo game for booting a GameCube disc on Wii.
@@ -141,17 +137,15 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		gamecount++;
 	}
 
+	DIR pdir;
 	snprintf(filename, sizeof(filename), "%s:/games", GetRootDevice());
-	pdir = opendir(filename);
-	if( !pdir )
+	if (f_opendir_char(&pdir, filename) != FR_OK)
 	{
 		// Could not open the "games" directory.
 
 		// Attempt to open the device root.
-		char root_filename[8];
-		snprintf(root_filename, sizeof(root_filename), "%s:/", GetRootDevice());
-		pdir = opendir(root_filename);
-		if ( !pdir )
+		snprintf(filename, sizeof(filename), "%s:/", GetRootDevice());
+		if (f_opendir_char(&pdir, filename) != FR_OK)
 		{
 			// Could not open the device root.
 			if (pGameCount)
@@ -162,28 +156,33 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		// Device root opened.
 		// This means the device is usable, but it
 		// doesn't have a "games" directory.
-		closedir(pdir);
+		f_closedir(&pdir);
 		if (pGameCount)
 			*pGameCount = gamecount;
 		return DEV_NO_GAMES;
 	}
 
 	// Process the directory.
-	while( ( pent = readdir(pdir) ) != NULL )
+	// TODO: chdir into /games/?
+	FILINFO fInfo;
+	FIL in;
+	while (f_readdir(&pdir, &fInfo) == FR_OK && fInfo.fname[0] != '\0')
 	{
 		// Game layout should be: /games/GAMEID/game.iso
 		// Search for subdirectories.
-		stat( pent->d_name, &statbuf );
-		if( pent->d_type == DT_DIR )
+		if (fInfo.fattrib & AM_DIR)
 		{
 			// Skip "." and "..".
 			// This will also skip "hidden" directories.
-			if( pent->d_name[0] == '.' )
+			if (fInfo.fname[0] == '.')
 				continue;
 
 			// Prepare the filename buffer with the directory name.
 			// game.iso/disc2.iso will be appended later.
-			int fnlen = snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
+			// NOTE: fInfo.fname[] is UTF-16.
+			const char *filename_utf8 = wchar_to_char(fInfo.fname);
+			int fnlen = snprintf(filename, sizeof(filename), "%s:/games/%s/",
+					     GetRootDevice(), filename_utf8);
 
 			//Test if game.iso exists and add to list
 			bool found = false;
@@ -195,15 +194,15 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 				else
 					memcpy(&filename[fnlen], "game.iso", 9);
 
-				FILE *in = fopen( filename, "rb" );
-				if( in != NULL )
+				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 				{
 					// Read the disc header
 					//gprintf("(%s) ok\n", filename );
-					fread( buf, 1, 0x100, in );
-					fclose(in);
+					UINT read;
+					f_read(&in, buf, 0x100, &read);
+					f_close(&in);
 
-					if( IsGCGame((u8*)buf) )	// Must be GC game
+					if (read == 0x100 && IsGCGame((u8*)buf))	// Must be GC game
 					{
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						gi[gamecount].DiscNumber = DiscNumber;
@@ -234,19 +233,19 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			}
 
 			// If game.iso wasn't found, check for FST format.
-			if ( !found )
+			if (!found)
 			{
 				memcpy(&filename[fnlen], "sys/boot.bin", 13);
-
-				FILE *in = fopen( filename, "rb" );
-				if( in != NULL )
+				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 				{
 					//gprintf("(%s) ok\n", filename );
-					fread( buf, 1, 0x100, in );
-					fclose(in);
+					UINT read;
+					f_read(&in, buf, 0x100, &read);
+					f_close(&in);
 
-					if( IsGCGame((u8*)buf) )	// Must be GC game
+					if (read == 0x100 && IsGCGame((u8*)buf))	// Must be GC game
 					{
+						// Terminate the filename at the game's base directory.
 						filename[fnlen] = 0;
 
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
@@ -268,7 +267,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		if (gamecount >= sz)	//if array is full
 			break;
 	}
-	closedir(pdir);
+	f_closedir(&pdir);
 
 	// Sort the list alphabetically.
 	// On Wii, the pseudo-entry for GameCube discs is always

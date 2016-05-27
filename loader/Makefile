@@ -16,12 +16,12 @@ include $(DEVKITPPC)/wii_rules
 # SOURCES is a list of directories containing source code
 # INCLUDES is a list of directories containing extra header files
 #---------------------------------------------------------------------------------
-TARGET		:=	$(notdir $(CURDIR))
-BUILD		:=	build
-SOURCES		:=	source
-SOURCES		+=	source/unzip
-DATA		:=	data
-INCLUDES	:=	include
+TARGET		:= $(notdir $(CURDIR))
+BUILD		:= build
+SOURCES		:= source
+SOURCES		+= source/unzip
+DATA		:= data
+INCLUDES	:= include ../fatfs
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -31,19 +31,23 @@ CFLAGS	:= -O3 -g -std=gnu99 -fgnu89-inline \
 	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH
 CXXFLAGS := $(CFLAGS)
 
-LDFLAGS	:= -g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
+# NOTE: Do NOT change to := - needed for proper expansion of $(CURDIR) later.
+LDFLAGS	= -g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
 LIBS	:= -lfreetype -lpngu -lpng -lz \
-	-lwiiuse -lwupc -lbte -lcustomfat -logc -ldi -lm
+	   -lwiiuse -lwupc -lbte -lfatfs-ppc -logc -ldi -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(CURDIR)/extlibs
+LIBDIRS	= $(CURDIR)/extlibs
+# NOTE: FatFS doesn't use the standard [component]/lib structure,
+# so we'll add a -L ourselves.
+LDFLAGS	+= -L$(CURDIR)/../../fatfs
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
