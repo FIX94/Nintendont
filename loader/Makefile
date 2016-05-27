@@ -27,10 +27,11 @@ INCLUDES	:=	include
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	= -g -O1 -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH
-CXXFLAGS	=	$(CFLAGS)
+CFLAGS	:= -O3 -g -std=gnu99 -fgnu89-inline \
+	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH
+CXXFLAGS := $(CFLAGS)
 
-LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
+LDFLAGS	:= -g $(MACHDEP) -Wl,-Map,$(notdir $@).map,-wrap,wiiuse_register
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
