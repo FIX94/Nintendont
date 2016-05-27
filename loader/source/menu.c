@@ -220,8 +220,8 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 						{
 							// Title not found.
 							// Use the title from the disc header.
-							strncpy(gamename, buf + 0x20, sizeof(gamename));
-							gamename[sizeof(gamename)] = 0;
+							strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
+							gamename[sizeof(gamename)-1] = 0;
 							gi[gamecount].Name = strdup(gamename);
 							gi[gamecount].NameAlloc = 1;
 						}
@@ -253,8 +253,8 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 						gi[gamecount].DiscNumber = DiscNumber;
 
 						// TODO: Check titles.txt?
-						strncpy(gamename, buf + 0x20, sizeof(gamename));
-						gamename[sizeof(gamename)] = 0;
+						strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
+						gamename[sizeof(gamename)-1] = 0;
 						gi[gamecount].Name = strdup(gamename);
 						gi[gamecount].NameAlloc = 1;
 

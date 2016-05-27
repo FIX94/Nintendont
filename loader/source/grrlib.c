@@ -937,7 +937,7 @@ void GRRLIB_CompoEnd(int posx, int posy, GRRLIB_texImg *tex) {
 extern  GRRLIB_drawSettings  GRRLIB_Settings;
 extern  Mtx                  GXmodelView2D;
 
-static  guVector  axis = (guVector){0, 0, 1};
+static  guVector  axis = {0, 0, 1};
 
 /**
  * Draw a texture.
@@ -1910,9 +1910,9 @@ Mtx       _GRR_view;  // Should be static as soon as all light functions needing
 static  guVector  _GRR_cam  = {0.0F, 0.0F, 0.0F},
 				  _GRR_up   = {0.0F, 1.0F, 0.0F},
 				  _GRR_look = {0.0F, 0.0F, -100.0F};
-static  guVector  _GRRaxisx = (guVector){1, 0, 0}; // DO NOT MODIFY!!!
-static  guVector  _GRRaxisy = (guVector){0, 1, 0}; // Even at runtime
-static  guVector  _GRRaxisz = (guVector){0, 0, 1}; // NOT ever!
+static  guVector  _GRRaxisx = {1, 0, 0}; // DO NOT MODIFY!!!
+static  guVector  _GRRaxisy = {0, 1, 0}; // Even at runtime
+static  guVector  _GRRaxisz = {0, 0, 1}; // NOT ever!
 static  Mtx 	  _ObjTransformationMtx;
 /**
  * Set the background parameter when screen is cleared.

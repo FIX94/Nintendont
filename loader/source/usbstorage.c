@@ -623,7 +623,7 @@ s32 USBStorageOGC_GetMaxLUN(usbstorage_handle *dev)
 s32 USBStorageOGC_MountLUN(usbstorage_handle *dev, u8 lun)
 {
 	s32 retval;
-	u32 n_sectors;
+	u32 n_sectors = 0;
 
 	if(lun >= dev->max_lun)
 		return IPC_EINVAL;
