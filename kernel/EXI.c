@@ -42,20 +42,39 @@ static bool exi_inited = false;
 static u32 Device = 0;
 static u32 SRAMWriteCount = 0;
 static u32 EXICommand = 0;
-static u32 BlockOff= 0;
-static bool changed = false;
-static u32 BlockOffLow = 0xFFFFFFFF;
-static u32 BlockOffHigh = 0x00000000;
-static u8 *const MCard = (u8*)(0x11000000);
 static u8 *const FontBuf = (u8*)(0x13100000);
-static u32 CARDWriteCount = 0;
 static u32 IPLReadOffset;
-static FIL MemCard;
 bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
-static char MemCardName[0x20];
+
+// Memory Card context.
+// NOTE: Triforce still accesses this directly instead of
+// using the CARD_ctx struct.
+static u8 *const CARD_base = (u8*)(0x11000000);
+
+typedef struct _CARD_ctx {
+	char filename[0x20];	// Memory Card filename.
+	u8 *base;		// Base address.
+	u32 size;		// Size, in bytes.
+	bool changed;		// True if modified.
+
+	// NOTE: BlockOff is in bytes, not blocks.
+	u32 BlockOff;		// Current offset.
+	u32 BlockOffLow;	// Low address of last modification.
+	u32 BlockOffHigh;	// High address of last modification.
+	u32 CARDWriteCount;	// Write count. (TODO: Is this used anywhere?)
+
+	u32 reserved;		// for 32-byte alignment
+} CARD_ctx;
+static CARD_ctx memCard __attribute__((aligned(32)));
+
+static void Init_CARD_ctx(CARD_ctx *ctx)
+{
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->BlockOffLow = 0xFFFFFFFF;
+}
 
 static u32 TRIBackupOffset= 0;
 static u32 EXI2IRQ			= 0;
@@ -66,7 +85,7 @@ static u8 *ambbBackupMem;
 void EXIInit( void )
 {
 	dbgprintf("EXIInit Start\r\n");
-	u32 wrote, ret;
+	u32 read, ret;
 
 	//some important memory for triforce
 	ambbBackupMem = malloca(0x10000, 0x40);
@@ -76,11 +95,12 @@ void EXIInit( void )
 	sync_after_write((void*)EXI_BASE, 0x20);
 
 	const u32 GameID = ConfigGetGameID();
-	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
+	if (ConfigGetConfig(NIN_CFG_MEMCARDEMU))
 	{
-		memset32(MemCardName, 0, 0x20);
-		memcpy(MemCardName, "/saves/", 7);
-		if ( ConfigGetConfig(NIN_CFG_MC_MULTI) )
+		// Set up the Memory Card context.
+		Init_CARD_ctx(&memCard);
+		memcpy(memCard.filename, "/saves/", 7);
+		if (ConfigGetConfig(NIN_CFG_MC_MULTI))
 		{
 			// "Multi" mode is enabled.
 			// Use one memory card for USA/PAL games,
@@ -91,29 +111,31 @@ void EXIInit( void )
 				case BI2_REGION_SOUTH_KOREA:
 				default:
 					// JPN games.
-					memcpy(MemCardName+7, "ninmemj.raw", 11);
+					memcpy(&memCard.filename[7], "ninmemj.raw", 11);
 					break;
 
 				case BI2_REGION_USA:
 				case BI2_REGION_PAL:
 					// USA/PAL games.
-					memcpy(MemCardName+7, "ninmem.raw", 10);
+					memcpy(&memCard.filename[7], "ninmem.raw", 10);
 					break;
 			}
 		}
 		else
 		{
-			memcpy(MemCardName+7, &GameID, 4);
-			memcpy(MemCardName+11, ".raw", 4);
+			// Single mode. One card per game.
+			memcpy(&memCard.filename[7], &GameID, 4);
+			memcpy(&memCard.filename[7+4], ".raw", 4);
 		}
-		sync_after_write(MemCardName, 0x20);
+		sync_after_write(memCard.filename, sizeof(memCard.filename));
 
-		dbgprintf("Trying to open %s\r\n", MemCardName);
-		ret = f_open_char( &MemCard, MemCardName, FA_READ );
-		if( ret != FR_OK || MemCard.obj.objsize == 0 )
+		dbgprintf("Trying to open %s\r\n", memCard.filename);
+		FIL fd;
+		ret = f_open_char(&fd, memCard.filename, FA_READ|FA_OPEN_EXISTING);
+		if (ret != FR_OK || fd.obj.objsize == 0)
 		{
 #ifdef DEBUG_EXI
-			dbgprintf("EXI: Failed to open %s:%u\r\n", MemCardName, ret );
+			dbgprintf("EXI: Failed to open %s:%u\r\n", memCard.filename, ret );
 #endif
 			Shutdown();
 		}
@@ -122,30 +144,40 @@ void EXIInit( void )
 		dbgprintf("EXI: Loading memory card...");
 #endif
 
+		// Check if the card filesize is valid.
 		u32 FindBlocks = 0;
 		for (FindBlocks = 0; FindBlocks <= MEM_CARD_MAX; FindBlocks++)
-			if (MEM_CARD_SIZE(FindBlocks) == MemCard.obj.objsize)
+		{
+			if (MEM_CARD_SIZE(FindBlocks) == fd.obj.objsize)
 				break;
+		}
 		if (FindBlocks > MEM_CARD_MAX)
 		{
-			dbgprintf("EXI: Memcard unexpected size %s:%u\r\n", MemCardName, MemCard.obj.objsize );
+			dbgprintf("EXI: Memcard unexpected size %s:%u\r\n", memCard.filename, fd.obj.objsize );
 			Shutdown();
 		}
+		memCard.base = CARD_base;
+		memCard.size = fd.obj.objsize;
 		ConfigSetMemcardBlocks(FindBlocks);
-		f_lseek(&MemCard, 0);
-		f_read( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
-		f_close( &MemCard );
+
+		// Read the memory card contents into RAM.
+		f_lseek(&fd, 0);
+		f_read(&fd, memCard.base, memCard.size, &read);
+		f_close(&fd);
+		// Reset the low/high offsets to indicate that everything was just loaded.
+		memCard.BlockOffLow = 0xFFFFFFFF;
+		memCard.BlockOffHigh = 0x00000000;
 #ifdef DEBUG_EXI
-		dbgprintf("EXI: Loaded memory card size %d\r\n", ConfigGetMemcardSize());
+		dbgprintf("EXI: Loaded memory card size %u\r\n", memCard.size);
 		dbgprintf("done\r\n");
 #endif
-		sync_after_write( MCard, ConfigGetMemcardSize() );
+		sync_after_write(memCard.base, memCard.size);
 
 		// Set the flash ID in SRAM.
 		// FIXME: This doesn't fix the problem with first-party
 		// memory card images, and it might be causing problems
 		// with Ikaruga (PAL).
-		//SRAM_SetFlashID( MCard, 0 );
+		//SRAM_SetFlashID(memCard.base, 0);
 	}
 
 	// Initialize SRAM.
@@ -202,9 +234,9 @@ void EXIInterrupt(void)
 }
 bool EXICheckCard(void)
 {
-	if(changed == true)
+	if (memCard.changed)
 	{
-		changed = false;
+		memCard.changed = false;
 		return true;
 	}
 	return false;
@@ -216,27 +248,30 @@ int EXISaveCard(void)
 	if(TRIGame)
 		return ret;
 
-	if (BlockOffLow < BlockOffHigh)
+	if (memCard.BlockOffLow < memCard.BlockOffHigh)
 	{
 //#ifdef DEBUG_EXI
 		//dbgprintf("EXI: Saving memory card...");
 //#endif
-		ret = f_open_char( &MemCard, MemCardName, FA_WRITE );
-		if( ret == FR_OK )
+		FIL fd;
+		ret = f_open_char(&fd, memCard.filename, FA_WRITE|FA_OPEN_EXISTING);
+		if (ret == FR_OK)
 		{
 			UINT wrote;
-			sync_before_read(MCard, ConfigGetMemcardSize());
-			f_lseek(&MemCard, BlockOffLow);
-			f_write(&MemCard, MCard + BlockOffLow, BlockOffHigh - BlockOffLow, &wrote);
-			f_close(&MemCard);
+			sync_before_read(memCard.base, memCard.size);
+			f_lseek(&fd, memCard.BlockOffLow);
+			f_write(&fd, &memCard.base[memCard.BlockOffLow],
+				memCard.BlockOffHigh - memCard.BlockOffLow, &wrote);
+			f_close(&fd);
 //#ifdef DEBUG_EXI
 			//dbgprintf("Done!\r\n");
 		}
 		//else
 			//dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret );
 //#endif
-		BlockOffLow = 0xFFFFFFFF;
-		BlockOffHigh = 0x00000000;
+		// Reset the low/high offsets to indicate that everything has been saved.
+		memCard.BlockOffLow = 0xFFFFFFFF;
+		memCard.BlockOffHigh = 0x00000000;
 	}
 
 	return ret;
@@ -326,13 +361,13 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 				{
 					case 0xF1:
 					{
-						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
-						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+						memCard.BlockOff = (((u32)Data>>16)&0xFF)  << 17;
+						memCard.BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDErasePage(%08X)\r\n", BlockOff );
+						dbgprintf("EXI: CARDErasePage(%08X)\r\n", memCard.BlockOff);
 #endif
 						EXICommand = MEM_BLOCK_ERASE;
-						CARDWriteCount = 0;
+						memCard.CARDWriteCount = 0;
 						IRQ_Cause = 2;			// EXI IRQ
 						EXIOK = 2;
 					} break;
@@ -347,34 +382,34 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 				{
 					case 0xF1:
 					{
-						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
-						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
-						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+						memCard.BlockOff = (((u32)Data>>16)&0xFF)  << 17;
+						memCard.BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+						memCard.BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDErasePage(%08X)\r\n", BlockOff );
+						dbgprintf("EXI: CARDErasePage(%08X)\r\n", memCard.BlockOff);
 #endif
 						EXICommand = MEM_BLOCK_ERASE;
-						CARDWriteCount = 0;
+						memCard.CARDWriteCount = 0;
 						IRQ_Cause = 2;			// EXI IRQ
 						EXIOK = 2;
 					} break;
 					case 0xF2:
 					{
-						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
-						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
-						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+						memCard.BlockOff = (((u32)Data>>16)&0xFF)  << 17;
+						memCard.BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+						memCard.BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDWritePage(%08X)\r\n", BlockOff );
+						dbgprintf("EXI: CARDWritePage(%08X)\r\n", memCard.BlockOff);
 #endif
 						EXICommand = MEM_BLOCK_WRITE;
 					} break;
 					case 0x52:
 					{
-						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
-						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
-						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+						memCard.BlockOff = (((u32)Data>>16)&0xFF)  << 17;
+						memCard.BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+						memCard.BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDReadPage(%08X)\r\n", BlockOff );
+						dbgprintf("EXI: CARDReadPage(%08X)\r\n", memCard.BlockOff);
 #endif
 
 						EXICommand = MEM_BLOCK_READ;
@@ -394,16 +429,17 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 				{
 					case MEM_BLOCK_WRITE:
 					{
-						if(BlockOff < BlockOffLow)
-							BlockOffLow = BlockOff;
-						if(BlockOff + Length > BlockOffHigh)
-							BlockOffHigh = BlockOff + Length;
-						changed = true;
-						sync_before_read( Data, Length );
+						// Update the block offsets for saving.
+						if (memCard.BlockOff < memCard.BlockOffLow)
+							memCard.BlockOffLow = memCard.BlockOff;
+						if (memCard.BlockOff + Length > memCard.BlockOffHigh)
+							memCard.BlockOffHigh = memCard.BlockOff + Length;
+						memCard.changed = true;
 
-						memcpy( MCard+BlockOff, Data, Length );
-
-						sync_after_write( MCard+BlockOff, Length );	
+						// FIXME: Verify that this doesn't go out of bounds.
+						sync_before_read(Data, Length);
+						memcpy(&memCard.base[memCard.BlockOff], Data, Length);
+						sync_after_write(&memCard.base[memCard.BlockOff], Length);
 
 						IRQ_Cause = 10;	// TC(8) & EXI(2) IRQ
 						EXIOK = 2;
@@ -438,13 +474,11 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 			} break;
 			case MEM_BLOCK_READ:
 			{
-			//	f_lseek( &MemCard, BlockOff );
-			//	f_read( &MemCard, Data, Length, &read );
-				sync_before_read( MCard+BlockOff, Length );
-
-				memcpy( Data, MCard+BlockOff, Length );
-
-				sync_after_write( Data, Length );
+				//f_lseek( &MemCard, BlockOff );
+				//f_read( &MemCard, Data, Length, &read );
+				sync_before_read(&memCard.base[memCard.BlockOff], Length);
+				memcpy(Data, &memCard.base[memCard.BlockOff], Length);
+				sync_after_write(Data, Length);
 
 				IRQ_Cause = 8;		// TC IRQ
 
@@ -582,6 +616,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 	sync_after_write( (void*)EXI_BASE, 0x20 );
 	return 1;
 }
+
 u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 {
 	u32 EXIOK = 0;
@@ -597,6 +632,7 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 			*/
 			case 4:
 			{
+				// FIXME: Use CARD_ctx for Triforce?
 				switch( (u32)Data >> 24 )
 				{
 					case 0x01:
