@@ -39,7 +39,11 @@ static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
 extern vu32 useipl;
 static bool exi_inited = false;
-static u32 Device = 0;
+
+// EXI device selection. (per channel)
+// idx 3 provided to prevent overflows.
+static u8 EXIDeviceSelect[4] = {0, 0, 0, 0};
+
 static u32 SRAMWriteCount = 0;
 static u32 EXICommand = 0;
 static u8 *const FontBuf = (u8*)(0x13100000);
@@ -48,6 +52,23 @@ bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
+
+// EXI devices.
+// Low 2 bits: Device number. (0-2)
+// High 2 bits: Channel number. (0-2)
+// Reference: http://hitmen.c02.at/files/yagcd/yagcd/chap10.html
+#define EXI_DEVICE_NUMBER(chn, dev) (((chn)<<2)|((dev)&0x3))
+enum EXIDevice
+{
+	EXI_DEV_NONE			= -1,
+	EXI_DEV_MEMCARD_A		= EXI_DEVICE_NUMBER(0, 0),
+	EXI_DEV_MASK_ROM_RTC_SRAM_UART	= EXI_DEVICE_NUMBER(0, 1),
+	EXI_DEV_SP1			= EXI_DEVICE_NUMBER(0, 2),
+	EXI_DEV_ETH			= EXI_DEV_SP1,
+	EXI_DEV_BASEBOARD		= EXI_DEV_SP1,
+	EXI_DEV_MEMCARD_B		= EXI_DEVICE_NUMBER(1, 0),
+	EXI_DEV_AD16			= EXI_DEVICE_NUMBER(2, 0),
+};
 
 // Memory Card context.
 // NOTE: Triforce still accesses this directly instead of
@@ -947,53 +968,48 @@ void EXIUpdateRegistersNEW( void )
 				chn = command & 0xFF;
 				dev = (command>>8) & 0xFF;
 				//frq = (command>>16) & 0xFF;
-				
 				//dbgprintf("EXISelect( %u, %u, %u )\r\n", chn, dev, frq );
-				ret = 1;
 
-				switch( chn )
+				ret = 0;
+				if (chn <= 2 && dev <= 2)
 				{
-					case 0:
+					// Valid channel/device number.
+					EXIDeviceSelect[chn] = dev;
+
+					// Check if this device is present.
+					switch (EXI_DEVICE_NUMBER(chn, dev))
 					{
-						switch( dev )
-						{
-							case 0:
-							{
-								Device = EXI_DEV_MEMCARD_A;
-							} break;
-							case 1:
-							{
-								Device = EXI_DEV_MASK_ROM_RTC_SRAM_UART;
-							} break;
-							case 2:
-							{
-								Device = EXI_DEV_SP1;
-							} break;
-						}
-					} break;
-					case 1:
-					{
-						Device = EXI_DEV_MEMCARD_B;
-						ret = isCardEnabled(1);
-					} break;
-					case 2:
-					{
-						Device = EXI_DEV_AD16;
-						ret = 0;
-					} break;
+						case EXI_DEV_MEMCARD_A:
+						case EXI_DEV_MASK_ROM_RTC_SRAM_UART:
+						case EXI_DEV_SP1:
+							// Device is present.
+							// TODO: SP1 only for Triforce?
+							ret = 1;
+							break;
+
+						case EXI_DEV_MEMCARD_B:
+							ret = isCardEnabled(1);
+							break;
+
+						case EXI_DEV_AD16:
+						default:
+							// Unsupported device.
+							ret = 0;
+							break;
+					}
 				}
 
 				EXICommand = 0;
-				write32( EXI_CMD_0, 0 );
 				write32( EXI_CMD_1, ret );
+				write32( EXI_CMD_0, 0 );
 				sync_after_write((void*)EXI_BASE, 0x20);
 			} break;
 			case 0x11:	// EXI_Imm( s32 nChn, void *pData, u32 nLen, u32 nMode, EXICallback tc_cb );
 			{
-				chn	=	(command >> 20) & 0xF;
-				data=	read32(EXI_CMD_1);
-				len	=	command& 0xFFFF;
-				mode=	(command >> 16) & 0xF;
+				chn	= (command >> 20) & 0xF;
+				data	= read32(EXI_CMD_1);
+				len	= command& 0xFFFF;
+				mode	= (command >> 16) & 0xF;
 
 				if( len > 4 )
 				{
@@ -1001,68 +1017,66 @@ void EXIUpdateRegistersNEW( void )
 				}
 				
 				//dbgprintf("EXIImm( %u, %p, %u, %u, Dev:%u EC:%u )\r\n", chn, data, len, mode, Device, EXICommand );
-				switch( Device )
+				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-					{
 						EXIDeviceMemoryCard(0, (u8*)data, len, mode);
-					} break;
+						break;
+
 					case EXI_DEV_MEMCARD_B:
-					{
 						EXIDeviceMemoryCard(1, (u8*)data, len, mode);
-					} break;
+						break;
+
 					case EXI_DEV_MASK_ROM_RTC_SRAM_UART:
-					{
 						EXIDevice_ROM_RTC_SRAM_UART( (u8*)data, len, mode );
-					} break;
+						break;
+
 					case EXI_DEV_SP1:
-					{
 						EXIDeviceSP1( (u8*)data, len, mode );
-					} break;
+						break;
+
 					default:
-					{
 #ifdef DEBUG_SRAM
-						dbgprintf("EXI: EXIImm: Unhandled device:%u\r\n", Device );
+						dbgprintf("EXI: EXIImm: Unhandled device: Ch%u, Dev%u\r\n", chn, EXIDeviceSelect[chn&3]);
 #endif
-					} break;
+						break;
 				}
 
 			} break;
 			case 0x12:	// EXIDMA
 			{
-				chn	=	(command >> 20) & 0xF;
-				ptr=	(u8*)P2C(read32(EXI_CMD_1));
-				len	=	command& 0xFFFF;
-				mode=	(command >> 16) & 0xF;
+				chn	= (command >> 20) & 0xF;
+				ptr	= (u8*)P2C(read32(EXI_CMD_1));
+				len	= command& 0xFFFF;
+				mode	= (command >> 16) & 0xF;
 				
 				//dbgprintf("EXIDMA( %u, %p, %u, %u )\r\n", chn, ptr, len, mode );
-				switch( Device )
+				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-					{
 						EXIDeviceMemoryCard(0, ptr, len, mode);
-					} break;
+						break;
+
 					case EXI_DEV_MEMCARD_B:
-					{
 						EXIDeviceMemoryCard(1, ptr, len, mode);
-					} break;
+						break;
+
 					case EXI_DEV_MASK_ROM_RTC_SRAM_UART:
-					{
 						EXIDevice_ROM_RTC_SRAM_UART( ptr, len, mode );
-					} break;
+						break;
+
 					case EXI_DEV_SP1:
-					{
 #ifdef DEBUG_SRAM
 						hexdump( ptr, len );
 #endif
 						EXIDeviceSP1( ptr, len, mode );
-					} break;
+						break;
+
 					default:
-					{
 #ifdef DEBUG_SRAM
-						dbgprintf("EXI: EXIDMA: Unhandled device:%u\r\n", Device );
+						dbgprintf("EXI: EXIDMA: Unhandled device: Ch%u, Dev%u\r\n", chn, EXIDeviceSelect[chn&3]);
 #endif
-					} break;
+						break;
 				}
 
 				EXICommand = 0;
