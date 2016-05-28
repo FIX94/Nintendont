@@ -243,7 +243,7 @@
 /  buffer in the file system object (FATFS) is used for the file data transfer. */
 
 
-#define _FS_EXFAT	0
+#define _FS_EXFAT	1
 /* This option switches support of exFAT file system in addition to the traditional
 /  FAT file system. (0:Disable or 1:Enable) To enable exFAT, also LFN must be enabled.
 /  Note that enabling exFAT discards C89 compatibility. */
