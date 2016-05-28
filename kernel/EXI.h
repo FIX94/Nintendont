@@ -95,7 +95,7 @@ bool EXICheckTimer();
 void EXIInterrupt();
 void EXIUpdateRegistersNEW( void );
 void EXIShutdown( void );
-void EXISaveCard(void);
+int EXISaveCard(void);
 bool EXICheckCard(void);
 void EXIReadFontFile(u8* Data, u32 Length);
 void EXIPrepareTRIGameStart();

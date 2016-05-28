@@ -210,21 +210,21 @@ bool EXICheckCard(void)
 	return false;
 }
 
-void EXISaveCard(void)
+int EXISaveCard(void)
 {
+	int ret = FR_OK;
 	if(TRIGame)
-		return;
+		return ret;
 
-	u32 wrote;
-	
 	if (BlockOffLow < BlockOffHigh)
 	{
 //#ifdef DEBUG_EXI
 		//dbgprintf("EXI: Saving memory card...");
 //#endif
-		s32 ret = f_open_char( &MemCard, MemCardName, FA_WRITE );
+		ret = f_open_char( &MemCard, MemCardName, FA_WRITE );
 		if( ret == FR_OK )
 		{
+			UINT wrote;
 			sync_before_read(MCard, ConfigGetMemcardSize());
 			f_lseek(&MemCard, BlockOffLow);
 			f_write(&MemCard, MCard + BlockOffLow, BlockOffHigh - BlockOffLow, &wrote);
@@ -238,6 +238,8 @@ void EXISaveCard(void)
 		BlockOffLow = 0xFFFFFFFF;
 		BlockOffHigh = 0x00000000;
 	}
+
+	return ret;
 }
 
 void EXIShutdown( void )
@@ -245,22 +247,12 @@ void EXIShutdown( void )
 	if(TRIGame || !exi_inited)
 		return;
 
-	u32 wrote;
-
 //#ifdef DEBUG_EXI
 	dbgprintf("EXI: Saving memory card...");
 //#endif
-
-	sync_before_read( MCard, ConfigGetMemcardSize() );
-	s32 ret = f_open_char( &MemCard, MemCardName, FA_WRITE );
-	if( ret == FR_OK )
-	{
-		f_lseek( &MemCard, 0 );
-		f_write( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
-		f_close( &MemCard );
-	}
-	else
-		dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret );
+	int ret = EXISaveCard();
+	if (ret != FR_OK)
+		dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret);
 //#ifdef DEBUG_EXI
 	dbgprintf("Done!\r\n");
 //#endif
