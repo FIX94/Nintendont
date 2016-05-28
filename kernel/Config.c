@@ -2,8 +2,6 @@
 #include "debug.h"
 #include "ff_utf8.h"
 
-NIN_CFG *ncfg = (NIN_CFG*)0x13002900;
-
 void ConfigSyncBeforeRead( void )
 {
 	sync_before_read(ncfg, sizeof(NIN_CFG));
@@ -47,53 +45,4 @@ void ConfigInit( void )
 	//{
 	//	ncfg->Config &= ~(NIN_CFG_CHEATS|NIN_CFG_DEBUGGER|NIN_CFG_DEBUGWAIT);
 	//}
-}
-inline char *ConfigGetGamePath( void )
-{
-	return ncfg->GamePath;
-}
-inline char *ConfigGetCheatPath( void )
-{
-	return ncfg->CheatPath;
-}
-inline bool ConfigGetConfig( u32 Config )
-{
-	return !!(ncfg->Config&Config);
-}
-inline u32 ConfigGetVideoMode( void )
-{
-	return ncfg->VideoMode;
-}
-inline u32 ConfigGetLanguage( void )
-{
-	return ncfg->Language;
-}
-inline u32 ConfigGetMaxPads(void)
-{
-	return ncfg->MaxPads;
-}
-inline u32 ConfigGetGameID(void)
-{
-	return ncfg->GameID;
-}
-inline s8 ConfigGetVideoScale(void)
-{
-	return ncfg->VideoScale;
-}
-inline s8 ConfigGetVideoOffset(void)
-{
-	return ncfg->VideoOffset;
-}
-inline u32 ConfigGetMemcardCode(void)
-{
-	return MEM_CARD_CODE(ncfg->MemCardBlocks);
-}
-inline u32 ConfigGetMemcardSize(void)
-{
-	return MEM_CARD_SIZE(ncfg->MemCardBlocks);
-}
-inline void ConfigSetMemcardBlocks(u32 MemCardBlocks)
-{
-	ncfg->MemCardBlocks = MemCardBlocks;
-	sync_after_write(&(ncfg->MemCardBlocks), sizeof(ncfg->MemCardBlocks));
 }
