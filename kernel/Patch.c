@@ -1118,12 +1118,17 @@ static int GotoFuncEnd(int i, u32 Buffer)
 	return i;
 }
 
-static bool fileExist( char *path )
+/**
+ * Does the specified file exist?
+ * @param path Filename.
+ * @return True if the file exists; false if it doesn't.
+ */
+static bool fileExist(const char *path)
 {
 	FIL fd;
-	if( f_open_char( &fd, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+	if (f_open_char(&fd, path, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 	{
-		f_close( &fd );
+		f_close(&fd);
 		return true;
 	}
 	return false;
@@ -3360,7 +3365,7 @@ s32 Check_Cheats()
 #ifdef CHEATS
 	if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
 	{
-		char *cpath = ConfigGetCheatPath();
+		const char *cpath = ConfigGetCheatPath();
 		if (cpath[0] != 0)
 		{
 			if( fileExist(cpath) )
@@ -3370,14 +3375,18 @@ s32 Check_Cheats()
 			}
 		}
 	}
+
 	u32 i;
-	char* DiscName = ConfigGetGamePath();
+	const char* DiscName = ConfigGetGamePath();
 	//search the string backwards for '/'
-	for( i=strlen(DiscName); i > 0; --i )
+	for (i = strlen(DiscName); i > 0; --i)
+	{
 		if( DiscName[i] == '/' )
 			break;
+	}
 	i++;
 	memcpy(cheatPath, DiscName, i);
+
 	//new version paths
 	_sprintf(cheatPath+i, "game.gct");
 	if( fileExist(cheatPath) )

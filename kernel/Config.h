@@ -46,7 +46,8 @@ void ConfigInit( void );
 // Nintendont configuration.
 static NIN_CFG *const ncfg = (NIN_CFG*)0x13002900;
 
-static inline const char *ConfigGetGamePath(void)
+// NOTE: DIChangeDisc() modifies this path.
+static inline char *ConfigGetGamePath(void)
 {
 	return ncfg->GamePath;
 }
