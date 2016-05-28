@@ -139,8 +139,8 @@ int main(int argc, char **argv)
 
 	Initialise();
 
-	// Checking for storage devices...
-	ShowMessageScreen("Checking storage devices...");
+	// Initializing IOS58...
+	ShowMessageScreen("Initializing IOS58...");
 
 	u32 u;
 	//Disables MEMPROT for patches
@@ -166,9 +166,10 @@ int main(int argc, char **argv)
 
 	if(LoadKernel() < 0)
 	{
+		// TODO: More extensive diagnostics.
 		ClearScreen();
-		gprintf("Failed to load kernel from NAND!\r\n");
-		ShowMessageScreenAndExit("Failed to load kernel from NAND!", 1);
+		gprintf("Failed to load IOS58 kernel from NAND!\r\n");
+		ShowMessageScreenAndExit("Failed to load IOS58 kernel from NAND!", 1);
 	}
 	InsertModule((char*)kernel_bin, kernel_bin_size);
 
@@ -206,6 +207,9 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+
+	// Checking for storage devices...
+	ShowMessageScreen("Checking storage devices...");
 
 	// Initialize devices.
 	static const struct {
@@ -287,6 +291,9 @@ int main(int argc, char **argv)
 	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
 	gprintf("launch_dir = %s\r\n", launch_dir);
 
+	// Initialize controllers.
+	// FIXME: Initialize before storage devices.
+	// Doing that right now causes usbstorage to fail...
 	FPAD_Init();
 	FPAD_Update();
 
