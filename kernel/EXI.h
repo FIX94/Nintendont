@@ -94,9 +94,19 @@ void EXISetTimings(u32 TitleID, u32 Region);
 bool EXICheckTimer();
 void EXIInterrupt();
 void EXIUpdateRegistersNEW( void );
-void EXIShutdown( void );
-int EXISaveCard(void);
+
+/**
+ * Check if any memory cards have changed.
+ * @return True if either memory card has changed; false if not.
+ */
 bool EXICheckCard(void);
+
+/**
+ * Save the memory card(s).
+ */
+void EXISaveCard(void);
+
+void EXIShutdown(void);
 void EXIReadFontFile(u8* Data, u32 Length);
 void EXIPrepareTRIGameStart();
 
