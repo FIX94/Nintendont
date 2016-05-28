@@ -24,6 +24,7 @@ static bool disk_isInit[_VOLUMES] = {0};
 #define CACHE_SIZE 64  /* 64 sectors per device */
 static struct {
 	u32 pos;			// Next cache entry to use.
+	u32 sectorSize;			// Sector size.
 	DWORD sectorNum[CACHE_SIZE];	// Sector numbers. (0 == invalid entry)
 	BYTE data[CACHE_SIZE][_MAX_SS];	// Cache entries.
 } cache[_VOLUMES];
@@ -85,6 +86,19 @@ DSTATUS disk_initialize (
 	}
 	cache[pdrv].pos = 0;
 
+	// Determine the sector size.
+	// - USB: 512 or 4096, depending on drive.
+	// - SD: Always 512.
+	switch (pdrv) {
+		case DEV_SD:
+		default:
+			cache[pdrv].sectorSize = 512;
+			break;
+		case DEV_USB:
+			cache[pdrv].sectorSize = 4096;
+			break;
+	}
+
 	// Device initialized.
 	disk_isInit[pdrv] = true;
 	return 0;
@@ -112,7 +126,7 @@ DRESULT disk_read (
 	if (count == 1 && sector != 0) {
 		for (int i = 0; i < CACHE_SIZE; i++) {
 			if (cache[pdrv].sectorNum[i] == sector) {
-				memcpy(buff, cache[pdrv].data[i], __sector_size);
+				memcpy(buff, cache[pdrv].data[i], cache[pdrv].sectorSize);
 				return RES_OK;
 			}
 		}
@@ -128,10 +142,10 @@ DRESULT disk_read (
 		return RES_ERROR;
 
 	// Copy the sector to the cache.
-	if (count == 1) {
+	if (count == 1 && cache[pdrv].sectorSize >= 512) {
 		u32 cPos = cache[pdrv].pos;
 		cache[pdrv].sectorNum[cPos] = sector;
-		memcpy(cache[pdrv].data[cPos], buff, __sector_size);
+		memcpy(cache[pdrv].data[cPos], buff, cache[pdrv].sectorSize);
 		cPos++;
 		/* Wrap cache around */
 		if(cPos == CACHE_SIZE)
@@ -158,9 +172,6 @@ DRESULT disk_write (
 	if (pdrv < DEV_SD || pdrv > DEV_USB || count == 0)
 		return RES_PARERR;
 
-	if (driver[pdrv]->writeSectors(sector, count, buff) < 0)
-		return RES_ERROR;
-
 	// If any of these sectors were cached, invalidate them.
 	for (int i = CACHE_SIZE-1; i >= 0; i--) {
 		if (cache[pdrv].sectorNum[i] >= sector &&
@@ -169,6 +180,9 @@ DRESULT disk_write (
 			cache[pdrv].sectorNum[i] = 0;
 		}
 	}
+
+	if (driver[pdrv]->writeSectors(sector, count, buff) < 0)
+		return RES_ERROR;
 
 	return RES_OK;
 }
