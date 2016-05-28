@@ -589,11 +589,11 @@ static const BYTE ExCvt[] = _EXCVT;	/* Upper conversion table for SBCS extended 
 // Nintendont: Use the old macros from FatFS R0.11a for size and performance reasons.
 #define ld_word(ptr)            (WORD)(((WORD)*((BYTE*)(ptr)+1)<<8)|(WORD)*(BYTE*)(ptr))
 #define ld_dword(ptr)           (DWORD)(((DWORD)*((BYTE*)(ptr)+3)<<24)|((DWORD)*((BYTE*)(ptr)+2)<<16)|((WORD)*((BYTE*)(ptr)+1)<<8)|*(BYTE*)(ptr))
-#define ld_qword(ptr)           (QWORD)ld_dword((BYTE*)(ptr)) |((QWORD)ld_dword((BYTE*)(ptr)+4)<<32)
+#define ld_qword(ptr)           ((QWORD)ld_dword((BYTE*)(ptr))|((QWORD)ld_dword((BYTE*)(ptr)+4)<<32))
 #if !_FS_READONLY
 #define st_word(ptr,val)        *(BYTE*)(ptr)=(BYTE)(val); *((BYTE*)(ptr)+1)=(BYTE)((WORD)(val)>>8)
 #define st_dword(ptr,val)       *(BYTE*)(ptr)=(BYTE)(val); *((BYTE*)(ptr)+1)=(BYTE)((WORD)(val)>>8); *((BYTE*)(ptr)+2)=(BYTE)((DWORD)(val)>>16); *((BYTE*)(ptr)+3)=(BYTE)((DWORD)(val)>>24)
-#define st_qword(ptr,val)       st_dword((ptr),((val)&0xFFFFFFFFU)); st_dword((((BYTE*)ptr)+4),((val)>>32))
+#define st_qword(ptr,val)       st_dword((ptr),((QWORD)(val)&0xFFFFFFFFU)); st_dword((((BYTE*)ptr)+4),((QWORD)(val)>>32))
 #endif	/* !_FS_READONLY */
 
 
