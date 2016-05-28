@@ -155,8 +155,7 @@ bool LoadNinCFG(void);
 
 void UpdateNinCFG();
 bool IsGCGame(u8 *Buffer);
-u32 IsTRIGame(char *Path, u32 CurDICMD, u32 ISOShift);
-int CreateNewFile(char *Path, u32 size);
+int CreateNewFile(const char *Path, u32 size);
 void ExitToLoader(int ret);
 void ClearScreen();
 void CloseDevices();

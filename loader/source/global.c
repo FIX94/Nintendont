@@ -383,31 +383,36 @@ void UpdateNinCFG()
 	}
 }
 
-int CreateNewFile(char *Path, u32 size)
+int CreateNewFile(const char *Path, u32 size)
 {
-	FILE *f;
-	f = fopen(Path, "rb");
-	if(f != NULL)
+	FIL f;
+
+	// Check if the file already exists.
+	if (f_open_char(&f, Path, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 	{	//create ONLY new files
-		fclose(f);
+		f_close(&f);
 		return -1;
 	}
-	f = fopen(Path, "wb");
-	if(f == NULL)
+
+	if (f_open_char(&f, Path, FA_WRITE|FA_CREATE_NEW) != FR_OK)
 	{
 		gprintf("Failed to create %s!\r\n", Path);
 		return -2;
 	}
-	void *buf = malloc(size);
+
+	// Allocate a temporary buffer.
+	void *buf = calloc(size, 1);
 	if(buf == NULL)
 	{
-		gprintf("Failed to allocate %i bytes!\r\n", size);
+		gprintf("Failed to allocate %u bytes!\r\n", size);
 		return -3;
 	}
-	memset(buf, 0, size);
-	fwrite(buf, 1, size, f);
+
+	// Write the temporary buffer to disk.
+	UINT wrote;
+	f_write(&f, buf, size, &wrote);
+	f_close(&f);
 	free(buf);
-	fclose(f);
-	gprintf("Created %s with %i bytes!\r\n", Path, size);
+	gprintf("Created %s with %u bytes!\r\n", Path, wrote);
 	return 0;
 }
