@@ -81,7 +81,12 @@ void EXISetTimings(u32 TitleID, u32 Region);
 
 bool EXICheckTimer();
 void EXIInterrupt();
-void EXIUpdateRegistersNEW( void );
+
+/**
+ * Get the total size of the loaded memory cards.
+ * @return Total size, in bytes.
+ */
+u32 EXIGetTotalCardSize(void);
 
 /**
  * Check if any memory cards have changed.
@@ -95,6 +100,7 @@ bool EXICheckCard(void);
 void EXISaveCard(void);
 
 void EXIShutdown(void);
+void EXIUpdateRegistersNEW( void );
 void EXIReadFontFile(u8* Data, u32 Length);
 void EXIPrepareTRIGameStart();
 
