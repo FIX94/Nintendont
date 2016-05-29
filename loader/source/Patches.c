@@ -276,28 +276,33 @@ s32 LoadKernel(void)
 	u32 i,u;
 
 	s32 r = ES_GetStoredTMDSize(TitleID_IOS58, &TMDSize);
-	if( r < 0 )
+	if (r < 0)
 	{
 		// IOS58 not found.
-		gprintf("ES_GetStoredTMDSize():%d\r\n", r );
+		gprintf("ES_GetStoredTMDSize(0x%llX) failed: %d\r\n", TitleID_IOS58, r);
+		PrintLoadKernelError(LKERR_ES_GetStoredTMDSize, r);
 		return r;
 	}
 
 	gprintf("TMDSize:%u\r\n", TMDSize );
 
 	TitleMetaData *TMD = (TitleMetaData*)memalign( 32, TMDSize );
-	if( TMD == (TitleMetaData*)NULL )
+	if(!TMD)
 	{
 		// Memory allocation failure.
-		gprintf("Failed to alloc:%u\r\n", TMDSize );
-		return r;	//todo errors are < 0 r still has >= 0 from previous call
+		// NOTE: Not an IOS error, so we'll have to fake
+		// a negative error code.
+		gprintf("Failed to alloc: %u\r\n", TMDSize);
+		PrintLoadKernelError(LKERR_TMD_malloc, -1);
+		return -1;
 	}
 
-	r = ES_GetStoredTMD( TitleID_IOS58, (signed_blob *)TMD, TMDSize );
-	if( r < 0 )
+	r = ES_GetStoredTMD(TitleID_IOS58, (signed_blob*)TMD, TMDSize);
+	if (r < 0)
 	{
 		// Unable to load IOS58.
-		gprintf("ES_GetStoredTMD():%d\r\n", r );
+		gprintf("ES_GetStoredTMD(0x%llX) failed: %d\r\n", TitleID_IOS58, r);
+		PrintLoadKernelError(LKERR_ES_GetStoredTMD, r);
 		free(TMD);
 		return r;
 	}
@@ -316,20 +321,21 @@ s32 LoadKernel(void)
 	{
 		gprintf("IOS_Open(\"/shared1/content.map\") failed: %d\r\n", cfd);
 		free(TMD);
-		PrintLoadKernelError(LKERR_SHARED1_CONTENT_MAP, cfd);
+		PrintLoadKernelError(LKERR_IOS_Open_shared1_content_map, cfd);
 		return cfd;
 	}
 
-	for( u=0;; u+=0x1C )
+	for (u=0; ; u+=0x1C)
 	{
-		if( IOS_Read( cfd, Entry, 0x1C ) != 0x1C )
+		if (IOS_Read(cfd, Entry, 0x1C) != 0x1C)
 		{
 			gprintf("Hash not found in content.map\r\n");
 			free(TMD);
+			PrintLoadKernelError(LKERR_HashNotFound, -1);
 			return -2;
 		}
 
-		if( memcmp( (char*)(Entry+8), TMD->Contents[i].SHA1, 0x14 ) == 0 )
+		if (memcmp((char*)(Entry+8), TMD->Contents[i].SHA1, 0x14) == 0)
 			break;
 	}
 	FoundVersion = ((TMD->TitleID & 0xFFFF) << 16) | (TMD->TitleVersion);
@@ -351,10 +357,12 @@ s32 LoadKernel(void)
 	gprintf("Kernel:\"%s\"\r\n", Path );
 	DCFlushRange(Path, 1024);
 
-	s32 kfd = IOS_Open( Path, 1 );
-	if( kfd < 0 )
+	// Open the actual IOS58 kernel file.
+	s32 kfd = IOS_Open(Path, 1);
+	if (kfd < 0)
 	{
-		gprintf("IOS_Open():%d\r\n", kfd );
+		gprintf("IOS_Open(\"%s\") failed: %d\r\n", Path, kfd);
+		PrintLoadKernelError(LKERR_IOS_Open_IOS58_kernel, kfd);
 		return kfd;
 	}
 
@@ -363,14 +371,14 @@ s32 LoadKernel(void)
 
 	gprintf("KernelSize:%u\r\n", KernelSize );
 
-	if( IOS_Read( kfd, Kernel, KernelSize ) != KernelSize )
+	if (IOS_Read(kfd, Kernel, KernelSize) != KernelSize)
 	{
 		gprintf("IOS_Read() failed\r\n");
-
+		PrintLoadKernelError(LKERR_IOS_Read_IOS58_kernel, kfd);
 		IOS_Close(kfd);
 		return -1;
 	}
-	IOS_Close(kfd);
 
+	IOS_Close(kfd);
 	return 0;
 }
