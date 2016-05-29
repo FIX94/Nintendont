@@ -69,6 +69,19 @@ static inline void ShowLoadingScreen(void)
  */
 void PrintInfo(void);
 
-void PrintInfo( void );
+typedef enum {
+	LKERR_UNKNOWN,
+	LKERR_SHARED1_CONTENT_MAP,
+} LoadKernelError_t;
+
+/**
+ * Print an IOS loading error.
+ * This function does NOT force a return to loader;
+ * that must be handled by the caller.
+ * @param iosErr IOS loading error ID.
+ * @param err Return value from the IOS function.
+ */
+void PrintLoadKernelError(LoadKernelError_t iosErr, s32 err);
+
 void ReconfigVideo( GXRModeObj *vidmode );
 #endif

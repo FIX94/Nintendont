@@ -156,7 +156,13 @@ bool LoadNinCFG(void);
 void UpdateNinCFG();
 bool IsGCGame(u8 *Buffer);
 int CreateNewFile(const char *Path, u32 size);
-void ExitToLoader(int ret);
+
+/**
+ * Exit Nintendont and return to the loader.
+ * @param ret Exit code.
+ */
+void ExitToLoader(int ret) __attribute__ ((noreturn));
+
 void ClearScreen();
 void CloseDevices();
 void hexdump(void *d, int len);

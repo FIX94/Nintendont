@@ -997,9 +997,6 @@ void ShowMessageScreenAndExit(const char *msg, int ret)
 	PrintInfo();
 	PrintFormat(DEFAULT_SIZE, color, x, 232, "%s", msg);
 	ExitToLoader(ret);
-
-	// gcc doesn't know ExitToLoader() exits.
-	exit(ret);
 }
 
 /**
@@ -1065,4 +1062,36 @@ void ReconfigVideo(GXRModeObj *vidmode)
 			vidmode->viXOrigin += ncfg->VideoOffset;
 	}
 	VIDEO_Configure(vidmode);
+}
+
+/**
+ * Print an IOS loading error.
+ * This function does NOT force a return to loader;
+ * that must be handled by the caller.
+ * @param iosErr IOS loading error ID.
+ * @param err Return value from the IOS function.
+ */
+void PrintLoadKernelError(LoadKernelError_t iosErr, s32 err)
+{
+	ClearScreen();
+	PrintInfo();
+	PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4, "Failed to load IOS58 from NAND:");
+
+	switch (iosErr)
+	{
+		case LKERR_UNKNOWN:
+		default:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "An unknown error occurred, returning %d.", err);
+			break;
+
+		case LKERR_SHARED1_CONTENT_MAP:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "IOS_Open(\"/shared1/content.map\") returned %d.", err);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "This usually means Nintendont was not started with");
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "AHB access permissions.");
+			// FIXME: Create meta.xml if it isn't there?
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "Please ensure that meta.xml is present in your Nintendont");
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*11, "application directory and that it contains a line");
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*12, "with the tag <ahb_access/> .");
+			break;
+	}
 }

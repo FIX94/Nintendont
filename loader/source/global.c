@@ -205,9 +205,14 @@ void AfterIOSReload(raw_irq_handler_t handle, u32 rev)
 	__STM_Init();
 }
 
-extern vu32 KernelLoaded, FoundVersion;
+/**
+ * Exit Nintendont and return to the loader.
+ * @param ret Exit code.
+ */
 void ExitToLoader(int ret)
 {
+	extern vu32 KernelLoaded, FoundVersion;
+
 	UpdateScreen();
 	UpdateScreen(); // Triple render to ensure it gets seen
 	GRRLIB_Render();

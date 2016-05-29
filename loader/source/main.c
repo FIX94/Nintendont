@@ -164,13 +164,23 @@ int main(int argc, char **argv)
 	*(vu32*)0x932C0494 = CONF_GetSensorBarPosition();
 	DCFlushRange((void*)0x932C0490, 8);
 
-	if(LoadKernel() < 0)
+	// Load and patch IOS58.
+	if (LoadKernel() < 0)
 	{
-		// TODO: More extensive diagnostics.
-		ClearScreen();
-		gprintf("Failed to load IOS58 kernel from NAND!\r\n");
-		ShowMessageScreenAndExit("Failed to load IOS58 kernel from NAND!", 1);
+		// NOTE: Attempting to initialize controllers here causes a crash.
+		// Hence, we can't wait for the user to press the HOME button, so
+		// we'll just wait for a timeout instead.
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*20, "Returning to loader in 10 seconds.");
+		UpdateScreen();
+		VIDEO_WaitVSync();
+
+		// Wait 10 seconds...
+		usleep(10000000);
+
+		// Return to the loader.
+		ExitToLoader(1);
 	}
+
 	InsertModule((char*)kernel_bin, kernel_bin_size);
 
 	memset( (void*)0x92f00000, 0, 0x100000 );
