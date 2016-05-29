@@ -82,8 +82,9 @@ static const unsigned char HWAccess_ES[] =
 
 static char Entry[0x1C] ALIGNED(32);
 
-static char *Kernel = (char*)0x90100000;
-u32 KernelSize = 0;
+// IOS58 kernel memory base address.
+static char *const Kernel = (char*)0x90100000;
+static u32 KernelSize = 0;
 
 void InsertModule( char *Module, u32 ModuleSize )
 {
@@ -343,17 +344,17 @@ s32 LoadKernel(void)
 
 	IOS_Close( cfd );
 
-	u32 *IOSVersion = (u32*)0x93003000;
+	u32 *const IOSVersion = (u32*)0x93003000;
 	DCInvalidateRange(IOSVersion, 0x20);
 	*IOSVersion = FoundVersion;
 	gprintf("IOS Version: 0x%08X\n", FoundVersion);
 	DCFlushRange(IOSVersion, 0x20);
 
 	//char Path[32];
-	char *Path = (char*)0x93003020;
+	char *const Path = (char*)0x93003020;
 	DCInvalidateRange(Path, 1024);
 	memset(Path, 0, 1024);
-	sprintf( Path, "/shared1/%.8s.app", Entry );
+	snprintf(Path, 1024, "/shared1/%.8s.app", Entry);
 	gprintf("Kernel:\"%s\"\r\n", Path );
 	DCFlushRange(Path, 1024);
 
