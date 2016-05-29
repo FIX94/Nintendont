@@ -225,7 +225,8 @@ int main(int argc, char **argv)
 		{{'u', 's', 'b', ':', 0}, "USB", &usbDev, 10}
 	};
 	bool foundOneDevice = false;
-	for (int i = 0; i < 2; i++)
+	int i;
+	for (i = 0; i < 2; i++)
 	{
 		// Attempt to initialize this device
 		// TODO: Do initialization asynchronously.

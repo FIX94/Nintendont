@@ -27,7 +27,7 @@ INCLUDES	:= include ../fatfs
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	:= -O3 -g -std=gnu99 -fgnu89-inline \
+CFLAGS	:= -O3 -g -std=gnu89 \
 	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH
 CXXFLAGS := $(CFLAGS)
 

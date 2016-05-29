@@ -201,7 +201,8 @@ static s32 Download(DOWNLOADS download_number)  {
 		line++;
 	}
 
-	for (int i = 0; i <= 10; i++) {
+	int i;
+	for (i = 0; i <= 10; i++) {
 		ret = http_request(Downloads[download_number].url, Downloads[download_number].max_size);
 		if (ret) break;
 		if (i == 10) {

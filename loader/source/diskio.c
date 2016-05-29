@@ -81,7 +81,8 @@ DSTATUS disk_initialize (
 		return STA_NODISK;
 
 	// Initialize the sector cache.
-	for (int i = CACHE_SIZE-1; i >= 0; i--) {
+	int i;
+	for (i = CACHE_SIZE-1; i >= 0; i--) {
 		cache[pdrv].sectorNum[i] = 0;
 	}
 	cache[pdrv].pos = 0;
@@ -124,7 +125,8 @@ DRESULT disk_read (
 	// only read once per volume on startup when
 	// finding partitions.)
 	if (count == 1 && sector != 0) {
-		for (int i = 0; i < CACHE_SIZE; i++) {
+		int i;
+		for (i = 0; i < CACHE_SIZE; i++) {
 			if (cache[pdrv].sectorNum[i] == sector) {
 				memcpy(buff, cache[pdrv].data[i], cache[pdrv].sectorSize);
 				return RES_OK;
@@ -132,8 +134,8 @@ DRESULT disk_read (
 		}
 	}
 
-	int retry = 10;
-	for (; retry >= 0; retry--) {
+	int retry;
+	for (retry = 10; retry >= 0; retry--) {
 		if (driver[pdrv]->readSectors(sector, count, buff))
 			break;
 	}
@@ -173,7 +175,8 @@ DRESULT disk_write (
 		return RES_PARERR;
 
 	// If any of these sectors were cached, invalidate them.
-	for (int i = CACHE_SIZE-1; i >= 0; i--) {
+	int i;
+	for (i = CACHE_SIZE-1; i >= 0; i--) {
 		if (cache[pdrv].sectorNum[i] >= sector &&
 		    cache[pdrv].sectorNum[i] < (sector+count))
 		{	

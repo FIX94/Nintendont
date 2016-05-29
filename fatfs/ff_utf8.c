@@ -23,10 +23,11 @@ static union {
  */
 static inline bool char_to_wchar(const char *str)
 {
+	size_t len, i;
 	if (!str || *str == 0)
 		return false;
 
-	size_t len = mbstowcs(tmpwchar.u32, str, NUM_ELEMENTS(tmpwchar.u32));
+	len = mbstowcs(tmpwchar.u32, str, NUM_ELEMENTS(tmpwchar.u32));
 	if (len == 0)
 		return false;
 	if (len >= NUM_ELEMENTS(tmpwchar.u32))
@@ -34,7 +35,7 @@ static inline bool char_to_wchar(const char *str)
 
 	// Convert from UTF-32 to UTF-16.
 	// NOTE: Characters >U+FFFF are not supported.
-	for (size_t i = 0; i < len; ++i) {
+	for (i = 0; i < len; ++i) {
 		tmpwchar.u16[i] = (WCHAR)(tmpwchar.u32[i] & 0xFFFF);
        }
 
@@ -52,11 +53,12 @@ static inline bool char_to_wchar(const char *str)
 const char *wchar_to_char(const WCHAR *wcs)
 {
 	static char tmpchar[512];
+	size_t i;
 	wchar_t *wcptr = tmpwchar.u32;
 
 	// Convert the WCHAR string to wchar_t.
 	// NOTE: Characters >U+FFFF are not supported.
-	for (int i = 0; i < NUM_ELEMENTS(tmpwchar.u32); i++) {
+	for (i = 0; i < NUM_ELEMENTS(tmpwchar.u32); i++) {
 		if (*wcs == 0)
 			break;
 		*wcptr++ = *wcs++;

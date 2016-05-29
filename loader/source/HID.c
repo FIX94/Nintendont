@@ -24,7 +24,7 @@ void HIDUpdateRegisters()
 	snprintf(file_sd, sizeof(file_sd), "sd:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
 	snprintf(file_usb, sizeof(file_usb), "usb:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
 
-	const char *filenames[6] =
+	const char *const filenames[6] =
 	{
 		file_sd, file_usb,
 		"sd:/controller.ini",
@@ -33,9 +33,10 @@ void HIDUpdateRegisters()
 		"usb:/controller.ini.ini"
 	};
 
+	int i;
 	FIL f;
 	FRESULT res = FR_DISK_ERR;
-	for (int i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++)
 	{
 		res = f_open_char(&f, filenames[i], FA_READ|FA_OPEN_EXISTING);
 		if (res == FR_OK)
