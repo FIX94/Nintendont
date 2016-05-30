@@ -38,7 +38,7 @@ True:
 	# Slot B info is stored at 0x800030C4.
 	slwi	%r3,	%r3,	2
 	lis	%r4,	0x8000
-	or	%r4,	%r4,	%r3	# r4 = 0x800030C0 + (channel * 4)
+	or	%r4,	%r4,	%r3	# r4 = 0x80000000 + (channel * 4)
 
 	# Store the magic number 0xE2D383C1 in the OS Globals section
 	# to indicate that a memory card is present.
