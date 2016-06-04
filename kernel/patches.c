@@ -106,7 +106,6 @@ enum
 	FCODE_OSGetResetState,
 	FCODE___OSInitAudioSystem_A,
 	FCODE___OSInitAudioSystem_B,
-	FCODE_AIInitDMA,
 	FCODE___DSPHandler,
 	FCODE_PatchPatchBuffer,
 	FCODE_PrsLoad,
