@@ -625,6 +625,16 @@ int main(int argc, char **argv)
 //make sure the cfg gets to the kernel
 	DCStoreRange((void*)ncfg, sizeof(NIN_CFG));
 
+//set current time
+	u32 bias = 0, cur_time = 0;
+	__SYS_GetRTC(&cur_time);
+	if(CONF_GetCounterBias(&bias) >= 0)
+		cur_time += bias;
+	settime(secs_to_ticks(cur_time));
+//hand over approx time passed since 1970
+	*(vu32*)0xD3003424 = (cur_time+946684800);
+
+//set status for kernel to start running
 	*(vu32*)0xD3003420 = 0x0DEA;
 	while(1)
 	{
@@ -899,13 +909,6 @@ int main(int argc, char **argv)
 	else while(VIDEO_GetNextField())
 		VIDEO_WaitVSync();
 	GX_AbortFrame();
-
-	// set current time
-	u32 bias = 0, cur_time = 0;
-	__SYS_GetRTC(&cur_time);
-	if(CONF_GetCounterBias(&bias) >= 0)
-		cur_time += bias;
-	settime(secs_to_ticks(cur_time));
 
 	DCInvalidateRange((void*)0x93000000, 0x3000);
 	memset((void*)0x93002700, 0, 0x200); //clears alot of pad stuff
