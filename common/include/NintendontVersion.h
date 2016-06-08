@@ -12,6 +12,6 @@
 
 // "Special" version.
 // This should only be set in custom builds, i.e. not mainline.
-#define NIN_SPECIAL_VERSION			"-exFAT-test1"
+#define NIN_SPECIAL_VERSION			"-exFAT-test2"
 
 #endif
