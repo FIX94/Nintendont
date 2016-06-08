@@ -227,3 +227,39 @@ void wait_for_ppc(u8 multi)
 {
 	udelay(45*multi);
 }
+
+u32 timeBase = 0, timeStarlet = 0, wrappedAround = 0;
+void InitCurrentTime()
+{
+	//get current time since 1970 from loader
+	timeBase = read32(RESET_STATUS+4);
+	//make sure to start based on starlet time
+	timeStarlet = read32(HW_TIMER);
+	timeBase -= TicksToSecs(timeStarlet);
+#ifdef DEBUG_TIME
+	dbgprintf("Time:Start with %u seconds and %u ticks\r\n",timeBase,timeStarlet);
+#endif
+}
+
+u32 GetCurrentTime()
+{
+	u32 curtime = read32(HW_TIMER);
+	if(timeStarlet > curtime) /* Wrapped around, add full cycle to base */
+	{
+		//counter some inaccuracy, will be behind by 1 second every
+		//19 wraps (nearly half a day, good enough)
+		wrappedAround++;
+		if(wrappedAround == 3)
+		{
+			timeBase += 2263;
+			wrappedAround = 0;
+		}
+		else
+			timeBase += 2262;
+#ifdef DEBUG_TIME
+		dbgprintf("Time:Wrap with %u seconds and %u ticks\r\n",timeBase,curtime);
+#endif
+	}
+	timeStarlet = curtime;
+	return timeBase + TicksToSecs(timeStarlet);
+}

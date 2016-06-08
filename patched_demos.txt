@@ -1,0 +1,45 @@
+MD5 hashes and disc versions of known problematic and already correctly patched demo .tgc files
+If you find any other demo which makes problems let me know, it might require a patch
+
+Luigis Mansion USA Demo on Oct 01:
+b9cbbe5d953c8b650285a320feee7622
+Pikmin USA Demo on January 02:
+832f7088c269380dbaad3d3041b0235f
+Sunshine USA Demo on Aug 02, v7, v8:
+068907455d08423363bda25d80054735
+Viewtiful Joe USA Demo on v12 and GC Preview Disc May 03:
+a17fa7dd7b468c0f9946eab8d7a8b914
+Paper Mario 2 USA Demo on v17,v18:
+83545191da4f4328216165e472cbc79b
+Paper Mario TTYD USA Demo on v19,v20,v21,v22,v35:
+e3f1c385e74704cb2500e98ee3fc3564
+RE4 USA Demo on v20,v22,v24,v26,v29,v30 and RE4 Preview Disc:
+16d6abfaea4a9dcb54ca74c02d070649
+Mario Baseball USA Demo on v27,v28,v29,v30,v31 and EUR Oct 05:
+61ba991ce2c2b2c9134e7b533792f93b
+Pokemon XD USA Demo on v31,v32,v33:
+30965d577d9f4fc52e9b9c31bfd80975
+
+Luigis Mansion EUR Demo on March 02:
+9afe9084da7cddeaa999131baa792b1f
+Pikmin EUR Demo on May 02:
+34de0f37180192700d2e4faae9986ab8
+Sunshine EUR Demo on Sep, Nov, Dec 02:
+c29ecf5d3caffee6994ad9b53e29b798
+Viewtiful Joe EUR Demo on September 03:
+3d3c3afcc878af7461a59551689167fc
+Pokemon Colosseum EUR Demo on May 04:
+22e7be9eda92f4c8d9dd4fd2b3c663a2
+Paper Mario TTYD EUR Demo on Nov 04:
+8fcae7fa8480c4dd57780d62ae6570ce
+Pokemon XD EUR Demo on October 05:
+4827706125b6064a4f02517b15171cb1
+
+Pikmin JAP Demo on October 01:
+ef1225b24719b9770abfa7b62a8b9b88
+Sunshine JAP Demo on July 02 (D34J):
+d6f122bf3ccbf85d9ff38f6f5f9b9299
+Viewtiful Joe JAP Demo on Summer 03:
+ea5f6a5f738353bd4bb6da27f7cc2d84
+Paper Mario RPG JAP Demo on July 04:
+48156abea7f51773f500ba19a61e44a1

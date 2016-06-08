@@ -24,6 +24,7 @@
 //#define DEBUG_SRAM 1
 //#define DEBUG_FST	1
 #define DEBUG_PATCH	1
+#define DEBUG_TIME 1
 
 #define REGION_ID_USA	0x45
 #define REGION_ID_JAP	0x4A
@@ -297,6 +298,13 @@ static inline u32 clear32(u32 addr, u32 clear)
 	return data;
 }
 
+static inline u32 TicksToSecs(u32 time)
+{
+	//pretty accurate, it reports the first second is over about 3.2ms early and
+	//with a full 37.7 minutes difference its off by only about 8.6 seconds
+	return ((time >> 13)*71)>>14;
+}
+
 static inline u32 TimerDiffTicks(u32 time)
 {
 	u32 curtime = read32(HW_TIMER);
@@ -308,9 +316,7 @@ static inline u32 TimerDiffSeconds(u32 time)
 {
 	u32 curtime = read32(HW_TIMER);
 	if(time > curtime) return UINT_MAX; //wrapped, return UINT_MAX to reset
-	//pretty accurate, it reports the first second is over about 3.2ms early and
-	//with a full 37.7 minutes difference its off by only about 8.6 seconds
-	return (((curtime - time) >> 13)*71)>>14;
+	return TicksToSecs(curtime - time);
 }
 
 static inline u32 IsGCGame(u32 Buffer)

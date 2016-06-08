@@ -192,6 +192,33 @@ DRESULT disk_ioctl (
 }
 
 
+//we cant include time.h so hardcode what we need
+struct tm
+{
+	int tm_sec;
+	int tm_min;
+	int tm_hour;
+	int tm_mday;
+	int tm_mon;
+	int tm_year;
+};
+extern struct tm *gmtime(u32 *time);
+
+// Get the current system time as a FAT timestamp.
+DWORD get_fattime(void)
+{
+	u32 time = GetCurrentTime();
+	struct tm *tmp = gmtime(&time);
+	DWORD ret =
+		((DWORD)(tmp->tm_year - 80) << 25)
+		| ((DWORD)(tmp->tm_mon + 1) << 21)
+		| ((DWORD)tmp->tm_mday  << 16)
+		| ((DWORD)tmp->tm_hour << 11)
+		| ((DWORD)tmp->tm_min << 5)
+		| ((DWORD)tmp->tm_sec >> 1);
+	return ret;
+}
+
 
 /*-----------------------------------------------------------------------*/
 /* Nintendont kernel: Device type selection.                             */

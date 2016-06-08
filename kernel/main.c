@@ -109,6 +109,9 @@ int _main( int argc, char *argv[] )
 		HIDUpdateRegisters(1);
 		mdelay(10);
 	}
+	//get time from loader
+	InitCurrentTime();
+	//get config from loader
 	ConfigSyncBeforeRead();
 
 	u32 UseUSB = ConfigGetConfig(NIN_CFG_USB);
@@ -334,6 +337,8 @@ int _main( int argc, char *argv[] )
 			DIFinishAsync();
 			USBReadTimer = read32(HW_TIMER);
 		}
+		else /* No device I/O so make sure this stays updated */
+			GetCurrentTime();
 		udelay(20); //wait for other threads
 
 		if( WaitForRealDisc == 1 )

@@ -32,5 +32,7 @@ void W32(u32 Address, u32 Data);
 u16 R16(u32 Address);
 u32 R32(u32 Address);
 void wait_for_ppc(u8 multi);
+void InitCurrentTime();
+u32 GetCurrentTime();
 
 #endif
