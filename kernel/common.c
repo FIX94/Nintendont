@@ -4,6 +4,8 @@
 #include "Config.h"
 #include "debug.h"
 
+#include <ctype.h>
+
 void BootStatus(s32 Value, u32 secs, u32 scnt)
 {
 	//memset32( STATUS, Value, 0x20 );
@@ -173,52 +175,18 @@ void Shutdown( void )
 
 	while(1);
 }
-void Asciify( char *str )
+
+/**
+ * Change non-printable characters in a string to '_'.
+ * @param str String.
+ */
+void Asciify(char *str)
 {
-	int i=0;
-	int length = strlen(str);
-	for( i=0; i < length; i++ )
-		if( str[i] < 0x20 || str[i] > 0x7F )
-			str[i] = '_';
-}
-unsigned int atox( char *String )
-{
-	u32 val=1;
-	u32 len=0;
-	u32 i;
-
-	while(val)
+	for (; *str != 0; str++)
 	{
-		switch(String[len])
-		{
-			case 0x0a:
-			case 0x0d:
-			case 0x00:
-			case ',':
-				val = 0;
-				len--;
-				break;
-		}
-		len++;
+		if (!isprint(*str))
+			*str = '_';
 	}
-
-	for( i=0; i < len; ++i )
-	{
-		if( String[i] >= '0' && String[i] <='9' )
-		{
-			val |= (String[i]-'0') << (((len-1)-i) * 4);
-
-		} else if( String[i] >= 'A' && String[i] <='Z' ) {
-
-			val |= (String[i]-'7') << (((len-1)-i) * 4);
-
-		} else if( String[i] >= 'a' && String[i] <='z' ) {
-
-			val |= (String[i]-'W') << (((len-1)-i) * 4);
-		}
-	}
-
-	return val;
 }
 
 void wait_for_ppc(u8 multi)
@@ -226,7 +194,7 @@ void wait_for_ppc(u8 multi)
 	udelay(45*multi);
 }
 
-u32 timeBase = 0, timeStarlet = 0, wrappedAround = 0;
+static u32 timeBase = 0, timeStarlet = 0, wrappedAround = 0;
 void InitCurrentTime()
 {
 	//get current time since 1970 from loader

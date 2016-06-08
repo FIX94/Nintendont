@@ -24,8 +24,13 @@ void BootStatus(s32 Value, u32 secs, u32 scnt);
 void BootStatusError(s32 Value, s32 error);
 void udelay(int us);
 void mdelay(int ms);
-void Asciify( char *str );
-unsigned int atox( char *String );
+
+/**
+ * Change non-printable characters in a string to '_'.
+ * @param str String.
+ */
+void Asciify(char *str);
+
 void Shutdown( void );
 
 /*
