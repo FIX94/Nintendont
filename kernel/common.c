@@ -34,81 +34,79 @@ void BootStatusError(s32 Value, s32 error)
 }
 
 /*
-	Since Starlet can only access MEM1 via 32byte write and 8/16 writes
-	cause unpredictable results we this code is needed.
+ * Since Starlet can only access MEM1 via 32byte write and 8/16 writes
+ * cause unpredictable results we this code is needed.
 
-	This automatically detects the misalignment and writes the value
-	via two 32bit writes
-*/
-void W16(u32 Address, u16 Data)
+ * This automatically detects the misalignment and writes the value
+ * via two 32bit writes
+ */
+
+u32 R32(u32 Address)
 {
-	u32 Tmp = R32(Address);
-	W32(Address, (Tmp & 0xFFFF) | (Data << 16));
+	if ((Address & 3) == 0)
+	{
+		return read32(Address);
+	}
+
+	const u32 valA = read32(Address & (~3));
+	const u32 valB = read32((Address + 3) & (~3));
+	switch (Address & 3)
+	{
+		case 0:
+		default:
+			// Shouldn't happen...
+			return valA;
+		case 1:
+			return ((valA&0xFFFFFF)<<8) | (valB>>24);
+		case 2:
+			return ((valA&0xFFFF)<<16) | (valB>>16);
+		case 3:
+			return ((valA&0xFF)<<24) | (valB>>8);
+	}
 }
 
 void W32(u32 Address, u32 Data)
 {
-	if( Address & 3 )
+	if ((Address & 3) == 0)
 	{
-		//dbgprintf("[%08X] %08X\r\n",Address,Data);
-		u32 valA = read32(Address & (~3));
-		u32 valB = read32((Address + 3) & (~3));
-		//dbgprintf("[%08X] %08X\r\n", Address & (~3), valA );
-		//dbgprintf("[%08X] %08X\r\n", (Address+3) & (~3), valB );
-		if((Address & 3) == 1)
-		{
+		write32(Address, Data);
+		return;
+	}
+
+	u32 valA = read32(Address & (~3));
+	u32 valB = read32((Address + 3) & (~3));
+	switch (Address & 3)
+	{
+		case 0:
+		default:
+			// Shouldn't happen...
+			write32(Address, Data);
+			break;
+		case 1:
 			valA &= 0xFF000000;
 			valA |= Data>>8;
 			write32(Address & (~3), valA);
 			valB &= 0x00FFFFFF;
 			valB |= (Data&0xFF)<<24;
 			write32((Address + 3) & (~3), valB);
-		}
-		else if((Address & 3) == 2)
-		{
+			break;
+		case 2:
 			valA &= 0xFFFF0000;
 			valA |= Data>>16;
 			write32(Address & (~3), valA);
 			valB &= 0x0000FFFF;
 			valB |= (Data&0xFFFF)<<16;
 			write32((Address + 3) & (~3), valB);
-		}
-		else
-		{
+			break;
+		case 3:
 			valA &= 0xFFFFFF00;
 			valA |= Data>>24;
 			write32(Address & (~3), valA);
 			valB &= 0x000000FF;
 			valB |= (Data&0xFFFFFF)<<8;
 			write32((Address + 3) & (~3), valB);
-		}
-		//dbgprintf("[%08X] %08X\r\n", Address & (~3), valA );
-		//dbgprintf("[%08X] %08X\r\n", (Address+3) & (~3), valB );
+			break;
 	}
-	else
-	{
-		write32( Address, Data );
-	}
-}
-
-u16 R16(u32 Address)
-{
-	return R32(Address) >> 16;
-}
-
-u32 R32(u32 Address)
-{
-	if(Address & 3)
-	{
-		u32 valA = read32(Address & (~3));
-		u32 valB = read32((Address + 3) & (~3));
-		if((Address & 3) == 1)
-			return ((valA&0xFFFFFF)<<8) | (valB>>24);
-		else if((Address & 3) == 2)
-			return ((valA&0xFFFF)<<16) | (valB>>16);
-		return ((valA&0xFF)<<24) | (valB>>8);
-	}
-	return read32(Address);
 }
 
 void udelay(int us)

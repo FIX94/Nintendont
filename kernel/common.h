@@ -27,10 +27,28 @@ void mdelay(int ms);
 void Asciify( char *str );
 unsigned int atox( char *String );
 void Shutdown( void );
-void W16(u32 Address, u16 Data);
-void W32(u32 Address, u32 Data);
-u16 R16(u32 Address);
+
+/*
+ * Since Starlet can only access MEM1 via 32-bit write and 8/16 writes
+ * cause unpredictable results, this code is needed.
+ *
+ * This automatically detects the misalignment and writes the value
+ * via two 32bit writes
+ */
+
 u32 R32(u32 Address);
+static inline u16 R16(u32 Address)
+{
+	return R32(Address) >> 16;
+}
+ 
+void W32(u32 Address, u32 Data);
+static inline void W16(u32 Address, u16 Data)
+{
+	u32 Tmp = R32(Address);
+	W32(Address, (Tmp & 0xFFFF) | (Data << 16));
+}
+
 void wait_for_ppc(u8 multi);
 void InitCurrentTime();
 u32 GetCurrentTime();
