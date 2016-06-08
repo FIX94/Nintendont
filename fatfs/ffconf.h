@@ -249,15 +249,7 @@
 /  Note that enabling exFAT discards C89 compatibility. */
 
 
-#ifdef __PPC__
-// Nintendont loader: Time functionality is available,
-// so make use of it when creating new files.
 #define _FS_NORTC	0
-#else /* !__PPC__ */
-// Nintendont kernel: Time functionality is not currently
-// available, so don't attempt to use it.
-#define _FS_NORTC	1
-#endif /* __PPC__ */
 #define _NORTC_MON	3
 #define _NORTC_MDAY	1
 #define _NORTC_YEAR	2016
