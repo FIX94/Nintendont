@@ -122,8 +122,10 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 	}
 	return false;
 }
+
 extern vu32 TRIGame;
 extern u32 IsN64Emu;
+extern u32 DOLSize;
 bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
 	switch (TRIGame)
@@ -416,6 +418,52 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 				PatchWideMulti(0x1DCCDC,1); //picture effects
 				PatchWideDiv(0x298DE4,6); //widescreen, clipping
 			}
+			return true;
+
+		case 0x473953: // Sonic Heroes
+			// Reference: https://wiki.dolphin-emu.org/index.php?title=Sonic_Heroes#16:9_Aspect_Ratio_Fix
+			if (Region == REGION_ID_USA)
+			{
+				if (DOLSize == 2740672-28)
+				{
+					// US final version.
+					write32(0x42D2D4, 0x3F521DAA);
+					write32(0x42DB20, 0x3F521DAA);
+					write32(0x42D2E0, 0x3ED21DAA);
+					return true;
+				}
+				else if (DOLSize == 2557472-28 && read32(0x257CF8) == 0x2E666F6E)
+				{
+					// Sonic Heroes 10/08/2003 prototype.
+					// NOTE: The prototype uses an uncompressed font
+					// file, "sega.fon", while the final version uses
+					// a compressed font file, "sega.prs".
+					write32(0x35F67C, 0x3F521DAA);
+					write32(0x35FE68, 0x3F521DAA);
+					write32(0x35F688, 0x3ED21DAA);
+					return true;
+				}
+
+				// NOTE: There's at least one other known prototype,
+				// dated 11/18/2003, so if the DOL size doesn't match
+				// any known version, ignore it.
+				return false;
+			}
+			else if (Region == REGION_ID_EUR)
+			{
+				// TODO: Not implemented.
+				return false;
+			}
+			else if (Region == REGION_ID_JAP)
+			{
+				// NOTE: These addresses were found by calculating the
+				// difference between .data7 in the US executable
+				// compared to JP. May not be 100% accurate.
+				write32(0x42D3B4, 0x3F521DAA);
+				write32(0x42DC00, 0x3F521DAA);
+				write32(0x42D3C0, 0x3ED21DAA);
+			}
+
 			return true;
 
 		case 0x47494E: // Batman Begins
