@@ -105,7 +105,7 @@ int _main( int argc, char *argv[] )
 			sync_after_write((void*)RESET_STATUS, 0x20);
 		}
 		HIDUpdateRegisters(1);
-		mdelay(10);
+		udelay(20);
 	}
 	//get time from loader
 	InitCurrentTime();

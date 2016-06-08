@@ -300,9 +300,9 @@ static inline u32 clear32(u32 addr, u32 clear)
 
 static inline u32 TicksToSecs(u32 time)
 {
-	//pretty accurate, it reports the first second is over about 3.2ms early and
-	//with a full 37.7 minutes difference its off by only about 8.6 seconds
-	return ((time >> 13)*71)>>14;
+	//really accurate, it reports the first second is over about 0.5ms early and
+	//with a full 37.7 minutes difference its off by only about 0.7ms
+	return ((time >> 9)*283)>>20;
 }
 
 static inline u32 TimerDiffTicks(u32 time)
