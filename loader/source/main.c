@@ -123,6 +123,46 @@ static ioctlv IOCTL_Buf ALIGNED(32);
 static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
 static const char NIN_BUILD_STRING[] ALIGNED(32) = NIN_VERSION_STRING; // Version detection string used by nintendont launchers "$$Version:x.xxx"
 
+/**
+ * Update meta.xml.
+ */
+static void updateMetaXml(void)
+{
+	char filepath[MAXPATHLEN];
+	bool dir_argument_exists = strlen(launch_dir);
+	
+	snprintf(filepath, sizeof(filepath), "%smeta.xml",
+		dir_argument_exists ? launch_dir : "/apps/Nintendont/");
+
+	if (!dir_argument_exists) {
+		gprintf("Creating new directory\r\n");
+		f_mkdir_char("/apps");
+		f_mkdir_char("/apps/Nintendont");
+	}
+
+	FIL meta;
+	if (f_open_char(&meta, filepath, FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
+	{
+		char buf[1024];
+		int len = snprintf(buf, sizeof(buf),
+			META_XML "\r\n<app version=\"1\">\r\n"
+			"\t<name>" META_NAME "</name>\r\n"
+			"\t<coder>" META_AUTHOR "</coder>\r\n"
+			"\t<version>%d.%d</version>\r\n"
+			"\t<release_date>20150531000000</release_date>\r\n"
+			"\t<short_description>" META_SHORT "</short_description>\r\n"
+			"\t<long_description>" META_LONG1 "\r\n\r\n" META_LONG2 "</long_description>\r\n"
+			"\t<ahb_access/>\r\n"
+			"</app>\r\n",
+			NIN_VERSION >> 16, NIN_VERSION & 0xFFFF);
+		if (len > sizeof(buf))
+			len = sizeof(buf);
+		UINT wrote;
+		f_write(&meta, buf, len, &wrote);
+		f_close(&meta);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -316,29 +356,8 @@ int main(int argc, char **argv)
 	free(fontbuffer);
 	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
 
-	// Simple code to autoupdate the meta.xml in Nintendont's folder
-	// FIXME: chdir?
-	FIL meta;
-	if (f_open_char(&meta, "meta.xml", FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
-	{
-		char buf[1024];
-		int len = snprintf(buf, sizeof(buf),
-			META_XML "\r\n<app version=\"1\">\r\n"
-			"\t<name>" META_NAME "</name>\r\n"
-			"\t<coder>" META_AUTHOR "</coder>\r\n"
-			"\t<version>%d.%d</version>\r\n"
-			"\t<release_date>20150531000000</release_date>\r\n"
-			"\t<short_description>" META_SHORT "</short_description>\r\n"
-			"\t<long_description>" META_LONG1 "\r\n\r\n" META_LONG2 "</long_description>\r\n"
-			"\t<ahb_access/>\r\n"
-			"</app>\r\n",
-			NIN_VERSION >> 16, NIN_VERSION & 0xFFFF);
-		if (len > sizeof(buf))
-			len = sizeof(buf);
-		UINT wrote;
-		f_write(&meta, buf, len, &wrote);
-		f_close(&meta);
-	}
+	// Update meta.xml.
+	updateMetaXml();
 
 	// Load titles.txt.
 	LoadTitles();
