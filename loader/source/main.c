@@ -140,25 +140,51 @@ static void updateMetaXml(void)
 		f_mkdir_char("/apps/Nintendont");
 	}
 
+	char new_meta[1024];
+	int len = snprintf(new_meta, sizeof(new_meta),
+		META_XML "\r\n<app version=\"1\">\r\n"
+		"\t<name>" META_NAME "</name>\r\n"
+		"\t<coder>" META_AUTHOR "</coder>\r\n"
+		"\t<version>%d.%d</version>\r\n"
+		"\t<release_date>20150531000000</release_date>\r\n"
+		"\t<short_description>" META_SHORT "</short_description>\r\n"
+		"\t<long_description>" META_LONG1 "\r\n\r\n" META_LONG2 "</long_description>\r\n"
+		"\t<ahb_access/>\r\n"
+		"</app>\r\n",
+		NIN_VERSION >> 16, NIN_VERSION & 0xFFFF);
+	if (len > sizeof(new_meta))
+		len = sizeof(new_meta);
+
+	// Check if the file already exists.
 	FIL meta;
-	if (f_open_char(&meta, filepath, FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
+	if (f_open_char(&meta, filepath, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 	{
-		char buf[1024];
-		int len = snprintf(buf, sizeof(buf),
-			META_XML "\r\n<app version=\"1\">\r\n"
-			"\t<name>" META_NAME "</name>\r\n"
-			"\t<coder>" META_AUTHOR "</coder>\r\n"
-			"\t<version>%d.%d</version>\r\n"
-			"\t<release_date>20150531000000</release_date>\r\n"
-			"\t<short_description>" META_SHORT "</short_description>\r\n"
-			"\t<long_description>" META_LONG1 "\r\n\r\n" META_LONG2 "</long_description>\r\n"
-			"\t<ahb_access/>\r\n"
-			"</app>\r\n",
-			NIN_VERSION >> 16, NIN_VERSION & 0xFFFF);
-		if (len > sizeof(buf))
-			len = sizeof(buf);
+		// File exists. If it's the same as the new meta.xml,
+		// don't bother rewriting it.
+		char orig_meta[1024];
+		if (len == meta.obj.objsize)
+		{
+			// File is the same length.
+			UINT read;
+			f_read(&meta, orig_meta, len, &read);
+			if (read == (UINT)len &&
+			    !strncmp(orig_meta, new_meta, len))
+			{
+				// File is identical.
+				// Don't rewrite it.
+				f_close(&meta);
+				return;
+			}
+		}
+		f_close(&meta);
+	}
+
+	// File does not exist, or file is not identical.
+	// Write the new meta.xml.
+	if (f_open_char(&meta, filepath, FA_WRITE|FA_CREATE_ALWAYS) == FR_OK)
+	{
 		UINT wrote;
-		f_write(&meta, buf, len, &wrote);
+		f_write(&meta, new_meta, len, &wrote);
 		f_close(&meta);
 	}
 }
