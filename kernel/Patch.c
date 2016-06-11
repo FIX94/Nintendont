@@ -1061,18 +1061,6 @@ int CPattern( FuncPattern *FPatA, FuncPattern *FPatB  )
 	return ( memcmp( FPatA, FPatB, sizeof(u32) * 6 ) == 0 );
 }
 
-void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2) 
-{
-	u32 i;
-	*c1 = 0; *c2 = 0;
-	for (i = 0;i<4;++i)
-	{
-		*c1 += buf[0x06 + i];
-		*c2 += (buf[0x06 + i] ^ 0xFFFF);
-	}
-	//dbgprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
-}
-
 #ifdef DEBUG_PATCH
 static const char *getVidStr(u32 in)
 {

@@ -43,38 +43,6 @@ typedef struct FuncPatterns
 	u32 patmode;
 } FuncPatterns;
 
-typedef struct GC_SRAM 
-{
-/* 0x00 */	u16 CheckSum1;
-/* 0x02 */	u16 CheckSum2;
-/* 0x04 */	u32 ead0;
-/* 0x08 */	u32 ead1;
-/* 0x0C */	u32 CounterBias;
-/* 0x10 */	u8	DisplayOffsetH;
-/* 0x11 */	u8	BootMode;	// Bit 6 PAL60 flag
-/* 0x12 */	u8	Language;
-/* 0x13 */	u8	Flags;
-		/*
-			bit			desc			0		1
-			0			-\_ Video mode
-			1			-/
-			2			Sound mode		Mono	Stereo
-			3			always 1
-			4			always 0
-			5			always 1
-			6			?
-			7			Prog mode		off		on
-		*/
-/* 0x14 */	u8	FlashID[2][12];
-/* 0x2C */	u32	WirelessKBID;
-/* 0x30 */	u16	WirlessPADID[4];
-/* 0x38 */	u8	LastDVDError;
-/* 0x39 */	u8	Reserved;
-/* 0x3A */	u8	FlashIDChecksum[2];
-/* 0x3E */	u16	Unused;
-} GC_SRAM;
-
-
 void PatchB( u32 dst, u32 src );
 void PatchBL( u32 dst, u32 src );
 u32 PatchCopy(const u8 *PatchPtr, const u32 PatchSize);
@@ -94,7 +62,5 @@ void PatchGame();
 
 void MPattern( u8 *Data, u32 Length, FuncPattern *FunctionPattern );
 int CPattern( FuncPattern *FPatA, FuncPattern *FPatB  );
-
-void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2);
 
 #endif

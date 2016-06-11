@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Patch.h"
 #include "Config.h"
 #include "debug.h"
+#include "SRAM.h"
 
 #include "ff_utf8.h"
 
@@ -36,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
-extern u8 SRAM[64];
 extern u32 Region;
 extern vu32 useipl;
 
@@ -65,7 +65,7 @@ static u32 EXI2IRQStatus	= 0;
 void EXIInit( void )
 {
 	dbgprintf("EXIInit Start\r\n");
-	u32 i, wrote, ret;
+	u32 wrote, ret;
 
 	memset32((void*)EXI_BASE, 0, 0x20);
 	sync_after_write((void*)EXI_BASE, 0x20);
@@ -123,18 +123,17 @@ void EXIInit( void )
 		sync_after_write( MCard, ConfigGetMemcardSize() );
 	}
 
-	GC_SRAM *sram = (GC_SRAM*)SRAM;
+	// Initialize SRAM.
 
-	for( i=0; i < 12; ++i )
-		sram->FlashID[0][i] = 0;
+	// Clear the Flash IDs.
+	memset(sram.FlashID, 0, sizeof(sram.FlashID));
+	sram.FlashIDChecksum[0] = 0xFF;
 
-	sram->FlashIDChecksum[0] = 0xFF;
+	sram.BootMode	&= ~0x40;	// Clear PAL60
+	sram.Flags		&= ~0x80;	// Clear Progmode
+	sram.Flags		&= ~3;		// Clear Videomode
 
-	sram->BootMode	&= ~0x40;	// Clear PAL60
-	sram->Flags		&= ~0x80;	// Clear Progmode
-	sram->Flags		&= ~3;		// Clear Videomode
-
-	sram->DisplayOffsetH = 0;
+	sram.DisplayOffsetH = 0;
 	switch(GameID & 0xFF)
 	{
 		case 'E':
@@ -142,13 +141,13 @@ void EXIInit( void )
 			//BMX XXX doesnt even boot on a real gc with component cables
 			if( (ConfigGetGameID() >> 8) != 0x474233 &&
 				(ConfigGetVideoMode() & NIN_VID_PROG) )
-				sram->Flags |= 0x80;	// Set Progmode
+				sram.Flags |= 0x80;	// Set Progmode
 			break;
 		default:
-			sram->BootMode	|= 0x40;	// Set PAL60
+			sram.BootMode	|= 0x40;	// Set PAL60
 			break;
 	}
-	sram->Language = ConfigGetLanguage();
+	sram.Language = ConfigGetLanguage();
 
 	if( ConfigGetVideoMode() & NIN_VID_FORCE )
 	{
@@ -192,11 +191,11 @@ void EXIInit( void )
 #endif
 				*(vu32*)0xCC = 1;
 			}
-			sram->Flags		|= 1;
+			sram.Flags		|= 1;
 
 		} break;
 	}
-	SRAM_Checksum( (unsigned short *)SRAM, (unsigned short *)SRAM, (unsigned short *)( ((u8*)SRAM) + 2 ) );
+	SRAM_Checksum( (unsigned short *)&sram, (unsigned short *)&sram, (unsigned short *)( ((u8*)&sram) + 2 ) );
 }
 
 extern vu32 TRIGame;
@@ -519,7 +518,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 			{
 				if( EXICommand == SRAM_WRITE )
 				{
-					*(u32*)(SRAM+SRAMWriteCount) = (u32)Data;
+					*(u32*)(((u8*)&sram)+SRAMWriteCount) = (u32)Data;
 
 					SRAMWriteCount += Length;
 
@@ -602,7 +601,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 #ifdef DEBUG_SRAM
 				dbgprintf("EXI: SRAMRead(%p,%u)\r\n", Data, Length );
 #endif
-				memcpy( Data, SRAM, Length );
+				memcpy( Data, &sram, Length );
 				sync_after_write( Data, Length );
 			} break;
 			case UART_READ:
