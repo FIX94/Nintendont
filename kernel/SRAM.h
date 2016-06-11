@@ -44,4 +44,9 @@ extern GC_SRAM sram;
  */
 void SRAM_UpdateChecksum(void);
 
+/**
+ * Initialize SRAM.
+ */
+void SRAM_Init(void);
+
 #endif /* __SRAM_H__ */

@@ -70,7 +70,7 @@ void EXIInit( void )
 	memset32((void*)EXI_BASE, 0, 0x20);
 	sync_after_write((void*)EXI_BASE, 0x20);
 
-	u32 GameID = ConfigGetGameID();
+	const u32 GameID = ConfigGetGameID();
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 	{
 		memset32(MemCardName, 0, 0x20);
@@ -124,80 +124,7 @@ void EXIInit( void )
 	}
 
 	// Initialize SRAM.
-
-	// Clear the Flash IDs.
-	memset(sram.FlashID, 0, sizeof(sram.FlashID));
-	sram.FlashIDChecksum[0] = 0xFF;
-
-	sram.BootMode	&= ~0x40;	// Clear PAL60
-	sram.Flags		&= ~0x80;	// Clear Progmode
-	sram.Flags		&= ~3;		// Clear Videomode
-
-	sram.DisplayOffsetH = 0;
-	switch(GameID & 0xFF)
-	{
-		case 'E':
-		case 'J':
-			//BMX XXX doesnt even boot on a real gc with component cables
-			if( (ConfigGetGameID() >> 8) != 0x474233 &&
-				(ConfigGetVideoMode() & NIN_VID_PROG) )
-				sram.Flags |= 0x80;	// Set Progmode
-			break;
-		default:
-			sram.BootMode	|= 0x40;	// Set PAL60
-			break;
-	}
-	sram.Language = ConfigGetLanguage();
-
-	if( ConfigGetVideoMode() & NIN_VID_FORCE )
-	{
-		switch( ConfigGetVideoMode() & NIN_VID_FORCE_MASK )
-		{
-			case NIN_VID_FORCE_NTSC:
-			{
-				Region = 0;
-			} break;
-			case NIN_VID_FORCE_MPAL:
-			case NIN_VID_FORCE_PAL50:
-			case NIN_VID_FORCE_PAL60:
-			{
-				Region = 2;
-			} break;
-		}
-	}
-
-	switch(Region)
-	{
-		default:
-		case 0:
-		case 1:
-		{
-#ifdef DEBUG_EXI
-			dbgprintf("SRAM:NTSC\r\n");
-#endif
-			*(vu32*)0xCC = 0;
-			
-		} break;
-		case 2:
-		{
-			if( *(vu32*)0xCC == 5 )
-			{
-#ifdef DEBUG_EXI
-				dbgprintf("SRAM:PAL60\r\n");
-#endif
-			} else {
-#ifdef DEBUG_EXI
-				dbgprintf("SRAM:PAL50\r\n");
-#endif
-				*(vu32*)0xCC = 1;
-			}
-			sram.Flags		|= 1;
-
-		} break;
-	}
-
-	// Update the SRAM checksum.
-	SRAM_UpdateChecksum();
+	SRAM_Init();
 }
 
 extern vu32 TRIGame;
