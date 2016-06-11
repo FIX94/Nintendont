@@ -184,7 +184,7 @@ void SRAM_SetFlashID(const u8 *base, int slot)
 	}
 
 	// Store the flash ID checksum.
-	sram.FlashIDChecksum[slot] = csum;
+	sram.FlashIDChecksum[slot] = csum ^ 0xFF;
 
 	// Update the SRAM checksum.
 	SRAM_UpdateChecksum();
