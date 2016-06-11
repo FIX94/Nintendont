@@ -195,7 +195,9 @@ void EXIInit( void )
 
 		} break;
 	}
-	SRAM_Checksum( (unsigned short *)&sram, (unsigned short *)&sram, (unsigned short *)( ((u8*)&sram) + 2 ) );
+
+	// Update the SRAM checksum.
+	SRAM_UpdateChecksum();
 }
 
 extern vu32 TRIGame;

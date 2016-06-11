@@ -2,7 +2,7 @@
 #include "SRAM.h"
 
 // Initial SRAM values.
-GC_SRAM sram =
+GC_SRAM sram ALIGNED(32) =
 {
 	0x428B,		// Checksum 1
 	0xBD71,		// Checksum 2
@@ -25,20 +25,34 @@ GC_SRAM sram =
 
 	0xFE,		// Last DVD error
 	0x00,		// Reserved
-	{0xC8, 0xC8},	// Flash ID checksums.
+	{0xC8, 0xC8},	// Flash ID checksums
 
-	// Unused.
+	// Unused
 	0x01055728
 };
 
-void SRAM_Checksum(unsigned short *buf, unsigned short *c1, unsigned short *c2) 
+/**
+ * Update the SRAM checksum.
+ */
+void SRAM_UpdateChecksum(void)
 {
+	// Temporary checksums.
+	// NOTE: Only the low 16 bits are significant.
+	u32 chk = 0, chkinv = 0;
+
+	// Checksummed data starts at the RTC counter bias. (0x0C)
+	const u16 *sram_data = (u16*)(&sram.CounterBias);
+
+	// Processing in u16 increments, so divide the
+	// actual addresses by two.
 	u32 i;
-	*c1 = 0; *c2 = 0;
-	for (i = 0;i<4;++i)
+	for (i = (0x0C>>1); i < (0x14>>1); i++, sram_data++)
 	{
-		*c1 += buf[0x06 + i];
-		*c2 += (buf[0x06 + i] ^ 0xFFFF);
+		chk += *sram_data;
+		chkinv += (*sram_data ^ 0xFFFF);
 	}
-	//dbgprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
+
+	sram.CheckSum1 = (chk & 0xFFFF);
+	sram.CheckSum2 = (chkinv & 0xFFFF);
+	//dbgprintf("New Checksum: %04X %04X\r\n", chk, chkinv);
 }

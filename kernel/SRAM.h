@@ -36,8 +36,12 @@ typedef struct _GC_SRAM
 /* 0x3E */	u32	Unused;
 } GC_SRAM;
 
+// Emulated SRAM instance.
 extern GC_SRAM sram;
 
-void SRAM_Checksum(unsigned short *buf, unsigned short *c1, unsigned short *c2);
+/**
+ * Update the SRAM checksum.
+ */
+void SRAM_UpdateChecksum(void);
 
 #endif /* __SRAM_H__ */
