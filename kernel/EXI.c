@@ -123,7 +123,10 @@ void EXIInit( void )
 		sync_after_write( MCard, ConfigGetMemcardSize() );
 
 		// Set the flash ID in SRAM.
-		SRAM_SetFlashID( MCard, 0 );
+		// FIXME: This doesn't fix the problem with first-party
+		// memory card images, and it might be causing problems
+		// with Ikaruga (PAL).
+		//SRAM_SetFlashID( MCard, 0 );
 	}
 
 	// Initialize SRAM.
