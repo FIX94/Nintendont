@@ -14,6 +14,7 @@
 #include "global.h"
 #include "Config.h"
 #include "ff.h"
+#include "usb_ogc.h"
 
 extern DISC_INTERFACE __io_wiisd;
 extern DISC_INTERFACE __io_custom_usbstorage;
@@ -31,11 +32,7 @@ static struct {
 
 //from usbstorage.c
 extern u32 __sector_size;
-
-typedef enum {
-	DEV_SD	= 0,
-	DEV_USB	= 1,
-} DeviceNumber;
+extern void USBStorageOGC_Deinitialize();
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
@@ -262,4 +259,25 @@ DWORD get_fattime(void)
 	       ((tm.tm_hour & 0x1F) << 11) |
 	       ((tm.tm_min & 0x3F) << 5) |
 	       ((tm.tm_sec / 2) & 0x1F);
+}
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Nintendont: Shut down a device.                                       */
+/*-----------------------------------------------------------------------*/
+DRESULT disk_shutdown (BYTE pdrv)
+{
+	if (pdrv < DEV_SD || pdrv > DEV_USB)
+		return RES_PARERR;
+	if (!disk_isInit[pdrv])
+		return RES_OK;
+
+	driver[pdrv]->shutdown();
+	if (pdrv == DEV_USB) {
+		USBStorageOGC_Deinitialize();
+		USB_OGC_Deinitialize();
+	}
+	disk_isInit[pdrv] = false;
+	return RES_OK;
 }

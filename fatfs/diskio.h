@@ -29,9 +29,18 @@ typedef enum {
 /*---------------------------------------*/
 /* Prototypes for disk control functions */
 
+// Nintendont: Device number.
+typedef enum {
+	DEV_SD	= 0,
+	DEV_USB	= 1,
+} DeviceNumber;
+
 DSTATUS disk_initialize (BYTE pdrv);
 DSTATUS disk_status (BYTE pdrv);
 DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
+
+// Nintendont: Shut down a device.
+DRESULT disk_shutdown (BYTE pdrv);
 
 #ifdef __PPC__
 // Nintendont loader: Use the standard FatFS read/write interface.

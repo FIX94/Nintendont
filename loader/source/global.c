@@ -31,7 +31,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/wiilaunch.h>
 #include <stdio.h>
 #include <unistd.h>
+
 #include "ff_utf8.h"
+#include "diskio.h"
 
 #include "Config.h"
 #include "exi.h"
@@ -291,9 +293,6 @@ inline void ClearScreen()
 {
 	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 }
-extern bool sdio_Deinitialize();
-extern void USBStorageOGC_Deinitialize();
-#include "usb_ogc.h"
 
 void CloseDevices()
 {
@@ -306,7 +305,7 @@ void CloseDevices()
 		free(sdCard);
 		sdCard = NULL;
 	}
-	sdio_Deinitialize();
+	disk_shutdown(DEV_SD);
 
 	if (usbDev != NULL)
 	{
@@ -314,8 +313,7 @@ void CloseDevices()
 		free(usbDev);
 		usbDev = NULL;
 	}
-	USBStorageOGC_Deinitialize();
-	USB_OGC_Deinitialize();
+	disk_shutdown(DEV_USB);
 }
 
 static inline char ascii(char s)
