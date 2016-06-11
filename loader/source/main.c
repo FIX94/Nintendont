@@ -145,13 +145,19 @@ static void updateMetaXml(void)
 		META_XML "\r\n<app version=\"1\">\r\n"
 		"\t<name>" META_NAME "</name>\r\n"
 		"\t<coder>" META_AUTHOR "</coder>\r\n"
-		"\t<version>%d.%d</version>\r\n"
+		"\t<version>%d.%d%s</version>\r\n"
 		"\t<release_date>20150531000000</release_date>\r\n"
 		"\t<short_description>" META_SHORT "</short_description>\r\n"
 		"\t<long_description>" META_LONG1 "\r\n\r\n" META_LONG2 "</long_description>\r\n"
 		"\t<ahb_access/>\r\n"
 		"</app>\r\n",
-		NIN_VERSION >> 16, NIN_VERSION & 0xFFFF);
+		NIN_VERSION >> 16, NIN_VERSION & 0xFFFF,
+#ifdef NIN_SPECIAL_VERSION
+		NIN_SPECIAL_VERSION
+#else
+		""
+#endif
+  			);
 	if (len > sizeof(new_meta))
 		len = sizeof(new_meta);
 
