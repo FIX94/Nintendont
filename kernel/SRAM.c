@@ -143,3 +143,49 @@ void SRAM_Init(void)
 	// Update the SRAM checksum.
 	SRAM_UpdateChecksum();
 }
+
+/**
+ * Set the flash ID of a memory card in SRAM.
+ * @param base Memory card base address.
+ * @param slot Slot number. (0 or 1)
+ */
+void SRAM_SetFlashID(const u8 *base, int slot)
+{
+	// Set the memory card's flash ID in SRAM.
+	// References:
+	// - https://github.com/dolphin-emu/dolphin/blob/3ff56aa192f952cb6ad2e9c662d4a368efd21e6f/Source/Core/Core/HW/Sram.cpp#L79
+	// - https://github.com/dolphin-emu/dolphin/blob/3ff56aa192f952cb6ad2e9c662d4a368efd21e6f/Source/Core/Core/HW/EXI_DeviceMemoryCard.cpp#L141
+	// - https://github.com/suloku/gcmm/blob/75a5e024b7f590d390e1c74fe1524dbfc2bd6b99/source/raw.c
+
+	// Make sure the slot number is valid.
+	if (slot != 0 && slot != 1)
+		return;
+
+	u64 rand;	// Random number state.
+	u8 csum = 0;	// Flash ID checksum.
+	int i;
+
+	// Initialize the random number state from the card's format time.
+	memcpy(&rand, &base[12], sizeof(rand));
+	u8 *flash_id = sram.FlashID[slot];
+
+	// This is a standard Linear Congruential Generator.
+	// The parameters match the original K&R C rand() specification.
+	// https://en.wikipedia.org/wiki/Linear_congruential_generator
+	// https://sourceware.org/git/?p=glibc.git;a=blob;f=stdlib/random_r.c
+	// http://wiki.osdev.org/Random_Number_Generator
+	for (i = 0; i < 12; i++)
+	{
+		rand = (((rand * 1103515245ULL) + 12345ULL) >> 16);
+		flash_id[i] = base[i] - ((u8)rand & 0xFF);
+		csum += flash_id[i];
+		rand = (((rand * 1103515245ULL) + 12345ULL) >> 16);
+		rand &= 0x7FFFULL;
+	}
+
+	// Store the flash ID checksum.
+	sram.FlashIDChecksum[slot] = csum;
+
+	// Update the SRAM checksum.
+	SRAM_UpdateChecksum();
+}

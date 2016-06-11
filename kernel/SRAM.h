@@ -49,4 +49,11 @@ void SRAM_UpdateChecksum(void);
  */
 void SRAM_Init(void);
 
+/**
+ * Set the flash ID of a memory card in SRAM.
+ * @param base Memory card base address.
+ * @param slot Slot number. (0 or 1)
+ */
+void SRAM_SetFlashID(const u8 *base, int slot);
+
 #endif /* __SRAM_H__ */

@@ -121,6 +121,9 @@ void EXIInit( void )
 		dbgprintf("done\r\n");
 #endif
 		sync_after_write( MCard, ConfigGetMemcardSize() );
+
+		// Set the flash ID in SRAM.
+		SRAM_SetFlashID( MCard, 0 );
 	}
 
 	// Initialize SRAM.
