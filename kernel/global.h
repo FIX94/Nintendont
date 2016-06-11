@@ -96,6 +96,7 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define NULL ((void *)0)
 
 #define ALIGNED(x) __attribute__((aligned(x)))
+#define NORETURN __attribute__ ((noreturn))
 
 #define STACK_ALIGN(type, name, cnt, alignment)         \
 	u8 _al__##name[((sizeof(type)*(cnt)) + (alignment) + \

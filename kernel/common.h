@@ -31,7 +31,7 @@ void mdelay(int ms);
  */
 void Asciify(char *str);
 
-void Shutdown( void );
+void Shutdown(void) NORETURN;
 
 /*
  * Since Starlet can only access MEM1 via 32-bit write and 8/16 writes

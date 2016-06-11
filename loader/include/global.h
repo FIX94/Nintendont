@@ -72,6 +72,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define		HW_RESETS		(HW_REG_BASE + 0x194)
 
 #define ALIGNED(x) __attribute__((aligned(x)))
+#define NORETURN __attribute__ ((noreturn))
 
 #define ALIGN_FORWARD(x,align) \
 	((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
@@ -161,7 +162,7 @@ int CreateNewFile(const char *Path, u32 size);
  * Exit Nintendont and return to the loader.
  * @param ret Exit code.
  */
-void ExitToLoader(int ret) __attribute__ ((noreturn));
+void ExitToLoader(int ret) NORETURN;
 
 void ClearScreen();
 void CloseDevices();
