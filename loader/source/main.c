@@ -107,11 +107,9 @@ s32 __IOS_LoadStartupIOS(void)
 	return 0;
 }
 
-// Storage devices.
-FATFS *sdCard = NULL;
-FATFS *usbDev = NULL;
-extern DISC_INTERFACE __io_wiisd;
-extern DISC_INTERFACE __io_custom_usbstorage;
+// Storage devices. (defined in global.c)
+// 0 == SD, 1 == USB
+extern FATFS *devices[2];
 
 extern vu32 FoundVersion;
 vu32 KernelLoaded = 0;
@@ -294,72 +292,24 @@ int main(int argc, char **argv)
 	ShowMessageScreen("Checking storage devices...");
 
 	// Initialize devices.
-	static const struct {
-		const WCHAR devNameFF[8];
-		const char devNameDisplay[4];
-		FATFS **const fatFs;
-
-		// Maximum init timeout, in seconds.
-		// (0 = only try once)
-		int timeout;
-	} fatDevices[2] = {
-		{{'s', 'd', ':', 0}, "SD", &sdCard, 0},
-		{{'u', 's', 'b', ':', 0}, "USB", &usbDev, 10}
-	};
+	// TODO: Only mount the device Nintendont was launched from
+	// Mount the other device asynchronously.
 	bool foundOneDevice = false;
 	int i;
-	for (i = 0; i < 2; i++)
+	for (i = DEV_SD; i <= DEV_USB; i++)
 	{
-		// Attempt to initialize this device
-		// TODO: Do initialization asynchronously.
-		// FIXME: We depend on loading nincfg.bin from the
-		// storage device before doing anything, so we can't
-		// easily do an async init...
-		if (fatDevices[i].timeout > 0)
+		const WCHAR *devNameFF = MountDevice(i);
+		if (devNameFF && !foundOneDevice)
 		{
-			// Attempt multiple inits within a timeout period.
-			time_t timeout = time(NULL);
-			while (time(NULL) - timeout < fatDevices[i].timeout)
-			{
-				if (disk_initialize(i) == 0)
-					break;
-				usleep(50000);
-			}
-		}
-		else
-		{
-			// Only attempt a single init.
-			disk_initialize(i);
-		}
-
-		if (disk_status(i) == 0)
-		{
-			free(usbDev);
-			usbDev = NULL;
-			// Device initialized.
-			*(fatDevices[i].fatFs) = (FATFS*)memalign(32, sizeof(FATFS));
-			if (f_mount(*(fatDevices[i].fatFs), fatDevices[i].devNameFF, 1) == FR_OK)
-			{
-				gprintf("Mounted %s!\n", fatDevices[i].devNameDisplay);
-				if (!foundOneDevice)
-				{
-					// Set this device as primary.
-					f_chdrive(fatDevices[i].devNameFF);
-					foundOneDevice = true;
-				}
-			}
-			else
-			{
-				// Could not mount the filesystem.
-				free(*(fatDevices[i].fatFs));
-				*(fatDevices[i].fatFs) = NULL;
-			}
+			// Set this device as primary.
+			f_chdrive(devNameFF);
+			foundOneDevice = true;
 		}
 	}
 
 	// FIXME: Show this information in the menu instead of
 	// aborting here.
-	if (!sdCard && !usbDev)
+	if (!devices[DEV_SD] && !devices[DEV_USB])
 	{
 		ClearScreen();
 		gprintf("No FAT device found!\n");

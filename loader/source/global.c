@@ -294,28 +294,6 @@ inline void ClearScreen()
 	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 }
 
-void CloseDevices()
-{
-	extern FATFS *sdCard, *usbDev;
-	closeLog();
-
-	if (sdCard != NULL)
-	{
-		f_mount_char(NULL, "sd:", 1);
-		free(sdCard);
-		sdCard = NULL;
-	}
-	disk_shutdown(DEV_SD);
-
-	if (usbDev != NULL)
-	{
-		f_mount_char(NULL, "usb:", 1);
-		free(usbDev);
-		usbDev = NULL;
-	}
-	disk_shutdown(DEV_USB);
-}
-
 static inline char ascii(char s)
 {
 	if (s < 0x20) return '.';
@@ -418,4 +396,115 @@ int CreateNewFile(const char *Path, u32 size)
 	free(buf);
 	gprintf("Created %s with %u bytes!\r\n", Path, wrote);
 	return 0;
+}
+
+/** Device mount/unmount. **/
+// 0 == SD, 1 == USB
+FATFS *devices[2];
+
+// Device initialization data.
+typedef struct _devInitInfo_t
+{
+	const WCHAR devNameFF[8];
+	const char devNameDisplay[4];
+
+	// Maximum init timeout, in seconds.
+	// (0 = only try once)
+	int timeout;
+} devInitInfo_t;
+
+static const devInitInfo_t devInitInfo[2] =
+{
+	{{'s', 'd', ':', 0}, "SD", 0},
+	{{'u', 's', 'b', ':', 0}, "USB", 10}
+};
+
+/**
+ * Initialize and mount a device.
+ * @param pdrv Device number.
+ * @return Mount point (WCHAR), or NULL on error.
+ */
+const WCHAR *MountDevice(BYTE pdrv)
+{
+	if (pdrv < DEV_SD || pdrv > DEV_USB)
+		return NULL;
+
+	// Attempt to initialize this device
+	// TODO: Do initialization asynchronously.
+	if (devInitInfo[pdrv].timeout > 0)
+	{
+		// Attempt multiple inits within a timeout period.
+		time_t timeout = time(NULL);
+		while (time(NULL) - timeout < devInitInfo[pdrv].timeout)
+		{
+			if (disk_initialize(pdrv) == 0)
+				break;
+			usleep(50000);
+		}
+	}
+	else
+	{
+		// Only attempt a single init.
+		disk_initialize(pdrv);
+	}
+
+	if (disk_status(pdrv) == 0)
+	{
+		// Device initialized.
+		devices[pdrv] = (FATFS*)memalign(32, sizeof(FATFS));
+		if (f_mount(devices[pdrv], devInitInfo[pdrv].devNameFF, 1) == FR_OK)
+		{
+			gprintf("Mounted %s!\n", devInitInfo[pdrv].devNameDisplay);
+		}
+		else
+		{
+			// Could not mount the filesystem.
+			free(devices[pdrv]);
+			devices[pdrv] = NULL;
+		}
+	}
+
+	return (devices[pdrv] ? devInitInfo[pdrv].devNameFF : NULL);
+}
+
+/**
+ * Unmount and shut down a device.
+ * @param pdrv Device number.
+ * @return 0 on success or if the drive was already shut down; non-zero on error.
+ */
+int UnmountDevice(BYTE pdrv)
+{
+	if (pdrv < DEV_SD || pdrv > DEV_USB)
+		return -1;
+
+	// FIXME: Close the log file if it's on this device?
+
+	// Check if the device is mounted.
+	if (devices[pdrv] != NULL)
+	{
+		// Unmount the device.
+		f_mount(NULL, devInitInfo[pdrv].devNameFF, 1);
+		// Free the FatFS object.
+		free(devices[pdrv]);
+		devices[pdrv] = 0;
+	}
+
+	// Shut down the device driver.
+	disk_shutdown(pdrv);
+	return 0;
+}
+
+/**
+ * Shut down all devices.
+ * This also closes the log file.
+ */
+void CloseDevices(void)
+{
+	int i;
+
+	closeLog();
+	for (i = DEV_SD; i <= DEV_USB; i++)
+	{
+		UnmountDevice(i);
+	}
 }

@@ -173,6 +173,12 @@ void Screenshot(void);
 raw_irq_handler_t BeforeIOSReload();
 void AfterIOSReload(raw_irq_handler_t handle, u32 rev);
 
+/** Device mount/unmount. **/
+#include "integer.h"	/* for WCHAR */
+const WCHAR *MountDevice(BYTE pdrv);
+int UnmountDevice(BYTE pdrv);
+void CloseDevices(void);
+
 #endif
 
 // 78A94
