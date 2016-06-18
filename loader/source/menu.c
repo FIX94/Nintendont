@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/video_types.h>
 #include <ogc/consol.h>
 #include <ogc/system.h>
-#include <fat.h>
+//#include <fat.h>
 #include <di/di.h>
 #include "menu.h"
 #include "../../common/include/CommonConfigStrings.h"

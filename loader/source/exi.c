@@ -27,7 +27,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define	EXI_BASE	0xCD006800
 #define EXI			0xCD006814
 
+#if 0
 static bool wiiu_done = false;
+#endif
 // FIXME: Re-enable Wii U file logging after testing FatFs.
 //static FILE *nl_log = NULL;
 static u32 GeckoFound = 0;

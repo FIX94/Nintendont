@@ -5,7 +5,7 @@
 #define META_NAME			"Nintendont"
 #define META_AUTHOR			"FIX94, crediar"
 
-#define META_LONG1			"Commiters: JoostinOnline, GreyRogue, Howard, Cyan \r\n\r\n Project website: https://github.com/FIX94/Nintendont "
+#define META_LONG1			"Commiters: GerbilSoft, JoostinOnline, GreyRogue, Howard, Cyan \r\n\r\n Project website: https://github.com/FIX94/Nintendont "
 #define META_LONG2			"Nintendont allows you to run GameCube games on a Wii or Wii U from an SD or HDD device."
 #define META_SHORT			"Gamecube Loader"
 

@@ -231,7 +231,7 @@ void TRISetupGames()
 		PatchBL( PatchCopy(CheckTestMenu, CheckTestMenu_size), 0x2E344 );
 
 		//Disable wheel
-		write32( 0x007909C, 0x98650022 );
+		write32( 0x0073BD4, 0x98650022 );
 
 		//Disable CARD
 		//write32( 0x0073BF4, 0x98650023 );

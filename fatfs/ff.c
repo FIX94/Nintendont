@@ -1779,13 +1779,14 @@ WORD xname_sum (		/* Get check sum (to be used as hash) of the name */
 /*------------------------------------------------------*/
 /* exFAT: Get object information from a directory block */
 /*------------------------------------------------------*/
+#if _FS_MINIMIZE <= 1 || _FS_RPATH >= 2
 static
 void get_xdir_info (
 	BYTE* dirb,			/* Pointer to the direcotry entry block 85+C0+C1s */
 	FILINFO* fno		/* Buffer to store the extracted file information */
 )
 {
-	UINT di, si, nc;
+	UINT di, si;
 	WCHAR w;
 
 	/* Get file name */
@@ -1800,6 +1801,7 @@ void get_xdir_info (
 		di = 0;	/* Buffer overflow and inaccessible object */
 	}
 #else
+	UINT nc;
 	for (si = SZDIRE * 2, di = nc = 0; nc < dirb[XDIR_NumName]; si += 2, nc++) {
 		if ((si % SZDIRE) == 0) si += 2;	/* Skip entry type field */
 		w = ld_word(dirb + si);				/* Get a character */
@@ -1821,7 +1823,7 @@ void get_xdir_info (
 	fno->ftime = ld_word(dirb + XDIR_ModTime + 0);	/* Time */
 	fno->fdate = ld_word(dirb + XDIR_ModTime + 2);	/* Date */
 }
-
+#endif
 
 /*-----------------------------------*/
 /* exFAT: Get a directry entry block */

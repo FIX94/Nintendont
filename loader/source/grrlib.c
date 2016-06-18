@@ -24,7 +24,7 @@ THE SOFTWARE.
 #include <malloc.h>
 #include <string.h>
 #include <ogc/conf.h>
-#include <fat.h>
+//#include <fat.h>
 #include <wchar.h>
 #include <ft2build.h>
 #include <pngu.h>
