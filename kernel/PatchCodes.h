@@ -31,6 +31,7 @@
 #include "asm/PADControlAllMotors.h"
 #include "asm/PADControlMotor.h"
 #include "asm/PADIsBarrel.h"
+#include "asm/DVDSendCMDEncrypted.h"
 #include "asm/GCAMSendCommand.h"
 #include "asm/patch_fwrite_Log.h"
 #include "asm/patch_fwrite_GC.h"

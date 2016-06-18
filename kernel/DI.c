@@ -343,7 +343,7 @@ void DIUpdateRegisters( void )
 	{
 		udelay(50); //security delay
 		write32( DI_STATUS, read32(DI_STATUS) & 0x2A ); //clear status
-
+#ifndef TRI_DI_PATCH
 		/*
 			Trifroce is sending all DI commands encrypted since by chance a crypted command
 			could have the same value as a normal command we have to check if it really is
@@ -386,6 +386,10 @@ void DIUpdateRegisters( void )
 		} else {
 			DIcommand = read32(DI_CMD_0) >> 24;
 		}
+#else
+		//no encryption here, just direct CMD
+		DIcommand = read32(DI_CMD_0) >> 24;
+#endif
 		switch( DIcommand )
 		{
 			default:

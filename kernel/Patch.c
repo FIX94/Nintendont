@@ -2550,6 +2550,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							}
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 						} break;
+						case FCODE_DVDSendCMDEncrypted:
+						{
+							if(read32(FOffset + 0x90) == 0x90E30008 && read32(FOffset + 0x94) == 0x90C3000C
+								&& read32(FOffset + 0x98) == 0x90A30010)
+							{
+								/* Replace it with unencrypted version to look like normal GC DI */
+								memcpy((void*)FOffset, DVDSendCMDEncrypted, DVDSendCMDEncrypted_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else
+								CurPatterns[j].Found = 0; // False hit
+						} break;
 						case FCODE_GCAMSendCommand:
 						{
 							if(read32(FOffset + 0x2C) == 0x38C40080)

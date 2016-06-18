@@ -12,6 +12,7 @@
 #define AUDIOSTREAM 1
 #define PATCHALL	1
 //#define PERFMON 1
+#define TRI_DI_PATCH 1
 
 //#define DEBUG_ES	1
 #define DEBUG_HID	1
@@ -24,7 +25,7 @@
 //#define DEBUG_SRAM 1
 //#define DEBUG_FST	1
 #define DEBUG_PATCH	1
-#define DEBUG_TIME 1
+//#define DEBUG_TIME 1
 
 #define REGION_ID_USA	0x45
 #define REGION_ID_JAP	0x4A
