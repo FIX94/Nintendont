@@ -76,6 +76,7 @@ enum
 	FCODE_C_MTXLightPerspective,
 	FCODE_J3DUClipper_clip,
 	//FCODE_C_MTXOrtho,
+	FCODE_DVDSendCMDEncrypted,
 	FCODE_GCAMSendCommand,
 	FCODE___fwrite,
 										//__fwrite_A,	
@@ -218,6 +219,9 @@ FuncPattern NormalFPatterns[] =
 
 FuncPattern TRIFPatterns[] =
 {
+#ifdef TRI_DI_PATCH
+	{   0xB4,   18,   11,    1,    0,    7,	NULL,				FCODE_DVDSendCMDEncrypted,	"DVDSendCMDEncrypted",	NULL,		FGROUP_NONE,				0 },
+#endif
 	{   0x54,   10,    2,    2,    0,    2,	NULL,				FCODE_GCAMSendCommand,		"GCAMSendCommand",		NULL,		FGROUP_NONE,				0 },
 	{  0x168,   22,   10,    7,    6,   10,	SITransfer,			sizeof(SITransfer),			"SITransfer",			NULL,		FGROUP_NONE,				0 },
 };
