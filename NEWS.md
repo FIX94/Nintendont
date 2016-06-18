@@ -1,6 +1,6 @@
 # Nintendont Changes
 
-## v4.404
+## v4.406
 
 Changes since v3.304:
 
@@ -21,6 +21,7 @@ Changes since v3.304:
 * Fixed auto-format of emulated memory card images for Japanese games.
 * Fixed checks for multi-game discs. (collision with Call of Duty: Finest Hour)
 * Fixed swapped audio streaming channels.
+* Force-disable DI encryption on Triforce games to prevent random shutdowns.
 
 ### Game Fixes ###
 
@@ -29,6 +30,7 @@ Changes since v3.304:
 * Fixed Force PAL60 on Luigi's Mansion.
 * Fixed several demos that needed ARStartDMA exceptions.
 * Added a new DSP patch for Pikmin 1 (US) demo.
+* Fixed PAL50 issues on Ikaruga when not using the IPL.
 
 ### Cheat Codes ###
 
