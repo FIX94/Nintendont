@@ -27,8 +27,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "update.h"
 #include "titles.h"
 #include "dip.h"
-#include <dirent.h>
-#include <sys/dir.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -41,6 +39,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <di/di.h>
 #include "menu.h"
 #include "../../common/include/CommonConfigStrings.h"
+
+#include "ff_utf8.h"
 
 // Device state.
 typedef enum {
@@ -125,10 +125,6 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	char buf[0x100];		// Disc header.
 	int gamecount = 0;		// Current game count.
 
-	DIR *pdir;
-	struct dirent *pent;
-	struct stat statbuf;
-
 	if( !IsWiiU() )
 	{
 		// Pseudo game for booting a GameCube disc on Wii.
@@ -141,17 +137,15 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		gamecount++;
 	}
 
+	DIR pdir;
 	snprintf(filename, sizeof(filename), "%s:/games", GetRootDevice());
-	pdir = opendir(filename);
-	if( !pdir )
+	if (f_opendir_char(&pdir, filename) != FR_OK)
 	{
 		// Could not open the "games" directory.
 
 		// Attempt to open the device root.
-		char root_filename[8];
-		snprintf(root_filename, sizeof(root_filename), "%s:/", GetRootDevice());
-		pdir = opendir(root_filename);
-		if ( !pdir )
+		snprintf(filename, sizeof(filename), "%s:/", GetRootDevice());
+		if (f_opendir_char(&pdir, filename) != FR_OK)
 		{
 			// Could not open the device root.
 			if (pGameCount)
@@ -162,28 +156,33 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		// Device root opened.
 		// This means the device is usable, but it
 		// doesn't have a "games" directory.
-		closedir(pdir);
+		f_closedir(&pdir);
 		if (pGameCount)
 			*pGameCount = gamecount;
 		return DEV_NO_GAMES;
 	}
 
 	// Process the directory.
-	while( ( pent = readdir(pdir) ) != NULL )
+	// TODO: chdir into /games/?
+	FILINFO fInfo;
+	FIL in;
+	while (f_readdir(&pdir, &fInfo) == FR_OK && fInfo.fname[0] != '\0')
 	{
 		// Game layout should be: /games/GAMEID/game.iso
 		// Search for subdirectories.
-		stat( pent->d_name, &statbuf );
-		if( pent->d_type == DT_DIR )
+		if (fInfo.fattrib & AM_DIR)
 		{
 			// Skip "." and "..".
 			// This will also skip "hidden" directories.
-			if( pent->d_name[0] == '.' )
+			if (fInfo.fname[0] == '.')
 				continue;
 
 			// Prepare the filename buffer with the directory name.
 			// game.iso/disc2.iso will be appended later.
-			int fnlen = snprintf(filename, sizeof(filename), "%s:/games/%s/", GetRootDevice(), pent->d_name);
+			// NOTE: fInfo.fname[] is UTF-16.
+			const char *filename_utf8 = wchar_to_char(fInfo.fname);
+			int fnlen = snprintf(filename, sizeof(filename), "%s:/games/%s/",
+					     GetRootDevice(), filename_utf8);
 
 			//Test if game.iso exists and add to list
 			bool found = false;
@@ -195,15 +194,15 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 				else
 					memcpy(&filename[fnlen], "game.iso", 9);
 
-				FILE *in = fopen( filename, "rb" );
-				if( in != NULL )
+				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 				{
 					// Read the disc header
 					//gprintf("(%s) ok\n", filename );
-					fread( buf, 1, 0x100, in );
-					fclose(in);
+					UINT read;
+					f_read(&in, buf, 0x100, &read);
+					f_close(&in);
 
-					if( IsGCGame((u8*)buf) )	// Must be GC game
+					if (read == 0x100 && IsGCGame((u8*)buf))	// Must be GC game
 					{
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						gi[gamecount].DiscNumber = DiscNumber;
@@ -220,8 +219,8 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 						{
 							// Title not found.
 							// Use the title from the disc header.
-							strncpy(gamename, buf + 0x20, sizeof(gamename));
-							gamename[sizeof(gamename)] = 0;
+							strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
+							gamename[sizeof(gamename)-1] = 0;
 							gi[gamecount].Name = strdup(gamename);
 							gi[gamecount].NameAlloc = 1;
 						}
@@ -234,27 +233,27 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			}
 
 			// If game.iso wasn't found, check for FST format.
-			if ( !found )
+			if (!found)
 			{
 				memcpy(&filename[fnlen], "sys/boot.bin", 13);
-
-				FILE *in = fopen( filename, "rb" );
-				if( in != NULL )
+				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 				{
 					//gprintf("(%s) ok\n", filename );
-					fread( buf, 1, 0x100, in );
-					fclose(in);
+					UINT read;
+					f_read(&in, buf, 0x100, &read);
+					f_close(&in);
 
-					if( IsGCGame((u8*)buf) )	// Must be GC game
+					if (read == 0x100 && IsGCGame((u8*)buf))	// Must be GC game
 					{
+						// Terminate the filename at the game's base directory.
 						filename[fnlen] = 0;
 
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						gi[gamecount].DiscNumber = DiscNumber;
 
 						// TODO: Check titles.txt?
-						strncpy(gamename, buf + 0x20, sizeof(gamename));
-						gamename[sizeof(gamename)] = 0;
+						strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
+						gamename[sizeof(gamename)-1] = 0;
 						gi[gamecount].Name = strdup(gamename);
 						gi[gamecount].NameAlloc = 1;
 
@@ -268,7 +267,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		if (gamecount >= sz)	//if array is full
 			break;
 	}
-	closedir(pdir);
+	f_closedir(&pdir);
 
 	// Sort the list alphabetically.
 	// On Wii, the pseudo-entry for GameCube discs is always
@@ -998,9 +997,6 @@ void ShowMessageScreenAndExit(const char *msg, int ret)
 	PrintInfo();
 	PrintFormat(DEFAULT_SIZE, color, x, 232, "%s", msg);
 	ExitToLoader(ret);
-
-	// gcc doesn't know ExitToLoader() exits.
-	exit(ret);
 }
 
 /**
@@ -1008,9 +1004,17 @@ void ShowMessageScreenAndExit(const char *msg, int ret)
  */
 void PrintInfo(void)
 {
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%d.%d (%s)", NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : %s %s", __DATE__, __TIME__ );
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %d.%d.%d", *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143 );
+#ifdef NIN_SPECIAL_VERSION
+	// "Special" version with customizations. (Not mainline!)
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u" NIN_SPECIAL_VERSION " (%s)",
+		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
+#else
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u (%s)",
+		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
+#endif
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %u.%u.%u",
+		    *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143);
 }
 
 /**
@@ -1058,4 +1062,76 @@ void ReconfigVideo(GXRModeObj *vidmode)
 			vidmode->viXOrigin += ncfg->VideoOffset;
 	}
 	VIDEO_Configure(vidmode);
+}
+
+/**
+ * Print a LoadKernel() error message.
+ *
+ * This function does NOT force a return to loader;
+ * that must be handled by the caller.
+ * Caller must also call UpdateScreen().
+ *
+ * @param iosErr IOS loading error ID.
+ * @param err Return value from the IOS function.
+ */
+void PrintLoadKernelError(LoadKernelError_t iosErr, s32 err)
+{
+	ClearScreen();
+	PrintInfo();
+	PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4, "Failed to load IOS58 from NAND:");
+
+	switch (iosErr)
+	{
+		case LKERR_UNKNOWN:
+		default:
+			// TODO: Add descriptions of more LoadKernel() errors.
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "LoadKernel() error %d occurred, returning %d.", iosErr, err);
+			break;
+
+		case LKERR_ES_GetStoredTMDSize:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "ES_GetStoredTMDSize() returned %d.", err);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "This usually means IOS58 is not installed.");
+			if (IsWiiU())
+			{
+				// No IOS58 on Wii U should never happen...
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*9, "WARNING: On Wii U, a missing IOS58 may indicate");
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "something is seriously wrong with the vWii setup.");
+			}
+			else
+			{
+				// TODO: Check if we're using System 4.3.
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*9, "Please update to Wii System 4.3 and try running");
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "Nintendont again.");
+			}
+			break;
+
+		case LKERR_TMD_malloc:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to allocate memory for the IOS58 TMD.");
+			break;
+
+		case LKERR_ES_GetStoredTMD:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "ES_GetStoredTMD() returned %d.", err);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "WARNING: IOS58 may be corrupted.");
+			break;
+
+		case LKERR_IOS_Open_shared1_content_map:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "IOS_Open(\"/shared1/content.map\") returned %d.", err);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "This usually means Nintendont was not started with");
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "AHB access permissions.");
+			// FIXME: Create meta.xml if it isn't there?
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "Please ensure that meta.xml is present in your Nintendont");
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*11, "application directory and that it contains a line");
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*12, "with the tag <ahb_access/> .");
+			break;
+
+		case LKERR_IOS_Open_IOS58_kernel:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "IOS_Open(IOS58 kernel) returned %d.", err);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "WARNING: IOS58 may be corrupted.");
+			break;
+
+		case LKERR_IOS_Read_IOS58_kernel:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "IOS_Read(IOS58 kernel) returned %d.", err);
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "WARNING: IOS58 may be corrupted.");
+			break;
+	}
 }

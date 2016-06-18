@@ -34,9 +34,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "debug.h"
 #include "GCAM.h"
 #include "Patch.h"
+
 #include "diskio.h"
 #include "usbstorage.h"
 #include "SDI.h"
+#include "ff_utf8.h"
 
 //#undef DEBUG
 bool access_led = false;
@@ -498,10 +500,10 @@ int _main( int argc, char *argv[] )
 	BTE_Shutdown();
 #endif
 
-//unmount FAT device
+	//unmount FAT device
+	f_mount(NULL, fatDevName, 1);
 	free(fatfs);
 	fatfs = NULL;
-	f_mount(NULL, fatDevName, 1);
 
 	if(UseUSB)
 		USBStorage_Shutdown();

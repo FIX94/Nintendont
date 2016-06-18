@@ -19,7 +19,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 
-#include <fat.h>
 #include <gccore.h>
 #include <ogc/audio.h>
 #include <ogc/consol.h>
@@ -32,6 +31,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/wiilaunch.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#include "ff_utf8.h"
+#include "diskio.h"
 
 #include "Config.h"
 #include "exi.h"
@@ -205,9 +207,14 @@ void AfterIOSReload(raw_irq_handler_t handle, u32 rev)
 	__STM_Init();
 }
 
-extern vu32 KernelLoaded, FoundVersion;
+/**
+ * Exit Nintendont and return to the loader.
+ * @param ret Exit code.
+ */
 void ExitToLoader(int ret)
 {
+	extern vu32 KernelLoaded, FoundVersion;
+
 	UpdateScreen();
 	UpdateScreen(); // Triple render to ensure it gets seen
 	GRRLIB_Render();
@@ -236,27 +243,33 @@ void ExitToLoader(int ret)
 	SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
 	exit(ret);
 }
-bool LoadNinCFG()
+
+/**
+ * Load the configuration file from the root device.
+ * @return True if loaded successfully; false if not.
+ */
+bool LoadNinCFG(void)
 {
 	bool ConfigLoaded = true;
-	FILE *cfg = fopen("/nincfg.bin", "rb+");
-	if (cfg == NULL)
+	FIL cfg;
+	if (f_open_char(&cfg, "/nincfg.bin", FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		return false;
 
-	size_t BytesRead;
-	BytesRead = fread(ncfg, 1, sizeof(NIN_CFG), cfg);
-	switch( ncfg->Version )
-	{
+	// Read the configuration file into memory.
+	UINT BytesRead;
+	f_read(&cfg, ncfg, sizeof(NIN_CFG), &BytesRead);
+	f_close(&cfg);
+
+	switch( ncfg->Version ) {
 		case 2:
-		{
-			if(BytesRead != 540)
+			if (BytesRead != 540)
 				ConfigLoaded = false;
-		} break;
+			break;
+
 		default:
-		{
-			if(BytesRead != sizeof(NIN_CFG))
+			if (BytesRead != sizeof(NIN_CFG))
 				ConfigLoaded = false;
-		} break;
+			break;
 	}
 
 	if (ncfg->Magicbytes != 0x01070CF6)
@@ -273,33 +286,21 @@ bool LoadNinCFG()
 	if (ncfg->MaxPads < 0)
 		ConfigLoaded = false;
 
-	fclose(cfg);
-
 	return ConfigLoaded;
 }
+
 inline void ClearScreen()
 {
 	GRRLIB_DrawImg(0, 0, background, 0, 1, 1, 0xFFFFFFFF);
 }
-extern bool sdio_Deinitialize();
-extern void USBStorageOGC_Deinitialize();
-#include "usb_ogc.h"
 
-void CloseDevices()
+static inline char ascii(char s)
 {
-	closeLog();
-	fatUnmount("sd");
-	sdio_Deinitialize();
-	fatUnmount("usb");
-	USBStorageOGC_Deinitialize();
-	USB_OGC_Deinitialize();
+	if (s < 0x20) return '.';
+	else if (s > 0x7E) return '.';
+	return s;
 }
-static char ascii(char s)
-{
-  if(s < 0x20) return '.';
-  if(s > 0x7E) return '.';
-  return s;
-}
+
 void hexdump(void *d, int len)
 {
 	if( d == (void*)NULL )
@@ -363,31 +364,147 @@ void UpdateNinCFG()
 	}
 }
 
-int CreateNewFile(char *Path, u32 size)
+int CreateNewFile(const char *Path, u32 size)
 {
-	FILE *f;
-	f = fopen(Path, "rb");
-	if(f != NULL)
+	FIL f;
+
+	// Check if the file already exists.
+	if (f_open_char(&f, Path, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 	{	//create ONLY new files
-		fclose(f);
+		f_close(&f);
 		return -1;
 	}
-	f = fopen(Path, "wb");
-	if(f == NULL)
+
+	if (f_open_char(&f, Path, FA_WRITE|FA_CREATE_NEW) != FR_OK)
 	{
 		gprintf("Failed to create %s!\r\n", Path);
 		return -2;
 	}
-	void *buf = malloc(size);
+
+	// Allocate a temporary buffer.
+	void *buf = calloc(size, 1);
 	if(buf == NULL)
 	{
-		gprintf("Failed to allocate %i bytes!\r\n", size);
+		gprintf("Failed to allocate %u bytes!\r\n", size);
 		return -3;
 	}
-	memset(buf, 0, size);
-	fwrite(buf, 1, size, f);
+
+	// Write the temporary buffer to disk.
+	UINT wrote;
+	f_write(&f, buf, size, &wrote);
+	f_close(&f);
 	free(buf);
-	fclose(f);
-	gprintf("Created %s with %i bytes!\r\n", Path, size);
+	gprintf("Created %s with %u bytes!\r\n", Path, wrote);
 	return 0;
+}
+
+/** Device mount/unmount. **/
+// 0 == SD, 1 == USB
+FATFS *devices[2];
+
+// Device initialization data.
+typedef struct _devInitInfo_t
+{
+	const WCHAR devNameFF[8];
+	const char devNameDisplay[4];
+
+	// Maximum init timeout, in seconds.
+	// (0 = only try once)
+	int timeout;
+} devInitInfo_t;
+
+static const devInitInfo_t devInitInfo[2] =
+{
+	{{'s', 'd', ':', 0}, "SD", 0},
+	{{'u', 's', 'b', ':', 0}, "USB", 10}
+};
+
+/**
+ * Initialize and mount a device.
+ * @param pdrv Device number.
+ * @return Mount point (WCHAR), or NULL on error.
+ */
+const WCHAR *MountDevice(BYTE pdrv)
+{
+	if (pdrv < DEV_SD || pdrv > DEV_USB)
+		return NULL;
+
+	// Attempt to initialize this device
+	// TODO: Do initialization asynchronously.
+	if (devInitInfo[pdrv].timeout > 0)
+	{
+		// Attempt multiple inits within a timeout period.
+		time_t timeout = time(NULL);
+		while (time(NULL) - timeout < devInitInfo[pdrv].timeout)
+		{
+			if (disk_initialize(pdrv) == 0)
+				break;
+			usleep(50000);
+		}
+	}
+	else
+	{
+		// Only attempt a single init.
+		disk_initialize(pdrv);
+	}
+
+	if (disk_status(pdrv) == 0)
+	{
+		// Device initialized.
+		devices[pdrv] = (FATFS*)memalign(32, sizeof(FATFS));
+		if (f_mount(devices[pdrv], devInitInfo[pdrv].devNameFF, 1) == FR_OK)
+		{
+			gprintf("Mounted %s!\n", devInitInfo[pdrv].devNameDisplay);
+		}
+		else
+		{
+			// Could not mount the filesystem.
+			free(devices[pdrv]);
+			devices[pdrv] = NULL;
+		}
+	}
+
+	return (devices[pdrv] ? devInitInfo[pdrv].devNameFF : NULL);
+}
+
+/**
+ * Unmount and shut down a device.
+ * @param pdrv Device number.
+ * @return 0 on success or if the drive was already shut down; non-zero on error.
+ */
+int UnmountDevice(BYTE pdrv)
+{
+	if (pdrv < DEV_SD || pdrv > DEV_USB)
+		return -1;
+
+	// FIXME: Close the log file if it's on this device?
+
+	// Check if the device is mounted.
+	if (devices[pdrv] != NULL)
+	{
+		// Unmount the device.
+		f_mount(NULL, devInitInfo[pdrv].devNameFF, 1);
+		// Free the FatFS object.
+		free(devices[pdrv]);
+		devices[pdrv] = 0;
+	}
+
+	// Shut down the device driver.
+	disk_shutdown(pdrv);
+	return 0;
+}
+
+/**
+ * Shut down all devices.
+ * This also closes the log file.
+ */
+void CloseDevices(void)
+{
+	int i;
+
+	closeLog();
+	for (i = DEV_SD; i <= DEV_USB; i++)
+	{
+		UnmountDevice(i);
+	}
 }

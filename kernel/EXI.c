@@ -21,13 +21,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "EXI.h"
 #include "DI.h"
-#include "ff.h"
 #include "common.h"
 #include "vsprintf.h"
 #include "alloc.h"
 #include "Patch.h"
 #include "Config.h"
 #include "debug.h"
+#include "SRAM.h"
+
+#include "ff_utf8.h"
 
 #define EXI_IRQ_INSTANT		0		// as soon as possible
 #define EXI_IRQ_DEFAULT		1900	// about 1000 times a second
@@ -35,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
-extern u8 SRAM[64];
 extern u32 Region;
 extern vu32 useipl;
 
@@ -64,12 +65,12 @@ static u32 EXI2IRQStatus	= 0;
 void EXIInit( void )
 {
 	dbgprintf("EXIInit Start\r\n");
-	u32 i, wrote, ret;
+	u32 wrote, ret;
 
 	memset32((void*)EXI_BASE, 0, 0x20);
 	sync_after_write((void*)EXI_BASE, 0x20);
 
-	u32 GameID = ConfigGetGameID();
+	const u32 GameID = ConfigGetGameID();
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 	{
 		memset32(MemCardName, 0, 0x20);
@@ -120,82 +121,16 @@ void EXIInit( void )
 		dbgprintf("done\r\n");
 #endif
 		sync_after_write( MCard, ConfigGetMemcardSize() );
+
+		// Set the flash ID in SRAM.
+		// FIXME: This doesn't fix the problem with first-party
+		// memory card images, and it might be causing problems
+		// with Ikaruga (PAL).
+		//SRAM_SetFlashID( MCard, 0 );
 	}
 
-	GC_SRAM *sram = (GC_SRAM*)SRAM;
-
-	for( i=0; i < 12; ++i )
-		sram->FlashID[0][i] = 0;
-
-	sram->FlashIDChecksum[0] = 0xFF;
-
-	sram->BootMode	&= ~0x40;	// Clear PAL60
-	sram->Flags		&= ~0x80;	// Clear Progmode
-	sram->Flags		&= ~3;		// Clear Videomode
-
-	sram->DisplayOffsetH = 0;
-	switch(GameID & 0xFF)
-	{
-		case 'E':
-		case 'J':
-			//BMX XXX doesnt even boot on a real gc with component cables
-			if( (ConfigGetGameID() >> 8) != 0x474233 &&
-				(ConfigGetVideoMode() & NIN_VID_PROG) )
-				sram->Flags |= 0x80;	// Set Progmode
-			break;
-		default:
-			sram->BootMode	|= 0x40;	// Set PAL60
-			break;
-	}
-	sram->Language = ConfigGetLanguage();
-
-	if( ConfigGetVideoMode() & NIN_VID_FORCE )
-	{
-		switch( ConfigGetVideoMode() & NIN_VID_FORCE_MASK )
-		{
-			case NIN_VID_FORCE_NTSC:
-			{
-				Region = 0;
-			} break;
-			case NIN_VID_FORCE_MPAL:
-			case NIN_VID_FORCE_PAL50:
-			case NIN_VID_FORCE_PAL60:
-			{
-				Region = 2;
-			} break;
-		}
-	}
-
-	switch(Region)
-	{
-		default:
-		case 0:
-		case 1:
-		{
-#ifdef DEBUG_EXI
-			dbgprintf("SRAM:NTSC\r\n");
-#endif
-			*(vu32*)0xCC = 0;
-			
-		} break;
-		case 2:
-		{
-			if( *(vu32*)0xCC == 5 )
-			{
-#ifdef DEBUG_EXI
-				dbgprintf("SRAM:PAL60\r\n");
-#endif
-			} else {
-#ifdef DEBUG_EXI
-				dbgprintf("SRAM:PAL50\r\n");
-#endif
-				*(vu32*)0xCC = 1;
-			}
-			sram->Flags		|= 1;
-
-		} break;
-	}
-	SRAM_Checksum( (unsigned short *)SRAM, (unsigned short *)SRAM, (unsigned short *)( ((u8*)SRAM) + 2 ) );
+	// Initialize SRAM.
+	SRAM_Init();
 }
 
 extern vu32 TRIGame;
@@ -518,7 +453,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 			{
 				if( EXICommand == SRAM_WRITE )
 				{
-					*(u32*)(SRAM+SRAMWriteCount) = (u32)Data;
+					*(u32*)(((u8*)&sram)+SRAMWriteCount) = (u32)Data;
 
 					SRAMWriteCount += Length;
 
@@ -601,7 +536,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 #ifdef DEBUG_SRAM
 				dbgprintf("EXI: SRAMRead(%p,%u)\r\n", Data, Length );
 #endif
-				memcpy( Data, SRAM, Length );
+				memcpy( Data, &sram, Length );
 				sync_after_write( Data, Length );
 			} break;
 			case UART_READ:

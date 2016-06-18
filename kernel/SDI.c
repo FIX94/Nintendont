@@ -123,11 +123,12 @@ static s32 __sdio_resetcard()
 
 static s32 __sdio_gethcr(u8 reg, u8 size, u32 *val)
 {
+	if (!val)
+		return -4;
+
 	s32 ret;
 	u32 *hcr_value = (u32*)malloc( sizeof(u32) );
 	u32 *hcr_query = (u32*)malloc( sizeof(u32) * 6 );
-
-	if(val==NULL) return -4;
 
 	*hcr_value = 0;
 	*val = 0;

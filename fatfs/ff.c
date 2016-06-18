@@ -589,11 +589,11 @@ static const BYTE ExCvt[] = _EXCVT;	/* Upper conversion table for SBCS extended 
 // Nintendont: Use the old macros from FatFS R0.11a for size and performance reasons.
 #define ld_word(ptr)            (WORD)(((WORD)*((BYTE*)(ptr)+1)<<8)|(WORD)*(BYTE*)(ptr))
 #define ld_dword(ptr)           (DWORD)(((DWORD)*((BYTE*)(ptr)+3)<<24)|((DWORD)*((BYTE*)(ptr)+2)<<16)|((WORD)*((BYTE*)(ptr)+1)<<8)|*(BYTE*)(ptr))
-#define ld_qword(ptr)           (QWORD)ld_dword((BYTE*)(ptr)) |((QWORD)ld_dword((BYTE*)(ptr)+4)<<32)
+#define ld_qword(ptr)           ((QWORD)ld_dword((BYTE*)(ptr))|((QWORD)ld_dword((BYTE*)(ptr)+4)<<32))
 #if !_FS_READONLY
 #define st_word(ptr,val)        *(BYTE*)(ptr)=(BYTE)(val); *((BYTE*)(ptr)+1)=(BYTE)((WORD)(val)>>8)
 #define st_dword(ptr,val)       *(BYTE*)(ptr)=(BYTE)(val); *((BYTE*)(ptr)+1)=(BYTE)((WORD)(val)>>8); *((BYTE*)(ptr)+2)=(BYTE)((DWORD)(val)>>16); *((BYTE*)(ptr)+3)=(BYTE)((DWORD)(val)>>24)
-#define st_qword(ptr,val)       st_dword((ptr),((val)&0xFFFFFFFFU)); st_dword((((BYTE*)ptr)+4),((val)>>32))
+#define st_qword(ptr,val)       st_dword((ptr),((QWORD)(val)&0xFFFFFFFFU)); st_dword((((BYTE*)ptr)+4),((QWORD)(val)>>32))
 #endif	/* !_FS_READONLY */
 
 
@@ -2839,6 +2839,8 @@ BYTE check_fs (	/* 0:FAT, 1:exFAT, 2:Valid BS but not FAT, 3:Not a BS, 4:Disk er
 #define GPT_PARTITION_COUNT_MAX 128
 // EFI System Partition: {C12A7328-F81F-11D2-BA4B-00A0C93EC93B}
 static const DWORD GPT_EFISYS_GUID[4] = {0x28732AC1, 0x1FF8D211, 0xBA4B00A0, 0xC93EC93B};
+// Empty partition. (Sometimes shows up if a partition was deleted.)
+static const DWORD GPT_EMPTY_GUID[4] = {0, 0, 0, 0};
 
 static
 BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:GPT is invalid, 3:Disk error */
@@ -2911,9 +2913,12 @@ BYTE read_gpt (	/* 0:GPT is valid and partitions read, 1:No partitions found, 2:
 				continue;
 			}
 
-			// Check if this is an EFI System Partition.
+			// Check for special partition types.
 			if (!mem_cmp(&fs->win[n], GPT_EFISYS_GUID, sizeof(GPT_EFISYS_GUID))) {
 				// EFI System Partition. Ignore it.
+				continue;
+			} else if (!mem_cmp(&fs->win[n], GPT_EMPTY_GUID, sizeof(GPT_EMPTY_GUID))) {
+				// Deleted partition. Ignore it.
 				continue;
 			}
 
@@ -3101,14 +3106,26 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 					case 0:
 						br[part_count++] = 0;
 						break;
-					case 0xF:
+
+					case 0x05:
+					case 0x0F:
 						// Extended partition.
 						// FIXME: Disable if LD2PT(vol) != 0?
 						bsect = ld_dword(&pt[8]);
+						if (bsect == 0) {
+							// CHS extended partition. Not supported.
+							// NOTE: This is type 0x05, but Linux tools
+							// like fdisk and gparted use 0x05 even for
+							// LBA extended partitions. Hence, we have
+							// to check bsect as well.
+							break;
+						}
+
 						ebr_fmt = read_mbr_extended(fs, bsect, &br[part_count], &ebr_count);
 						if (ebr_fmt > 1) return FR_DISK_ERR;
 						part_count += ebr_count;
 						break;
+
 					default:
 						// Primary partition.
 						br[part_count++] = pt[4] ? ld_dword(&pt[8]) : 0;

@@ -21,7 +21,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "Patch.h"
 #include "string.h"
-#include "ff.h"
 #include "dol.h"
 #include "elf.h"
 #include "PatchCodes.h"
@@ -36,6 +35,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SI.h"
 #include "EXI.h"
 #include "codehandler.h"
+
+#include "ff_utf8.h"
+
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
 u32 GAME_ID	= 0;
@@ -1059,18 +1061,6 @@ int CPattern( FuncPattern *FPatA, FuncPattern *FPatB  )
 	return ( memcmp( FPatA, FPatB, sizeof(u32) * 6 ) == 0 );
 }
 
-void SRAM_Checksum( unsigned short *buf, unsigned short *c1, unsigned short *c2) 
-{
-	u32 i;
-	*c1 = 0; *c2 = 0;
-	for (i = 0;i<4;++i)
-	{
-		*c1 += buf[0x06 + i];
-		*c2 += (buf[0x06 + i] ^ 0xFFFF);
-	}
-	//dbgprintf("New Checksum: %04X %04X\r\n", *c1, *c2 );
-}
-
 #ifdef DEBUG_PATCH
 static const char *getVidStr(u32 in)
 {
@@ -1120,12 +1110,17 @@ static int GotoFuncEnd(int i, u32 Buffer)
 	return i;
 }
 
-static bool fileExist( char *path )
+/**
+ * Does the specified file exist?
+ * @param path Filename.
+ * @return True if the file exists; false if it doesn't.
+ */
+static bool fileExist(const char *path)
 {
 	FIL fd;
-	if( f_open_char( &fd, path, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+	if (f_open_char(&fd, path, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 	{
-		f_close( &fd );
+		f_close(&fd);
 		return true;
 	}
 	return false;
@@ -3363,7 +3358,7 @@ s32 Check_Cheats()
 #ifdef CHEATS
 	if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
 	{
-		char *cpath = ConfigGetCheatPath();
+		const char *cpath = ConfigGetCheatPath();
 		if (cpath[0] != 0)
 		{
 			if( fileExist(cpath) )
@@ -3373,14 +3368,18 @@ s32 Check_Cheats()
 			}
 		}
 	}
+
 	u32 i;
-	char* DiscName = ConfigGetGamePath();
+	const char* DiscName = ConfigGetGamePath();
 	//search the string backwards for '/'
-	for( i=strlen(DiscName); i > 0; --i )
+	for (i = strlen(DiscName); i > 0; --i)
+	{
 		if( DiscName[i] == '/' )
 			break;
+	}
 	i++;
 	memcpy(cheatPath, DiscName, i);
+
 	//new version paths
 	_sprintf(cheatPath+i, "game.gct");
 	if( fileExist(cheatPath) )

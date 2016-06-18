@@ -15,7 +15,13 @@
 /  and optional writing functions as well. */
 
 
+#ifdef __PPC__
+// Nintendont loader: Enable all functionality.
+#define _FS_MINIMIZE	0
+#else /* !__PPC__ */
+// Nintendont kernel: Use minimize level 2.
 #define _FS_MINIMIZE	2
+#endif /* __PPC__ */
 /* This option defines minimization level to remove some basic API functions.
 /
 /   0: All basic functions are enabled.
@@ -43,7 +49,15 @@
 /* This option switches f_mkfs() function. (0:Disable or 1:Enable) */
 
 
+#ifdef __PPC__
+// Nintendont loader: Disable fast seek, since we're only checking
+// file headers and/or reading the entire file all at once.
+#define	_USE_FASTSEEK	0
+#else /* !__PPC__ */
+// Nintendont kernel: Enable fast seek to allow seeking quickly
+// throughout the 1.46 GB disc image.
 #define	_USE_FASTSEEK	1
+#endif /* __PPC__ */
 /* This option switches fast seek function. (0:Disable or 1:Enable) */
 
 
@@ -135,7 +149,13 @@
 /  This option has no effect when _LFN_UNICODE == 0. */
 
 
+#ifdef __PPC__
+// Nintendont loader: Enable relative paths.
+#define _FS_RPATH	1
+#else /* !__PPC__ */
+// Nintendont kernel: Disable relative paths.
 #define _FS_RPATH	0
+#endif /* __PPC__ */
 /* This option configures support of relative path.
 /
 /   0: Disable relative path and remove related functions.
@@ -148,12 +168,24 @@
 / Drive/Volume Configurations
 /---------------------------------------------------------------------------*/
 
+#ifdef __PPC__
+// Nintendont loader: Support both SD and USB at the same time.
+#define _VOLUMES	2
+#else /* !__PPC__ */
+// Nintendont kernel: Only one device at a time.
 #define _VOLUMES	1
+#endif /* __PPC__ */
 /* Number of volumes (logical drives) to be used. */
 
 
+#ifdef __PPC__
+// Nintendont loader: Use volume names.
+#define _STR_VOLUME_ID	1
+#else /* !__PPC__ */
+// Nintendont kernel: No volume names.
 #define _STR_VOLUME_ID	0
-#define _VOLUME_STRS	"RAM","NAND","CF","SD1","SD2","USB1","USB2","USB3"
+#endif /* __PPC__ */
+#define _VOLUME_STRS	"SD","USB"
 /* _STR_VOLUME_ID switches string support of volume ID.
 /  When _STR_VOLUME_ID is set to 1, also pre-defined strings can be used as drive
 /  number in the path name. _VOLUME_STRS defines the drive ID strings for each
@@ -203,6 +235,7 @@
 / System Configurations
 /---------------------------------------------------------------------------*/
 
+// FIXME: Change for loader?
 #define	_FS_TINY	1
 /* This option switches tiny buffer configuration. (0:Normal or 1:Tiny)
 /  At the tiny configuration, size of the file object (FIL) is reduced _MAX_SS bytes.
@@ -210,7 +243,7 @@
 /  buffer in the file system object (FATFS) is used for the file data transfer. */
 
 
-#define _FS_EXFAT	0
+#define _FS_EXFAT	1
 /* This option switches support of exFAT file system in addition to the traditional
 /  FAT file system. (0:Disable or 1:Enable) To enable exFAT, also LFN must be enabled.
 /  Note that enabling exFAT discards C89 compatibility. */

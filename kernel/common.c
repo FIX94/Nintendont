@@ -4,6 +4,8 @@
 #include "Config.h"
 #include "debug.h"
 
+#include <ctype.h>
+
 void BootStatus(s32 Value, u32 secs, u32 scnt)
 {
 	//memset32( STATUS, Value, 0x20 );
@@ -34,81 +36,79 @@ void BootStatusError(s32 Value, s32 error)
 }
 
 /*
-	Since Starlet can only access MEM1 via 32byte write and 8/16 writes
-	cause unpredictable results we this code is needed.
+ * Since Starlet can only access MEM1 via 32byte write and 8/16 writes
+ * cause unpredictable results we this code is needed.
 
-	This automatically detects the misalignment and writes the value
-	via two 32bit writes
-*/
-void W16(u32 Address, u16 Data)
+ * This automatically detects the misalignment and writes the value
+ * via two 32bit writes
+ */
+
+u32 R32(u32 Address)
 {
-	u32 Tmp = R32(Address);
-	W32(Address, (Tmp & 0xFFFF) | (Data << 16));
+	if ((Address & 3) == 0)
+	{
+		return read32(Address);
+	}
+
+	const u32 valA = read32(Address & (~3));
+	const u32 valB = read32((Address + 3) & (~3));
+	switch (Address & 3)
+	{
+		case 0:
+		default:
+			// Shouldn't happen...
+			return valA;
+		case 1:
+			return ((valA&0xFFFFFF)<<8) | (valB>>24);
+		case 2:
+			return ((valA&0xFFFF)<<16) | (valB>>16);
+		case 3:
+			return ((valA&0xFF)<<24) | (valB>>8);
+	}
 }
 
 void W32(u32 Address, u32 Data)
 {
-	if( Address & 3 )
+	if ((Address & 3) == 0)
 	{
-		//dbgprintf("[%08X] %08X\r\n",Address,Data);
-		u32 valA = read32(Address & (~3));
-		u32 valB = read32((Address + 3) & (~3));
-		//dbgprintf("[%08X] %08X\r\n", Address & (~3), valA );
-		//dbgprintf("[%08X] %08X\r\n", (Address+3) & (~3), valB );
-		if((Address & 3) == 1)
-		{
+		write32(Address, Data);
+		return;
+	}
+
+	u32 valA = read32(Address & (~3));
+	u32 valB = read32((Address + 3) & (~3));
+	switch (Address & 3)
+	{
+		case 0:
+		default:
+			// Shouldn't happen...
+			write32(Address, Data);
+			break;
+		case 1:
 			valA &= 0xFF000000;
 			valA |= Data>>8;
 			write32(Address & (~3), valA);
 			valB &= 0x00FFFFFF;
 			valB |= (Data&0xFF)<<24;
 			write32((Address + 3) & (~3), valB);
-		}
-		else if((Address & 3) == 2)
-		{
+			break;
+		case 2:
 			valA &= 0xFFFF0000;
 			valA |= Data>>16;
 			write32(Address & (~3), valA);
 			valB &= 0x0000FFFF;
 			valB |= (Data&0xFFFF)<<16;
 			write32((Address + 3) & (~3), valB);
-		}
-		else
-		{
+			break;
+		case 3:
 			valA &= 0xFFFFFF00;
 			valA |= Data>>24;
 			write32(Address & (~3), valA);
 			valB &= 0x000000FF;
 			valB |= (Data&0xFFFFFF)<<8;
 			write32((Address + 3) & (~3), valB);
-		}
-		//dbgprintf("[%08X] %08X\r\n", Address & (~3), valA );
-		//dbgprintf("[%08X] %08X\r\n", (Address+3) & (~3), valB );
+			break;
 	}
-	else
-	{
-		write32( Address, Data );
-	}
-}
-
-u16 R16(u32 Address)
-{
-	return R32(Address) >> 16;
-}
-
-u32 R32(u32 Address)
-{
-	if(Address & 3)
-	{
-		u32 valA = read32(Address & (~3));
-		u32 valB = read32((Address + 3) & (~3));
-		if((Address & 3) == 1)
-			return ((valA&0xFFFFFF)<<8) | (valB>>24);
-		else if((Address & 3) == 2)
-			return ((valA&0xFFFF)<<16) | (valB>>16);
-		return ((valA&0xFF)<<24) | (valB>>8);
-	}
-	return read32(Address);
 }
 
 void udelay(int us)
@@ -175,71 +175,18 @@ void Shutdown( void )
 
 	while(1);
 }
-void Asciify( char *str )
-{
-	int i=0;
-	int length = strlen(str);
-	for( i=0; i < length; i++ )
-		if( str[i] < 0x20 || str[i] > 0x7F )
-			str[i] = '_';
-}
-unsigned int atox( char *String )
-{
-	u32 val=1;
-	u32 len=0;
-	u32 i;
 
-	while(val)
+/**
+ * Change non-printable characters in a string to '_'.
+ * @param str String.
+ */
+void Asciify(char *str)
+{
+	for (; *str != 0; str++)
 	{
-		switch(String[len])
-		{
-			case 0x0a:
-			case 0x0d:
-			case 0x00:
-			case ',':
-				val = 0;
-				len--;
-				break;
-		}
-		len++;
+		if (!isprint(*str))
+			*str = '_';
 	}
-
-	for( i=0; i < len; ++i )
-	{
-		if( String[i] >= '0' && String[i] <='9' )
-		{
-			val |= (String[i]-'0') << (((len-1)-i) * 4);
-
-		} else if( String[i] >= 'A' && String[i] <='Z' ) {
-
-			val |= (String[i]-'7') << (((len-1)-i) * 4);
-
-		} else if( String[i] >= 'a' && String[i] <='z' ) {
-
-			val |= (String[i]-'W') << (((len-1)-i) * 4);
-		}
-	}
-
-	return val;
-}
-wchar_t tmpwchar[512]; //2kb right here, everything but threadsafe
-extern size_t mbstowcs(wchar_t*,const char*,size_t);
-FRESULT f_open_char( FIL* fp, const char* path, BYTE mode )
-{
-	if(fp == NULL || path == NULL || strlen(path) == 0)
-		return FR_INVALID_NAME;
-
-	size_t charnum = mbstowcs(tmpwchar, path, 512);
-	if(charnum == 0)
-		return FR_INVALID_NAME;
-
-	size_t i;
-	WCHAR *u16char = (WCHAR*)tmpwchar; //saves on 4 byte but only uses 2 byte
-	for(i = 0; i < charnum; ++i) //so we can just remove the rest
-		u16char[i] = (WCHAR)(tmpwchar[i]&0xFFFF);
-	u16char[charnum] = 0x0000; //mbstowcs doesnt close
-
-	return f_open(fp, u16char, mode);
 }
 
 void wait_for_ppc(u8 multi)
@@ -247,7 +194,7 @@ void wait_for_ppc(u8 multi)
 	udelay(45*multi);
 }
 
-u32 timeBase = 0, timeStarlet = 0, wrappedAround = 0;
+static u32 timeBase = 0, timeStarlet = 0, wrappedAround = 0;
 void InitCurrentTime()
 {
 	//get current time since 1970 from loader

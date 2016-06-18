@@ -24,10 +24,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <wiiuse/wpad.h>
 #include <wupc/wupc.h>
 #include <di/di.h>
-#include <fat.h>
 
 #include <unistd.h>
-#include <sys/dir.h>
 
 #include "exi.h"
 #include "dip.h"
@@ -45,6 +43,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ipl.h"
 #include "HID.h"
 #include "TRI.h"
+
+#include "ff_utf8.h"
+#include "diskio.h"
+// from diskio.c
+extern DISC_INTERFACE *driver[_VOLUMES];
 
 extern void __exception_setreload(int t);
 extern void __SYS_ReadROM(void *buf,u32 len,u32 offset);
@@ -104,7 +107,10 @@ s32 __IOS_LoadStartupIOS(void)
 	return 0;
 }
 
-extern DISC_INTERFACE __io_custom_usbstorage;
+// Storage devices. (defined in global.c)
+// 0 == SD, 1 == USB
+extern FATFS *devices[2];
+
 extern vu32 FoundVersion;
 vu32 KernelLoaded = 0;
 u32 entrypoint = 0;
@@ -114,6 +120,79 @@ static u8 loader_stub[0x1800]; //save internally to prevent overwriting
 static ioctlv IOCTL_Buf ALIGNED(32);
 static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
 static const char NIN_BUILD_STRING[] ALIGNED(32) = NIN_VERSION_STRING; // Version detection string used by nintendont launchers "$$Version:x.xxx"
+
+/**
+ * Update meta.xml.
+ */
+static void updateMetaXml(void)
+{
+	char filepath[MAXPATHLEN];
+	bool dir_argument_exists = strlen(launch_dir);
+	
+	snprintf(filepath, sizeof(filepath), "%smeta.xml",
+		dir_argument_exists ? launch_dir : "/apps/Nintendont/");
+
+	if (!dir_argument_exists) {
+		gprintf("Creating new directory\r\n");
+		f_mkdir_char("/apps");
+		f_mkdir_char("/apps/Nintendont");
+	}
+
+	char new_meta[1024];
+	int len = snprintf(new_meta, sizeof(new_meta),
+		META_XML "\r\n<app version=\"1\">\r\n"
+		"\t<name>" META_NAME "</name>\r\n"
+		"\t<coder>" META_AUTHOR "</coder>\r\n"
+		"\t<version>%d.%d%s</version>\r\n"
+		"\t<release_date>20150531000000</release_date>\r\n"
+		"\t<short_description>" META_SHORT "</short_description>\r\n"
+		"\t<long_description>" META_LONG1 "\r\n\r\n" META_LONG2 "</long_description>\r\n"
+		"\t<ahb_access/>\r\n"
+		"</app>\r\n",
+		NIN_VERSION >> 16, NIN_VERSION & 0xFFFF,
+#ifdef NIN_SPECIAL_VERSION
+		NIN_SPECIAL_VERSION
+#else
+		""
+#endif
+  			);
+	if (len > sizeof(new_meta))
+		len = sizeof(new_meta);
+
+	// Check if the file already exists.
+	FIL meta;
+	if (f_open_char(&meta, filepath, FA_READ|FA_OPEN_EXISTING) == FR_OK)
+	{
+		// File exists. If it's the same as the new meta.xml,
+		// don't bother rewriting it.
+		char orig_meta[1024];
+		if (len == meta.obj.objsize)
+		{
+			// File is the same length.
+			UINT read;
+			f_read(&meta, orig_meta, len, &read);
+			if (read == (UINT)len &&
+			    !strncmp(orig_meta, new_meta, len))
+			{
+				// File is identical.
+				// Don't rewrite it.
+				f_close(&meta);
+				return;
+			}
+		}
+		f_close(&meta);
+	}
+
+	// File does not exist, or file is not identical.
+	// Write the new meta.xml.
+	if (f_open_char(&meta, filepath, FA_WRITE|FA_CREATE_ALWAYS) == FR_OK)
+	{
+		UINT wrote;
+		f_write(&meta, new_meta, len, &wrote);
+		f_close(&meta);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -130,8 +209,8 @@ int main(int argc, char **argv)
 
 	Initialise();
 
-	// Checking for storage devices...
-	ShowMessageScreen("Checking storage devices...");
+	// Initializing IOS58...
+	ShowMessageScreen("Initializing IOS58...");
 
 	u32 u;
 	//Disables MEMPROT for patches
@@ -155,12 +234,23 @@ int main(int argc, char **argv)
 	*(vu32*)0x932C0494 = CONF_GetSensorBarPosition();
 	DCFlushRange((void*)0x932C0490, 8);
 
-	if(LoadKernel() < 0)
+	// Load and patch IOS58.
+	if (LoadKernel() < 0)
 	{
-		ClearScreen();
-		gprintf("Failed to load kernel from NAND!\r\n");
-		ShowMessageScreenAndExit("Failed to load kernel from NAND!", 1);
+		// NOTE: Attempting to initialize controllers here causes a crash.
+		// Hence, we can't wait for the user to press the HOME button, so
+		// we'll just wait for a timeout instead.
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*20, "Returning to loader in 10 seconds.");
+		UpdateScreen();
+		VIDEO_WaitVSync();
+
+		// Wait 10 seconds...
+		usleep(10000000);
+
+		// Return to the loader.
+		ExitToLoader(1);
 	}
+
 	InsertModule((char*)kernel_bin, kernel_bin_size);
 
 	memset( (void*)0x92f00000, 0, 0x100000 );
@@ -198,15 +288,34 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* For slow USB HDDs */
-	time_t timeout = time(NULL);
-	while(time(NULL) - timeout < 10)
+	// Checking for storage devices...
+	ShowMessageScreen("Checking storage devices...");
+
+	// Initialize devices.
+	// TODO: Only mount the device Nintendont was launched from
+	// Mount the other device asynchronously.
+	bool foundOneDevice = false;
+	int i;
+	for (i = DEV_SD; i <= DEV_USB; i++)
 	{
-		if(__io_custom_usbstorage.startup() && __io_custom_usbstorage.isInserted())
-			break;
-		usleep(50000);
+		const WCHAR *devNameFF = MountDevice(i);
+		if (devNameFF && !foundOneDevice)
+		{
+			// Set this device as primary.
+			f_chdrive(devNameFF);
+			foundOneDevice = true;
+		}
 	}
-	fatInitDefault();
+
+	// FIXME: Show this information in the menu instead of
+	// aborting here.
+	if (!devices[DEV_SD] && !devices[DEV_USB])
+	{
+		ClearScreen();
+		gprintf("No FAT device found!\n");
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found!");
+		ExitToLoader(1);
+	}
 
 	gprintf("Nintendont at your service!\r\n%s\r\n", NIN_BUILD_STRING);
 	KernelLoaded = 1;
@@ -215,6 +324,9 @@ int main(int argc, char **argv)
 	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
 	gprintf("launch_dir = %s\r\n", launch_dir);
 
+	// Initialize controllers.
+	// FIXME: Initialize before storage devices.
+	// Doing that right now causes usbstorage to fail...
 	FPAD_Init();
 	FPAD_Update();
 
@@ -226,22 +338,13 @@ int main(int argc, char **argv)
 	free(fontbuffer);
 	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
 
-	// Simple code to autoupdate the meta.xml in Nintendont's folder
-	FILE *meta = fopen("meta.xml", "w");
-	if(meta != NULL)
-	{
-		fprintf(meta, "%s\r\n<app version=\"1\">\r\n\t<name>%s</name>\r\n", META_XML, META_NAME);
-		fprintf(meta, "\t<coder>%s</coder>\r\n\t<version>%d.%d</version>\r\n", META_AUTHOR, NIN_VERSION>>16, NIN_VERSION&0xFFFF);
-		fprintf(meta, "\t<release_date>20150531000000</release_date>\r\n");
-		fprintf(meta, "\t<short_description>%s</short_description>\r\n", META_SHORT);
-		fprintf(meta, "\t<long_description>%s\r\n\r\n%s</long_description>\r\n", META_LONG1, META_LONG2);
-		fprintf(meta, "\t<ahb_access/>\r\n</app>");
-		fclose(meta);
-	}
+	// Update meta.xml.
+	updateMetaXml();
+
+	// Load titles.txt.
 	LoadTitles();
 
 	memset((void*)ncfg, 0, sizeof(NIN_CFG));
-
 	bool argsboot = false;
 	if(argc > 1) //every 0x00 gets counted as one arg so just make sure its more than the path and copy
 	{
@@ -355,24 +458,30 @@ int main(int argc, char **argv)
 
 	if(SaveSettings)
 	{
-		FILE *cfg;
-		char ConfigPath[20];
-		// Todo: detects the boot device to prevent writing twice on the same one
-		strcpy(ConfigPath, "/nincfg.bin"); // writes config to boot device, loaded on next launch
-		cfg = fopen(ConfigPath, "wb");
-		if( cfg != NULL )
+		// TODO: If the boot device is the same as the game device,
+		// don't write it twice.
+
+		// Write config to the boot device, which is loaded on next launch.
+		FIL cfg;
+		if (f_open_char(&cfg, "/nincfg.bin", FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
-			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
-			fclose( cfg );
+			UINT wrote;
+			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
+			f_close(&cfg);
 		}
-		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/nincfg.bin", GetRootDevice()); // writes config to game device, used by kernel
-		cfg = fopen(ConfigPath, "wb");
-		if( cfg != NULL )
+
+		// Write config to the game device, used by the Nintendont kernel.
+		char ConfigPath[20];
+		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/nincfg.bin", GetRootDevice());
+		if (f_open_char(&cfg, ConfigPath, FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
-			fwrite( ncfg, sizeof(NIN_CFG), 1, cfg );
-			fclose( cfg );
+			UINT wrote;
+			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
+			f_close(&cfg);
 		}
 	}
+
+	// Check for multi-game disc images.
 	u32 ISOShift = 0;
 	if(memcmp(&(ncfg->GameID), "COBR", 4) == 0 || memcmp(&(ncfg->GameID), "GGCO", 4) == 0
 		|| memcmp(&(ncfg->GameID), "GCO", 3) == 0 || memcmp(&(ncfg->GameID), "RGCO", 4) == 0)
@@ -380,24 +489,31 @@ int main(int argc, char **argv)
 		u32 i, j = 0;
 		u32 Offsets[15];
 		gameinfo gi[15];
-		FILE *f = NULL;
 		u8 *MultiHdr = memalign(32, 0x800);
+
+		FIL f;
+		UINT read;
+		FRESULT fres = FR_DISK_ERR;
+
 		if(CurDICMD)
 		{
 			ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
 		}
 		else if(strstr(ncfg->GamePath, ".iso") != NULL)
 		{
-			char GamePath[255];
+			char GamePath[260];
 			snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
-			f = fopen(GamePath, "rb");
-			fread(MultiHdr,1,0x800,f);
+			fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
+			if (fres == FR_OK)
+				f_read(&f, MultiHdr, 0x800, &read);
 		}
+
 		//Damn you COD for sharing this ID!
-		if(memcmp(MultiHdr, "GCO", 3) == 0 && memcmp(MultiHdr+4, "52", 3) == 0)
+		if (fres != FR_OK || (memcmp(MultiHdr, "GCO", 3) == 0 && memcmp(MultiHdr+4, "52", 3) == 0))
 		{
 			free(MultiHdr);
-			if(f) fclose(f);
+			if (fres == FR_OK)
+				f_close(&f);
 		}
 		else
 		{
@@ -415,9 +531,12 @@ int main(int argc, char **argv)
 					}
 					else
 					{
-						fseek(f, Offsets[j], SEEK_SET);
-						fread(GameHdr, 1, 0x800, f);
+						f_lseek(&f, Offsets[j]);
+						f_read(&f, GameHdr, 0x800, &read);
 					}
+
+					// TODO: titles.txt support?
+					// FIXME: This memory is never freed!
 					memcpy(gi[j].ID, GameHdr, 6);
 					gi[j].Name = strdup((char*)GameHdr+0x20);
 					j++;
@@ -426,7 +545,8 @@ int main(int argc, char **argv)
 			}
 			free(GameHdr);
 			free(MultiHdr);
-			if(f) fclose(f);
+			f_close(&f);
+
 			bool redraw = 1;
 			ClearScreen();
 			u32 PosX = 0;
@@ -506,30 +626,39 @@ int main(int argc, char **argv)
 		}
 	}
 
-//setup memory card
 	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
 	{
+		// Memory card emulation is enabled.
+		// Set up the memory card file.
 		char BasePath[20];
 		snprintf(BasePath, sizeof(BasePath), "%s:/saves", GetRootDevice());
-		mkdir(BasePath, S_IREAD | S_IWRITE);
+		f_mkdir_char(BasePath);
 
 		char MemCardName[8];
 		memset(MemCardName, 0, 8);
 		if ( ncfg->Config & NIN_CFG_MC_MULTI )
 		{
+			// "Multi" mode enabled.
+			// Use one memory card for USA/PAL games,
+			// and another memory card for JPN games.
 			if ((ncfg->GameID & 0xFF) == 'J')  // JPN games
 				memcpy(MemCardName, "ninmemj", 7);
 			else
 				memcpy(MemCardName, "ninmem", 6);
 		}
 		else
+		{
+			// One card per game.
 			memcpy(MemCardName, &(ncfg->GameID), 4);
-		char MemCard[30];
+		}
+
+		char MemCard[32];
 		snprintf(MemCard, sizeof(MemCard), "%s/%s.raw", BasePath, MemCardName);
 		gprintf("Using %s as Memory Card.\r\n", MemCard);
-		FILE *f = fopen(MemCard, "rb");
-		if(f == NULL)
+		FIL f;
+		if (f_open_char(&f, MemCard, FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		{
+			// Memory card file not found. Create it.
 			if(GenerateMemCard(MemCard) == false)
 			{
 				ClearScreen();
@@ -537,10 +666,15 @@ int main(int argc, char **argv)
 			}
 		}
 		else
-			fclose(f);
+		{
+			// Memory card file found.
+			f_close(&f);
+		}
 	}
-	else //setup real sram language
+	else
 	{
+		// Using real memory card slots. (Wii only)
+		// Setup real SRAM language.
 		syssram *sram;
 		sram = __SYS_LockSram();
 		sram->lang = ncfg->Language;
@@ -548,61 +682,74 @@ int main(int argc, char **argv)
 		while(!__SYS_SyncSram());
 	}
 
+	#define GCN_IPL_SIZE 2097152
+	#define TRI_IPL_SIZE 1048576
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
 
-//Check if game is Triforce game
+	//Check if game is Triforce game
 	u32 IsTRIGame = 0;
-	if(ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
+	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
 		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
 	if(IsTRIGame == 0)
 	{
+		// Attempt to load the GameCube IPL.
 		char iplchar[32];
-		memset(iplchar,0,32);
-		if((ncfg->GameID & 0xFF) == 'E')
-			snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
-		else if((ncfg->GameID & 0xFF) == 'J')
-			snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
-		else if(!IsWiiU())
-			snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
-		FILE *f = fopen(iplchar, "rb");
-		if(f != NULL)
+		iplchar[0] = 0;
+		switch (ncfg->GameID & 0xFF)
 		{
-			fseek(f, 0, SEEK_END);
-			size_t fsize = ftell(f);
-			if(fsize == 2097152)
+			case 'E':	// USA region
+				snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
+				break;
+			case 'J':	// JPN region
+				snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
+				break;
+			case 'P':	// PAL region
+				// FIXME: PAL IPL is broken on Wii U.
+				if (!IsWiiU())
+					snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
+				break;
+			default:
+				break;
+		}
+
+		FIL f;
+		if (iplchar[0] != 0 &&
+		    f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
+		{
+			if (f.obj.objsize == GCN_IPL_SIZE)
 			{
-				fseek(f, 0, SEEK_SET);
-				iplbuf = malloc(2097152);
-				fread(iplbuf, 1, 2097152, f);
-				useipl = true;
+				iplbuf = malloc(GCN_IPL_SIZE);
+				UINT read;
+				f_read(&f, iplbuf, GCN_IPL_SIZE, &read);
+				useipl = (read == GCN_IPL_SIZE);
 			}
-			fclose(f);
+			f_close(&f);
 		}
 	}
 	else
 	{
+		// Attempt to load the Triforce IPL. (segaboot)
 		char iplchar[32];
 		snprintf(iplchar, sizeof(iplchar), "%s:/segaboot.bin", GetRootDevice());
-		FILE *f = fopen(iplchar, "rb");
-		if(f != NULL)
+		FIL f;
+		if (f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 		{
-			fseek(f, 0, SEEK_END);
-			size_t fsize = ftell(f);
-			if(fsize == 1048576)
+			if (f.obj.objsize == TRI_IPL_SIZE)
 			{
-				fseek(f, 0x20, SEEK_SET);
+				f_lseek(&f, 0x20);
 				void *iplbuf = (void*)0x92A80000;
-				fread(iplbuf, 1, 1048576 - 0x20, f);
-				DCFlushRange(iplbuf, 1048576);
-				useipltri = true;
+				UINT read;
+				f_read(&f, iplbuf, TRI_IPL_SIZE - 0x20, &read);
+				useipltri = (read == (TRI_IPL_SIZE - 0x20));
 			}
-			fclose(f);
+			f_close(&f);
 		}
 	}
-//sync changes
+
+	//sync changes
 	CloseDevices();
 
 	WPAD_Disconnect(0);
@@ -613,7 +760,7 @@ int main(int argc, char **argv)
 	WUPC_Shutdown();
 	WPAD_Shutdown();
 
-//before flushing do game specific patches
+	//before flushing do game specific patches
 	if(ncfg->Config & NIN_CFG_FORCE_PROG &&
 			ncfg->GameID == 0x47584745)
 	{	//Mega Man X Collection does progressive ingame so
@@ -622,7 +769,7 @@ int main(int argc, char **argv)
 		ncfg->Config &= ~NIN_CFG_FORCE_PROG;
 	}
 
-//make sure the cfg gets to the kernel
+	//make sure the cfg gets to the kernel
 	DCStoreRange((void*)ncfg, sizeof(NIN_CFG));
 
 //set current time
@@ -982,4 +1129,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-

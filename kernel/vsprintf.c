@@ -10,8 +10,8 @@
  */
 
 #include "vsprintf.h"
-#include "ff.h"
 #include "Config.h"
+#include "ff_utf8.h"
 
 static FIL dbgfile;
 static int file_opened = -1;

@@ -24,7 +24,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "string.h"
 #include "common.h"
 #include "alloc.h"
-#include "ff.h"
 #include "dol.h"
 #include "Config.h"
 #include "Patch.h"
@@ -35,6 +34,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "HID.h"
 #include "BT.h"
 #include "usbstorage.h"
+
+#include "ff_utf8.h"
 static u8 DummyBuffer[0x1000] __attribute__((aligned(32)));
 extern u32 s_cnt;
 

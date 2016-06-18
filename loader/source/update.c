@@ -26,8 +26,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <unistd.h>
 #include <malloc.h>
 #include <network.h>
-#include <fat.h>
-#include <dirent.h>
 #include <zlib.h>
 #include <ogc/lwp_watchdog.h>
 
@@ -39,8 +37,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ssl.h"
 #include "menu.h"
 #include "update.h"
-#include "unzip/miniunz.h"
 #include "../../common/include/NintendontVersion.h"
+
+#include "ff_utf8.h"
+#include "unzip/miniunz.h"
+#include "unzip/ioapi_ff.h"
 
 extern char launch_dir[MAXPATHLEN];
 
@@ -67,27 +68,30 @@ static const downloads_t Downloads[] = {
 
 static int UnzipControllers(const char* filepath) {
 	char unzip_directory[20];
-	unzFile uf = unzOpen(filepath);
-	if (uf==NULL)
-	{
+
+	zlib_filefunc_def zfunc;
+	fill_ff_filefunc(&zfunc);
+	unzFile uf = unzOpen2(filepath, &zfunc);
+	if (!uf) {
 		gprintf("Cannot open %s, aborting\r\n", Downloads[DOWNLOAD_CONTROLLERS].filename);
 		return -1;
 	}
 	gprintf("%s opened\n", Downloads[DOWNLOAD_CONTROLLERS].filename);
 	
-	sprintf(unzip_directory, "%s:/controllers", UseSD ? "sd" : "usb");
-	mkdir(unzip_directory,S_IWRITE|S_IREAD); // attempt to make dir
-	if(chdir(unzip_directory)) {
+	snprintf(unzip_directory, sizeof(unzip_directory), "%s:/controllers", UseSD ? "sd" : "usb");
+	f_mkdir_char(unzip_directory); // attempt to make dir
+	if (f_chdir_char(unzip_directory) != FR_OK) {
 		gprintf("Error changing into %s, aborting\r\n", unzip_directory);
 		return -2;
 	}
 
-	if (extractZip(uf,0,1,0)) {
+	if (extractZip(uf, 0, 1, 0)) {
 		gprintf("Failed to extract %s\r\n", filepath);
 		return -3;
 	}
 
 	unzCloseCurrentFile(uf);
+	unzClose(uf);
 	remove(Downloads[DOWNLOAD_CONTROLLERS].filename);
 	return 1;
 }
@@ -160,16 +164,19 @@ static s32 Download(DOWNLOADS download_number)  {
 	u8* outbuf = NULL;
 	u32 filesize;
 	char filepath[MAXPATHLEN];
-	FILE *file;
 	bool dir_argument_exists = strlen(launch_dir);
-	snprintf(filepath, sizeof(filepath), "%s%s", dir_argument_exists ? launch_dir : "/apps/Nintendont/", Downloads[download_number].filename);
+
+	snprintf(filepath, sizeof(filepath), "%s%s",
+		dir_argument_exists ? launch_dir : "/apps/Nintendont/",
+		Downloads[download_number].filename);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, Downloads[download_number].text);
 	UpdateScreen();
-	
+
+	// TODO: Use ioapi mem and skip writing the ZIP file to disk.
 	line++;
 	gprintf("Downloading %s to %s\r\n", Downloads[download_number].url, filepath);
 	ret = net_init();
-	if(ret < 0) {
+	if (ret < 0) {
 		gprintf("Failed to init network\r\n");
 		goto end;
 	}
@@ -193,6 +200,7 @@ static s32 Download(DOWNLOADS download_number)  {
 		UpdateScreen();
 		line++;
 	}
+
 	int i;
 	for (i = 0; i <= 10; i++) {
 		ret = http_request(Downloads[download_number].url, Downloads[download_number].max_size);
@@ -205,29 +213,35 @@ static s32 Download(DOWNLOADS download_number)  {
 	}
 
 	ret = http_get_result(&http_status, &outbuf, &filesize); 
-	if(((int)*outbuf & 0xF0000000) == 0xF0000000) 
-	{
+	if (((int)*outbuf & 0xF0000000) == 0xF0000000) {
 		ret = -2;
 		goto end;
 	}
+
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Download Complete");
 	UpdateScreen();
 	line++;
 	if (!dir_argument_exists) {
 		gprintf("Creating new directory\r\n");
-		mkdir("/apps", S_IWRITE|S_IREAD);
-		mkdir("/apps/Nintendont", S_IWRITE|S_IREAD);
+		f_mkdir_char("/apps");
+		f_mkdir_char("/apps/Nintendont");
 	}
-	file = fopen(filepath, "wb");
-	if(!file)
-	{
+
+	// Write the file to disk.
+	// TODO: Use ioapi mem and skip writing the ZIP file to disk.
+	FIL file;
+	if (f_open_char(&file, filepath, FA_WRITE|FA_CREATE_NEW) != FR_OK) {
 		gprintf("File Error\r\n");
 		ret = -3;
 		goto end;
 	} else {
-		fwrite(outbuf, filesize, 1, file);
-		fclose(file);
-		if (download_number == DOWNLOAD_CONTROLLERS) ret = UnzipControllers(filepath);
+		UINT wrote;
+		f_write(&file, outbuf, filesize, &wrote);
+		f_close(&file);
+		if (download_number == DOWNLOAD_CONTROLLERS) {
+			// controllers.zip needs to be decompressed.
+			ret = UnzipControllers(filepath);
+		}
 		if (ret == 1) {
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Update Complete");
 			UpdateScreen();

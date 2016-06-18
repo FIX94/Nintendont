@@ -39,6 +39,7 @@ THE SOFTWARE.
 #include "grrlib.h"
 #include "global.h"
 #include "exi.h"
+#include "ff_utf8.h"
 
 #define DEFAULT_FIFO_SIZE (256 * 1024) /**< GX fifo buffer size. */
 
@@ -937,7 +938,7 @@ void GRRLIB_CompoEnd(int posx, int posy, GRRLIB_texImg *tex) {
 extern  GRRLIB_drawSettings  GRRLIB_Settings;
 extern  Mtx                  GXmodelView2D;
 
-static  guVector  axis = (guVector){0, 0, 1};
+static  guVector  axis = {0, 0, 1};
 
 /**
  * Draw a texture.
@@ -1473,35 +1474,35 @@ void  GRRLIB_GeckoPrintf (const char *text, ...) {
  */
 int  GRRLIB_LoadFile(const char* filename, unsigned char* *data) {
 	int   len;
-	FILE  *fd;
+	FIL   fd;
 
 	// Open the file
-	if ( !(fd = fopen(filename, "rb")) ) {
+	if (f_open_char(&fd, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK) {
 		return -1;
 	}
 
 	// Get file length
-	fseek(fd, 0, SEEK_END);
-	if ( !(len = ftell(fd)) ) {
-		fclose(fd);
+	len = fd.obj.objsize;
+	if (len == 0) {
+		f_close(&fd);
 		*data = NULL;
 		return 0;
 	}
-	fseek(fd, 0, SEEK_SET);
 
 	// Grab some memory in which to store the file
 	if ( !(*data = malloc(len)) ) {
-		fclose(fd);
+		f_close(&fd);
 		return -2;
 	}
 
-	if ( fread(*data, 1, len, fd) != len) {
-		fclose(fd);
+	UINT read;
+	if ( f_read(&fd, *data, len, &read) != FR_OK || read != len ) {
+		f_close(&fd);
 		free(*data);  *data = NULL;
 		return -3;
 	}
 
-	fclose(fd);
+	f_close(&fd);
 	return len;
 }
 
@@ -1910,9 +1911,9 @@ Mtx       _GRR_view;  // Should be static as soon as all light functions needing
 static  guVector  _GRR_cam  = {0.0F, 0.0F, 0.0F},
 				  _GRR_up   = {0.0F, 1.0F, 0.0F},
 				  _GRR_look = {0.0F, 0.0F, -100.0F};
-static  guVector  _GRRaxisx = (guVector){1, 0, 0}; // DO NOT MODIFY!!!
-static  guVector  _GRRaxisy = (guVector){0, 1, 0}; // Even at runtime
-static  guVector  _GRRaxisz = (guVector){0, 0, 1}; // NOT ever!
+static  guVector  _GRRaxisx = {1, 0, 0}; // DO NOT MODIFY!!!
+static  guVector  _GRRaxisy = {0, 1, 0}; // Even at runtime
+static  guVector  _GRRaxisz = {0, 0, 1}; // NOT ever!
 static  Mtx 	  _ObjTransformationMtx;
 /**
  * Set the background parameter when screen is cleared.

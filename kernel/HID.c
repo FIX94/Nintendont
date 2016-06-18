@@ -19,11 +19,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include "HID.h"
-#include "ff.h"
 #include "Config.h"
 #include "hidmem.h"
 #include "usb.h"
 #include "HID_controllers.h"
+
+#include <stdlib.h>
+#include "ff_utf8.h"
+
 #ifndef DEBUG_HID
 #define dbgprintf(...)
 #else
@@ -783,7 +786,7 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 	switch (Entry)
 	{
 		case 0:
-			ret = atox(str);
+			ret = strtoul(str, NULL, 16);
 			break;
 
 		case 1:
@@ -796,7 +799,7 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 
 			str++; //Skip ,
 
-			ret = atox(str);
+			ret = strtoul(str, NULL, 16);
 			break;
 
 		case 2:
@@ -818,13 +821,13 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 
 			str++; //Skip the second ,
 
-			ret = atox(str);
+			ret = strtoul(str, NULL, 16);
 			break;
 
 		case 3:
 			for(i = 0; i < RawRumbleDataLen; ++i)
 			{
-				RawRumbleDataOn[i] = atox(str);
+				RawRumbleDataOn[i] = strtoul(str, NULL, 16);
 				str = strstr( str, "," )+1;
 			}
 			break;
@@ -832,7 +835,7 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 		case 4:
 			for(i = 0; i < RawRumbleDataLen; ++i)
 			{
-				RawRumbleDataOff[i] = atox(str);
+				RawRumbleDataOff[i] = strtoul(str, NULL, 16);
 				str = strstr( str, "," )+1;
 			}
 			break;
@@ -842,19 +845,6 @@ u32 ConfigGetValue( char *Data, const char *EntryName, u32 Entry )
 	}
 
 	return ret;
-}
-
-static int atoi(char *s)
-{
-	int i=0;
-	int val = 0;
-
-	while (s[i] >= '0' && s[i] <= '9')
-	{
-		val = val*10 + s[i] - '0';
-		i++;
-	}
-	return val;
 }
 
 u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
@@ -877,7 +867,7 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 	switch (Entry)
 	{
 		case 0:
-			ret = atoi(str);
+			ret = strtoul(str, NULL, 10);
 			break;
 
 		case 1:
@@ -890,7 +880,7 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 
 			str++; //Skip ,
 
-			ret = atoi(str);
+			ret = strtoul(str, NULL, 10);
 			break;
 
 		case 2:
@@ -912,7 +902,7 @@ u32 ConfigGetDecValue( char *Data, const char *EntryName, u32 Entry )
 
 			str++; //Skip the second ,
 
-			ret = atoi(str);
+			ret = strtoul(str, NULL, 10);
 			break;
 
 		default:

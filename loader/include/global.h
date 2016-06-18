@@ -72,6 +72,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define		HW_RESETS		(HW_REG_BASE + 0x194)
 
 #define ALIGNED(x) __attribute__((aligned(x)))
+#define NORETURN __attribute__ ((noreturn))
 
 #define ALIGN_FORWARD(x,align) \
 	((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
@@ -142,15 +143,27 @@ typedef struct
 } __attribute__((packed)) TitleMetaData;
 
 bool IsWiiU( void );
+// FIXME: This return type isn't quite correct...
 const char* const GetRootDevice();
 void RAMInit(void);
 void Initialise();
-bool LoadNinCFG();
+
+/**
+ * Load the configuration file from the root device.
+ * @return True if loaded successfully; false if not.
+ */
+bool LoadNinCFG(void);
+
 void UpdateNinCFG();
 bool IsGCGame(u8 *Buffer);
-u32 IsTRIGame(char *Path, u32 CurDICMD, u32 ISOShift);
-int CreateNewFile(char *Path, u32 size);
-void ExitToLoader(int ret);
+int CreateNewFile(const char *Path, u32 size);
+
+/**
+ * Exit Nintendont and return to the loader.
+ * @param ret Exit code.
+ */
+void ExitToLoader(int ret) NORETURN;
+
 void ClearScreen();
 void CloseDevices();
 void hexdump(void *d, int len);
@@ -160,6 +173,12 @@ void UpdateScreen(void);
 void Screenshot(void);
 raw_irq_handler_t BeforeIOSReload();
 void AfterIOSReload(raw_irq_handler_t handle, u32 rev);
+
+/** Device mount/unmount. **/
+#include "integer.h"	/* for WCHAR */
+const WCHAR *MountDevice(BYTE pdrv);
+int UnmountDevice(BYTE pdrv);
+void CloseDevices(void);
 
 #endif
 

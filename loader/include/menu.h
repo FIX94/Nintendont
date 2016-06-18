@@ -69,6 +69,29 @@ static inline void ShowLoadingScreen(void)
  */
 void PrintInfo(void);
 
-void PrintInfo( void );
+typedef enum {
+	LKERR_UNKNOWN,
+	LKERR_ES_GetStoredTMDSize,
+	LKERR_TMD_malloc,
+	LKERR_ES_GetStoredTMD,
+	LKERR_IOS_Open_shared1_content_map,
+	LKERR_HashNotFound,
+	LKERR_IOS_Open_IOS58_kernel,
+	LKERR_IOS_Read_IOS58_kernel,
+	
+} LoadKernelError_t;
+
+/**
+ * Print a LoadKernel() error message.
+ *
+ * This function does NOT force a return to loader;
+ * that must be handled by the caller.
+ * Caller must also call UpdateScreen().
+ *
+ * @param iosErr IOS loading error ID.
+ * @param err Return value from the IOS function.
+ */
+void PrintLoadKernelError(LoadKernelError_t iosErr, s32 err);
+
 void ReconfigVideo( GXRModeObj *vidmode );
 #endif

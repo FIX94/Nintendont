@@ -1,7 +1,8 @@
-
+// HID controller configuration loader.
 #include <gccore.h>
 #include "exi.h"
 #include "HID.h"
+#include "ff_utf8.h"
 
 #define HID_STATUS 0xD3003440
 #define HID_CHANGE (HID_STATUS+4)
@@ -15,42 +16,47 @@ void HIDUpdateRegisters()
 		return;
 	u32 DeviceVID = *(vu32*)HID_CHANGE;
 	u32 DevicePID = *(vu32*)HID_CFG_SIZE;
+	gprintf("Trying to get VID%04x PID%04x\n", DeviceVID, DevicePID);
 
 	/* I hope this covers all possible ini files */
-	gprintf("Trying to get VID%04x PID%04x\n", DeviceVID, DevicePID);
-	char filename[50];
-	snprintf(filename, sizeof(filename), "sd:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
-	FILE *f = fopen(filename, "rb");
-	if(f == NULL)
+	char file_sd[40];
+	char file_usb[40];
+	snprintf(file_sd, sizeof(file_sd), "sd:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
+	snprintf(file_usb, sizeof(file_usb), "usb:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
+
+	const char *const filenames[6] =
 	{
-		snprintf(filename, sizeof(filename), "usb:/controllers/%04X_%04X.ini", DeviceVID, DevicePID);
-		f = fopen(filename, "rb");
-		if(f == NULL)
-		{
-			f = fopen("sd:/controller.ini", "rb");
-			if(f == NULL)
-			{
-				fopen("sd:/controller.ini.ini", "rb");
-				if(f == NULL)
-				{
-					f = fopen("usb:/controller.ini", "rb");
-					if(f == NULL)
-						f = fopen("usb:/controller.ini.ini", "rb");
-				}
-			}
-		}
+		file_sd, file_usb,
+		"sd:/controller.ini",
+		"sd:/controller.ini.ini",
+		"usb:/controller.ini",
+		"usb:/controller.ini.ini"
+	};
+
+	int i;
+	FIL f;
+	FRESULT res = FR_DISK_ERR;
+	for (i = 0; i < 6; i++)
+	{
+		res = f_open_char(&f, filenames[i], FA_READ|FA_OPEN_EXISTING);
+		if (res == FR_OK)
+			break;
 	}
-	if(f != NULL)
+
+	if (res == FR_OK)
 	{
-		fseek(f, 0, SEEK_END);
-		size_t fsize = ftell(f);
-		rewind(f);
-		fread((void*)HID_CFG_FILE, 1, fsize, f);
+		size_t fsize = f.obj.objsize;
+		UINT read;
+		f_read(&f, (void*)HID_CFG_FILE, fsize, &read);
 		DCFlushRange((void*)HID_CFG_FILE, fsize);
-		fclose(f);
+		f_close(&f);
 		*(vu32*)HID_CFG_SIZE = fsize;
 	}
 	else
+	{
+		// No controller configuration file.
 		*(vu32*)HID_CFG_SIZE = 0;
+	}
+
 	*(vu32*)HID_CHANGE = 0;
 }

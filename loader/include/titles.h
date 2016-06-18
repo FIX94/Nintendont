@@ -22,7 +22,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef __TITLES_H__
 #define __TITLES_H__
 
-s32 LoadTitles(void);
+/**
+ * Load game titles from titles.txt.
+ * @return Number of titles loaded.
+ */
+int LoadTitles(void);
+
+/**
+ * Find a title in the titles database.
+ * Loaded from titles.txt, plus special exceptions for Triforce.
+ * @param titleID Title ID. (ID6)
+ * @return Title, or NULL if not found.
+ * WARNING: DO NOT FREE the returned title!
+ */
 const char *SearchTitles(const char *titleID);
 
 #endif

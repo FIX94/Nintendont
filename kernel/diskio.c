@@ -191,6 +191,7 @@ DRESULT disk_ioctl (
 	return RES_OK;
 }
 
+
 //we cant include time.h so hardcode what we need
 struct tm
 {
@@ -202,6 +203,7 @@ struct tm
 	int tm_year;
 };
 extern struct tm *gmtime(u32 *time);
+
 // Get the current system time as a FAT timestamp.
 DWORD get_fattime(void)
 {
@@ -218,9 +220,8 @@ DWORD get_fattime(void)
 }
 
 
-
 /*-----------------------------------------------------------------------*/
-/* Nintendont: Device type selection.                                    */
+/* Nintendont kernel: Device type selection.                             */
 /*-----------------------------------------------------------------------*/
 
 DiskReadFunc disk_read;

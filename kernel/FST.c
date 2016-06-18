@@ -19,7 +19,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include "FST.h"
-#include "ff.h"
 #include "common.h"
 #include "alloc.h"
 #include "vsprintf.h"
@@ -32,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int dbgprintf( const char *fmt, ...);
 #endif
 
+#include "ff_utf8.h"
 static u8 *FSTable ALIGNED(32);
 u32 ApploaderSize=0;
 u32 dolOffset=0;

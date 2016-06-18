@@ -85,12 +85,9 @@ typedef volatile signed short vs16;
 typedef volatile signed int vs32;
 typedef volatile signed long long vs64;
 
-typedef s32 size_t;
-
-typedef u32 u_int32_t;
-
-//libraries are built like that
-typedef s32 wchar_t;
+// Get default types from libc.
+// Includes 32-bit wchar_t.
+#include <stddef.h>
 
 typedef s32(*ipccallback)(s32 result,void *usrdata);
 
@@ -100,6 +97,7 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define NULL ((void *)0)
 
 #define ALIGNED(x) __attribute__((aligned(x)))
+#define NORETURN __attribute__ ((noreturn))
 
 #define STACK_ALIGN(type, name, cnt, alignment)         \
 	u8 _al__##name[((sizeof(type)*(cnt)) + (alignment) + \
