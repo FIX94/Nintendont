@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "asm/PADReadVS3.h"
 #include "asm/PADReadVS.h"
 #include "asm/CheckTestMenu.h"
+#include "asm/CheckTestMenuGP.h"
 #include "asm/CheckTestMenuVS.h"
 #include "asm/CheckTestMenuYakyuu.h"
 #include "asm/RestoreSettingsAXUnk.h"
@@ -167,10 +168,15 @@ void TRISetupGames()
 		//cam loop
 		write32( 0x009F1E0, 0x60000000 );
 
-		//Enter test mode (anti-freeze)
-		write32( 0x0031BF0, 0x60000000 );
+		//fake 0x29 DI CMD version
+		write32( 0x0257DD4, 0x2C040000 );
+		write32( 0x0257E08, 0x38600000 );
+
 		//Allow test menu if requested
-		PatchBL( PatchCopy(CheckTestMenu, CheckTestMenu_size), 0x31BF4 );
+		PatchBL( PatchCopy(CheckTestMenuGP, CheckTestMenuGP_size), 0x31BE8 );
+
+		//dont wait for other cabinets to link up
+		write32( 0x00328F4, 0x38600000 );
 
 		//Remove some menu timers
 		write32( 0x0019BFF8, 0x60000000 ); //card check
@@ -225,10 +231,15 @@ void TRISetupGames()
 		//Unlimited CARD uses
 		write32( 0x00A02F8, 0x60000000 );
 
-		//Enter test mode (anti-freeze)
-		write32( 0x002E340, 0x60000000 );
+		//fake 0x29 DI CMD version
+		write32( 0x0293A4C, 0x2C040000 );
+		write32( 0x0293A80, 0x38600000 );
+
 		//Allow test menu if requested
-		PatchBL( PatchCopy(CheckTestMenu, CheckTestMenu_size), 0x2E344 );
+		PatchBL( PatchCopy(CheckTestMenuGP, CheckTestMenuGP_size), 0x2E338 );
+
+		//dont wait for other cabinets to link up
+		write32( 0x002F054, 0x38600000 );
 
 		//Disable wheel
 		write32( 0x0073BD4, 0x98650022 );

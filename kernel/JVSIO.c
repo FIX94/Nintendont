@@ -137,7 +137,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					case TRI_YAK:
 					case TRI_VS3:
 					{
-						// 2 Player, 1 Coin slot, no Analog-in
+						// 2 Player (9bit), 1 Coin slot, no Analog-in
 						addDataBuffer((void *)"\x01\x02\x09\x00", 4);
 						addDataBuffer((void *)"\x02\x01\x00\x00", 4);
 						addDataBuffer((void *)"\x03\x00\x00\x00", 4);
@@ -146,7 +146,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					} break;
 					case TRI_VS4:
 					{
-						// 2 Player, 1 Coin slot, 4 Analog-in
+						// 2 Player (10bit), 1 Coin slot, 4 Analog-in
 						addDataBuffer((void *)"\x01\x02\x0A\x00", 4);
 						addDataBuffer((void *)"\x02\x01\x00\x00", 4);
 						addDataBuffer((void *)"\x03\x04\x00\x00", 4);
@@ -155,7 +155,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					} break;
 					case TRI_AX:
 					{
-						// 2 Player (p2=paddles), 1 Coin slot, 6 Analog-in
+						// 2 Player (12bit) (p2=paddles), 1 Coin slot, 6 Analog-in
 						addDataBuffer((void *)"\x01\x02\x0C\x00", 4);
 						addDataBuffer((void *)"\x02\x01\x00\x00", 4);
 						addDataBuffer((void *)"\x03\x06\x00\x00", 4);
@@ -164,11 +164,12 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					} break;
 					default:
 					{
-						// 1 Player, 1 Coin slot, 3 Analog-in
+						// 1 Player (15bit), 1 Coin slot, 3 Analog-in, CARD, 8bit GPO
 						addDataBuffer((void *)"\x01\x01\x0F\x00", 4);
 						addDataBuffer((void *)"\x02\x01\x00\x00", 4);
 						addDataBuffer((void *)"\x03\x03\x00\x00", 4);
 						addDataBuffer((void *)"\x10\x01\x00\x00", 4);
+						addDataBuffer((void *)"\x12\x08\x00\x00", 4);
 						addDataBuffer((void *)"\x00\x00\x00\x00", 4);
 					} break;
 				}

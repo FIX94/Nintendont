@@ -461,7 +461,10 @@ void DIUpdateRegisters( void )
 					#ifdef DEBUG_GCAM
 					dbgprintf("GC-AM: 0x12\n");
 					#endif
-					write32( DI_IMM, 0x21000000 );
+					//if(TRIGame == TRI_GP2) //this is what it SHOULD be
+					//	write32( DI_IMM, 0x29000000 );
+					//else
+						write32( DI_IMM, 0x21000000 );
 				}
 				else if(read32(DI_CMD_2) == 32)
 				{
