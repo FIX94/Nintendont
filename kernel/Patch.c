@@ -2557,6 +2557,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							else
 								CurPatterns[j].Found = 0; // False hit
 						} break;
+						case FCODE_IsTriforceType3:
+						{
+							if(read32(FOffset + 0x290) == 0x5460063F && read32(FOffset + 0x2C8) == 0x2C030000)
+							{
+								/* Fake 0x29 DI CMD version to prevent freezes on newer triforce games */
+								write32( FOffset + 0x290, 0x2C040000 ); //fake compare result to continue
+								write32( FOffset + 0x2C4, 0x38600000 ); //dont change type, just return ok
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else
+								CurPatterns[j].Found = 0; // False hit
+						} break;
 						case FCODE_GCAMSendCommand:
 						{
 							if(read32(FOffset + 0x2C) == 0x38C40080)

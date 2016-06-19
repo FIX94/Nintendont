@@ -62,10 +62,16 @@ static u32 TRIBackupOffset= 0;
 static u32 EXI2IRQ			= 0;
 static u32 EXI2IRQStatus	= 0;
 
+static u8 *ambbBackupMem;
+
 void EXIInit( void )
 {
 	dbgprintf("EXIInit Start\r\n");
 	u32 wrote, ret;
+
+	//some important memory for triforce
+	ambbBackupMem = malloca(0x10000, 0x40);
+	memset32(ambbBackupMem, 0xFF, 0x10000);
 
 	memset32((void*)EXI_BASE, 0, 0x20);
 	sync_after_write((void*)EXI_BASE, 0x20);
@@ -585,7 +591,7 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 					} break;
 					case 0x02:
 					{
-						MCard[TRIBackupOffset] = ((u32)Data >> 16) & 0xFF;
+						ambbBackupMem[TRIBackupOffset] = ((u32)Data >> 16) & 0xFF;
 						EXICommand = AMBB_BACKUP_WRITE;
 					} break;
 					case 0x03:
@@ -663,7 +669,7 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 			/* 0x03 */
 			case AMBB_BACKUP_READ:
 			{
-				write32( EXI_CMD_1, 0x0100 | MCard[TRIBackupOffset] );
+				write32( EXI_CMD_1, 0x0100 | ambbBackupMem[TRIBackupOffset] );
 			} break;
 			/* 0x87 */
 			case AMBB_IMR_WRITE:
@@ -868,4 +874,32 @@ void EXIReadFontFile(u8* Data, u32 Length)
 {
 	memcpy(Data, FontBuf + IPLReadOffset - IPL_ROM_FONT_SJIS, Length);
 	sync_after_write(Data, Length);
+}
+
+//SegaBoot 3.11 with Free Play enabled
+unsigned int sb311block[54] =
+{
+    0x41434255, 0x30303031, 0x007D0512, 0x01000000, 0x00000311, 0x53424C4B, 
+    0x00000000, 0x63090400, 0x01010A01, 0x01010001, 0x01010101, 0x01010101, 
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000001, 
+    0x00000000, 0x00000000, 0x00000000, 0x00000001, 0x00000000, 0x00000000, 
+    0x00000000, 0x00000001, 0x00000000, 0x00000000, 0x00000000, 0x00000001, 
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x200E1AFF,
+    0xFFFF0000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+} ;
+
+static bool TRIGameStarted = false;
+//make sure ambbBackupMem is filled correctly
+void EXIPrepareTRIGameStart()
+{
+	if(TRIGameStarted)
+		return;
+	dbgprintf("TRI:Setting up AMBB memory\r\n");
+	memset32(ambbBackupMem, 0, 0x400);
+	memcpy(ambbBackupMem, sb311block, sizeof(sb311block));
+	memcpy(ambbBackupMem + 0x200, sb311block, sizeof(sb311block));
+	memset32(ambbBackupMem + 0x400, 0xFF, 0x10000 - 0x400);
+	TRIGameStarted = true;
 }

@@ -553,10 +553,10 @@ void DIUpdateRegisters( void )
 							// Progress in %
 							*(u32*)(MediaBuffer+8) = bswap32(100);
 						break;
-						// Media board version: 3.03
+						// Media board version: 13.05
 						case 0x101:
 							// Version
-							*(u16*)(MediaBuffer+4) = 0x0303;
+							*(u16*)(MediaBuffer+4) = bswap16(0x1305);
 							// Unknown
 							*(u16*)(MediaBuffer+6) = 0x01;
 							*(u32*)(MediaBuffer+8) = 1;
@@ -564,7 +564,7 @@ void DIUpdateRegisters( void )
 						break;
 						// System flags
 						case 0x102:
-							// 1: GD-ROM					
+							// 1: GD-ROM
 							MediaBuffer[4] = 1;
 							MediaBuffer[5] = 0;
 							// enable development mode (Sega Boot)

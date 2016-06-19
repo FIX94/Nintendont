@@ -18,9 +18,7 @@ extern vu32 m_ptr;
 extern vu8 m_msg[0x80];
 
 extern vu32 TRIGame;
-vu32 TRICoinOffset = 0;
 vu32 AXTimerOffset = 0;
-void *TRICoinOffsetAligned = 0;
 static const char *TRI_SegaChar = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
 static const char *TRI_NamcoChar = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
 static const u32 TRI_DefaultCoinCount = 9;
@@ -45,12 +43,6 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 	//																DataIn[DataPos+6],
 	//																DataIn[DataPos+7] );
 
-	if(TRICoinOffset)
-	{
-		sync_before_read( TRICoinOffsetAligned, 0x20 );
-		write32( TRICoinOffset, TRI_DefaultCoinCount );
-		sync_after_write( TRICoinOffsetAligned, 0x20 );
-	}
 	if(AXTimerOffset)
 	{
 		sync_before_read( (void*)AXTimerOffset, 0x20 );
@@ -164,12 +156,12 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					} break;
 					default:
 					{
-						// 1 Player (15bit), 1 Coin slot, 3 Analog-in, CARD, 8bit GPO
+						// 1 Player (15bit), 1 Coin slot, 3 Analog-in, 1 CARD, 1 Driver-out
 						addDataBuffer((void *)"\x01\x01\x0F\x00", 4);
 						addDataBuffer((void *)"\x02\x01\x00\x00", 4);
 						addDataBuffer((void *)"\x03\x03\x00\x00", 4);
 						addDataBuffer((void *)"\x10\x01\x00\x00", 4);
-						addDataBuffer((void *)"\x12\x08\x00\x00", 4);
+						addDataBuffer((void *)"\x12\x01\x00\x00", 4);
 						addDataBuffer((void *)"\x00\x00\x00\x00", 4);
 					} break;
 				}

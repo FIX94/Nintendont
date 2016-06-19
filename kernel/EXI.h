@@ -91,6 +91,7 @@ void EXIShutdown( void );
 void EXISaveCard(void);
 bool EXICheckCard(void);
 void EXIReadFontFile(u8* Data, u32 Length);
+void EXIPrepareTRIGameStart();
 
 #endif
 
