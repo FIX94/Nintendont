@@ -14,6 +14,7 @@ PREFIX	:= $(DEVKITARM)/bin/arm-none-eabi-
 CC	:= $(PREFIX)gcc
 AS	:= $(PREFIX)as
 LD	:= $(PREFIX)gcc
+AR	:= $(PREFIX)ar
 STRIP	:= $(PREFIX)strip
 
 CFLAGS	:= -mbig-endian -O3 -std=gnu89 -g -I. -Wall \
