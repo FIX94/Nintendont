@@ -540,13 +540,22 @@ void TRISetupGames()
 		//dcbst r7 (0 from memset), r4 (0x05D25C0-0x1408 from write32 above)
 		write32( 0x1C5E40, 0x7C07206C );
 
-		//Partially skip media board init (ugly for now)
-		write32( 0x1C7B58, 0x60000000 ); 
+		/* all of the 6 patches below are needed to make the
+		media board i/o conform to our emulation in DI.c */
 
-		//I dont like the missing media board id print so...
-		memcpy( (void*)0x5D1086, "A89E-28A48984511", 17 );
-		write32( 0x14A060, 0x388DEAC6 ); //addi r4, r13, 0x153A
-		
+		//do write to media board first
+		PatchB(0x2356D8,0x23563C);
+		//do read from media board next
+		PatchB(0x23564C,0x235778);
+		//make sure to read into the correct area
+		write32(0x23564C,0x3BDEFFE0);
+		//also make sure to read back the correct media board offset
+		write32(0x235660,0x8366000C);
+		//done reading from media board, jump to successful end
+		PatchB(0x2357B8,0x2356C0);
+		//dont start media board threads which would only mess up
+		write32(0x23790C,0x60000000);
+
 		//Modify to regular GX pattern to patch later
 		write32( 0x26E7E8, 0x00 ); //NTSC Interlaced
 
