@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "FST.h"
 #include "DI.h"
 #include "EXI.h"
+#include "GCNCard.h"
 #include "debug.h"
 #include "wdvd.h"
 
@@ -403,8 +404,8 @@ void ISOSetupCache()
 		u32 MemCardSize = 0;
 		if (ConfigGetConfig(NIN_CFG_MEMCARDEMU))
 		{
-			// Get the total card size from EXI.c.
-			MemCardSize = EXIGetTotalCardSize();
+			// Get the total card size from GCNCard.c.
+			MemCardSize = GCNCard_GetTotalSize();
 		}
 		DCCache += MemCardSize; //memcard is before cache
 		DCacheLimit -= MemCardSize;
