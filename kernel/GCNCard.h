@@ -6,6 +6,11 @@
 
 #include "global.h"
 
+// Uncomment this to enable Slot B support.
+// NOTE: Slot B is currently broken, and will
+// show up as "damaged" or "unusable".
+//#define GCNCARD_ENABLE_SLOT_B 1
+
 /**
  * Is a memory card enabled?
  * @param slot Slot number. (0 == Slot A, 1 == Slot B)
