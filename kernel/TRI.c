@@ -45,6 +45,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "asm/RestoreSettingsVS4EXP.h"
 #include "asm/RestoreSettingsVS4V06JAP.h"
 #include "asm/RestoreSettingsVS4V06EXP.h"
+#include "asm/PADControlMotorGP.h"
 
 static const char *SETTINGS_AX_UNK = "/saves/AX_UNKsettings.bin";
 static const char *SETTINGS_AX_RVC = "/saves/AX_RVCsettings.bin";
@@ -156,7 +157,7 @@ void TRISetupGames()
 		write32( 0x00328F4, 0x38600000 );
 
 		//Disable wheel/handle
-		write32( 0x007909C, 0x98650022 );
+		//write32( 0x007909C, 0x98650022 );
 
 		//Disable cam
 		write32( 0x00790A0, 0x98650025 );
@@ -196,7 +197,10 @@ void TRISetupGames()
 		//memcpy( (void*)0x036369C, (void*)0x040EB88, 0x3C );
 
 		//PAD Hook for control updates
-		PatchBL(PatchCopy(PADReadGP, PADReadGP_size), 0x3C2A0 );
+		PatchBL( PatchCopy(PADReadGP, PADReadGP_size), 0x3C2A0 );
+
+		// Game specific rumble hook
+		PatchBL( PatchCopy(PADControlMotorGP, PADControlMotorGP_size), 0x3AA40 );
 
 		//some report check skip
 		//write32( 0x00307CC, 0x60000000 );
@@ -223,7 +227,7 @@ void TRISetupGames()
 		write32( 0x002F054, 0x38600000 );
 
 		//Disable wheel
-		write32( 0x0073BD4, 0x98650022 );
+		//write32( 0x0073BD4, 0x98650022 );
 
 		//Disable cam
 		write32( 0x0073BD8, 0x98650025 );
@@ -263,7 +267,10 @@ void TRISetupGames()
 		write32( 0x3F1FD0, 0x00 ); //NTSC Interlaced
 
 		//PAD Hook for control updates
-		PatchBL(PatchCopy(PADReadGP, PADReadGP_size), 0x38A34 );
+		PatchBL( PatchCopy(PADReadGP, PADReadGP_size), 0x38A34 );
+
+		// Game specific rumble hook
+		PatchBL( PatchCopy(PADControlMotorGP, PADControlMotorGP_size), 0x3717C );
 
 		//memcpy( (void*)0x002CE3C, OSReportDM, sizeof(OSReportDM) );
 		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
