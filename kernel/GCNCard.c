@@ -16,8 +16,15 @@ typedef struct _GCNCard_ctx {
 	char filename[0x20];    // Memory Card filename.
 	u8 *base;               // Base address.
 	u32 size;               // Size, in bytes.
-	bool changed;           // True if modified.
 	u32 code;               // Memory card "code".
+
+	// BlockOffLow starts from 0xA000; does not include "system" blocks.
+	// For system blocks, check 'changed_system'.
+	bool changed;		// True if the card has been modified at all.
+				// (NOTE: Reset after calling GCNCard_CheckChanges().)
+	bool changed_system;	// True if the system area (first 5 blocks)
+				// has been modified. These blocks are NOT
+				// included in BlockOffLow / BlockOffHigh.
 
 	// NOTE: BlockOff is in bytes, not blocks.
 	u32 BlockOff;           // Current offset.
@@ -275,6 +282,7 @@ bool GCNCard_CheckChanges(void)
 	bool ret = false;
 	for (slot = 0; slot < ARRAY_SIZE(memCard); slot++)
 	{
+		// CHeck if the memory card is dirty in general.
 		if (memCard[slot].changed)
 		{
 			memCard[slot].changed = false;
@@ -306,7 +314,8 @@ void GCNCard_Save(void)
 
 		// Does this card have any unsaved changes?
 		GCNCard_ctx *const ctx = &memCard[slot];
-		if (ctx->BlockOffLow < ctx->BlockOffHigh)
+		if (ctx->changed_system ||
+		    ctx->BlockOffLow < ctx->BlockOffHigh)
 		{
 //#ifdef DEBUG_EXI
 			//dbgprintf("EXI: Saving memory card in Slot %c...", (slot+'A'));
@@ -317,9 +326,22 @@ void GCNCard_Save(void)
 			{
 				UINT wrote;
 				sync_before_read(ctx->base, ctx->size);
-				f_lseek(&fd, ctx->BlockOffLow);
-				f_write(&fd, &ctx->base[ctx->BlockOffLow],
-					(ctx->BlockOffHigh - ctx->BlockOffLow), &wrote);
+
+				// Save the system area, if necessary.
+				if (ctx->changed_system)
+				{
+					f_lseek(&fd, 0);
+					f_write(&fd, ctx->base, 0xA000, &wrote);
+				}
+
+				// Save the general area, if necessary.
+				if (ctx->BlockOffLow < ctx->BlockOffHigh)
+				{
+					f_lseek(&fd, ctx->BlockOffLow);
+					f_write(&fd, &ctx->base[ctx->BlockOffLow],
+						(ctx->BlockOffHigh - ctx->BlockOffLow), &wrote);
+				}
+
 				f_close(&fd);
 //#ifdef DEBUG_EXI
 				//dbgprintf("Done!\r\n");
@@ -329,9 +351,11 @@ void GCNCard_Save(void)
 			{
 				dbgprintf("\r\nEXI: Unable to open Slot %c memory card file: %u\r\n", (slot+'A'), ret);
 			}
+
 			// Reset the low/high offsets to indicate that everything has been saved.
 			ctx->BlockOffLow = 0xFFFFFFFF;
 			ctx->BlockOffHigh = 0x00000000;
+			ctx->changed_system = false;
 		}
 	}
 }
@@ -373,13 +397,38 @@ void GCNCard_Write(int slot, const void *data, u32 length)
 	if (!GCNCard_IsEnabled(slot))
 		return;
 	GCNCard_ctx *const ctx = &memCard[slot];
-
-	// Update the block offsets for saving.
-	if (ctx->BlockOff < ctx->BlockOffLow)
-		ctx->BlockOffLow = ctx->BlockOff;
-	if (ctx->BlockOff + length > ctx->BlockOffHigh)
-		ctx->BlockOffHigh = ctx->BlockOff + length;
 	ctx->changed = true;
+
+	// Is this update entirely within the "system area"?
+	if (ctx->BlockOff < 0xA000 && ctx->BlockOff + length < 0xA000)
+	{
+		// This update is entirely within the "system area".
+		// Only set the flag; don't set block offsets.
+		ctx->changed_system = true;
+	}
+	else
+	{
+		// Update the block offsets for saving.
+		if (ctx->BlockOff < ctx->BlockOffLow)
+			ctx->BlockOffLow = ctx->BlockOff;
+		if (ctx->BlockOff + length > ctx->BlockOffHigh)
+			ctx->BlockOffHigh = ctx->BlockOff + length;
+		ctx->changed = true;
+
+		if (ctx->BlockOff < 0xA000)
+		{
+			// System area as well as general area.
+			ctx->changed_system = true;
+		}
+		if (ctx->BlockOffLow < 0xA000)
+		{
+			// BlockOffLow shouldn't be less than 0xA000.
+			// Otherwise, we end up with double writing.
+			// (Not a problem; just wastes time.)
+			ctx->BlockOffLow = 0xA000;
+			ctx->changed_system = true;
+		}
+	}
 
 	// FIXME: Verify that this doesn't go out of bounds.
 	sync_before_read((void*)data, length);
