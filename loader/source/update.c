@@ -41,7 +41,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "ff_utf8.h"
 #include "unzip/miniunz.h"
-#include "unzip/ioapi_ff.h"
+#include "unzip/ioapi.h"
 
 extern char launch_dir[MAXPATHLEN];
 
@@ -66,19 +66,18 @@ static const downloads_t Downloads[] = {
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/common/include/NintendontVersion.h", "Checking Latest Version", "", 0x400} // 1KB
 };
 
-static int UnzipControllers(const char* filepath) {
-	char unzip_directory[20];
-
-	zlib_filefunc_def zfunc;
-	fill_ff_filefunc(&zfunc);
-	unzFile uf = unzOpen2(filepath, &zfunc);
+extern void changeToDefaultDrive();
+static int UnzipControllers(const void *buf, size_t fSize) {
+	char filepath[20];
+	snprintf(filepath,20,"%x+%x",(u32)buf,(u32)fSize);
+	static const char *unzip_directory = "/controllers";
+	unzFile uf = unzOpen(filepath);
 	if (!uf) {
 		gprintf("Cannot open %s, aborting\r\n", Downloads[DOWNLOAD_CONTROLLERS].filename);
 		return -1;
 	}
 	gprintf("%s opened\n", Downloads[DOWNLOAD_CONTROLLERS].filename);
-	
-	snprintf(unzip_directory, sizeof(unzip_directory), "%s:/controllers", UseSD ? "sd" : "usb");
+	f_chdrive_char(UseSD ? "sd:" : "usb:");
 	f_mkdir_char(unzip_directory); // attempt to make dir
 	if (f_chdir_char(unzip_directory) != FR_OK) {
 		gprintf("Error changing into %s, aborting\r\n", unzip_directory);
@@ -93,6 +92,7 @@ static int UnzipControllers(const char* filepath) {
 	unzCloseCurrentFile(uf);
 	unzClose(uf);
 	remove(Downloads[DOWNLOAD_CONTROLLERS].filename);
+	changeToDefaultDrive();
 	return 1;
 }
 
@@ -228,25 +228,28 @@ static s32 Download(DOWNLOADS download_number)  {
 	}
 
 	// Write the file to disk.
-	// TODO: Use ioapi mem and skip writing the ZIP file to disk.
-	FIL file;
-	if (f_open_char(&file, filepath, FA_WRITE|FA_CREATE_NEW) != FR_OK) {
-		gprintf("File Error\r\n");
-		ret = -3;
-		goto end;
-	} else {
-		UINT wrote;
-		f_write(&file, outbuf, filesize, &wrote);
-		f_close(&file);
-		if (download_number == DOWNLOAD_CONTROLLERS) {
-			// controllers.zip needs to be decompressed.
-			ret = UnzipControllers(filepath);
+	if (download_number == DOWNLOAD_CONTROLLERS) {
+		// controllers.zip needs to be decompressed.
+		ret = UnzipControllers(outbuf, filesize);
+	}
+	else
+	{
+		FIL file;
+		if (f_open_char(&file, filepath, FA_WRITE|FA_CREATE_ALWAYS) != FR_OK) {
+			gprintf("File Error\r\n");
+			ret = -3;
+			goto end;
+		} else {
+			UINT wrote;
+			f_write(&file, outbuf, filesize, &wrote);
+			f_close(&file);
+			ret = 1;
 		}
-		if (ret == 1) {
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Update Complete");
-			UpdateScreen();
-			line++;
-		}
+	}
+	if (ret == 1) {
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Update Complete");
+		UpdateScreen();
+		line++;
 	}
 
 end:

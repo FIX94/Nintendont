@@ -193,6 +193,13 @@ static void updateMetaXml(void)
 	}
 }
 
+static const WCHAR *primaryDevice;
+void changeToDefaultDrive()
+{
+	f_chdrive(primaryDevice);
+	f_chdir_char("/");
+}
+
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -302,7 +309,8 @@ int main(int argc, char **argv)
 		if (devNameFF && !foundOneDevice)
 		{
 			// Set this device as primary.
-			f_chdrive(devNameFF);
+			primaryDevice = devNameFF;
+			changeToDefaultDrive();
 			foundOneDevice = true;
 		}
 	}

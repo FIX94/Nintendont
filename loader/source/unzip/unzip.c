@@ -416,7 +416,7 @@ extern unzFile ZEXPORT unzOpen2 (path, pzlib_filefunc_def)
         return NULL;
 
     if (pzlib_filefunc_def==NULL)
-        fill_fopen_filefunc(&us.z_filefunc);
+        fill_memory_filefunc(&us.z_filefunc);
     else
         us.z_filefunc = *pzlib_filefunc_def;
 

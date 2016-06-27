@@ -1,8 +1,6 @@
 /* ioapi.h -- IO base function header for compress/uncompress .zip
    files using zlib + zip or unzip API
-
    Version 1.01e, February 12th, 2005
-
    Copyright (C) 1998-2005 Gilles Vollant
 */
 
@@ -57,7 +55,7 @@ typedef struct zlib_filefunc_def_s
 
 
 
-void fill_fopen_filefunc OF((zlib_filefunc_def* pzlib_filefunc_def));
+void fill_memory_filefunc OF((zlib_filefunc_def* pzlib_filefunc_def));
 
 #define ZREAD(filefunc,filestream,buf,size) ((*((filefunc).zread_file))((filefunc).opaque,filestream,buf,size))
 #define ZWRITE(filefunc,filestream,buf,size) ((*((filefunc).zwrite_file))((filefunc).opaque,filestream,buf,size))
@@ -72,4 +70,3 @@ void fill_fopen_filefunc OF((zlib_filefunc_def* pzlib_filefunc_def));
 #endif
 
 #endif
-
