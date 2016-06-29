@@ -2,7 +2,7 @@
 
 Nintendont (Loader) - Playing Gamecubes in Wii mode on a Wii U
 
-Copyright (C) 2015  FIX94
+Copyright (C) 2015-2016  FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -29,8 +29,8 @@ static const char CARD_NAME_GP1[] = "/saves/GP1.bin";
 static const char CARD_NAME_GP2[] = "/saves/GP2.bin";
 static const char CARD_NAME_AX[] = "/saves/AX.bin";
 
-static const char SETTINGS_AX_UNK[] = "/saves/AX_UNKsettings.bin";
 static const char SETTINGS_AX_RVC[] = "/saves/AX_RVCsettings.bin";
+static const char SETTINGS_AX_RVD[] = "/saves/AX_RVDsettings.bin";
 static const char SETTINGS_AX_RVE[] = "/saves/AX_RVEsettings.bin";
 static const char SETTINGS_YAKRVB[] = "/saves/YAKRVBsettings.bin";
 static const char SETTINGS_YAKRVC[] = "/saves/YAKRVCsettings.bin";
@@ -98,25 +98,16 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 	if(DOLRead32(0x210320, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Mario Kart GP1\r\n");
+		gprintf("TRI:Mario Kart Arcade GP (Feb 14 2006 13:09:48)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP1);
 		CreateNewFile(SaveFile, 0x45);
 	}
 	else if(DOLRead32(0x25C0AC, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Mario Kart GP2\r\n");
+		gprintf("TRI:Mario Kart Arcade GP 2 (Feb 7 2007 02:47:24)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2);
 		CreateNewFile(SaveFile, 0x45);
-	}
-	else if(DOLRead32(0x1821C4, DOLOffset, fp, CurDICMD) == 0x386000A8)
-	{
-		res = 1;
-		gprintf("TRI:F-Zero AX (Unk)\r\n");
-		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_AX);
-		CreateNewFile(SaveFile, 0xCF);
-		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_AX_UNK);
-		CreateNewFile(SaveFile, 0x2A);
 	}
 	else if(DOLRead32(0x181E60, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
@@ -125,6 +116,15 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_AX);
 		CreateNewFile(SaveFile, 0xCF);
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_AX_RVC);
+		CreateNewFile(SaveFile, 0x2A);
+	}
+	else if(DOLRead32(0x1821C4, DOLOffset, fp, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:F-Zero AX (Rev D)\r\n");
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_AX);
+		CreateNewFile(SaveFile, 0xCF);
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_AX_RVD);
 		CreateNewFile(SaveFile, 0x2A);
 	}
 	else if(DOLRead32(0x18275C, DOLOffset, fp, CurDICMD) == 0x386000A8)

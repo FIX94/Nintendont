@@ -79,6 +79,7 @@ void GCAMInit( void )
 	CARDStateCallCount = 0;
 	CARDOffset = 0;
 	FirstCMD = 0;
+	STRInit = 0;
 }
 
 static const char *CARD_NAME_GP1 = "/saves/GP1.bin";

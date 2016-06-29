@@ -24,7 +24,7 @@ static const char *TRI_NamcoChar = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + 
 static const u32 TRI_DefaultCoinCount = 9;
 
 static const PADStatus *PadBuff = (PADStatus*)0x13002800;
-static const u32 *IN_TESTMENU = (u32*)0x13002760;
+static const vu32 *IN_TESTMENU = (vu32*)0x13002760;
 static u32 TestMenuTimer = 0, TestMenuTimerRunning = 0;
 
 static vu8 jvs_io_buffer[0x80];
@@ -187,12 +187,13 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 				addDataByte(1);
 
 				sync_before_read((void*)PadBuff, 0x20);
+				sync_before_read((void*)IN_TESTMENU, 0x20);
+				vu32 inTestMenu = *IN_TESTMENU;
 
 				// Test button
 				if( PadBuff[0].button & PAD_TRIGGER_Z )
 				{
-					sync_before_read((void*)IN_TESTMENU, 0x20);
-					if(*IN_TESTMENU || TRIGame == TRI_SB)
+					if(inTestMenu || TRIGame == TRI_SB)
 						addDataByte(0x80); //allow direct press
 					else
 					{	//start a timeout for the button
@@ -218,7 +219,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 					{
 						case TRI_GP1:
 						case TRI_GP2:
-							if( PadBuff[0].button & PAD_BUTTON_X )
+							if( PadBuff[0].button & PAD_BUTTON_X && inTestMenu )
 								PlayerData[0] |= 0x40; // Service button
 							if( PadBuff[0].button & PAD_BUTTON_A )
 								PlayerData[1] |= 0x10; // Item button
@@ -230,7 +231,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 							{
 								if( PadBuff[0].button & PAD_BUTTON_START )
 									PlayerData[0] |= 0x80; // Start
-								if( PadBuff[0].button & PAD_BUTTON_X )
+								if( PadBuff[0].button & PAD_BUTTON_X && inTestMenu )
 									PlayerData[0] |= 0x40; // Service button
 								if( PadBuff[0].button & PAD_BUTTON_UP )
 									PlayerData[0] |= 0x20; // View Change 1
@@ -254,7 +255,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						case TRI_VS3:
 							if( PadBuff[i].button & PAD_BUTTON_START )
 								PlayerData[0] |= 0x80; // Start
-							if( PadBuff[i].triggerRight > 0x44 )
+							if( PadBuff[i].triggerRight > 0x44 && inTestMenu )
 								PlayerData[0] |= 0x40; // Service button
 							if( PadBuff[i].stickY > 0x30 )
 								PlayerData[0] |= 0x20; // Move Up
@@ -274,7 +275,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						case TRI_VS4:
 							if( PadBuff[i].button & PAD_BUTTON_START )
 								PlayerData[0] |= 0x80; // Start
-							if( PadBuff[i].triggerRight > 0x44 )
+							if( PadBuff[i].triggerRight > 0x44 && inTestMenu )
 								PlayerData[0] |= 0x40; // Service button
 							if( PadBuff[i].button & PAD_BUTTON_UP )
 								PlayerData[0] |= 0x20; // Tactics (U)
@@ -294,7 +295,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						case TRI_YAK:
 							if( PadBuff[i].button & PAD_BUTTON_START )
 								PlayerData[0] |= 0x80; // Start
-							if( PadBuff[i].triggerRight > 0x44 )
+							if( PadBuff[i].triggerRight > 0x44 && inTestMenu )
 								PlayerData[0] |= 0x40; // Service button
 							if( PadBuff[i].stickY > 0x30 )
 								PlayerData[0] |= 0x20; // Move Up

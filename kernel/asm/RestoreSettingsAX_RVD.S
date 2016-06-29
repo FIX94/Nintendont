@@ -1,5 +1,5 @@
 /*
-RestoreSettingsAXUnk.S for Nintendont (Kernel)
+RestoreSettingsAX_RVD.S for Nintendont (Kernel)
 
 Copyright (C) 2015 FIX94
 
