@@ -294,9 +294,6 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
  */
 static int SelectGame(void)
 {
-	// Create a list of games
-	char filename[MAXPATHLEN];
-
 	// Depending on how many games are on the storage device,
 	// this could take a while.
 	ShowLoadingScreen();
@@ -316,7 +313,7 @@ static int SelectGame(void)
 			// No "games" directory was found.
 			// The list will still be shown, since there's a
 			// "Boot GC Disc in Drive" option on Wii.
-			gprintf("WARNING: %s was not found.\n", filename);
+			gprintf("WARNING: %s:/games/ was not found.\n", GetRootDevice());
 			break;
 
 		case DEV_NO_OPEN:
