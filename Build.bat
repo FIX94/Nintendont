@@ -47,7 +47,8 @@ cd ..\loader\source\ppc
 echo.
 echo Building Nintendont HID
 echo.
-call build.bat
+make clean
+make
 
 cd ..\..\..\loader
 echo.
