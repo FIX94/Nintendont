@@ -3,6 +3,7 @@
 *.bin
 *.elf
 kernel/asm/*.h
+kernel/codehandler.h
 kernel/kernel.map
 loader/build/
 nintendont/boot.dol

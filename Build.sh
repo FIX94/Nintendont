@@ -2,7 +2,7 @@
 
 cd multidol
 echo " "
-echo Building Multi-DOL Loader
+echo "Building Multi-DOL Loader"
 echo " "
 make clean
 make
@@ -29,6 +29,12 @@ make -f Makefile.arm clean
 make -f Makefile.arm
 make -f Makefile.ppc clean
 make -f Makefile.ppc
+
+cd ../codehandler
+echo " "
+echo "Building Nintendont Codehandler"
+echo " "
+sh ./build.sh
 
 cd ../kernel
 echo " "

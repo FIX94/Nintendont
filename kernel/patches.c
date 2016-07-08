@@ -186,7 +186,6 @@ FuncPattern NormalFPatterns[] =
 
 	{  0x158,   26,   22,    5,   13,    2,	ARQPostRequest,		ARQPostRequest_size,		"ARQPostRequest",		NULL,		FGROUP_NONE,				0 },
 
-	{   0xE8,   14,    7,    6,   10,    6,	NULL,				FCODE___PADSetSamplingRate,	"__PADSetSamplingRate",	NULL,		FGROUP_NONE,				0 },
 #ifdef PATCHALL
 	{   0xCC,    3,    3,    1,    0,    3,	NULL,				FCODE_C_MTXPerspective,		"C_MTXPerspective",		NULL,		FGROUP_NONE,				0 },
 	{   0xC8,    3,    3,    1,    0,    3,	NULL,				FCODE_C_MTXLightPerspective,"C_MTXLightPerspective",NULL,		FGROUP_NONE,				0 },
@@ -254,6 +253,10 @@ FuncPattern SIFPatterns[] =
 
 	{  0x1C0,   35,    9,    8,    7,   19,	SIGetType,			SIGetType_size,				"SIGetType",			"A",		FGROUP_SIGetType,			0 },
 	{  0x1F4,   27,    9,    9,    9,   24,	SIGetType,			SIGetType_size,				"SIGetType",			"B",		FGROUP_SIGetType,			0 },
+};
+
+FuncPattern PADFPatterns[] = 
+{
 
 	{  0x3A8,   86,   13,   27,   17,   24,	NULL,				FCODE_PADRead,				"PADRead",				"A",		FGROUP_PADRead,				0 },
 	{  0x2FC,   73,    8,   23,   16,   15,	NULL,				FCODE_PADRead,				"PADRead",				"B",		FGROUP_PADRead,				0 },
@@ -274,6 +277,8 @@ FuncPattern SIFPatterns[] =
 	{   0xC8,   14,    2,    5,    3,    8,	NULL,				FCODE_PADControlMotor,		"PADControlMotor",		"DBG B",	FGROUP_PADControlMotor,		0 },
 
 	{   0x14,    1,    0,    0,    2,    0,	NULL,				FCODE_PADIsBarrel,			"PADIsBarrel",			NULL,		FGROUP_NONE,				0 },
+
+	{   0xE8,   14,    7,    6,   10,    6,	NULL,				FCODE___PADSetSamplingRate,	"__PADSetSamplingRate",	NULL,		FGROUP_NONE,				0 },
 };
 
 FuncPattern EXIFPatterns[] =
@@ -382,6 +387,7 @@ enum
 	PCODE_NORMAL = 0,
 	PCODE_TRI,
 	PCODE_SI,
+	PCODE_PAD,
 	PCODE_EXI,
 	PCODE_DATEL,
 	PCODE_PSO,
@@ -393,6 +399,7 @@ FuncPatterns AllFPatterns[] =
 	{ NormalFPatterns, sizeof(NormalFPatterns) / sizeof(FuncPattern), PCODE_NORMAL },
 	{ TRIFPatterns, sizeof(TRIFPatterns) / sizeof(FuncPattern), PCODE_TRI },
 	{ SIFPatterns, sizeof(SIFPatterns) / sizeof(FuncPattern), PCODE_SI },
+	{ PADFPatterns, sizeof(PADFPatterns) / sizeof(FuncPattern), PCODE_PAD },
 	{ EXIFPatterns, sizeof(EXIFPatterns) / sizeof(FuncPattern), PCODE_EXI },
 	{ DatelFPatterns, sizeof(DatelFPatterns) / sizeof(FuncPattern), PCODE_DATEL },
 	{ PSOFPatterns, sizeof(PSOFPatterns) / sizeof(FuncPattern), PCODE_PSO },

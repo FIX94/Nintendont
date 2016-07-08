@@ -30,6 +30,12 @@ make -f Makefile.arm
 make -f Makefile.ppc clean
 make -f Makefile.ppc
 
+cd ..\codehandler
+echo.
+echo Building Nintendont Codehandler
+echo.
+call build.bat
+
 cd ..\kernel
 echo.
 echo Building Nintendont Kernel

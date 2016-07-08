@@ -1545,7 +1545,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 PatchCount = FPATCH_VideoModes | 
 		FPATCH_OSSleepThread | FPATCH_GXBegin | FPATCH_GXDrawDone;
 #ifdef CHEATS
+	u32 cheatsWanted = 0;
 	if( (IsWiiU && ConfigGetConfig(NIN_CFG_CHEATS)) ||
+		(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS)) )
+		cheatsWanted = 1;
+	/* So this can be used but for now we just use PADRead */
+	/*if( (IsWiiU && ConfigGetConfig(NIN_CFG_CHEATS)) ||
 		(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS)) )
 	{
 		PatchCount &= ~(
@@ -1553,7 +1558,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			//FPATCH_GXBegin //Hook 2, unstable!
 			FPATCH_GXDrawDone //Hook 3
 		);
-	}
+	}*/
 #endif
 	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) ||
 		(ConfigGetVideoOffset() != 0 && ConfigGetVideoOffset() >= -20 && ConfigGetVideoOffset() <= 20) ||
@@ -1595,7 +1600,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		CurFPatternsListLen++;
 	}
 	/* Cheats */
-	u32 DebuggerHook = 0, DebuggerHook2 = 0, DebuggerHook3 = 0;
+	u32 PADHook = 0;
+	//u32 DebuggerHook = 0, DebuggerHook2 = 0, DebuggerHook3 = 0;
 	/* SI Inited Patch */
 	u32 PADInitOffset = 0, SIInitOffset = 0;
 	/* DSP Patches */
@@ -1849,7 +1855,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				}
 			}
 	#ifdef CHEATS
-			if( (PatchCount & FPATCH_OSSleepThread) == 0 )
+			/*if( (PatchCount & FPATCH_OSSleepThread) == 0 )
 			{
 				//OSSleepThread(Pattern 1)
 				if( BufAt0 == 0x3C808000 &&
@@ -1923,7 +1929,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					printpatchfound("Hook:GXDrawDone",NULL,(u32)Buffer + i);
 					continue;
 				}
-			}
+			}*/
 	#endif
 			if( (PatchCount & FPATCH_VideoModes) == 0 )
 			{
@@ -2714,8 +2720,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_PADRead:
 						{
-							memcpy((void*)FOffset, PADRead, PADRead_size);
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							if(DisableSIPatch)
+							{
+								dbgprintf("Patch:[PADRead] skipped (0x%08X)\r\n", FOffset);
+								PADHook = FOffset + CurPatterns[j].Length;
+							}
+							else
+							{
+								memcpy((void*)FOffset, PADRead, PADRead_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
 							/* Search for PADInit over PADRead */
 							u32 k;
 							u32 lastEnd = 4;
@@ -2748,8 +2762,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0; // False hit
 								break;
 							}
-							memcpy((void*)FOffset, PADControlAllMotors, PADControlAllMotors_size);
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							if(DisableSIPatch)
+								dbgprintf("Patch:[PADControlAllMotors] skipped (0x%08X)\r\n", FOffset);
+							else
+							{
+								memcpy((void*)FOffset, PADControlAllMotors, PADControlAllMotors_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
 						} break;
 						case FCODE_PADControlMotor:
 						{
@@ -2758,8 +2777,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0; // False hit
 								break;
 							}
-							memcpy((void*)FOffset, PADControlMotor, PADControlMotor_size);
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							if(DisableSIPatch)
+								dbgprintf("Patch:[PADControlMotor] skipped (0x%08X)\r\n", FOffset);
+							else
+							{
+								memcpy((void*)FOffset, PADControlMotor, PADControlMotor_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
 						} break;
 						case FCODE_PADIsBarrel:
 						{
@@ -2768,8 +2792,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0; // False hit
 								break;
 							}
-							memcpy((void*)(FOffset), PADIsBarrel, PADIsBarrel_size);
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							if(DisableSIPatch)
+								dbgprintf("Patch:[PADIsBarrel] skipped (0x%08X)\r\n", FOffset);
+							else
+							{
+								memcpy((void*)(FOffset), PADIsBarrel, PADIsBarrel_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
 						} break;
 						case FCODE___OSResetHandler:
 						{
@@ -2943,37 +2972,40 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchWideMulti(MTXLightPerspectiveOffset + 0x24, 27);
 		}
 	}
-	if(DebuggerHook || DebuggerHook2 || DebuggerHook3)
+	if(cheatsWanted)
 	{
 		//copy into dedicated space
-		memcpy( (void*)0x1800, codehandler, codehandler_size );
+		memcpy( (void*)0x13006000, codehandler, codehandler_size );
+		//copy in our codehandler stub
+		u32 codehandler_stub_offset = PatchCopy(codehandler_stub, codehandler_stub_size);
 		//copy game id for debugger
-		memcpy( (void *)0x1800, (void*)0, 6 );
-		//set custom cheats location
-		W16(0x1CDE, 0x9300);
-		W16(0x1CE2, 0x6000);
-		W16(0x1F5A, 0x9300);
-		W16(0x1F5E, 0x6000);
-		//make sure to clear code area beforeahand
-		memset((void*)0x13006000, 0, 0x2000);
-		sync_after_write((void*)0x13006000, 0x2000);
+		memcpy((void*)0x1800, (void*)0, 8);
+		//set up frozenvalue into mem1 too
+		memcpy((void*)0x1808, (void*)0x13006000, 4);
+		//make sure to clear main code area
+		u32 cheats_area = (POffset < 0x18A8) ? 0 : (POffset - 0x18A8);
+		if(cheats_area > 0)
+		{
+			dbgprintf("Possible Code Size: %08x\r\n", cheats_area);
+			memset((void*)0x18A8, 0, cheats_area);
+		}
 		//copy in gct file if requested
 		if( ConfigGetConfig( NIN_CFG_CHEATS ) && TRIGame != TRI_SB && useipl == 0 )
 		{
 			FIL CodeFD;
 			if( Check_Cheats() == 0 && f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 			{
-				if( CodeFD.obj.objsize > 0x2000 )
+				if( CodeFD.obj.objsize > cheats_area )
 				{
-					dbgprintf( "Patch:Cheatfile is too large, it must not be larger than 8KB!\r\n" );
+					dbgprintf("Patch:Cheatfile is too large, it must not be larger than %i bytes!\r\n", cheats_area);
 				}
 				else
 				{
 					void *CMem = malloc(CodeFD.obj.objsize);
 					if( f_read( &CodeFD, CMem, CodeFD.obj.objsize, &read ) == FR_OK )
 					{
-						memcpy((void*)0x13006000, CMem, CodeFD.obj.objsize);
-						sync_after_write((void*)0x13006000, 0x2000);
+						memcpy((void*)0x18A8, CMem, CodeFD.obj.objsize);
+						sync_after_write((void*)0x18A8, CodeFD.obj.objsize);
 						dbgprintf("Patch:Copied %s to memory\r\n", cheatPath);
 					}
 					else
@@ -3001,10 +3033,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			else
 				*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
 		}
+		sync_after_write((void*)0x13006000, 0x2000);
 		//setup jump to codehandler
-		if(DebuggerHook) PatchB( 0x18A8, DebuggerHook );
-		if(DebuggerHook2) PatchB( 0x18A8, DebuggerHook2 );
-		if(DebuggerHook3) PatchB( 0x18A8, DebuggerHook3 );
+		if(PADHook) PatchB( codehandler_stub_offset, PADHook );
+		//if(DebuggerHook) PatchB( codehandler_stub_offset, DebuggerHook );
+		//if(DebuggerHook2) PatchB( codehandler_stub_offset, DebuggerHook2 );
+		//if(DebuggerHook3) PatchB( codehandler_stub_offset, DebuggerHook3 );
 	}
 	free(hash);
 	free(SHA1i);

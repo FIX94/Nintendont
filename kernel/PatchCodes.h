@@ -54,6 +54,8 @@
 #include "asm/MajoraLoadRegs.h"
 #include "asm/MajoraSaveRegs.h"
 
+#include "asm/codehandler_stub.h"
+
 //this is the data from my wii disk drive
 const u8 DiskDriveInfo[32] = {
 	0x00,0x00,0x00,0x02,
