@@ -1,5 +1,5 @@
 
-.set codehandler_bin, 0x93006004
+.set codehandler_bin, 0x800010A0
 
 codehandler_stub:
 	#disable interrupts

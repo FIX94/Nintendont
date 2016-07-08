@@ -1283,11 +1283,11 @@ u32 _start(u32 calledByGame)
 	//make sure its actually sent
 	asm volatile("sync");
 	//execute codehandler if its there
-	if(*(vu32*)0x93006004 == 0x9421FF58)
+	if(*(vu32*)0x800010A0 == 0x9421FF58)
 	{
 		u32 level;
 		_CPU_ISR_Disable(level);
-		((void(*)(void))0x93006004)();
+		((void(*)(void))0x800010A0)();
 		_CPU_ISR_Restore(level);
 	}
 	return Rumble;

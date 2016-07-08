@@ -4,7 +4,7 @@ EXTERN(_start)
 ENTRY(_start)
 
 __stack_size = 0x2000;
-__phy_stack_addr = 0x12F96000 + __stack_size;
+__phy_stack_addr = 0x12FA6000 + __stack_size;
 
 __di_stack_size = 0x1000;
 __di_stack_addr = __phy_stack_addr + __di_stack_size;
@@ -27,7 +27,7 @@ __blk_stack_addr = __intr_stack_addr + __blk_stack_size;
 MEMORY {
 
 	code		: ORIGIN = 0x20F00000,	LENGTH = 0x38000
-	data		: ORIGIN = 0x20F38000,	LENGTH = 0x58000
+	data		: ORIGIN = 0x20F38000,	LENGTH = 0x68000
 	stack		: ORIGIN = 0x20106000,	LENGTH = 0x09000
 }
 
@@ -35,7 +35,7 @@ PHDRS
 {
 	code  PT_LOAD AT ( 0x12F00000 );
 	data  PT_LOAD AT ( 0x12F38000 );
-	stack PT_LOAD AT ( 0x12F96000 );
+	stack PT_LOAD AT ( 0x12FA6000 );
 }
 
 SECTIONS
@@ -86,7 +86,7 @@ SECTIONS
 		__bss_end = . ;
 	} >data :data
 
-	.stack (0x20106000) : AT( 0x12F96000 )
+	.stack (0x20106000) : AT( 0x12FA6000 )
 	{
 		__stack_end = .;
 		. = . +__stack_size;

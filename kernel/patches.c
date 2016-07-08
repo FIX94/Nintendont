@@ -108,6 +108,8 @@ enum
 	FCODE_OSGetResetState,
 	FCODE___OSInitAudioSystem_A,
 	FCODE___OSInitAudioSystem_B,
+	FCODE_OSExceptionInit,
+	FCODE_OSExceptionInit_DBG,
 	FCODE___DSPHandler,
 	FCODE_PatchPatchBuffer,
 	FCODE_PrsLoad,
@@ -148,6 +150,7 @@ enum
 	FGROUP_CARDStat,
 	FGROUP_OSGetResetState,
 	FGROUP___OSInitAudioSystem,
+	FGROUP_OSExceptionInit,
 	FGROUP_ReadROM,
 } FPatternGroups;
 
@@ -157,6 +160,9 @@ FuncPattern NormalFPatterns[] =
 #ifndef AUDIOSTREAM
 	{   0xD4,   13,    8,   11,    2,    7,	NULL,				FCODE_AIResetStreamCount,"AIResetStreamSampleCount",NULL,		FGROUP_NONE,				0 },
 #endif
+	{	0x27C,  39,   14,   14,   20,    7, NULL,				FCODE_OSExceptionInit,		"OSExceptionInit", 		NULL,		FGROUP_OSExceptionInit,		0 },
+	{	0x28C,  61,    6,   18,   14,   14, NULL, 				FCODE_OSExceptionInit_DBG,	"OSExceptionInit", 		"DBG",		FGROUP_OSExceptionInit,		0 },
+
 	{   0x98,    8,    3,    0,    3,    5,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			"A",		FGROUP___GXSetVAT,			0 },
 	{   0x84,    7,    3,    0,    1,    3,	NULL,				FCODE___GXSetVAT,			"__GXSetVAT",			"B",		FGROUP___GXSetVAT,			0 },
 

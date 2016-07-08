@@ -176,8 +176,8 @@ void InsertModule( char *Module, u32 ModuleSize )
 						ophdr->p_vaddr = phdr->p_vaddr;
 						ophdr->p_paddr = phdr->p_paddr;
 						// is not set correctly because of BSS, meaning the VMA isnt set up to the actually used point
-						ophdr->p_filesz = 0x58000;
-						ophdr->p_memsz  = 0x58000;
+						ophdr->p_filesz = 0x68000;
+						ophdr->p_memsz  = 0x68000;
 
 						ophdr->p_offset = ( size - loadersize );
 						size += (phdr->p_filesz);

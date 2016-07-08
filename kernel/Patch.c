@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SI.h"
 #include "EXI.h"
 #include "codehandler.h"
-
+#include "codehandleronly.h"
 #include "ff_utf8.h"
 
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
@@ -1406,6 +1406,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	/* Most important patch, needed for every game read activity */
 	u32 __DVDInterruptHandlerAddr = PatchCopy(__DVDInterruptHandler, __DVDInterruptHandler_size);
+	/* Very important patch for cheats to get more low mem */
+	u32 OSExceptionInitAddr = PatchCopy(OSExceptionInit, OSExceptionInit_size);
 	/* Patch to make sure PAD is not inited too early */
 	u32 SIInitStoreAddr = PatchCopy(SIInitStore, SIInitStore_size);
 	/* Patch for soft-resetting with a button combination */
@@ -1545,10 +1547,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 PatchCount = FPATCH_VideoModes | 
 		FPATCH_OSSleepThread | FPATCH_GXBegin | FPATCH_GXDrawDone;
 #ifdef CHEATS
-	u32 cheatsWanted = 0;
-	if( (IsWiiU && ConfigGetConfig(NIN_CFG_CHEATS)) ||
-		(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS)) )
+	u32 cheatsWanted = 0, debuggerWanted = 0;
+	if(ConfigGetConfig(NIN_CFG_CHEATS))
 		cheatsWanted = 1;
+	if(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER))
+		debuggerWanted = 1;
 	/* So this can be used but for now we just use PADRead */
 	/*if( (IsWiiU && ConfigGetConfig(NIN_CFG_CHEATS)) ||
 		(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS)) )
@@ -2328,6 +2331,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x60);
 							write32( FOffset+0x60, 0x48000060 ); // b +0x0060, Skip Checks
 						} break;
+						case FCODE_OSExceptionInit:
+						{
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x1D4);
+							write32(OSExceptionInitAddr, read32(FOffset+0x1D4)); //original instruction
+							PatchBL(OSExceptionInitAddr, FOffset+0x1D4); //jump to comparison
+						} break;
+						case FCODE_OSExceptionInit_DBG:
+						{
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x1F0);
+							write32(OSExceptionInitAddr, read32(FOffset+0x1F0)); //original instruction
+							PatchBL(OSExceptionInitAddr, FOffset+0x1F0); //jump to comparison
+						} break;
 						case FCODE___GXSetVAT:
 						{
 							if((GAME_ID) == 0x475A4D50) //dont know why needed
@@ -2972,25 +2987,35 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchWideMulti(MTXLightPerspectiveOffset + 0x24, 27);
 		}
 	}
-	if(cheatsWanted)
+	if(cheatsWanted || debuggerWanted)
 	{
-		//copy into dedicated space
-		memcpy( (void*)0x13006000, codehandler, codehandler_size );
-		//copy in our codehandler stub
-		u32 codehandler_stub_offset = PatchCopy(codehandler_stub, codehandler_stub_size);
-		//copy game id for debugger
-		memcpy((void*)0x1800, (void*)0, 8);
-		//set up frozenvalue into mem1 too
-		memcpy((void*)0x1808, (void*)0x13006000, 4);
-		//make sure to clear main code area
-		u32 cheats_area = (POffset < 0x18A8) ? 0 : (POffset - 0x18A8);
+		//setup jump to codehandler stub for native controls
+		if(PADHook) PatchB( PatchCopy(codehandler_stub, codehandler_stub_size), PADHook );
+		u32 cheats_start;
+		if(debuggerWanted)
+		{
+			//copy into dedicated space
+			memcpy( (void*)0x1000, codehandler, codehandler_size );
+			//copy game id for debugger
+			memcpy((void*)0x1800, (void*)0, 8);
+			//main code area start
+			cheats_start = 0x1000 + codehandler_size - 8;
+		}
+		else
+		{
+			//copy into dedicated space
+			memcpy( (void*)0x1000, codehandleronly, codehandleronly_size );
+			//main code area start
+			cheats_start = 0x1000 + codehandleronly_size - 8;
+		}
+		u32 cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
 		if(cheats_area > 0)
 		{
 			dbgprintf("Possible Code Size: %08x\r\n", cheats_area);
-			memset((void*)0x18A8, 0, cheats_area);
+			memset((void*)cheats_start, 0, cheats_area);
 		}
 		//copy in gct file if requested
-		if( ConfigGetConfig( NIN_CFG_CHEATS ) && TRIGame != TRI_SB && useipl == 0 )
+		if( cheatsWanted && TRIGame != TRI_SB && useipl == 0 )
 		{
 			FIL CodeFD;
 			if( Check_Cheats() == 0 && f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
@@ -3004,8 +3029,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					void *CMem = malloc(CodeFD.obj.objsize);
 					if( f_read( &CodeFD, CMem, CodeFD.obj.objsize, &read ) == FR_OK )
 					{
-						memcpy((void*)0x18A8, CMem, CodeFD.obj.objsize);
-						sync_after_write((void*)0x18A8, CodeFD.obj.objsize);
+						memcpy((void*)cheats_start, CMem, CodeFD.obj.objsize);
+						sync_after_write((void*)cheats_start, CodeFD.obj.objsize);
 						dbgprintf("Patch:Copied %s to memory\r\n", cheatPath);
 					}
 					else
@@ -3024,18 +3049,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//set if debugger is requested
 		if( IsWiiU )
 		{
-			*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
+			*(vu32*)(P2C(*(vu32*)0x1000)) = 0;
 		}
 		else
 		{
 			if( ConfigGetConfig(NIN_CFG_DEBUGWAIT) )
-				*(vu32*)(P2C(*(vu32*)0x1808)) = 1;
+				*(vu32*)(P2C(*(vu32*)0x1000)) = 1;
 			else
-				*(vu32*)(P2C(*(vu32*)0x1808)) = 0;
+				*(vu32*)(P2C(*(vu32*)0x1000)) = 0;
 		}
-		sync_after_write((void*)0x13006000, 0x2000);
-		//setup jump to codehandler
-		if(PADHook) PatchB( codehandler_stub_offset, PADHook );
+		sync_after_write((void*)0x1000, 0x800); //not touched otherwise
 		//if(DebuggerHook) PatchB( codehandler_stub_offset, DebuggerHook );
 		//if(DebuggerHook2) PatchB( codehandler_stub_offset, DebuggerHook2 );
 		//if(DebuggerHook3) PatchB( codehandler_stub_offset, DebuggerHook3 );
