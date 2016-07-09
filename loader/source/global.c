@@ -38,8 +38,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "exi.h"
 #include "global.h"
-#include "font_ttf.h"
+#include "font_zip.h"
 #include "dip.h"
+#include "unzip/unzip.h"
 
 GRRLIB_ttfFont *myFont;
 GRRLIB_texImg *background;
@@ -147,6 +148,25 @@ void RAMInit(void)
 	
 	*(vu32*)0x8000315C = 0x81;
 }
+
+static void *font_ttf;
+static u32 font_ttf_size;
+static void unzip_font_ttf()
+{
+	char filepath[20]; //statically linked zip file
+	snprintf(filepath,20,"%x+%x",(u32)font_zip,(u32)font_zip_size);
+	unzFile uf = unzOpen(filepath); //opens zip in memory
+	unzOpenCurrentFile(uf); //current file is the only file
+	unz_file_info file_info; //get file info for uncompressed size
+	unzGetCurrentFileInfo(uf,&file_info,NULL,0,NULL,0,NULL,0);
+	font_ttf_size = file_info.uncompressed_size; //set font size
+	font_ttf = malloc(font_ttf_size); //we never free this, whatever
+	unzReadCurrentFile(uf,font_ttf,font_ttf_size); //read it all
+	unzCloseCurrentFile(uf); //done reading out the only file
+	unzClose(uf); //close our static archive, all done!
+	gprintf("Decompressed font.ttf with %i bytes\r\n", font_ttf_size);
+}
+
 void Initialise()
 {
 	int i;
@@ -156,6 +176,7 @@ void Initialise()
 	AUDIO_RegisterDMACallback(NULL);
 	CheckForGecko();
 	gprintf("GRRLIB_Init = %i\r\n", GRRLIB_Init());
+	unzip_font_ttf(); //sets up font_ttf and font_ttf_size
 	myFont = GRRLIB_LoadTTF(font_ttf, font_ttf_size);
 	background = GRRLIB_LoadTexturePNG(background_png);
 	screen_buffer = GRRLIB_CreateEmptyTexture(rmode->fbWidth, rmode->efbHeight);

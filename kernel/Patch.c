@@ -1406,13 +1406,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	/* Most important patch, needed for every game read activity */
 	u32 __DVDInterruptHandlerAddr = PatchCopy(__DVDInterruptHandler, __DVDInterruptHandler_size);
-	/* Very important patch for cheats to get more low mem */
-	u32 OSExceptionInitAddr = PatchCopy(OSExceptionInit, OSExceptionInit_size);
 	/* Patch to make sure PAD is not inited too early */
 	u32 SIInitStoreAddr = PatchCopy(SIInitStore, SIInitStore_size);
 	/* Patch for soft-resetting with a button combination */
-	u32 FakeRSWLoadAddr = PatchCopy(FakeRSWLoad, FakeRSWLoad_size);
-	u32 FakeRSWStoreAddr = PatchCopy(FakeRSWStore, FakeRSWStore_size);
+	u32 FakeRSWLoadAddr = DisableSIPatch ? 0 : PatchCopy(FakeRSWLoad, FakeRSWLoad_size);
+	u32 FakeRSWStoreAddr = DisableSIPatch ? 0 : PatchCopy(FakeRSWStore, FakeRSWStore_size);
 	/* Datels own timer */
 	u32 DatelTimerAddr = Datel ? PatchCopy(DatelTimer, DatelTimer_size) : 0;
 
@@ -1544,7 +1542,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	PatchFuncInterface( Buffer, Length );
 
-	u32 PatchCount = FPATCH_VideoModes | 
+	u32 PatchCount = FPATCH_VideoModes | FPATCH_VIConfigure | FPATCH_getTiming |
 		FPATCH_OSSleepThread | FPATCH_GXBegin | FPATCH_GXDrawDone;
 #ifdef CHEATS
 	u32 cheatsWanted = 0, debuggerWanted = 0;
@@ -1563,10 +1561,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		);
 	}*/
 #endif
+	u32 videoPatches = 0;
 	if( ConfigGetConfig(NIN_CFG_FORCE_PROG) || (ConfigGetVideoMode() & NIN_VID_FORCE) ||
 		(ConfigGetVideoOffset() != 0 && ConfigGetVideoOffset() >= -20 && ConfigGetVideoOffset() <= 20) ||
 		(ConfigGetVideoScale() != 0 && ConfigGetVideoScale() >= 40 && ConfigGetVideoScale() <= 120) )
-		PatchCount &= ~FPATCH_VideoModes;
+	{
+		PatchCount &= ~(FPATCH_VideoModes | FPATCH_VIConfigure | FPATCH_getTiming);
+		videoPatches = 1;
+	}
 	/* Set up patch pattern lists */
 	FuncPatterns CurFPatternsList[PCODE_MAX];
 	u32 CurFPatternsListLen = 0;
@@ -2332,16 +2334,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							write32( FOffset+0x60, 0x48000060 ); // b +0x0060, Skip Checks
 						} break;
 						case FCODE_OSExceptionInit:
-						{
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x1D4);
-							write32(OSExceptionInitAddr, read32(FOffset+0x1D4)); //original instruction
-							PatchBL(OSExceptionInitAddr, FOffset+0x1D4); //jump to comparison
-						} break;
 						case FCODE_OSExceptionInit_DBG:
 						{
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x1F0);
-							write32(OSExceptionInitAddr, read32(FOffset+0x1F0)); //original instruction
-							PatchBL(OSExceptionInitAddr, FOffset+0x1F0); //jump to comparison
+							if(cheatsWanted || debuggerWanted)
+							{
+								u32 patchOffset = (CurPatterns[j].PatchLength == FCODE_OSExceptionInit ? 0x1D4 : 0x1F0);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + patchOffset);
+								u32 OSExceptionInitAddr = PatchCopy(OSExceptionInit, OSExceptionInit_size);
+								write32(OSExceptionInitAddr, read32(FOffset + patchOffset)); //original instruction
+								PatchBL(OSExceptionInitAddr, FOffset + patchOffset); //jump to comparison
+							}
+							else
+								dbgprintf("Patch:[OSExceptionInit] skipped (0x%08X)\r\n", FOffset);
 						} break;
 						case FCODE___GXSetVAT:
 						{
@@ -2766,8 +2770,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0; // False hit
 								break;
 							}
-							write32(FOffset+0x60, 0x60000000); //anti-crash
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							if(videoPatches)
+							{
+								write32(FOffset+0x60, 0x60000000); //anti-crash
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else
+								dbgprintf("Patch:[__PADSetSamplingRate] skipped (0x%08X)\r\n", FOffset);
 						} break;
 						case FCODE_PADControlAllMotors:
 						{
@@ -2819,28 +2828,32 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						{
 							if(read32(FOffset + 0x84) == 0x540003DF)
 							{
-								PatchBL( FakeRSWLoadAddr, (FOffset + 0x84) );
-								PatchBL( FakeRSWLoadAddr, (FOffset + 0x94) );
-								PatchBL( FakeRSWStoreAddr, (FOffset + 0xD4) );
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x84);
+								if(DisableSIPatch)
+									dbgprintf("Patch:[__OSResetSWInterruptHandler] skipped (0x%08X)\r\n", FOffset);
+								else
+								{
+									PatchBL( FakeRSWLoadAddr, (FOffset + 0x84) );
+									PatchBL( FakeRSWLoadAddr, (FOffset + 0x94) );
+									PatchBL( FakeRSWStoreAddr, (FOffset + 0xD4) );
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x84);
+								}
 							}
 							else
 								CurPatterns[j].Found = 0;
 						} break;
 						case FCODE_OSGetResetState:
+						case FCODE_OSGetResetState_C:
 						{
-							if(read32(FOffset + 0x28) == 0x540003DF) /* Patch C */
-							{
-								PatchBL( FakeRSWLoadAddr, (FOffset + 0x28) );
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x28);
-							}
-							else if(read32(FOffset + 0x2C) == 0x540003DF) /* Patch A, B */
-							{
-								PatchBL( FakeRSWLoadAddr, (FOffset + 0x2C) );
-								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x2C);
-							}
+							if(DisableSIPatch)
+								dbgprintf("Patch:[OSGetResetButtonState] skipped (0x%08X)\r\n", FOffset);
 							else
-								CurPatterns[j].Found = 0;
+							{
+								if(CurPatterns[j].PatchLength == FCODE_OSGetResetState_C)
+									PatchBL( FakeRSWLoadAddr, (FOffset + 0x28) );
+								else /* Patch A, B */
+									PatchBL( FakeRSWLoadAddr, (FOffset + 0x2C) );
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
 						} break;
 						case FCODE___DSPHandler:
 						{
@@ -3285,44 +3298,47 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			dbgprintf("Patch:Patched Nintendo Puzzle Collection NTSC-J\r\n");
 		}
 	}
-	else if( TITLE_ID == 0x47454F ) // Capcom vs. SNK 2 EO
+	if(videoPatches)
 	{
-		//fix for force progressive
-		if(write32A(0x1137C, 0x60000000, 0xB0010010, 0))
+		if( TITLE_ID == 0x47454F ) // Capcom vs. SNK 2 EO
 		{
-			dbgprintf("Patch:Patched Capcom vs. SNK 2 EO NTSC-U\r\n");
+			//fix for force progressive
+			if(write32A(0x1137C, 0x60000000, 0xB0010010, 0))
+			{
+				dbgprintf("Patch:Patched Capcom vs. SNK 2 EO NTSC-U\r\n");
+			}
 		}
-	}
-	else if( TITLE_ID == 0x475038 ) // Pac-Man World 3
-	{
-		//fix for force progressive
-		if(write32A(0x28D2A8, 0x48000010, 0x41820010, 0))
+		else if( TITLE_ID == 0x475038 ) // Pac-Man World 3
 		{
-			dbgprintf("Patch:Patched Pac-Man World 3 NTSC-U\r\n");
+			//fix for force progressive
+			if(write32A(0x28D2A8, 0x48000010, 0x41820010, 0))
+			{
+				dbgprintf("Patch:Patched Pac-Man World 3 NTSC-U\r\n");
+			}
 		}
-	}
-	else if( TITLE_ID == 0x475134 ) // SpongeBob SquarePants CFTKK
-	{
-		//fix for force progressive
-		if(write32A(0x23007C, 0x48000010, 0x41820010, 0))
+		else if( TITLE_ID == 0x475134 ) // SpongeBob SquarePants CFTKK
 		{
-			dbgprintf("Patch:Patched SpongeBob SquarePants CFTKK NTSC-U\r\n");
+			//fix for force progressive
+			if(write32A(0x23007C, 0x48000010, 0x41820010, 0))
+			{
+				dbgprintf("Patch:Patched SpongeBob SquarePants CFTKK NTSC-U\r\n");
+			}
 		}
-	}
-	else if( TITLE_ID == 0x47414C ) // Super Smash Bros Melee
-	{
-		//fix for video mode breaking
-		if(write32A(0x365DB0, 0x38A00280, 0xA0A7000E, 0))
+		else if( TITLE_ID == 0x47414C ) // Super Smash Bros Melee
 		{
-			dbgprintf("Patch:Patched Super Smash Bros Melee v1.00\r\n");
-		}
-		else if(write32A(0x366F84, 0x38A00280, 0xA0A7000E, 0))
-		{
-			dbgprintf("Patch:Patched Super Smash Bros Melee v1.01\r\n");
-		}
-		else if(write32A(0x367C64, 0x38A00280, 0xA0A7000E, 0))
-		{
-			dbgprintf("Patch:Patched Super Smash Bros Melee v1.02\r\n");
+			//fix for video mode breaking
+			if(write32A(0x365DB0, 0x38A00280, 0xA0A7000E, 0))
+			{
+				dbgprintf("Patch:Patched Super Smash Bros Melee v1.00\r\n");
+			}
+			else if(write32A(0x366F84, 0x38A00280, 0xA0A7000E, 0))
+			{
+				dbgprintf("Patch:Patched Super Smash Bros Melee v1.01\r\n");
+			}
+			else if(write32A(0x367C64, 0x38A00280, 0xA0A7000E, 0))
+			{
+				dbgprintf("Patch:Patched Super Smash Bros Melee v1.02\r\n");
+			}
 		}
 	}
 	PatchStaticTimers();

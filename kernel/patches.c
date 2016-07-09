@@ -106,6 +106,7 @@ enum
 	FCODE_ReadROM,
 	FCODE___OSResetHandler,
 	FCODE_OSGetResetState,
+	FCODE_OSGetResetState_C,
 	FCODE___OSInitAudioSystem_A,
 	FCODE___OSInitAudioSystem_B,
 	FCODE_OSExceptionInit,
@@ -202,14 +203,14 @@ FuncPattern NormalFPatterns[] =
 	{  0x308,   40,   18,   10,   23,   17,	NULL,				FCODE___fwrite,				"__fwrite",				"A",		FGROUP___fwrite,			0 },
 	{  0x338,   48,   20,   10,   24,   16,	NULL,				FCODE___fwrite,				"__fwrite",				"B",		FGROUP___fwrite,			0 },
 	{  0x2D8,   41,   17,    8,   21,   13,	NULL,				FCODE___fwrite,				"__fwrite",				"C",		FGROUP___fwrite,			0 },
-//	{  0x1FC,   47,    4,   14,   18,    7,	NULL,				FCODE___fwrite_D,			"__fwrite D",						FGROUP___fwrite,			0 },
+	{  0x1FC,   47,    4,   14,   18,    7,	NULL,				FCODE___fwrite_D,			"__fwrite",				"D",		FGROUP___fwrite,			0 },
 
 #ifdef PATCHALL
 	{   0xF0,   20,   11,    3,    3,    9,	NULL,				FCODE___OSResetHandler,	"__OSResetSWInterruptHandler",NULL,		FGROUP_NONE,				0 },
 
 	{  0x294,   39,   16,    5,   16,   46,	NULL,				FCODE_OSGetResetState,		"OSGetResetButtonState","A",		FGROUP_OSGetResetState,		0 },
 	{  0x2A0,   40,   16,    5,   17,   46,	NULL,				FCODE_OSGetResetState,		"OSGetResetButtonState","B",		FGROUP_OSGetResetState,		0 },
-	{  0x1F0,   34,   14,    6,   12,   28,	NULL,				FCODE_OSGetResetState,		"OSGetResetButtonState","C",		FGROUP_OSGetResetState,		0 },
+	{  0x1F0,   34,   14,    6,   12,   28,	NULL,				FCODE_OSGetResetState_C,	"OSGetResetButtonState","C",		FGROUP_OSGetResetState,		0 },
 #endif
 	{  0x28C,   70,    8,    8,   10,    4,	NULL,				FCODE___OSInitAudioSystem_A,"__OSInitAudioSystem",	"DBG A",	FGROUP___OSInitAudioSystem,	0 },
 	{  0x2B8,   77,    8,   12,   10,    4,	NULL,				FCODE___OSInitAudioSystem_B,"__OSInitAudioSystem",	"DBG B",	FGROUP___OSInitAudioSystem,	0 },
