@@ -1407,7 +1407,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	/* Most important patch, needed for every game read activity */
 	u32 __DVDInterruptHandlerAddr = PatchCopy(__DVDInterruptHandler, __DVDInterruptHandler_size);
 	/* Patch to make sure PAD is not inited too early */
-	u32 SIInitStoreAddr = PatchCopy(SIInitStore, SIInitStore_size);
+	u32 SIInitStoreAddr = DisableSIPatch ? 0 : PatchCopy(SIInitStore, SIInitStore_size);
 	/* Patch for soft-resetting with a button combination */
 	u32 FakeRSWLoadAddr = DisableSIPatch ? 0 : PatchCopy(FakeRSWLoad, FakeRSWLoad_size);
 	u32 FakeRSWStoreAddr = DisableSIPatch ? 0 : PatchCopy(FakeRSWStore, FakeRSWStore_size);
@@ -2748,18 +2748,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							{
 								memcpy((void*)FOffset, PADRead, PADRead_size);
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
-							}
-							/* Search for PADInit over PADRead */
-							u32 k;
-							u32 lastEnd = 4;
-							for(k = 8; k < 0x400; k += 4)
-							{
-								if(read32(FOffset - k) == 0x4E800020)
-									lastEnd = k;
-								else if((read32(FOffset - k) & 0xFC00FFFF) == 0x3C00F000)
+								/* Search for PADInit over PADRead */
+								u32 k;
+								u32 lastEnd = 4;
+								for(k = 8; k < 0x400; k += 4)
 								{
-									PADInitOffset = FOffset - lastEnd;
-									break;
+									if(read32(FOffset - k) == 0x4E800020)
+										lastEnd = k;
+									else if((read32(FOffset - k) & 0xFC00FFFF) == 0x3C00F000)
+									{
+										PADInitOffset = FOffset - lastEnd;
+										break;
+									}
 								}
 							}
 						} break;
@@ -2977,15 +2977,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 
 	/* Check for PADInit, if not found use SIInit */
-	if(PADInitOffset != 0)
+	if(SIInitStoreAddr != 0)
 	{
-		PatchB(SIInitStoreAddr, PADInitOffset);
-		printpatchfound("PADInit", NULL, PADInitOffset);
-	}
-	else if(SIInitOffset != 0)
-	{
-		PatchB(SIInitStoreAddr, SIInitOffset);
-		printpatchfound("SIInit", NULL, SIInitOffset);
+		if(PADInitOffset != 0)
+		{
+			PatchB(SIInitStoreAddr, PADInitOffset);
+			printpatchfound("PADInit", NULL, PADInitOffset);
+		}
+		else if(SIInitOffset != 0)
+		{
+			PatchB(SIInitStoreAddr, SIInitOffset);
+			printpatchfound("SIInit", NULL, SIInitOffset);
+		}
 	}
 	if(PatchWide)
 	{
