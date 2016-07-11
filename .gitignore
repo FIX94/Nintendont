@@ -9,3 +9,4 @@ loader/build/
 loader/data/kernel.zip
 nintendont/boot.dol
 fatfs/*.a
+codehandler/*.h
