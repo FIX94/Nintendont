@@ -25,10 +25,10 @@ InvalidateRange1:
 	addi	%r4,	%r4,	0x20
 	bdnz	InvalidateRange1
 
-	li		%r4,	0xC0
+	li		%r4,	0x100
 	mtctr	%r4
 	lis		%r4,	0x8000
-	ori		%r4,	%r4,	0x1800
+	ori		%r4,	%r4,	0x1000
 
 InvalidateRange2:
 	dcbi	%r0,	%r4
@@ -38,4 +38,16 @@ InvalidateRange2:
 
 	sync
 	isync
+
+	lis		%r3,	0x8000
+	ori		%r3,	%r3,	0x10A0
+	lwz		%r0,	0(%r3)
+	lis		%r4,	0x9421
+	ori		%r4,	%r4,	0xFF58
+	cmplw	%r4,	%r0
+	bne		GameBoot
+CodeHandlerBoot:
+	mtctr	%r3
+	bctr	#codehandler jumps to LR
+GameBoot:
 	blr

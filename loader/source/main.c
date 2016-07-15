@@ -1108,8 +1108,8 @@ int main(int argc, char **argv)
 		*(vu32*)0xD3003420 = 0x5DEA;
 		while(*(vu32*)0xD3003420 == 0x5DEA) ;
 		/* Patches */
-		DCInvalidateRange((void*)0x80001800, 0x1800);
-		ICInvalidateRange((void*)0x80001800, 0x1800);
+		DCInvalidateRange((void*)0x80001000, 0x2000);
+		ICInvalidateRange((void*)0x80001000, 0x2000);
 		/* IPL */
 		DCInvalidateRange((void*)0x81300000, 0x300000);
 		ICInvalidateRange((void*)0x81300000, 0x300000);

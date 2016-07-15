@@ -1442,6 +1442,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			// skips __start init of debugger mem
 			write32(0x00003194, 0x48000028);
 		}
+		else if( TITLE_ID == 0x47465A && read32(0x5608) == 0x3C804C00 )
+		{
+			dbgprintf("Patch:[F-Zero GX Low Mem] applied\r\n");
+			// dont write "rfi" into 0x1000, 0x1100, 0x1200 and 0x1300
+			if( (read32(0) & 0xFF) == 0x4A )	// JAP
+				memset32( (void*)0x5630, 0x60000000, 0x10 );
+			else								// EUR/USA
+				memset32( (void*)0x5634, 0x60000000, 0x10 );
+		}
 		else if(DOLMaxOff == 0x141FE0 && read32(0xF278C) == 0x2F6D616A) //Majoras Mask NTSC-U
 		{
 			dbgprintf("Patch:[Majoras Mask NTSC-U] applied\r\n");
@@ -3074,7 +3083,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			else
 				*(vu32*)(P2C(*(vu32*)0x1000)) = 0;
 		}
-		sync_after_write((void*)0x1000, 0x800); //not touched otherwise
 		//if(DebuggerHook) PatchB( codehandler_stub_offset, DebuggerHook );
 		//if(DebuggerHook2) PatchB( codehandler_stub_offset, DebuggerHook2 );
 		//if(DebuggerHook3) PatchB( codehandler_stub_offset, DebuggerHook3 );
@@ -3434,7 +3442,7 @@ void PatchGame()
 		Command2 |= 0x80000000;
 	write32( FLUSH_ADDR, Command2 );
 	dbgprintf("Jumping to 0x%08X\n", GameEntry);
-	sync_after_write((void*)0x1800, 0x1800); //low patches
+	sync_after_write((void*)0x1000, 0x2000); //low patches
 	write32( RESET_STATUS, GameEntry );
 	sync_after_write((void*)RESET_STATUS, 0x20);
 	// in case we patched ipl remove status
