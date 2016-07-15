@@ -147,6 +147,8 @@ bool IsWiiU( void );
 const char* const GetRootDevice();
 void RAMInit(void);
 void Initialise();
+void unzip_data(const void *input, const u32 input_size, 
+	void **output, u32 *output_size);
 
 /**
  * Load the configuration file from the root device.

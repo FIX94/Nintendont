@@ -40,8 +40,8 @@ cd ..\kernel
 echo.
 echo Building Nintendont Kernel
 echo.
-make clean
-make
+make windows=1 clean
+make windows=1
 
 cd ..\loader\source\ppc
 echo.

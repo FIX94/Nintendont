@@ -36,7 +36,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "menu.h"
 #include "MemCard.h"
 #include "Patches.h"
-#include "kernel_bin.h"
+#include "kernel_zip.h"
 #include "multidol_ldr_bin.h"
 #include "stub_bin.h"
 #include "titles.h"
@@ -259,7 +259,12 @@ int main(int argc, char **argv)
 		ExitToLoader(1);
 	}
 
+	void *kernel_bin = NULL;
+	u32 kernel_bin_size = 0;
+	unzip_data(kernel_zip, kernel_zip_size, &kernel_bin, &kernel_bin_size);
+	gprintf("Decompressed kernel.bin with %i bytes\r\n", kernel_bin_size);
 	InsertModule((char*)kernel_bin, kernel_bin_size);
+	free(kernel_bin);
 
 	memset( (void*)0x92f00000, 0, 0x100000 );
 	DCFlushRange( (void*)0x92f00000, 0x100000 );

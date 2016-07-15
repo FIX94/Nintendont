@@ -39,15 +39,4 @@ InvalidateRange2:
 	sync
 	isync
 
-	lis		%r3,	0x8000
-	ori		%r3,	%r3,	0x10A0
-	lwz		%r0,	0(%r3)
-	lis		%r4,	0x9421
-	ori		%r4,	%r4,	0xFF58
-	cmplw	%r4,	%r0
-	bne		GameBoot
-CodeHandlerBoot:
-	mtctr	%r3
-	bctr	#codehandler jumps to LR
-GameBoot:
 	blr

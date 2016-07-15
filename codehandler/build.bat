@@ -6,6 +6,7 @@ set devpath=%devpath:~1,1%:%devpath:~2%
 
 echo codehandler.s
 %devpath%\bin\powerpc-eabi-gcc -nostartfiles -nodefaultlibs -Wl,-Ttext,0x80001000 -o ../kernel/bin2h/codehandler.bin codehandler.s
+echo codehandleronly.s
 %devpath%\bin\powerpc-eabi-gcc -nostartfiles -nodefaultlibs -Wl,-Ttext,0x80001000 -o ../kernel/bin2h/codehandleronly.bin codehandleronly.s
 cd ../kernel/bin2h
 %devpath%\bin\powerpc-eabi-strip --strip-debug --strip-all --discard-all -F elf32-powerpc codehandler.bin
@@ -15,5 +16,5 @@ cd ../kernel/bin2h
 bin2h codehandler.bin
 bin2h codehandleronly.bin
 del /f codehandler.bin codehandleronly.bin
-move /Y codehandler.h ..
-move /Y codehandleronly.h ..
+move /Y codehandler.h .. >nul
+move /Y codehandleronly.h .. >nul

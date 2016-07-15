@@ -7,5 +7,6 @@ kernel/codehandler.h
 kernel/codehandleronly.h
 kernel/kernel.map
 loader/build/
+loader/data/kernel.zip
 nintendont/boot.dol
 fatfs/*.a

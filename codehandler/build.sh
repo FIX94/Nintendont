@@ -2,6 +2,7 @@
 
 echo "codehandler.s"
 $DEVKITPPC/bin/powerpc-eabi-gcc -nostartfiles -nodefaultlibs -Wl,-Ttext,0x80001000 -o ../kernel/bin2h/codehandler.bin codehandler.s
+echo "codehandleronly.s"
 $DEVKITPPC/bin/powerpc-eabi-gcc -nostartfiles -nodefaultlibs -Wl,-Ttext,0x80001000 -o ../kernel/bin2h/codehandleronly.bin codehandleronly.s
 cd ../kernel/bin2h
 $DEVKITPPC/bin/powerpc-eabi-strip --strip-debug --strip-all --discard-all -F elf32-powerpc codehandler.bin

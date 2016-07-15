@@ -6,6 +6,12 @@ AS	:= $(PREFIX)as
 LD	:= $(PREFIX)gcc
 STRIP	:= $(PREFIX)strip
 
+ifeq ($(windows), 1)
+	ZIP = zip/zip.exe
+else
+	ZIP = zip
+endif
+
 CFLAGS	:= -mbig-endian -O3 -std=gnu89 -g -I. -Wall \
 	   -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft \
 	   -fdata-sections -ffunction-sections -fno-builtin-toupper -fno-builtin-memcpy \
@@ -22,7 +28,7 @@ OBJECTS	:= start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Rea
 	   main.o syscalls.o ReadSpeed.o vsprintf.o string.o prs.o \
 	   SDI.o usb.o usbstorage.o
 LIBS	:= ../fatfs/libfatfs-arm.a be/libc.a be/libgcc.a
-BINFILE	:= ../loader/data/kernel.bin
+ZIPFILE	:= ../loader/data/kernel.zip
 
 # Bluetooth stack
 OBJECTS	+= lwbt/bte.o lwbt/btmemb.o lwbt/btmemr.o lwbt/btpbuf.o lwbt/hci.o lwbt/l2cap.o lwbt/physbusif.o BT.o
@@ -36,7 +42,9 @@ all: $(TARGET)
 $(TARGET): kernel.ld $(OBJECTS)
 	@echo  "LD	$@"
 	@$(LD) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $@
-	@$(STRIP) -s -g kernel.elf -o $(BINFILE)
+	@$(STRIP) -s -g kernel.elf -o kernel.bin
+	@echo  "ZIP	$(ZIPFILE)"
+	@$(ZIP) -JXjq9 $(ZIPFILE) kernel.bin
 
 %.o: %.s
 	@echo  "AS	$@"
@@ -51,4 +59,4 @@ $(TARGET): kernel.ld $(OBJECTS)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) -c -MMD -MP -MF $(@:.o=.d) -o $@ $<
 
 clean:
-	-rm -f *.elf *.o *.bin *.d *.map lwbt/*.d lwbt/*.o option/*.d option/*.o
+	-rm -f $(ZIPFILE) *.elf *.o *.bin *.d *.map lwbt/*.d lwbt/*.o option/*.d option/*.o

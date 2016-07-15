@@ -149,23 +149,24 @@ void RAMInit(void)
 	*(vu32*)0x8000315C = 0x81;
 }
 
-static void *font_ttf;
-static u32 font_ttf_size;
-static void unzip_font_ttf()
+void unzip_data(const void *input, const u32 input_size, 
+	void **output, u32 *output_size)
 {
 	char filepath[20]; //statically linked zip file
-	snprintf(filepath,20,"%x+%x",(u32)font_zip,(u32)font_zip_size);
+	snprintf(filepath,20,"%x+%x",(u32)input,input_size);
 	unzFile uf = unzOpen(filepath); //opens zip in memory
 	unzOpenCurrentFile(uf); //current file is the only file
 	unz_file_info file_info; //get file info for uncompressed size
 	unzGetCurrentFileInfo(uf,&file_info,NULL,0,NULL,0,NULL,0);
-	font_ttf_size = file_info.uncompressed_size; //set font size
-	font_ttf = malloc(font_ttf_size); //we never free this, whatever
-	unzReadCurrentFile(uf,font_ttf,font_ttf_size); //read it all
+	*output_size = file_info.uncompressed_size; //set output size
+	*output = malloc(*output_size); //allocate the required size
+	unzReadCurrentFile(uf,*output,*output_size); //read it all
 	unzCloseCurrentFile(uf); //done reading out the only file
 	unzClose(uf); //close our static archive, all done!
-	gprintf("Decompressed font.ttf with %i bytes\r\n", font_ttf_size);
 }
+
+static void *font_ttf = NULL;
+static u32 font_ttf_size = 0;
 
 void Initialise()
 {
@@ -176,7 +177,8 @@ void Initialise()
 	AUDIO_RegisterDMACallback(NULL);
 	CheckForGecko();
 	gprintf("GRRLIB_Init = %i\r\n", GRRLIB_Init());
-	unzip_font_ttf(); //sets up font_ttf and font_ttf_size
+	unzip_data(font_zip, font_zip_size, &font_ttf, &font_ttf_size);
+	gprintf("Decompressed font.ttf with %i bytes\r\n", font_ttf_size);
 	myFont = GRRLIB_LoadTTF(font_ttf, font_ttf_size);
 	background = GRRLIB_LoadTexturePNG(background_png);
 	screen_buffer = GRRLIB_CreateEmptyTexture(rmode->fbWidth, rmode->efbHeight);
