@@ -559,6 +559,16 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
 			}
 		}
+		//fake wiiu pro controllers send 0x22 before accepting read commands
+		if(stat->transferstate == TRANSFER_CALIBRATE && stat->transfertype == 0x3D)
+		{
+			u8 buf[3];
+			buf[0] = 0x12;	//set data reporting mode
+			buf[1] = 0x00;	//report only when data changes
+			buf[2] = stat->transfertype;
+			bte_senddata(stat->sock,buf,3);
+			sync_after_write(arg, sizeof(struct BTPadStat));
+		}
 	}
 	return ERR_OK;
 }
