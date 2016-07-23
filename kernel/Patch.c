@@ -1559,6 +1559,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		cheatsWanted = 1;
 	if(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER))
 		debuggerWanted = 1;
+	if(cheatsWanted || debuggerWanted)
+		PatchCount &= ~FPATCH_OSSleepThread;
 	/* So this can be used but for now we just use PADRead */
 	/*if( (IsWiiU && ConfigGetConfig(NIN_CFG_CHEATS)) ||
 		(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS)) )
@@ -1614,6 +1616,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		CurFPatternsListLen++;
 	}
 	/* Cheats */
+	u32 OSSleepThreadHook = 0;
 	u32 PADHook = 0;
 	//u32 DebuggerHook = 0, DebuggerHook2 = 0, DebuggerHook3 = 0;
 	/* SI Inited Patch */
@@ -1869,7 +1872,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				}
 			}
 	#ifdef CHEATS
-			/*if( (PatchCount & FPATCH_OSSleepThread) == 0 )
+			if( (PatchCount & FPATCH_OSSleepThread) == 0 )
 			{
 				//OSSleepThread(Pattern 1)
 				if( BufAt0 == 0x3C808000 &&
@@ -1878,14 +1881,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				{
 					PatchCount |= FPATCH_OSSleepThread;
 					i = GotoFuncEnd(i, (u32)Buffer);
-					if(DebuggerHook == 0) DebuggerHook = (u32)Buffer + i;
-					else if(DebuggerHook2 == 0) DebuggerHook2 = (u32)Buffer + i;
-					else if(DebuggerHook3 == 0) DebuggerHook3 = (u32)Buffer + i;
+					OSSleepThreadHook = (u32)Buffer + i;
 					printpatchfound("Hook:OSSleepThread",NULL,(u32)Buffer + i);
 					continue;
 				}
 			}
-			if( (PatchCount & FPATCH_GXBegin) == 0 )
+			/*if( (PatchCount & FPATCH_GXBegin) == 0 )
 			{
 				//GXBegin(Pattern 1)
 				if( BufAt0 == 0x3C60CC01 && BufAt4 == 0x98038000 &&
@@ -3014,8 +3015,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	if(cheatsWanted || debuggerWanted)
 	{
-		//setup jump to codehandler stub for native controls
-		if(PADHook) PatchB( PatchCopy(codehandler_stub, codehandler_stub_size), PADHook );
+		//setup jump to codehandler stub
+		if(OSSleepThreadHook || PADHook)
+		{
+			u32 codehandler_stub_offset = PatchCopy(codehandler_stub, codehandler_stub_size);
+			if(OSSleepThreadHook) PatchB( codehandler_stub_offset, OSSleepThreadHook );
+			if(PADHook) PatchB( codehandler_stub_offset, PADHook );
+		}
 		u32 cheats_start;
 		if(debuggerWanted)
 		{
