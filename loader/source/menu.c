@@ -249,7 +249,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 						filename[fnlen] = 0;
 
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						gi[gamecount].DiscNumber = DiscNumber;
+						gi[gamecount].DiscNumber = 0;
 
 						// TODO: Check titles.txt?
 						strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
