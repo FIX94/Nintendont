@@ -958,7 +958,11 @@ int main(int argc, char **argv)
 		case 'X':
 		case 'Y':
 		case 'Z':
-			*(vu32*)0x800000CC = 1;
+			if(progressive || (vidForce && (vidForceMode == NIN_VID_FORCE_PAL60 ||
+				vidForceMode == NIN_VID_FORCE_MPAL || vidForceMode == NIN_VID_FORCE_NTSC)))
+				*(vu32*)0x800000CC = 5;
+			else
+				*(vu32*)0x800000CC = 1;
 			vmode = &TVPal528IntDf;
 			break;
 		//US
