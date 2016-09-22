@@ -105,6 +105,63 @@ int compare_names(const void *a, const void *b)
 }
 
 /**
+ * Check if a disc image is valid.
+ * @param filename	[in]  Disc image filename. (ISO/GCM)
+ * @param discNumber	[in]  Disc number.
+ * @param gi		[out] gameinfo struct to store game information if the disc is valid.
+ * @return True if the image is valid; false if not.
+ */
+bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
+{
+	// TODO: Handle FST format (sys/boot.bin).
+	char gamename[65];		// Game title.
+	char buf[0x100];		// Disc header.
+
+	FIL in;
+	if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+	{
+		// Could not open the disc image.
+		return false;
+	}
+
+	// Read the disc header
+	//gprintf("(%s) ok\n", filename );
+	bool ret = false;
+	UINT read;
+	f_read(&in, buf, 0x100, &read);
+	f_close(&in);
+
+	if (read == 0x100 && IsGCGame((u8*)buf))	// Must be GC game
+	{
+		memcpy(gi->ID, buf, 6); //ID for EXI
+		gi->DiscNumber = discNumber;
+
+		// Check if this title is in titles.txt.
+		const char *dbTitle = SearchTitles(gi->ID);
+		if (dbTitle)
+		{
+			// Title found.
+			gi->Name = (char*)dbTitle;
+			gi->NameAlloc = 0;
+		}
+		else
+		{
+			// Title not found.
+			// Use the title from the disc header.
+			strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
+			gamename[sizeof(gamename)-1] = 0;
+			gi->Name = strdup(gamename);
+			gi->NameAlloc = 1;
+		}
+
+		gi->Path = strdup(filename);
+		ret = true;
+	}
+
+	return ret;
+}
+
+/**
  * Get all games from the games/ directory on the selected storage device.
  * On Wii, this also adds a pseudo-game for loading GameCube games from disc.
  *
@@ -168,7 +225,20 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	FIL in;
 	while (f_readdir(&pdir, &fInfo) == FR_OK && fInfo.fname[0] != '\0')
 	{
-		// Game layout should be: /games/GAMEID/game.iso
+		/**
+		 * Game layout should be:
+		 *
+		 * ISO/GCM format:
+		 * - /games/GAMEID/game.iso
+		 *
+		 * FST format:
+		 * - /games/GAMEID/sys/boot.bin plus other files
+		 *
+		 * NOTE: 2-disc games currently only work with the
+		 * subdirectory layout, and the second disc must be
+		 * named either disc2.iso or disc2.gcm.
+		 */
+
 		// Search for subdirectories.
 		if (fInfo.fattrib & AM_DIR)
 		{
@@ -186,49 +256,20 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 
 			//Test if game.iso exists and add to list
 			bool found = false;
-			u32 DiscNumber;
-			for (DiscNumber = 0; DiscNumber < 2; DiscNumber++)
+			u32 discNumber;
+			for (discNumber = 0; discNumber < 2; discNumber++)
 			{
-				if (DiscNumber)
+				if (discNumber)
 					memcpy(&filename[fnlen], "disc2.iso", 10);
 				else
 					memcpy(&filename[fnlen], "game.iso", 9);
 
-				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)
+				// Attempt to load disc information.
+				if (IsDiscImageValid(filename, discNumber, &gi[gamecount]))
 				{
-					// Read the disc header
-					//gprintf("(%s) ok\n", filename );
-					UINT read;
-					f_read(&in, buf, 0x100, &read);
-					f_close(&in);
-
-					if (read == 0x100 && IsGCGame((u8*)buf))	// Must be GC game
-					{
-						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						gi[gamecount].DiscNumber = DiscNumber;
-
-						// Check if this title is in titles.txt.
-						const char *dbTitle = SearchTitles(gi[gamecount].ID);
-						if (dbTitle)
-						{
-							// Title found.
-							gi[gamecount].Name = (char*)dbTitle;
-							gi[gamecount].NameAlloc = 0;
-						}
-						else
-						{
-							// Title not found.
-							// Use the title from the disc header.
-							strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
-							gamename[sizeof(gamename)-1] = 0;
-							gi[gamecount].Name = strdup(gamename);
-							gi[gamecount].NameAlloc = 1;
-						}
-
-						gi[gamecount].Path = strdup( filename );
-						gamecount++;
-						found = true;
-					}
+					// Disc image exists and is a GameCube disc.
+					gamecount++;
+					found = true;
 				}
 			}
 
