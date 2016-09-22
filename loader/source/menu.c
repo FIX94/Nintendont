@@ -232,6 +232,8 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		 * - /games/GAMEID/game.gcm
 		 * - /games/GAMEID/game.iso
 		 * - /games/GAMEID/disc2.iso [.gcm not supported yet]
+		 * - /games/[anything].gcm
+		 * - /games/[anything].iso
 		 *
 		 * FST format:
 		 * - /games/GAMEID/sys/boot.bin plus other files
@@ -241,13 +243,14 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		 * named either disc2.iso or disc2.gcm.
 		 */
 
-		// Search for subdirectories.
+		// Skip "." and "..".
+		// This will also skip "hidden" directories.
+		if (fInfo.fname[0] == '.')
+			continue;
+
 		if (fInfo.fattrib & AM_DIR)
 		{
-			// Skip "." and "..".
-			// This will also skip "hidden" directories.
-			if (fInfo.fname[0] == '.')
-				continue;
+			// Subdirectory.
 
 			// Prepare the filename buffer with the directory name.
 			// game.iso/disc2.iso will be appended later.
@@ -312,6 +315,33 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 						gi[gamecount].NameAlloc = 1;
 
 						gi[gamecount].Path = strdup( filename );
+						gamecount++;
+					}
+				}
+			}
+		}
+		else
+		{
+			// Regular file.
+
+			// Make sure its extension is ".iso" or ".gcm".
+			const char *filename_utf8 = wchar_to_char(fInfo.fname);
+			size_t len = strlen(filename_utf8);
+			if (len >= 5)
+			{
+				int dotpos = len - 4;
+				if (!strcasecmp(&filename_utf8[dotpos], ".gcm") ||
+				    !strcasecmp(&filename_utf8[dotpos], ".iso"))
+				{
+					// Create the full pathname.
+					snprintf(filename, sizeof(filename), "%s:/games/%s",
+						 GetRootDevice(), filename_utf8);
+
+					// Attempt to load disc information.
+					// (NOTE: Only disc 1 is supported right now.)
+					if (IsDiscImageValid(filename, 0, &gi[gamecount]))
+					{
+						// Disc image exists and is a GameCube disc.
 						gamecount++;
 					}
 				}
