@@ -33,4 +33,4 @@ all: $(TARGET)
 	@echo " BIN2H       $<"
 	@$(BIN2H) $<
 clean:
-	@rm -fr $(TARGET) $(TARGET:.h=.bin)
+	$(RM) $(TARGET) $(TARGET:.h=.bin)
