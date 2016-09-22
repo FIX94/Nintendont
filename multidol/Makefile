@@ -48,4 +48,4 @@ $(TARGET): $(TARGET_LINKED)
 	@$(OBJCOPY) -O binary -S $< $@
 
 clean:
-	rm -rf $(TARGET_LINKED) $(TARGET) $(OBJS) $(DEPDIR)
+	-$(RM) -rf $(TARGET_LINKED) $(TARGET) $(OBJS) $(DEPDIR)

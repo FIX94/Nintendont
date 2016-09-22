@@ -42,4 +42,4 @@ $(TARGET): $(OBJECTS)
 	@$(CC) $(CFLAGS) -c -MMD -MP -MF $(@:.o=.d) -o $@ $<
 
 clean:
-	-rm -f *-arm.a *-arm.o *-arm.d
+	-$(RM) -f *-arm.a *-arm.o *-arm.d
