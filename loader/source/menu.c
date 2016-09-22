@@ -229,7 +229,9 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		 * Game layout should be:
 		 *
 		 * ISO/GCM format:
+		 * - /games/GAMEID/game.gcm
 		 * - /games/GAMEID/game.iso
+		 * - /games/GAMEID/disc2.iso [.gcm not supported yet]
 		 *
 		 * FST format:
 		 * - /games/GAMEID/sys/boot.bin plus other files
@@ -255,26 +257,37 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 					     GetRootDevice(), filename_utf8);
 
 			//Test if game.iso exists and add to list
-			bool found = false;
-			u32 discNumber;
-			for (discNumber = 0; discNumber < 2; discNumber++)
+			bool found[2] = {false, false};
+
+			const char disc_filenames[3][16] = {
+				"game.gcm", "game.iso",
+				// FIXME: disc2.gcm isn't supported yet.
+				// Fix kernel/DI.c to handle it.
+				/*"disc2.gcm",*/ "disc2.iso"
+			};
+
+			u32 i;
+			for (i = 0; i < 3; i++)
 			{
-				if (discNumber)
-					memcpy(&filename[fnlen], "disc2.iso", 10);
-				else
-					memcpy(&filename[fnlen], "game.iso", 9);
+				const u32 discNumber = i / 2;
+				if (found[discNumber])
+					continue;
+
+				// Append the disc filename.
+				strcpy(&filename[fnlen], disc_filenames[i]);
 
 				// Attempt to load disc information.
 				if (IsDiscImageValid(filename, discNumber, &gi[gamecount]))
 				{
 					// Disc image exists and is a GameCube disc.
 					gamecount++;
-					found = true;
+					found[discNumber] = true;
 				}
 			}
 
-			// If game.iso wasn't found, check for FST format.
-			if (!found)
+			// If none of the expected files were found,
+			// check for FST format.
+			if (!found[0] && !found[1])
 			{
 				memcpy(&filename[fnlen], "sys/boot.bin", 13);
 				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)
