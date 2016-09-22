@@ -129,9 +129,38 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	bool ret = false;
 	UINT read;
 	f_read(&in, buf, 0x100, &read);
+	if (read != 0x100)
+	{
+		// Error reading from the file.
+		f_close(&in);
+		return false;
+	}
+
+	// Check for CISO magic with 2 MB block size.
+	// NOTE: CISO block size is little-endian.
+	static const uint8_t CISO_MAGIC[8] = {'C','I','S','O',0x00,0x00,0x20,0x00};
+	if (!memcmp(buf, CISO_MAGIC, sizeof(CISO_MAGIC)))
+	{
+		// Make sure the GCN magic isn't set.
+		if (!IsGCGame((u8*)buf))
+		{
+			// This is most likely a CISO image.
+			// Read the actual GCN header.
+			f_lseek(&in, 0x8000);
+			f_read(&in, buf, 0x100, &read);
+			if (read != 0x100)
+			{
+				// Error reading from the file.
+				f_close(&in);
+				return false;
+			}
+		}
+	}
+
+	// File is no longer needed.
 	f_close(&in);
 
-	if (read == 0x100 && IsGCGame((u8*)buf))	// Must be GC game
+	if (IsGCGame((u8*)buf))	// Must be GC game
 	{
 		memcpy(gi->ID, buf, 6); //ID for EXI
 		gi->DiscNumber = discNumber;
@@ -159,6 +188,38 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	}
 
 	return ret;
+}
+
+/**
+ * Does a filename have a supported file extension?
+ * @return True if it does; false if it doesn't.
+ */
+bool IsSupportedFileExt(const char *filename)
+{
+	size_t len = strlen(filename);
+	if (len >= 5 && filename[len-4] == '.')
+	{
+		const int extpos = len-3;
+		if (!strcasecmp(&filename[extpos], "gcm") ||
+		    !strcasecmp(&filename[extpos], "iso") ||
+		    !strcasecmp(&filename[extpos], "cso"))
+		{
+			// File extension is supported.
+			return true;
+		}
+	}
+	else if (len >= 6 && filename[len-5] == '.')
+	{
+		const int extpos = len-4;
+		if (!strcasecmp(&filename[extpos], "ciso"))
+		{
+			// File extension is supported.
+			return true;
+		}
+	}
+
+	// File extension is NOT supported.
+	return false;
 }
 
 /**
@@ -235,6 +296,10 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		 * - /games/[anything].gcm
 		 * - /games/[anything].iso
 		 *
+		 * CISO format:
+		 * - /games/GAMEID/game.ciso
+		 * - /games/[anything].ciso
+		 *
 		 * FST format:
 		 * - /games/GAMEID/sys/boot.bin plus other files
 		 *
@@ -248,7 +313,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		if (fInfo.fname[0] == '.')
 			continue;
 
-		if (fInfo.fattrib & AM_DIR)
+		if (0)//(fInfo.fattrib & AM_DIR)
 		{
 			// Subdirectory.
 
@@ -262,17 +327,18 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			//Test if game.iso exists and add to list
 			bool found[2] = {false, false};
 
-			const char disc_filenames[3][16] = {
-				"game.gcm", "game.iso",
-				// FIXME: disc2.gcm isn't supported yet.
+			const char disc_filenames[5][16] = {
+				"game.ciso", "game.cso", "game.gcm", "game.iso",
+				// FIXME: Disc 2 filenames other than "disc2.iso"
+				// aren't supported yet.
 				// Fix kernel/DI.c to handle it.
-				/*"disc2.gcm",*/ "disc2.iso"
+				/*"disc2.ciso", "disc2.cso", "disc2.gcm",*/ "disc2.iso"
 			};
 
 			u32 i;
-			for (i = 0; i < 3; i++)
+			for (i = 0; i < 5; i++)
 			{
-				const u32 discNumber = i / 2;
+				const u32 discNumber = i / 4;
 				if (found[discNumber])
 					continue;
 
@@ -326,24 +392,18 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 
 			// Make sure its extension is ".iso" or ".gcm".
 			const char *filename_utf8 = wchar_to_char(fInfo.fname);
-			size_t len = strlen(filename_utf8);
-			if (len >= 5)
+			if (IsSupportedFileExt(filename_utf8))
 			{
-				int dotpos = len - 4;
-				if (!strcasecmp(&filename_utf8[dotpos], ".gcm") ||
-				    !strcasecmp(&filename_utf8[dotpos], ".iso"))
-				{
-					// Create the full pathname.
-					snprintf(filename, sizeof(filename), "%s:/games/%s",
-						 GetRootDevice(), filename_utf8);
+				// Create the full pathname.
+				snprintf(filename, sizeof(filename), "%s:/games/%s",
+					 GetRootDevice(), filename_utf8);
 
-					// Attempt to load disc information.
-					// (NOTE: Only disc 1 is supported right now.)
-					if (IsDiscImageValid(filename, 0, &gi[gamecount]))
-					{
-						// Disc image exists and is a GameCube disc.
-						gamecount++;
-					}
+				// Attempt to load disc information.
+				// (NOTE: Only disc 1 is supported right now.)
+				if (IsDiscImageValid(filename, 0, &gi[gamecount]))
+				{
+					// Disc image exists and is a GameCube disc.
+					gamecount++;
 				}
 			}
 		}
