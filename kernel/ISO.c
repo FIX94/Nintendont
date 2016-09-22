@@ -45,20 +45,160 @@ static FIL GameFile;
 static u32 LastOffset = UINT_MAX, readptr;
 bool Datel = false;
 
+// CISO: On-disc structure.
+// Temporarily loaded into cache memory.
+#define CISO_MAGIC	0x4349534F /* "CISO" */
+#define CISO_HEADER_SIZE 0x8000
+#define CISO_MAP_SIZE_MAX (CISO_HEADER_SIZE - (sizeof(u32) * 2))
+#define CISO_MAP_SIZE	1024
+#define CISO_BLOCK_SIZE (2*1024*1024)
+typedef struct _CISO_t {
+	u32 magic;		// "CISO" (0x4349534F)
+	u32 block_size;		// usually 2 MB (LE32)
+	u8 map[CISO_MAP_SIZE];	// Block map;
+} CISO_t;
+
+// CISO: Block map.
+// Supports files up to 2 GB when using 2 MB blocks.
+static uint16_t ciso_block_map[CISO_MAP_SIZE];
+static int is_ciso = 0;	// Set to 1 for CISO mode.
+
 static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 {
 	if(ISOFileOpen == 0)
 		return;
 
-	if(LastOffset != Offset)
-		f_lseek( &GameFile, Offset );
+	if (!is_ciso)
+	{
+		// Standard ISO/GCM file.
+		if(LastOffset != Offset)
+			f_lseek( &GameFile, Offset );
 
-	f_read( &GameFile, Buffer, Length, &readptr );
+		f_read( &GameFile, Buffer, Length, &readptr );
+	}
+	else
+	{
+		// CISO. Handle individual blocks.
+		u8 *ptr8 = (u8*)Buffer;
+
+		// Check if we're not starting on a block boundary.
+		const u32 blockStartOffset = Offset % CISO_BLOCK_SIZE;
+		if (blockStartOffset != 0)
+		{
+			// Not a block boundary.
+			// Read the end of the block.
+			u32 read_sz = CISO_BLOCK_SIZE - blockStartOffset;
+			if (Length < read_sz)
+				read_sz = Length;
+
+			// Get the physical block number first.
+			u16 blockStart = Offset / CISO_BLOCK_SIZE;
+			if (blockStart >= CISO_MAP_SIZE)
+			{
+				// Out of range.
+				return;
+			}
+
+			u16 physBlockStartIdx = ciso_block_map[blockStart];
+			if (physBlockStartIdx == 0xFFFF)
+			{
+				// Empty block.
+				memset(ptr8, 0, read_sz);
+			}
+			else
+			{
+				// Seek to the physical block address.
+				u32 physBlockStartAddr = CISO_HEADER_SIZE + ((u32)physBlockStartIdx * CISO_BLOCK_SIZE);
+				f_lseek(&GameFile, physBlockStartAddr + blockStartOffset);
+				// Read read_sz bytes.
+				f_read(&GameFile, ptr8, read_sz, &readptr);
+				if (readptr != read_sz)
+				{
+					// Error reading the data.
+					return;
+				}
+			}
+
+			// Starting block read.
+			Length -= read_sz;
+			ptr8 += read_sz;
+			Offset += read_sz;
+		}
+
+		// Read entire blocks.
+		for (; Length >= CISO_BLOCK_SIZE;
+		    Length -= CISO_BLOCK_SIZE, ptr8 += CISO_BLOCK_SIZE,
+		    Offset += CISO_BLOCK_SIZE)
+		{
+			uint16_t blockIdx = (Offset / CISO_BLOCK_SIZE);
+			if (blockIdx >= CISO_MAP_SIZE)
+			{
+				// Out of range.
+				return;
+			}
+
+			uint16_t physBlockIdx = ciso_block_map[blockIdx];
+			if (physBlockIdx == 0xFFFF)
+			{
+				// Empty block.
+				memset(ptr8, 0, CISO_BLOCK_SIZE);
+			}
+			else
+			{
+				// Seek to the physical block address.
+				u32 physBlockAddr = CISO_HEADER_SIZE + ((u32)physBlockIdx * CISO_BLOCK_SIZE);
+				f_lseek(&GameFile, physBlockAddr);
+				// Read one block worth of data.
+				f_read(&GameFile, ptr8, CISO_BLOCK_SIZE, &readptr);
+				if (readptr != CISO_BLOCK_SIZE)
+				{
+					// Error reading the data.
+					return;
+				}
+			}
+		}
+
+		// Check if we still have data left. (not a full block)
+		if (Length > 0) {
+			// Not a full block.
+
+			// Get the physical block number first.
+			uint16_t blockEnd = (Offset / CISO_BLOCK_SIZE);
+			if (blockEnd >= CISO_MAP_SIZE)
+			{
+				// Out of range.
+				return;
+			}
+
+			uint16_t physBlockEndIdx = ciso_block_map[blockEnd];
+			if (physBlockEndIdx == 0xFFFF)
+			{
+				// Empty block.
+				memset(ptr8, 0, Length);
+			}
+			else
+			{
+				// Seek to the physical block address.
+				u32 physBlockEndAddr = CISO_HEADER_SIZE + ((u32)physBlockEndIdx * CISO_BLOCK_SIZE);
+				f_lseek(&GameFile, physBlockEndAddr);
+				// Read Length bytes.
+				f_read(&GameFile, ptr8, Length, &readptr);
+				if (readptr != Length)
+				{
+					// Error reading the data.
+					return;
+				}
+			}
+
+			Offset += Length;
+		}
+	}
 
 	LastOffset = Offset + Length;
 	//refresh read timeout
 	USBReadTimer = read32(HW_TIMER);
 }
+
 extern u32 ISOShift;
 bool ISOInit()
 {
@@ -86,6 +226,52 @@ bool ISOInit()
 	/* Setup direct reader */
 	ISOFileOpen = 1;
 	LastOffset = UINT_MAX;
+
+	/* Check for CISO format. */
+	CISO_t *tmp_ciso = (CISO_t*)CACHE_START;
+	ISOReadDirect(tmp_ciso, 0x8000, 0);
+	if (tmp_ciso->magic == CISO_MAGIC)
+	{
+		// Only CISOs with 2 MB block sizes are supported.
+		u32 block_size = ((tmp_ciso->block_size >> 24) & 0x000000FF) |
+				 ((tmp_ciso->block_size >>  8) & 0x0000FF00) |
+				 ((tmp_ciso->block_size <<  8) & 0x00FF0000) |
+				 ((tmp_ciso->block_size << 24) & 0xFF000000);
+		if (block_size == CISO_BLOCK_SIZE)
+		{
+			// CISO has 2 MB blocks.
+
+			/**
+			 * Initialize the CISO block map.
+			 * Valid entries:
+			 * - 0: Empty block.
+			 * - 1: Used block.
+			 *
+			 * FIXME: Currently handling other values
+			 * as "used" blocks. An invalid value
+			 * should cause an error.
+			 */
+			uint16_t physBlockIdx = 0;
+			int i;
+			for (i = 0; i < CISO_MAP_SIZE; i++)
+			{
+				if (tmp_ciso->map[i])
+				{
+					// Used block.
+					ciso_block_map[i] = physBlockIdx;
+					physBlockIdx++;
+				}
+				else
+				{
+					// Empty block.
+					ciso_block_map[i] = 0xFFFF;
+				}
+			}
+
+			// Enable CISO mode.
+			is_ciso = 1;
+		}
+	}
 
 	/* Set Low Mem */
 	ISOReadDirect((void*)0x0, 0x20, 0x0 + ISOShift);
