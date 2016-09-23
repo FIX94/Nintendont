@@ -47,16 +47,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "asm/RestoreSettingsVS4V06EXP.h"
 #include "asm/PADControlMotorGP.h"
 
-static const char *SETTINGS_AX_RVC = "/saves/AX_RVCsettings.bin";
-static const char *SETTINGS_AX_RVD = "/saves/AX_RVDsettings.bin";
-static const char *SETTINGS_AX_RVE = "/saves/AX_RVEsettings.bin";
-static const char *SETTINGS_YAKRVB = "/saves/YAKRVBsettings.bin";
-static const char *SETTINGS_YAKRVC = "/saves/YAKRVCsettings.bin";
-static const char *SETTINGS_VS3V02 = "/saves/VS3V02settings.bin";
-static const char *SETTINGS_VS4JAP = "/saves/VS4JAPsettings.bin";
-static const char *SETTINGS_VS4EXP = "/saves/VS4EXPsettings.bin";
-static const char *SETTINGS_VS4V06JAP = "/saves/VS4V06JAPsettings.bin";
-static const char *SETTINGS_VS4V06EXP = "/saves/VS4V06EXPsettings.bin";
+static const char SETTINGS_AX_RVC[] = "/saves/AX_RVCsettings.bin";
+static const char SETTINGS_AX_RVD[] = "/saves/AX_RVDsettings.bin";
+static const char SETTINGS_AX_RVE[] = "/saves/AX_RVEsettings.bin";
+static const char SETTINGS_YAKRVB[] = "/saves/YAKRVBsettings.bin";
+static const char SETTINGS_YAKRVC[] = "/saves/YAKRVCsettings.bin";
+static const char SETTINGS_VS3V02[] = "/saves/VS3V02settings.bin";
+static const char SETTINGS_VS4JAP[] = "/saves/VS4JAPsettings.bin";
+static const char SETTINGS_VS4EXP[] = "/saves/VS4EXPsettings.bin";
+static const char SETTINGS_VS4V06JAP[] = "/saves/VS4V06JAPsettings.bin";
+static const char SETTINGS_VS4V06EXP[] = "/saves/VS4V06EXPsettings.bin";
 
 static const char *TRISettingsName = (char*)0;
 static u32 TRISettingsLoc = 0, TRISettingsSize = 0;

@@ -19,8 +19,8 @@ extern vu8 m_msg[0x80];
 
 extern vu32 TRIGame;
 vu32 AXTimerOffset = 0;
-static const char *TRI_SegaChar = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
-static const char *TRI_NamcoChar = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
+static const char TRI_SegaChar[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
+static const char TRI_NamcoChar[] = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
 static const u32 TRI_DefaultCoinCount = 9;
 
 static const PADStatus *PadBuff = (PADStatus*)0x13002800;

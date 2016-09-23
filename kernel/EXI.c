@@ -40,18 +40,18 @@ static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 extern u32 Region;
 extern vu32 useipl;
 
-u32 Device=0;
-u32 SRAMWriteCount=0;
+static u32 Device = 0;
+static u32 SRAMWriteCount = 0;
 static u32 EXICommand = 0;
 static u32 BlockOff= 0;
 static bool changed = false;
 static u32 BlockOffLow = 0xFFFFFFFF;
 static u32 BlockOffHigh = 0x00000000;
-u8 *MCard = (u8 *)(0x11000000);
-u8 *FontBuf = (u8 *)(0x13100000);
-u32 CARDWriteCount = 0;
-u32 IPLReadOffset;
-FIL MemCard;
+static u8 *const MCard = (u8*)(0x11000000);
+static u8 *const FontBuf = (u8*)(0x13100000);
+static u32 CARDWriteCount = 0;
+static u32 IPLReadOffset;
+static FIL MemCard;
 bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
@@ -877,7 +877,7 @@ void EXIReadFontFile(u8* Data, u32 Length)
 }
 
 //SegaBoot 3.11 with Free Play enabled
-unsigned int sb311block[54] =
+static const unsigned int sb311block[54] =
 {
     0x41434255, 0x30303031, 0x007D0512, 0x01000000, 0x00000311, 0x53424C4B, 
     0x00000000, 0x63090400, 0x01010A01, 0x01010001, 0x01010101, 0x01010101, 
@@ -888,7 +888,7 @@ unsigned int sb311block[54] =
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x200E1AFF,
     0xFFFF0000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-} ;
+};
 
 static bool TRIGameStarted = false;
 //make sure ambbBackupMem is filled correctly

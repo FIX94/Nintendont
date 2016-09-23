@@ -51,7 +51,7 @@ extern int dbgprintf( const char *fmt, ...);
 
 struct ipcmessage DI_CallbackMsg;
 u32 DI_MessageQueue = 0xFFFFFFFF;
-u8 *DI_MessageHeap = NULL;
+static u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
@@ -68,8 +68,8 @@ extern u32 RealDiscCMD;
 extern u32 RealDiscError;
 u32 WaitForRealDisc = 0;
 
-u8 *DI_READ_BUFFER = (u8*)0x12E80000;
-u32 DI_READ_BUFFER_LENGTH = 0x80000;
+u8 *const DI_READ_BUFFER = (u8*)0x12E80000;
+const u32 DI_READ_BUFFER_LENGTH = 0x80000;
 
 extern u32 GAME_ID;
 extern u16 GAME_ID6;
@@ -79,13 +79,13 @@ extern u32 TITLE_ID;
 extern vu32 TRIGame;
 extern vu32 useipltri;
 
-u32 GCAMKeyA;
-u32 GCAMKeyB;
-u32 GCAMKeyC;
+static u32 GCAMKeyA;
+static u32 GCAMKeyB;
+static u32 GCAMKeyC;
 
-u8 *MediaBuffer;
-u8 *NetworkCMDBuffer;
-u8 *DIMMMemory = (u8*)0x12B80000;
+static u8 *MediaBuffer;
+static u8 *NetworkCMDBuffer;
+static u8 *const DIMMMemory = (u8*)0x12B80000;
 
 // Multi-disc filenames.
 static const char disc_filenames[8][16] = {
@@ -135,7 +135,7 @@ void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 }
 
 //ISO Cache is disabled while SegaBoot runs
-u8 *SegaBoot = (u8*)0x12A80000;
+static u8 *const SegaBoot = (u8*)0x12A80000;
 void ReadSegaBoot(u32 Buffer, u32 Offset, u32 Length)
 {
 	if(Offset > 0x100000) //set invalid
@@ -777,7 +777,9 @@ void DIUpdateRegisters( void )
 }
 
 extern u32 Patch31A0Backup;
-u8 *di_src = NULL; char *di_dest = NULL; u32 di_length = 0, di_offset = 0;
+static u8 *di_src = NULL;
+static char *di_dest = NULL;
+static u32 di_length = 0, di_offset = 0;
 u32 DIReadThread(void *arg)
 {
 	//dbgprintf("DI Thread Running\r\n");
@@ -888,7 +890,7 @@ struct _TGCInfo
 	u32 fstupdate;
 	u32 isTGC;
 };
-static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x13002FE0;
+static struct _TGCInfo *const TGCInfo = (struct _TGCInfo*)0x13002FE0;
 
 #define PATCH_STATE_PATCH 2
 extern u32 PatchState, DOLSize, DOLMinOff, DOLMaxOff;

@@ -25,8 +25,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define SI_ERROR_NO_RESPONSE 0x08
 
 u32 SI_IRQ = 0;
-bool complete = true;
-u32 cur_control = 0;
+static bool complete = true;
+static u32 cur_control = 0;
 void SIInit()
 {
 	memset((void*)SI_BASE, 0, 0x120);

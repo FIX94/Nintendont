@@ -46,7 +46,7 @@ u32 TITLE_ID = 0;
 
 #define PATCH_OFFSET_START (0x3000 - (sizeof(u32) * 3))
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
-u32 POffset = PATCH_OFFSET_ENTRY;
+static u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 Region = 0;
 vu32 useipl = 0, useipltri = 0;
 vu32 DisableSIPatch = 0, DisableEXIPatch = 0;

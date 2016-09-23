@@ -31,17 +31,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int dbgprintf( const char *fmt, ...);
 #endif
 
+// If 1, use extracted FST.
+u32 FSTMode = 0;
+
 #include "ff_utf8.h"
 static u8 *FSTable ALIGNED(32);
-u32 ApploaderSize=0;
-u32 dolOffset=0;
-u32 FSTMode = 0;
-u32 FSTableSize=0;
-u32 FSTableOffset=0;
+static u32 ApploaderSize = 0;
+static u32 dolOffset = 0;
+static u32 FSTableSize = 0;
+static u32 FSTableOffset = 0;
 
-u32 FCEntry=0;
-FileCache *FC;
-u32 FCState[FILECACHE_MAX];
+static u32 FCEntry = 0;
+static FileCache *FC;
+static u32 FCState[FILECACHE_MAX];
 
 extern u32 Region;
 

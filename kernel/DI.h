@@ -48,8 +48,8 @@ enum GameRegion
 	ALL,
 };
 
-extern u8 *DI_READ_BUFFER;
-extern u32 DI_READ_BUFFER_LENGTH;
+extern u8 *const DI_READ_BUFFER;
+extern const u32 DI_READ_BUFFER_LENGTH;
 
 extern vu32 SDisInit;
 extern u32 DiscChangeIRQ;

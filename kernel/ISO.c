@@ -33,12 +33,12 @@ u32 ISOFileOpen = 0;
 #define CACHE_START		(u8*)0x11000000
 #define CACHE_SIZE		0x1E80000
 
-u32 CacheInited = 0;
-u32 TempCacheCount = 0;
-u32 DataCacheOffset = 0;
-u8 *DCCache = CACHE_START;
-u32 DCacheLimit = CACHE_SIZE;
-DataCache DC[CACHE_MAX];
+static u32 CacheInited = 0;
+static u32 TempCacheCount = 0;
+static u32 DataCacheOffset = 0;
+static u8 *DCCache = CACHE_START;
+static u32 DCacheLimit = CACHE_SIZE;
+static DataCache DC[CACHE_MAX];
 
 extern u32 USBReadTimer;
 static FIL GameFile;
@@ -79,6 +79,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 	else
 	{
 		// CISO. Handle individual blocks.
+		// TODO: LastOffset optimization?
 		u8 *ptr8 = (u8*)Buffer;
 
 		// Check if we're not starting on a block boundary.

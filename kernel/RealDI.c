@@ -33,14 +33,15 @@ static const char di_path[] __attribute__((aligned(32))) = "/dev/di";
 static s32 di_fd = -1;
 extern u32 Region;
 u32 RealDiscCMD = 0, RealDiscError = 0;
-//No ISO Cache so lets take alot of memory
-u8 *DISC_FRONT_CACHE = (u8*)0x12000000;
-u8 *DISC_DRIVE_BUFFER = (u8*)0x12000800;
-u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
-u8 *DISC_TMP_CACHE = (u8*)0x127FF800;
 
-s32 realdiqueue = -1;
-vu32 realdi_msgrecv = 0;
+//No ISO Cache so lets take alot of memory
+static u8 *const DISC_FRONT_CACHE = (u8*)0x12000000;
+static u8 *const DISC_DRIVE_BUFFER = (u8*)0x12000800;
+static const u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
+static u8 *const DISC_TMP_CACHE = (u8*)0x127FF800;
+
+static s32 realdiqueue = -1;
+static vu32 realdi_msgrecv = 0;
 u32 RealDI_Thread(void *arg)
 {
 	struct ipcmessage *msg = NULL;
@@ -115,7 +116,7 @@ void RealDI_Identify(bool NeedsGC)
 	dbgprintf("DI:Reading real disc with command 0x%02X\r\n", RealDiscCMD);
 }
 
-vu32 WaitForWrite = 0, WaitForRead = 0;
+static vu32 WaitForWrite = 0, WaitForRead = 0;
 void RealDI_Update()
 {
 	if(WaitForWrite == 1)
@@ -172,6 +173,7 @@ void ClearRealDiscBuffer(void)
 	memset32(DISC_DRIVE_BUFFER, 0, DISC_DRIVE_BUFFER_LENGTH);
 	sync_after_write(DISC_DRIVE_BUFFER, DISC_DRIVE_BUFFER_LENGTH);
 }
+
 extern bool access_led;
 u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 {
