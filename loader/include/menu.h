@@ -25,12 +25,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define MAX_GAMES 1024
 
+typedef enum
+{
+	// Disc format.
+	GIFLAG_FORMAT_FULL	= (0 << 0),	// 1:1 rip
+	GIFLAG_FORMAT_SHRUNKEN	= (1 << 0),	// Shrunken via DiscEX
+	GIFLAG_FORMAT_FST	= (2 << 0),	// Extracted FST
+	GIFLAG_FORMAT_CISO	= (3 << 0),	// CISO format
+	GIFLAG_FORMAT_MASK	= (3 << 0),
+
+	// GameInfo.Name was allocated via strdup()
+	// and must be freed.
+	GIFLAG_NAME_ALLOC	= (1 << 7),
+} GameInfoFlags;
+
 typedef struct GameInfo 
 {
 	char ID[6];		// ID6 of the game.
-	uint8_t NameAlloc;	// If non-zero, Name was allocated via strdup().
-	                        // Otherwise, it should NOT be free()'d!
 	uint8_t DiscNumber;	// Disc number.
+	uint8_t Flags;		// See GameInfoFlags.
+	// If non-zero, Name was allocated via strdup().
+	                        // Otherwise, it should NOT be free()'d!
 	char *Name;		// Game name. (If NameAlloc, strdup()'d.)
 	char *Path;		// File path.
 } gameinfo;

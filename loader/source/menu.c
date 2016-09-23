@@ -139,21 +139,37 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	// Check for CISO magic with 2 MB block size.
 	// NOTE: CISO block size is little-endian.
 	static const uint8_t CISO_MAGIC[8] = {'C','I','S','O',0x00,0x00,0x20,0x00};
-	if (!memcmp(buf, CISO_MAGIC, sizeof(CISO_MAGIC)))
+	if (!memcmp(buf, CISO_MAGIC, sizeof(CISO_MAGIC)) &&
+	    !IsGCGame((u8*)buf))
 	{
-		// Make sure the GCN magic isn't set.
-		if (!IsGCGame((u8*)buf))
+		// CISO magic is present, and GCN magic isn't.
+		// This is most likely a CISO image.
+		// Read the actual GCN header.
+		f_lseek(&in, 0x8000);
+		f_read(&in, buf, 0x100, &read);
+		if (read != 0x100)
 		{
-			// This is most likely a CISO image.
-			// Read the actual GCN header.
-			f_lseek(&in, 0x8000);
-			f_read(&in, buf, 0x100, &read);
-			if (read != 0x100)
-			{
-				// Error reading from the file.
-				f_close(&in);
-				return false;
-			}
+			// Error reading from the file.
+			f_close(&in);
+			return false;
+		}
+
+		gi->Flags = GIFLAG_FORMAT_CISO;
+	}
+	else
+	{
+		// Standard GameCube disc image.
+		// TODO: Detect Triforce images and exclude them
+		// from size checking?
+		if (in.obj.objsize == 1459978240)
+		{
+			// Full 1:1 GameCube image.
+			gi->Flags = GIFLAG_FORMAT_FULL;
+		}
+		else
+		{
+			// Shrunken GameCube image.
+			gi->Flags = GIFLAG_FORMAT_SHRUNKEN;
 		}
 	}
 
@@ -171,7 +187,7 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		{
 			// Title found.
 			gi->Name = (char*)dbTitle;
-			gi->NameAlloc = 0;
+			gi->Flags &= ~GIFLAG_NAME_ALLOC;
 		}
 		else
 		{
@@ -180,7 +196,7 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 			strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
 			gamename[sizeof(gamename)-1] = 0;
 			gi->Name = strdup(gamename);
-			gi->NameAlloc = 1;
+			gi->Flags |= GIFLAG_NAME_ALLOC;
 		}
 
 		gi->Path = strdup(filename);
@@ -249,7 +265,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
 		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
 		gi[0].Name = "Boot GC Disc in Drive";
-		gi[0].NameAlloc = 0;
+		gi[0].Flags = 0;
 		gi[0].DiscNumber = 0;
 		gi[0].Path = strdup("di:di");
 		gamecount++;
@@ -379,7 +395,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 						strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
 						gamename[sizeof(gamename)-1] = 0;
 						gi[gamecount].Name = strdup(gamename);
-						gi[gamecount].NameAlloc = 1;
+						gi[gamecount].Flags = GIFLAG_NAME_ALLOC | GIFLAG_FORMAT_FST;
 
 						gi[gamecount].Path = strdup( filename );
 						gamecount++;
@@ -679,10 +695,21 @@ static int SelectGame(void)
 					// FIXME: Print all 64 characters of the game name?
 					// Currently truncated to 50.
 					const gameinfo *cur_gi = &gi[i+ScrollX];
+
+					// Determine color based on disc format.
+					static const u32 colors[4] =
+					{
+						BLACK,		// Full
+						0x551A00FF,	// Shrunken (dark brown)
+						0x00551AFF,	// Extracted FST
+						0x001A55FF,	// CISO
+					};
+
+					const u32 color = colors[cur_gi->Flags & GIFLAG_FORMAT_MASK];
 					if (cur_gi->DiscNumber == 0)
 					{
 						// Disc 1.
-						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, gamelist_y,
+						PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
 							    "%50.50s [%.6s]%s",
 							    cur_gi->Name, cur_gi->ID,
 							    i == PosX ? ARROW_LEFT : " ");
@@ -690,7 +717,7 @@ static int SelectGame(void)
 					else
 					{
 						// Disc 2 or higher.
-						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, gamelist_y,
+						PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
 							    "%46.46s (%d) [%.6s]%s",
 							    cur_gi->Name, cur_gi->DiscNumber+1, cur_gi->ID,
 							    i == PosX ? ARROW_LEFT : " ");
@@ -1041,7 +1068,7 @@ static int SelectGame(void)
 	// Free allocated memory in the game list.
 	for (i = 0; i < gamecount; ++i)
 	{
-		if (gi[i].NameAlloc)
+		if (gi[i].Flags & GIFLAG_NAME_ALLOC)
 			free(gi[i].Name);
 		free(gi[i].Path);
 	}
