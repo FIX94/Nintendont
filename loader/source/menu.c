@@ -313,7 +313,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		if (fInfo.fname[0] == '.')
 			continue;
 
-		if (0)//(fInfo.fattrib & AM_DIR)
+		if (fInfo.fattrib & AM_DIR)
 		{
 			// Subdirectory.
 
