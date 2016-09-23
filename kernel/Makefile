@@ -1,5 +1,15 @@
 # Nintendont kernel
 
+#---------------------------------------------------------------------------------
+# Clear the implicit built in rules
+#---------------------------------------------------------------------------------
+
+.SUFFIXES:
+#---------------------------------------------------------------------------------
+ifeq ($(strip $(DEVKITARM)),)
+$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
+endif
+
 PREFIX	:= $(DEVKITARM)/bin/arm-none-eabi-
 CC	:= $(PREFIX)gcc
 AS	:= $(PREFIX)as
