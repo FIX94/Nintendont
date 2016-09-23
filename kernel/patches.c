@@ -155,7 +155,7 @@ enum
 	FGROUP_ReadROM,
 } FPatternGroups;
 
-FuncPattern NormalFPatterns[] =
+static FuncPattern NormalFPatterns[] =
 {
 //	{   0xA8,   10,    4,    4,    6,    3,	DVDGetDriveStatus,	sizeof(DVDGetDriveStatus),	"DVDGetDriveStatus",	NULL,		FGROUP_NONE,				0 },
 #ifndef AUDIOSTREAM
@@ -224,7 +224,7 @@ FuncPattern NormalFPatterns[] =
 #endif
 };
 
-FuncPattern TRIFPatterns[] =
+static FuncPattern TRIFPatterns[] =
 {
 #ifdef TRI_DI_PATCH
 	{   0xB4,   18,   11,    1,    0,    7,	NULL,				FCODE_DVDSendCMDEncrypted,	"DVDSendCMDEncrypted",	NULL,		FGROUP_NONE,				0 },
@@ -234,7 +234,7 @@ FuncPattern TRIFPatterns[] =
 	{  0x168,   22,   10,    7,    6,   10,	SITransfer,			sizeof(SITransfer),			"SITransfer",			NULL,		FGROUP_NONE,				0 },
 };
 
-FuncPattern SIFPatterns[] =
+static FuncPattern SIFPatterns[] =
 {
 	{  0x2F8,   60,   22,    2,   16,   25,	NULL,				FCODE_CompleteTransfer,		"CompleteTransfer",		"A",		FGROUP_CompleteTransfer,	0 },
 	{  0x240,   40,   14,    0,   13,   11,	NULL,				FCODE_CompleteTransfer,		"CompleteTransfer",		"B",		FGROUP_CompleteTransfer,	0 },
@@ -262,7 +262,7 @@ FuncPattern SIFPatterns[] =
 	{  0x1F4,   27,    9,    9,    9,   24,	SIGetType,			SIGetType_size,				"SIGetType",			"B",		FGROUP_SIGetType,			0 },
 };
 
-FuncPattern PADFPatterns[] = 
+static FuncPattern PADFPatterns[] = 
 {
 
 	{  0x3A8,   86,   13,   27,   17,   24,	NULL,				FCODE_PADRead,				"PADRead",				"A",		FGROUP_PADRead,				0 },
@@ -288,7 +288,7 @@ FuncPattern PADFPatterns[] =
 	{   0xE8,   14,    7,    6,   10,    6,	NULL,				FCODE___PADSetSamplingRate,	"__PADSetSamplingRate",	NULL,		FGROUP_NONE,				0 },
 };
 
-FuncPattern EXIFPatterns[] =
+static FuncPattern EXIFPatterns[] =
 {
 	{  0x258,   36,    8,    5,   12,   32,	EXIImm,				EXIImm_size,				"EXIImm",				"A",		FGROUP_EXIImm,				0 },
 	{  0x258,   27,    8,    5,   12,   17,	EXIImm,				EXIImm_size,				"EXIImm",				"B",		FGROUP_EXIImm,				0 },
@@ -371,13 +371,13 @@ FuncPattern EXIFPatterns[] =
 	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",			NULL,		FGROUP_NONE,				0 },
 };
 
-FuncPattern DatelFPatterns[] =
+static FuncPattern DatelFPatterns[] =
 {
 	{   0x48,    9,   2,    3,    0,    3,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"Datel",	FGROUP_NONE,				0 },
 	{   0xF8,    8,   6,    7,    1,    6,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			"DatelB",	FGROUP_NONE,				0 },
 };
 
-FuncPattern PSOFPatterns[] = 
+static FuncPattern PSOFPatterns[] = 
 {
 	{  0x23C,   66,   24,   35,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"A",		FGROUP_NONE,			    0 },
 	{  0x274,   51,   24,    7,   17,   16,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"B",		FGROUP_NONE,			    0 },
@@ -401,7 +401,7 @@ enum
 	PCODE_MAX,
 } AllPGroups;
 
-FuncPatterns AllFPatterns[] = 
+static const FuncPatterns AllFPatterns[] = 
 {
 	{ NormalFPatterns, sizeof(NormalFPatterns) / sizeof(FuncPattern), PCODE_NORMAL },
 	{ TRIFPatterns, sizeof(TRIFPatterns) / sizeof(FuncPattern), PCODE_TRI },
