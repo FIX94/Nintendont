@@ -61,14 +61,14 @@ typedef struct _CISO_t {
 // CISO: Block map.
 // Supports files up to 2 GB when using 2 MB blocks.
 static uint16_t ciso_block_map[CISO_MAP_SIZE];
-static int is_ciso = 0;	// Set to 1 for CISO mode.
+static bool ISO_IsCISO = false;	// Set to 1 for CISO mode.
 
 static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 {
 	if(ISOFileOpen == 0)
 		return;
 
-	if (!is_ciso)
+	if (!ISO_IsCISO)
 	{
 		// Standard ISO/GCM file.
 		if(LastOffset != Offset)
@@ -226,6 +226,7 @@ bool ISOInit()
 	/* Setup direct reader */
 	ISOFileOpen = 1;
 	LastOffset = UINT_MAX;
+	ISO_IsCISO = false;
 
 	/* Check for CISO format. */
 	CISO_t *tmp_ciso = (CISO_t*)CACHE_START;
@@ -269,7 +270,7 @@ bool ISOInit()
 			}
 
 			// Enable CISO mode.
-			is_ciso = 1;
+			ISO_IsCISO = true;
 		}
 	}
 
@@ -302,6 +303,7 @@ void ISOClose()
 #endif /* _USE_FASTSEEK */
 	}
 	ISOFileOpen = 0;
+	ISO_IsCISO = false;
 }
 
 void ISOSetupCache()

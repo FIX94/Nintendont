@@ -292,12 +292,16 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		 * ISO/GCM format:
 		 * - /games/GAMEID/game.gcm
 		 * - /games/GAMEID/game.iso
-		 * - /games/GAMEID/disc2.iso [.gcm not supported yet]
+		 * - /games/GAMEID/disc2.gcm
+		 * - /games/GAMEID/disc2.iso
 		 * - /games/[anything].gcm
 		 * - /games/[anything].iso
 		 *
 		 * CISO format:
 		 * - /games/GAMEID/game.ciso
+		 * - /games/GAMEID/game.cso
+		 * - /games/GAMEID/disc2.ciso
+		 * - /games/GAMEID/disc2.cso
 		 * - /games/[anything].ciso
 		 *
 		 * FST format:
@@ -325,22 +329,17 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 					     GetRootDevice(), filename_utf8);
 
 			//Test if game.iso exists and add to list
-			bool found[2] = {false, false};
+			bool found = false;
 
-			const char disc_filenames[5][16] = {
+			static const char disc_filenames[8][16] = {
 				"game.ciso", "game.cso", "game.gcm", "game.iso",
-				// FIXME: Disc 2 filenames other than "disc2.iso"
-				// aren't supported yet.
-				// Fix kernel/DI.c to handle it.
-				/*"disc2.ciso", "disc2.cso", "disc2.gcm",*/ "disc2.iso"
+				"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso"
 			};
 
 			u32 i;
-			for (i = 0; i < 5; i++)
+			for (i = 0; i < 8; i++)
 			{
 				const u32 discNumber = i / 4;
-				if (found[discNumber])
-					continue;
 
 				// Append the disc filename.
 				strcpy(&filename[fnlen], disc_filenames[i]);
@@ -350,13 +349,15 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 				{
 					// Disc image exists and is a GameCube disc.
 					gamecount++;
-					found[discNumber] = true;
+					found = true;
+					// Next disc number.
+					i = (discNumber * 4) + 3;
 				}
 			}
 
 			// If none of the expected files were found,
 			// check for FST format.
-			if (!found[0] && !found[1])
+			if (!found)
 			{
 				memcpy(&filename[fnlen], "sys/boot.bin", 13);
 				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)

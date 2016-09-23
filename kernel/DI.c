@@ -18,6 +18,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
+
+// strcasecmp()
+#include <strings.h>
+
 #include "global.h"
 #include "DI.h"
 #include "RealDI.h"
@@ -51,7 +55,6 @@ u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
-bool MultipleDiscs = true;
 u32 ISOShift = 0;
 static u32 Streaming = 0; //internal
 extern u32 StreamSize, StreamStart, StreamCurrent, StreamEndOffset;
@@ -83,6 +86,17 @@ u32 GCAMKeyC;
 u8 *MediaBuffer;
 u8 *NetworkCMDBuffer;
 u8 *DIMMMemory = (u8*)0x12B80000;
+
+// Multi-disc filenames.
+static const char disc_filenames[8][16] = {
+	"game.ciso", "game.cso", "game.gcm", "game.iso",
+	"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso"
+};
+
+// Filename portions for 2-disc mode.
+// Points to entries in disc_filenames.
+// NOTE: If either is NULL, assume single-disc mode.
+static const char *DI_2disc_filenames[2] = {NULL, NULL};
 
 void DIRegister(void)
 {
@@ -147,24 +161,49 @@ void DIinit( bool FirstTime )
 	{
 		if(RealDiscCMD == 0)
 		{
-			// Move this to ISO.c?
-			u32 i;
+			// Check if this is a 2-disc game.
+			u32 i, slash_pos;
 			char TempDiscName[256];
 			_sprintf(TempDiscName, "%s", ConfigGetGamePath());
 
 			//search the string backwards for '/'
-			for( i=strlen(TempDiscName); i > 0; --i )
-				if( TempDiscName[i] == '/' )
+			for (slash_pos = strlen(TempDiscName); slash_pos > 0; --slash_pos)
+			{
+				if (TempDiscName[slash_pos] == '/')
 					break;
-			i++;
+			}
+			slash_pos++;
 
-			_sprintf(TempDiscName+i, "disc2.iso");
-			FIL ExistsFile;
-			s32 ret = f_open_char(&ExistsFile, TempDiscName, FA_READ);
-			if (ret != FR_OK)
-				MultipleDiscs = false;
-			else
-				f_close(&ExistsFile);
+			// First, make sure the disc's filename is game.(ciso|cso|gcm|iso).
+			DI_2disc_filenames[0] = NULL;
+			DI_2disc_filenames[1] = NULL;
+			for (i = 0; i < 4; i++)
+			{
+				if (!strcasecmp(TempDiscName+slash_pos, disc_filenames[i]))
+				{
+					// This is game.(ciso|cso|gcm|iso).
+					DI_2disc_filenames[0] = disc_filenames[i];
+					break;
+				}
+			}
+
+			if (DI_2disc_filenames[0] != NULL)
+			{
+				// Check for the disc2 file.
+				for (i = 4; i < 8; i++)
+				{
+					_sprintf(TempDiscName+slash_pos, disc_filenames[i]);
+					FIL ExistsFile;
+					s32 ret = f_open_char(&ExistsFile, TempDiscName, FA_READ);
+					if (ret == FR_OK)
+					{
+						// Found the disc image.
+						f_close(&ExistsFile);
+						DI_2disc_filenames[1] = disc_filenames[i];
+						break;
+					}
+				}
+			}
 		}
 		else
 		{
@@ -204,23 +243,26 @@ void DISetDIMMVersion( u32 Version )
 }
 bool DIChangeDisc( u32 DiscNumber )
 {
-	if (!MultipleDiscs)
+	// Don't do anything if multi-disc mode isn't enabled.
+	if (!DI_2disc_filenames[0] ||
+	    !DI_2disc_filenames[1] ||
+	    DiscNumber > 1)
+	{
 		return false;
+	}
 
-	u32 i;
+	u32 slash_pos;
 	char* DiscName = ConfigGetGamePath();
 
 	//search the string backwards for '/'
-	for( i=strlen(DiscName); i > 0; --i )
-		if( DiscName[i] == '/' )
+	for (slash_pos = strlen(DiscName); slash_pos > 0; --slash_pos)
+	{
+		if (DiscName[slash_pos] == '/')
 			break;
-	i++;
+	}
+	slash_pos++;
 
-	if( DiscNumber == 0 )
-		_sprintf( DiscName+i, "game.iso" );
-	else
-		_sprintf( DiscName+i, "disc2.iso" );
-
+	_sprintf(DiscName+slash_pos, DI_2disc_filenames[DiscNumber]);
 	dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
 	DIinit(false);
 	return true;
