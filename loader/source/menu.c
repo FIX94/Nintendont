@@ -480,68 +480,96 @@ static u32 UpHeld = 0, DownHeld = 0;
 static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 {
 	u32 i;
+
 	if( FPAD_Down(1) )
 	{
+		// Down: Move the cursor down by 1 entry.
 		if(DownHeld == 0 || DownHeld > 10)
 		{
+			// Remove the current arrow.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
+			// Adjust the scrolling position.
 			if( PosX + 1 >= ListMax )
 			{
-				if( PosX + 1 + ScrollX < gamecount)
+				if( PosX + 1 + ScrollX < gamecount ) {
+					// Need to adjust the scroll position.
 					ScrollX++;
-				else {
+				} else {
+					// Wraparound.
 					PosX	= 0;
 					ScrollX = 0;
 				}
 			} else {
 				PosX++;
 			}
-		
-			if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
-				ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
+
+			if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
+			{
+				// If a cheat path being used, clear it because it
+				// can't be correct for a different game.
+				ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
+			}
+
 			redraw=1;
 			SaveSettings = true;
-			}
+		}
 		DownHeld++;
 	}
 	else
+	{
 		DownHeld = 0;
+	}
+
 	if( FPAD_Right(0) )
 	{
+		// Right: Move the cursor down by 1 page.
+		// TODO: Add delay like for Up/Down?
+
+		// Remove the current arrow.
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
+		// Adjust the scrolling position.
 		if( PosX == ListMax - 1 )
 		{
-			if( PosX + ListMax + ScrollX < gamecount)
-				ScrollX = ScrollX + ListMax;
-			else
-			if( PosX + ScrollX != gamecount -1)
+			if( PosX + ListMax + ScrollX < gamecount ) {
+				ScrollX += ListMax;
+			} else if ( PosX + ScrollX != gamecount - 1 ) {
 				ScrollX = gamecount - ListMax;
-			else {
+			} else {
 				PosX	= 0;
 				ScrollX = 0;
 			}
 		} else {
 			PosX = ListMax - 1;
 		}
-	
-		if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
-			ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
+
+		if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
+		{
+			// If a cheat path being used, clear it because it
+			// can't be correct for a different game.
+			ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
+		}
+
 		redraw=1;
 		SaveSettings = true;
 	}
-	else if( FPAD_Up(1) )
+
+	if (FPAD_Up(1))
 	{
-		if(UpHeld == 0 || UpHeld > 10)
+		// Up: Move the cursor up by 1 entry.
+		if( UpHeld == 0 || UpHeld > 10 )
 		{
+			// Remove the current arrow.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
+			// Adjust the scrolling position.
 			if( PosX <= 0 )
 			{
-				if( ScrollX > 0 )
+				if( ScrollX > 0 ) {
 					ScrollX--;
-				else {
+				} else {
+					// Wraparound.
 					PosX	= ListMax - 1;
 					ScrollX = gamecount - ListMax;
 				}
@@ -549,48 +577,67 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 				PosX--;
 			}
 
-			if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
-				ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
+			if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
+			{
+				// If a cheat path being used, clear it because it
+				// can't be correct for a different game.
+				ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
+			}
+
 			redraw=1;
 			SaveSettings = true;
 		}
 		UpHeld++;
 	}
 	else
-		UpHeld = 0;
-	if( FPAD_Left(0) )
 	{
+		UpHeld = 0;
+	}
+
+	if (FPAD_Left(0))
+	{
+		// Left: Move the cursor up by 1 page.
+		// TODO: Add delay like for Up/Down?
+
+		// Remove the current arrow.
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
 
+		// Adjust the scrolling position.
 		if( PosX == 0 )
 		{
-			if( ScrollX - (s32)ListMax >= 0 )
-				ScrollX = ScrollX - ListMax;
-			else
-			if( ScrollX != 0 )
+			if( ScrollX - (s32)ListMax >= 0 ) {
+				ScrollX -= ListMax;
+			} else if( ScrollX != 0 ) {
 				ScrollX = 0;
-			else {
+			} else {
 				ScrollX = gamecount - ListMax;
 			}
 		} else {
 			PosX = 0;
 		}
 
-		if((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))	//if cheat path being used
-			ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);		//clear it beacuse it cant be correct for a different game
+		if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
+		{
+			// If a cheat path being used, clear it because it
+			// can't be correct for a different game.
+			ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
+		}
+
 		redraw=1;
 		SaveSettings = true;
 	}
 
-	if( FPAD_OK(0) )
+	if (FPAD_OK(0))
 	{
 		// User selected a game.
 		selected = true;
 		return true;
 	}
 
-	if( redraw )
+	if (redraw)
 	{
+		// Redraw the game list.
+		// TODO: Only if menuMode or scrollX has changed?
 		PrintInfo();
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
@@ -607,11 +654,15 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 			gamelist_y += 20;
 		}
 
-		for (i = 0; i < ListMax; ++i, gamelist_y += 20)
+		const gameinfo *cur_gi = &gi[ScrollX];
+		int gamesToPrint = gamecount - ScrollX;
+		if (gamesToPrint > ListMax)
+			gamesToPrint = ListMax;
+
+		for (i = 0; i < gamesToPrint; ++i, gamelist_y += 20, cur_gi++)
 		{
 			// FIXME: Print all 64 characters of the game name?
 			// Currently truncated to 50.
-			const gameinfo *cur_gi = &gi[i+ScrollX];
 
 			// Determine color based on disc format.
 			static const u32 colors[4] =
@@ -627,19 +678,20 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 			{
 				// Disc 1.
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
-						"%50.50s [%.6s]%s",
-						cur_gi->Name, cur_gi->ID,
-						i == PosX ? ARROW_LEFT : " ");
+					    "%50.50s [%.6s]%s",
+					    cur_gi->Name, cur_gi->ID,
+					    i == PosX ? ARROW_LEFT : " ");
 			}
 			else
 			{
 				// Disc 2 or higher.
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
-						"%46.46s (%d) [%.6s]%s",
-						cur_gi->Name, cur_gi->DiscNumber+1, cur_gi->ID,
-						i == PosX ? ARROW_LEFT : " ");
+					    "%46.46s (%d) [%.6s]%s",
+					    cur_gi->Name, cur_gi->DiscNumber+1, cur_gi->ID,
+					    i == PosX ? ARROW_LEFT : " ");
 			}
 		}
+
 		GRRLIB_Render();
 		Screenshot();
 		ClearScreen();
