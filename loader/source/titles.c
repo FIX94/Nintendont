@@ -138,11 +138,13 @@ int LoadTitles(void)
 /**
  * Find a title in the titles database.
  * Loaded from titles.txt, plus special exceptions for Triforce.
- * @param titleID Title ID. (ID6)
+ * @param titleID	[in] Title ID. (ID6)
+ * @param pIsTriforce	[out,opt] Set to true if this is a Triforce title.
  * @return Title, or NULL if not found.
  * WARNING: DO NOT FREE the returned title!
  */
-const char *SearchTitles(const char *titleID) {
+const char *SearchTitles(const char *titleID, bool *pIsTriforce)
+{
 	if (!loaded) {
 		// Titles haven't been loaded.
 		return NULL;
@@ -153,8 +155,18 @@ const char *SearchTitles(const char *titleID) {
 	for (i = 0; i < MAX_ELEMENTS(TriforceTitles); i++) {
 		if (!strncmp(titleID, TriforceTitles[i].titleID, 6)) {
 			gprintf("Found special title %.6s, replacing name with %s\r\n", titleID, TriforceTitles[i].titleName);
+			if (pIsTriforce)
+			{
+				*pIsTriforce = true;
+			}
 			return TriforceTitles[i].titleName;
 		}
+	}
+
+	// Not a Triforce title.
+	if (pIsTriforce)
+	{
+		*pIsTriforce = false;
 	}
 
 	// Do a binary search for the ID3.

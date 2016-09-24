@@ -182,12 +182,24 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		gi->DiscNumber = discNumber;
 
 		// Check if this title is in titles.txt.
-		const char *dbTitle = SearchTitles(gi->ID);
+		bool isTriforce;
+		const char *dbTitle = SearchTitles(gi->ID, &isTriforce);
 		if (dbTitle)
 		{
 			// Title found.
 			gi->Name = (char*)dbTitle;
 			gi->Flags &= ~GIFLAG_NAME_ALLOC;
+
+			if (isTriforce)
+			{
+				// Clear the format value if it's "shrunken",
+				// since Triforce titles are never the size
+				// of a full 1:1 GameCube disc image.
+				if ((gi->Flags & GIFLAG_FORMAT_MASK) == GIFLAG_FORMAT_SHRUNKEN)
+				{
+					gi->Flags &= ~GIFLAG_FORMAT_MASK;
+				}
+			}
 		}
 		else
 		{
