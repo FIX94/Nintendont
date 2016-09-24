@@ -707,6 +707,9 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
  */
 static bool UpdateSettingsMenu(MenuCtx *ctx)
 {
+	// Dark gray for grayed-out menu items.
+	#define DARK_GRAY 0x666666FF
+
 	if(FPAD_X(0))
 	{
 		// Start the updater.
@@ -887,7 +890,10 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				// Standard boolean setting.
 				if (ctx->settings.posX == NIN_CFG_BIT_USB) {
 					// USB option is replaced with Wii U widescreen.
-					ncfg->Config ^= NIN_CFG_WIIU_WIDE;
+					// NOTE: Only adjustable on Wii U.
+					if (IsWiiU()) {
+						ncfg->Config ^= NIN_CFG_WIIU_WIDE;
+					}
 				} else {
 					ncfg->Config ^= (1 << ctx->settings.posX);
 				}
@@ -959,7 +965,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					break;
 
 				case NIN_SETTINGS_NATIVE_SI:
-					ncfg->Config ^= (NIN_CFG_NATIVE_SI);
+					// NOTE: Not adjustable on Wii U.
+					// TODO: Also RVL-101?
+					if (!IsWiiU()) {
+						ncfg->Config ^= (NIN_CFG_NATIVE_SI);
+					}
 					break;
 
 				default:
@@ -997,8 +1007,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		{
 			if (ListLoopIndex == NIN_CFG_BIT_USB) {
 				// USB option is replaced with Wii U widescreen.
-				// FIXME: Gray out on standard Wii.
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+				PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+50, SettingY(ListLoopIndex),
 					    "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_WIIU_WIDE)) ? "On " : "Off");
 			} else {
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
@@ -1083,8 +1092,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		ListLoopIndex+=2;
 
 		// Native controllers. (Required for GBA link; disables Bluetooth and USB HID.)
-		// FIXME: Gray out on vWii and maybe RVL-101?
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex),
+		// TODO: Gray out on RVL-101?
+		PrintFormat(MENU_SIZE, (IsWiiU() ? DARK_GRAY : BLACK), MENU_POS_X + 50, SettingY(ListLoopIndex),
 			    "%-18s:%-4s", OptionStrings[ListLoopIndex],
 			    (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
 		ListLoopIndex++;
@@ -1121,7 +1130,15 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(ctx->settings.posX), ARROW_RIGHT);
+			u32 cursor_color = BLACK;
+			if ((!IsWiiU() && ctx->settings.posX == NIN_CFG_BIT_USB) ||
+			     (IsWiiU() && ctx->settings.posX == NIN_CFG_NATIVE_SI))
+			{
+				// Setting is not usable on this platform.
+				// Gray out the cursor, too.
+				cursor_color = DARK_GRAY;
+			}
+			PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 30, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		} else {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		}
