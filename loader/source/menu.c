@@ -838,6 +838,23 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_max_pads;
 			}
 
+			case NIN_SETTINGS_LANGUAGE: {
+				static const char *desc_language[] = {
+					"Set the system language.",
+					"",
+					"This option is normally only",
+					"found on PAL GameCubes, so",
+					"it usually won't have an",
+					"effect on NTSC games.",
+					NULL
+				};
+				return desc_language;
+			}
+
+			case NIN_SETTINGS_VIDEO:
+			case NIN_SETTINGS_VIDEOMODE:
+				break;
+
 			case NIN_SETTINGS_MEMCARDBLOCKS: {
 				static const char *desc_memcard_blocks[] = {
 					"Default size for new memory",
