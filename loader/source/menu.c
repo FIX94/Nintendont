@@ -823,10 +823,16 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 			case NIN_SETTINGS_MAX_PADS: {
 				static const char *desc_max_pads[] = {
 					"Set the maximum number of",
-					"controllers to be detected.",
+					"native GameCube controller",
+					"ports to use.",
 					"",
-					"Keep this at 4 unless you know",
-					"what you're doing.",
+					"This should usually be kept",
+					"at 4 to enable all ports",
+					"",
+					"This option has no effect on",
+					"Wii U and Wii Family Edition",
+					"systems, since they don't",
+					"have native controller ports.",
 					NULL
 				};
 				return desc_max_pads;
@@ -1085,7 +1091,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 						ncfg->Config ^= NIN_CFG_WIIU_WIDE;
 					}
 				} else {
-					if (IsWiiU() &&
+					if (!IsWiiU() &&
 					    (ctx->settings.posX == NIN_CFG_BIT_DEBUGGER ||
 					     ctx->settings.posX == NIN_CFG_BIT_DEBUGWAIT ||
 					     ctx->settings.posX == NIN_CFG_BIT_LED))
@@ -1100,9 +1106,14 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			else switch (ctx->settings.posX)
 			{
 				case NIN_SETTINGS_MAX_PADS:
-					ncfg->MaxPads++;
-					if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
-						ncfg->MaxPads = 0;
+					// Maximum native controllers.
+					// Not available on Wii U.
+					// TODO: Disable on RVL-101?
+					if (IsWiiU()) {
+						ncfg->MaxPads++;
+						if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
+							ncfg->MaxPads = 0;
+						}
 					}
 					break;
 
@@ -1224,7 +1235,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		}
 
 		// Maximum number of emulated controllers.
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+		// Not available on Wii U.
+		// TODO: Disable on RVL-101?
+		PrintFormat(MENU_SIZE, (!IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+50, SettingY(ListLoopIndex),
 			    "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
 		ListLoopIndex++;
 
