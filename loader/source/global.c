@@ -168,7 +168,7 @@ void unzip_data(const void *input, const u32 input_size,
 static void *font_ttf = NULL;
 static u32 font_ttf_size = 0;
 
-void Initialise()
+void Initialise(bool autoboot)
 {
 	int i;
 	AUDIO_Init(NULL);
@@ -182,12 +182,15 @@ void Initialise()
 	myFont = GRRLIB_LoadTTF(font_ttf, font_ttf_size);
 	background = GRRLIB_LoadTexturePNG(background_png);
 	screen_buffer = GRRLIB_CreateEmptyTexture(rmode->fbWidth, rmode->efbHeight);
-	for (i=0; i<255; i +=5) // Fade background image in from black screen
+	if(autoboot == false)
 	{
-		GRRLIB_DrawImg(0, 0, background, 0, 1, 1, RGBA(255, 255, 255, i)); // Opacity increases as i does
-		GRRLIB_Render();
+		for (i=0; i<255; i +=5) // Fade background image in from black screen
+		{
+			GRRLIB_DrawImg(0, 0, background, 0, 1, 1, RGBA(255, 255, 255, i)); // Opacity increases as i does
+			GRRLIB_Render();
+		}
+		ClearScreen();
 	}
-	ClearScreen();
 	gprintf("Initialize Finished\r\n");
 }
 

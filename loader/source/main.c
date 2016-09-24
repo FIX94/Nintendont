@@ -212,13 +212,30 @@ int main(int argc, char **argv)
 
 	RAMInit();
 
+	memset((void*)ncfg, 0, sizeof(NIN_CFG));
+	bool argsboot = false;
+	if(argc > 1) //every 0x00 gets counted as one arg so just make sure its more than the path and copy
+	{
+		memcpy(ncfg, argv[1], sizeof(NIN_CFG));
+		UpdateNinCFG(); //support for old versions with this
+		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD)
+		{
+			if(ncfg->Config & NIN_CFG_AUTO_BOOT)
+			{	//do NOT remove, this can be used to see if nintendont knows args
+				gprintf(ARGSBOOT_STR);
+				argsboot = true;
+			}
+		}
+	}
+
 	//Meh, doesnt do anything anymore anyways
 	//STM_RegisterEventHandler(HandleSTMEvent);
 
-	Initialise();
+	Initialise(argsboot);
 
 	// Initializing IOS58...
-	ShowMessageScreen("Initializing IOS58...");
+	if(argsboot == false)
+		ShowMessageScreen("Initializing IOS58...");
 
 	u32 u;
 	//Disables MEMPROT for patches
@@ -302,7 +319,8 @@ int main(int argc, char **argv)
 	}
 
 	// Checking for storage devices...
-	ShowMessageScreen("Checking storage devices...");
+	if(argsboot == false)
+		ShowMessageScreen("Checking storage devices...");
 
 	// Initialize devices.
 	// TODO: Only mount the device Nintendont was launched from
@@ -355,26 +373,11 @@ int main(int argc, char **argv)
 	// Update meta.xml.
 	updateMetaXml();
 
-	// Load titles.txt.
-	LoadTitles();
-
-	memset((void*)ncfg, 0, sizeof(NIN_CFG));
-	bool argsboot = false;
-	if(argc > 1) //every 0x00 gets counted as one arg so just make sure its more than the path and copy
-	{
-		memcpy(ncfg, argv[1], sizeof(NIN_CFG));
-		UpdateNinCFG(); //support for old versions with this
-		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD)
-		{
-			if(ncfg->Config & NIN_CFG_AUTO_BOOT)
-			{	//do NOT remove, this can be used to see if nintendont knows args
-				gprintf(ARGSBOOT_STR);
-				argsboot = true;
-			}
-		}
-	}
 	if(argsboot == false)
 	{
+		// Load titles.txt.
+		LoadTitles();
+
 		if (LoadNinCFG() == false)
 		{
 			memset(ncfg, 0, sizeof(NIN_CFG));
@@ -436,7 +439,8 @@ int main(int argc, char **argv)
 	u32 CurDICMD = 0;
 	if( memcmp(ncfg->GamePath, "di", 3) == 0 )
 	{
-		ShowLoadingScreen();
+		if(argsboot == false)
+			ShowLoadingScreen();
 
 		DI_UseCache(false);
 		DI_Init();
@@ -803,133 +807,139 @@ int main(int argc, char **argv)
 		if( STATUS_LOADING == 0xdeadbeef )
 			break;
 
-		PrintInfo();
+		if(argsboot == false)
+		{
+			PrintInfo();
 
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel... %d", STATUS_LOADING);
-		if(STATUS_LOADING == 0)
-		{
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init...");
-			// Cleans the -1 when it's past it to avoid confusion if another error happens. e.g. before it showed "81" instead of "8" if the controller was unplugged.
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 163, MENU_POS_Y + 20*6, " ");
-		}
-		if((STATUS_LOADING > 0 || abs(STATUS_LOADING) > 1) && STATUS_LOADING < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init... Done!");
-		if(STATUS_LOADING == 2)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices...");
-		if(abs(STATUS_LOADING) > 2 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices... Done!");
-		if(STATUS_LOADING == -2)
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices... Error! %d  Shutting down", STATUS_ERROR);
-		if(STATUS_LOADING == 3)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...");
-		if(abs(STATUS_LOADING) > 3 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Done!");
-		if(STATUS_LOADING == -3)
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Error! %d  Shutting down", STATUS_ERROR);
-		if(STATUS_LOADING == 5) {
-/* 			if (timeout == 0)
-				timeout = ticks_to_secs(gettime()) + 20; // Set timer for 20 seconds
-			else if (timeout <= ticks_to_secs(gettime())) {
-				STATUS_ERROR = -7;
-				DCFlushRange(STATUS, 0x20);
-				usleep(100);
-				//memset( (void*)0x92f00000, 0, 0x100000 );
-				//DCFlushRange( (void*)0x92f00000, 0x100000 );
-				//ExitToLoader(1);
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Loading patched kernel... %d", STATUS_LOADING);
+			if(STATUS_LOADING == 0)
+			{
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init...");
+				// Cleans the -1 when it's past it to avoid confusion if another error happens. e.g. before it showed "81" instead of "8" if the controller was unplugged.
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 163, MENU_POS_Y + 20*6, " ");
+			}
+			if((STATUS_LOADING > 0 || abs(STATUS_LOADING) > 1) && STATUS_LOADING < 20)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "ES_Init... Done!");
+			if(STATUS_LOADING == 2)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices...");
+			if(abs(STATUS_LOADING) > 2 && abs(STATUS_LOADING) < 20)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices... Done!");
+			if(STATUS_LOADING == -2)
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "Initing storage devices... Error! %d  Shutting down", STATUS_ERROR);
+			if(STATUS_LOADING == 3)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device...");
+			if(abs(STATUS_LOADING) > 3 && abs(STATUS_LOADING) < 20)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Done!");
+			if(STATUS_LOADING == -3)
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*9, "Mounting USB/SD device... Error! %d  Shutting down", STATUS_ERROR);
+			if(STATUS_LOADING == 5) {
+	/* 			if (timeout == 0)
+					timeout = ticks_to_secs(gettime()) + 20; // Set timer for 20 seconds
+				else if (timeout <= ticks_to_secs(gettime())) {
+					STATUS_ERROR = -7;
+					DCFlushRange(STATUS, 0x20);
+					usleep(100);
+					//memset( (void*)0x92f00000, 0, 0x100000 );
+					//DCFlushRange( (void*)0x92f00000, 0x100000 );
+					//ExitToLoader(1);
+				}*/
+				PrintFormat(DEFAULT_SIZE, (STATUS_ERROR == -7) ? MAROON:BLACK, MENU_POS_X, MENU_POS_Y + 20*10, (STATUS_ERROR == -7) ? "Checking FS... Timeout!" : "Checking FS...");
+			}
+			if(abs(STATUS_LOADING) > 5 && abs(STATUS_LOADING) < 20)
+			{
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Done!");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %.02f%s Sector size: %d", STATUS_DRIVE, STATUS_GB_MB ? "GB" : "MB", STATUS_SECTOR);
+			}
+			if(STATUS_LOADING == -5)
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Error! %d Shutting down", STATUS_ERROR);
+			if(STATUS_LOADING == 6)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules...");
+			if(abs(STATUS_LOADING) > 6 && abs(STATUS_LOADING) < 20)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Done!");
+			if(STATUS_LOADING == -6)
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Error! %d Shutting down", STATUS_ERROR);
+			if(STATUS_LOADING == 7)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config...");
+			if(abs(STATUS_LOADING) > 7 && abs(STATUS_LOADING) < 20)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config... Done!");
+			/*if(STATUS_LOADING == 8)
+			{
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... ");
+				if ( STATUS_ERROR == 1)
+				{
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "          Make sure the Controller is plugged in");
+				}
+				else
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "%50s", " ");
+			}
+			if(abs(STATUS_LOADING) > 8 && abs(STATUS_LOADING) < 20)
+			{
+				if (ncfg->Config & NIN_CFG_NATIVE_SI)
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using ONLY NATIVE Gamecube Ports");
+				else if ((ncfg->MaxPads == 1) && (ncfg->Config & NIN_CFG_HID))
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube and HID Ports");
+				else if ((ncfg->MaxPads > 0) && (ncfg->Config & NIN_CFG_HID))
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube, HID, and BT Ports");
+				else if (ncfg->MaxPads > 0)
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube and BT Ports");
+				else if (ncfg->Config & NIN_CFG_HID)
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using HID and Bluetooth Ports");
+				else
+					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Bluetooth Ports... Done!");
+			}
+			if(STATUS_LOADING == -8)
+			{
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Failed! Shutting down");
+				switch (STATUS_ERROR)
+				{
+					case -1:
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "No Controller plugged in! %25s", " ");
+						break;
+					case -2:
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Missing %s:/controller.ini %20s", GetRootDevice(), " ");
+						break;
+					case -3:
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Controller does not match %s:/controller.ini %6s", GetRootDevice(), " ");
+						break;
+					case -4:
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Invalid Polltype in %s:/controller.ini %12s", GetRootDevice(), " ");
+						break;
+					case -5:
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Invalid DPAD value in %s:/controller.ini %9s", GetRootDevice(), " ");
+						break;
+					case -6:
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "PS3 controller init error %25s", " ");
+						break;
+					case -7:
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Gamecube adapter for Wii u init error %13s", " ");
+						break;
+					default:
+						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Unknown error %d %35s", STATUS_ERROR, " ");
+						break;
+				}
 			}*/
-			PrintFormat(DEFAULT_SIZE, (STATUS_ERROR == -7) ? MAROON:BLACK, MENU_POS_X, MENU_POS_Y + 20*10, (STATUS_ERROR == -7) ? "Checking FS... Timeout!" : "Checking FS...");
+			if(STATUS_LOADING == 9)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init DI... %40s", " ");
+			if(abs(STATUS_LOADING) > 9 && abs(STATUS_LOADING) < 20)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init DI... Done! %35s", " ");
+			if(STATUS_LOADING == 10)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD...");
+			if(abs(STATUS_LOADING) > 10 && abs(STATUS_LOADING) < 20)
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD... Done!");
+			GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE); // Copy all status messages
+			GRRLIB_Render();
+			ClearScreen();
 		}
-		if(abs(STATUS_LOADING) > 5 && abs(STATUS_LOADING) < 20)
-		{
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Done!");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*11, "Drive size: %.02f%s Sector size: %d", STATUS_DRIVE, STATUS_GB_MB ? "GB" : "MB", STATUS_SECTOR);
-		}
-		if(STATUS_LOADING == -5)
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "Checking FS... Error! %d Shutting down", STATUS_ERROR);
-		if(STATUS_LOADING == 6)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules...");
-		if(abs(STATUS_LOADING) > 6 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Done!");
-		if(STATUS_LOADING == -6)
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*12, "ES_LoadModules... Error! %d Shutting down", STATUS_ERROR);
-		if(STATUS_LOADING == 7)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config...");
-		if(abs(STATUS_LOADING) > 7 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config... Done!");
-		/*if(STATUS_LOADING == 8)
-		{
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... ");
-			if ( STATUS_ERROR == 1)
-			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "          Make sure the Controller is plugged in");
-			}
-			else
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "%50s", " ");
-		}
-		if(abs(STATUS_LOADING) > 8 && abs(STATUS_LOADING) < 20)
-		{
-			if (ncfg->Config & NIN_CFG_NATIVE_SI)
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using ONLY NATIVE Gamecube Ports");
-			else if ((ncfg->MaxPads == 1) && (ncfg->Config & NIN_CFG_HID))
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube and HID Ports");
-			else if ((ncfg->MaxPads > 0) && (ncfg->Config & NIN_CFG_HID))
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube, HID, and BT Ports");
-			else if (ncfg->MaxPads > 0)
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube and BT Ports");
-			else if (ncfg->Config & NIN_CFG_HID)
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using HID and Bluetooth Ports");
-			else
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Bluetooth Ports... Done!");
-		}
-		if(STATUS_LOADING == -8)
-		{
-			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Failed! Shutting down");
-			switch (STATUS_ERROR)
-			{
-				case -1:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "No Controller plugged in! %25s", " ");
-					break;
-				case -2:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Missing %s:/controller.ini %20s", GetRootDevice(), " ");
-					break;
-				case -3:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Controller does not match %s:/controller.ini %6s", GetRootDevice(), " ");
-					break;
-				case -4:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Invalid Polltype in %s:/controller.ini %12s", GetRootDevice(), " ");
-					break;
-				case -5:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Invalid DPAD value in %s:/controller.ini %9s", GetRootDevice(), " ");
-					break;
-				case -6:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "PS3 controller init error %25s", " ");
-					break;
-				case -7:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Gamecube adapter for Wii u init error %13s", " ");
-					break;
-				default:
-					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Unknown error %d %35s", STATUS_ERROR, " ");
-					break;
-			}
-		}*/
-		if(STATUS_LOADING == 9)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init DI... %40s", " ");
-		if(abs(STATUS_LOADING) > 9 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init DI... Done! %35s", " ");
-		if(STATUS_LOADING == 10)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD...");
-		if(abs(STATUS_LOADING) > 10 && abs(STATUS_LOADING) < 20)
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "Init CARD... Done!");
-		GRRLIB_Screen2Texture(0, 0, screen_buffer, GX_FALSE); // Copy all status messages
-		GRRLIB_Render();
-		ClearScreen();
 		while((STATUS_LOADING < -1) && (STATUS_LOADING > -20)) //displaying a fatal error
 				; //do nothing wait for shutdown
 	}
-	DrawBuffer(); // Draw all status messages
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*17, "Nintendont kernel looping, loading game...");
-	GRRLIB_Render();
-	DrawBuffer(); // Draw all status messages
+	if(argsboot == false)
+	{
+		DrawBuffer(); // Draw all status messages
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*17, "Nintendont kernel looping, loading game...");
+		GRRLIB_Render();
+		DrawBuffer(); // Draw all status messages
+	}
 //	memcpy( (void*)0x80000000, (void*)0x90140000, 0x1200000 );
 	GRRLIB_FreeTexture(background);
 	GRRLIB_FreeTexture(screen_buffer);

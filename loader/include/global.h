@@ -146,7 +146,7 @@ bool IsWiiU( void );
 // FIXME: This return type isn't quite correct...
 const char* const GetRootDevice();
 void RAMInit(void);
-void Initialise();
+void Initialise(bool autoboot);
 void unzip_data(const void *input, const u32 input_size, 
 	void **output, u32 *output_size);
 
