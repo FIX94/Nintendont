@@ -638,12 +638,6 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 	{
 		// Redraw the game list.
 		// TODO: Only if menuMode or scrollX has changed?
-		PrintInfo();
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, MenuMode ? "X/1 : Update" : "");
-		PrintDevInfo();
 
 		// Starting position.
 		int gamelist_y = MENU_POS_Y + 20*4;
@@ -692,10 +686,7 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 			}
 		}
 
-		GRRLIB_Render();
-		Screenshot();
-		ClearScreen();
-		redraw = 0;
+		// GRRLIB rendering is done by SelectGame().
 	}
 
 	return false;
@@ -1014,21 +1005,8 @@ static bool UpdateSettingsMenu(void)
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);
 		else
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(PosX), ARROW_RIGHT);
-		PrintInfo();
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, MenuMode ? "X/1 : Update" : "");
-		if (devState == DEV_OK)
-		{
-			// FIXME: If devState != DEV_OK,
-			// the device info overlaps with the settings menu.
-			PrintDevInfo();
-		}
-		GRRLIB_Render();
-		Screenshot();
-		ClearScreen();
-		redraw = 0;
+
+		// GRRLIB rendering is done by SelectGame().
 	}
 
 	return false;
@@ -1164,6 +1142,33 @@ static int SelectGame(void)
 		{
 			// User selected a game.
 			break;
+		}
+
+		if (redraw)
+		{
+			// Redraw the header.
+			PrintInfo();
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
+			if (MenuMode)
+			{
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Update");
+			}
+
+			if (MenuMode == 0 ||
+			    (MenuMode == 1 && devState == DEV_OK))
+			{
+				// FIXME: If devState != DEV_OK,
+				// the device info overlaps with the settings menu.
+				PrintDevInfo();
+			}
+
+			// Render the screen.
+			GRRLIB_Render();
+			Screenshot();
+			ClearScreen();
+			redraw = 0;
 		}
 	}
 
