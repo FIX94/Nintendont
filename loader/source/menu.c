@@ -685,32 +685,42 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
  */
 static bool UpdateSettingsMenu(void)
 {
-	if(FPAD_X(0)) {
+	if(FPAD_X(0))
+	{
+		// Start the updater.
 		UpdateNintendont();
 		redraw = 1;
 	}
 
 	if( FPAD_Down(0) )
 	{
-		if(settingPart == 0)
+		// Down: Move the cursor down by 1 setting.
+		if(settingPart == 0) {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(PosX), " " );
-		else
+		} else {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+300, SettingY(PosX), " " );
+		}
+
 		PosX++;
 		if(settingPart == 0)
 		{
-			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
+			// Some items are hidden if certain values aren't set.
+			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE)) {
 				PosX++;
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
+			}
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS)) {
 				PosX++;
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI))
+			}
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI)) {
 				PosX++;
+			}
 		}
-		if ((settingPart == 0 && PosX >= ListMax)
-			|| (settingPart == 1 && PosX >= 3))
+
+		// Check for wraparound.
+		if ((settingPart == 0 && PosX >= ListMax) ||
+		    (settingPart == 1 && PosX >= 3))
 		{
-			ScrollX = 0;
-			PosX	= 0;
+			PosX = 0;
 			settingPart ^= 1;
 		}
 	
@@ -719,116 +729,151 @@ static bool UpdateSettingsMenu(void)
 	}
 	else if( FPAD_Up(0) )
 	{
-		if(settingPart == 0)
+		// Up: Move the cursor up by 1 setting.
+		if(settingPart == 0) {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(PosX), " " );
-		else
+		} else {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+300, SettingY(PosX), " " );
+		}
 
 		PosX--;
 
+		// Check for wraparound.
 		if (PosX < 0)
 		{
 			settingPart ^= 1;
-			if(settingPart == 0)
+			if(settingPart == 0) {
 				PosX = ListMax - 1;
-			else
+			} else {
 				PosX = 2;
+			}
 		}
+
 		if(settingPart == 0)
 		{
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI))
+			// Some items are hidden if certain values aren't set.
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI)) {
 				PosX--;
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS))
+			}
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS)) {
 				PosX--;
-			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE))
+			}
+			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE)) {
 				PosX--;
+			}
 		}
+
 		redraw=1;
 	}
 
 	if( FPAD_Left(0) )
 	{
+		// Left: Decrement a setting. (Right column only.)
 		if(settingPart == 1)
 		{
 			SaveSettings = true;
-			if(PosX == 0)
+			switch (PosX)
 			{
-				if(ncfg->VideoScale == 0)
-					ncfg->VideoScale = 120;
-				else
-				{
-					ncfg->VideoScale-=2;
-					if(ncfg->VideoScale < 40 || ncfg->VideoScale > 120)
-						ncfg->VideoScale = 0; //auto
-				}
-				ReconfigVideo(rmode);
-				redraw = 1;
-			}
-			else if(PosX == 1)
-			{
-				ncfg->VideoOffset--;
-				if(ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20)
-					ncfg->VideoOffset = 20;
-				ReconfigVideo(rmode);
-				redraw = 1;
+				case 0:
+					// Video width.
+					if (ncfg->VideoScale == 0) {
+						ncfg->VideoScale = 120;
+					} else {
+						ncfg->VideoScale -= 2;
+						if (ncfg->VideoScale < 40 || ncfg->VideoScale > 120) {
+							ncfg->VideoScale = 0; //auto
+						}
+					}
+					ReconfigVideo(rmode);
+					redraw = 1;
+					break;
+
+				case 1:
+					// Screen position.
+					ncfg->VideoOffset--;
+					if (ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20) {
+						ncfg->VideoOffset = 20;
+					}
+					ReconfigVideo(rmode);
+					redraw = 1;
+					break;
+
+				default:
+					break;
 			}
 		}
 	}
 	else if( FPAD_Right(0) )
 	{
+		// Right: Increment a setting. (Right column only.)
 		if(settingPart == 1)
 		{
 			SaveSettings = true;
-			if(PosX == 0)
+			switch (PosX)
 			{
-				if(ncfg->VideoScale == 0)
-					ncfg->VideoScale = 40;
-				else
-				{
-					ncfg->VideoScale+=2;
-					if(ncfg->VideoScale < 40 || ncfg->VideoScale > 120)
-						ncfg->VideoScale = 0; //auto
-				}
-				ReconfigVideo(rmode);
-				redraw = 1;
-			}
-			else if(PosX == 1)
-			{
-				ncfg->VideoOffset++;
-				if(ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20)
-					ncfg->VideoOffset = -20;
-				ReconfigVideo(rmode);
-				redraw = 1;
+				case 0:
+					// Video width.
+					if(ncfg->VideoScale == 0) {
+						ncfg->VideoScale = 40;
+					} else {
+						ncfg->VideoScale += 2;
+						if (ncfg->VideoScale < 40 || ncfg->VideoScale > 120) {
+							ncfg->VideoScale = 0; //auto
+						}
+					}
+					ReconfigVideo(rmode);
+					redraw = 1;
+					break;
+
+				case 1:
+					// Screen position.
+					ncfg->VideoOffset++;
+					if (ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20) {
+						ncfg->VideoOffset = -20;
+					}
+					ReconfigVideo(rmode);
+					redraw = 1;
+					break;
+
+				default:
+					break;
 			}
 		}
 	}
 
 	if( FPAD_OK(0) )
 	{
+		// A: Adjust the setting.
 		if(settingPart == 0)
 		{
+			// Left column.
 			SaveSettings = true;
 			if ( PosX < NIN_CFG_BIT_LAST )
 			{
-				if(PosX == NIN_CFG_BIT_USB) //Option gets replaced
+				// Standard boolean setting.
+				if (PosX == NIN_CFG_BIT_USB) {
+					// USB option is replaced with Wii U widescreen.
 					ncfg->Config ^= NIN_CFG_WIIU_WIDE;
-				else
+				} else {
 					ncfg->Config ^= (1 << PosX);
+				}
 			}
 			else switch( PosX )
 			{
 				case NIN_SETTINGS_MAX_PADS:
-				{
 					ncfg->MaxPads++;
-					if (ncfg->MaxPads > NIN_CFG_MAXPAD)
+					if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
 						ncfg->MaxPads = 0;
-				} break;
+					}
+					break;
+
 				case NIN_SETTINGS_LANGUAGE:
-				{
 					ncfg->Language++;
-					if (ncfg->Language > NIN_LAN_DUTCH)
+					if (ncfg->Language > NIN_LAN_DUTCH) {
 						ncfg->Language = NIN_LAN_AUTO;
-				} break;
+					}
+					break;
+
 				case NIN_SETTINGS_VIDEO:
 				{
 					u32 Video = (ncfg->VideoMode & NIN_VID_MASK);
@@ -850,33 +895,44 @@ static bool UpdateSettingsMenu(void)
 					}
 					ncfg->VideoMode &= ~NIN_VID_MASK;
 					ncfg->VideoMode |= Video;
-					if ((Video & NIN_VID_FORCE) == 0)
+					if ((Video & NIN_VID_FORCE) == 0) {
 						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(NIN_SETTINGS_VIDEOMODE), "%29s", "" );
-				} break;
+					}
+					break;
+				}
+
 				case NIN_SETTINGS_VIDEOMODE:
 				{
 					u32 Video = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
 					Video = Video << 1;
-					if (Video > NIN_VID_FORCE_MPAL)
+					if (Video > NIN_VID_FORCE_MPAL) {
 						Video = NIN_VID_FORCE_PAL50;
+					}
 					ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
 					ncfg->VideoMode |= Video;
-				} break;
+					break;
+				}
+
 				case NIN_SETTINGS_MEMCARDBLOCKS:
-				{
 					ncfg->MemCardBlocks++;
-					if (ncfg->MemCardBlocks > MEM_CARD_MAX)
+					if (ncfg->MemCardBlocks > MEM_CARD_MAX) {
 						ncfg->MemCardBlocks = 0;
-				} break;
+					}
+					break;
+
 				case NIN_SETTINGS_MEMCARDMULTI:
-				{
 					ncfg->Config ^= (NIN_CFG_MC_MULTI);
-				} break;
+					break;
+
 				case NIN_SETTINGS_NATIVE_SI:
-				{
 					ncfg->Config ^= (NIN_CFG_NATIVE_SI);
-				} break;
+					break;
+
+				default:
+					break;
 			}
+
+			// Blank out the memory card options if MCEMU is disabled.
 			if (!(ncfg->Config & NIN_CFG_MEMCARDEMU))
 			{
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDBLOCKS), "%29s", "");
@@ -886,8 +942,10 @@ static bool UpdateSettingsMenu(void)
 		}
 		else if(settingPart == 1)
 		{
+			// Right column.
 			if(PosX == 2)
 			{
+				// PAL50 patch.
 				SaveSettings = true;
 				ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
 				redraw = 1;
@@ -897,23 +955,38 @@ static bool UpdateSettingsMenu(void)
 
 	if( redraw )
 	{
+		// Redraw the settings menu.
 		u32 ListLoopIndex = 0;
+
+		// Standard boolean settings.
 		for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
 		{
-			if(ListLoopIndex == NIN_CFG_BIT_USB) //Option gets replaced
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_WIIU_WIDE)) ? "On " : "Off");
-			else
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
+			if(ListLoopIndex == NIN_CFG_BIT_USB) {
+				// USB option is replaced with Wii U widescreen.
+				// FIXME: Gray out on standard Wii.
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+					    "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_WIIU_WIDE)) ? "On " : "Off");
+			} else {
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+					    "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
+			}
 		}
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex), "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
+
+		// Maximum number of emulated controllers.
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+			    "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
 		ListLoopIndex++;
 
+		// Language setting.
 		u32 LanIndex = ncfg->Language;
-		if (( LanIndex >= NIN_LAN_LAST ) ||  ( LanIndex < NIN_LAN_FIRST ))
+		if (LanIndex < NIN_LAN_FIRST || LanIndex >= NIN_LAN_LAST) {
 			LanIndex = NIN_LAN_LAST; //Auto
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-4s", OptionStrings[ListLoopIndex], LanguageStrings[LanIndex] );
+		}
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", OptionStrings[ListLoopIndex], LanguageStrings[LanIndex] );
 		ListLoopIndex++;
 
+		// Video mode forcing.
 		u32 VideoModeIndex;
 		u32 VideoModeVal = ncfg->VideoMode & NIN_VID_MASK;
 		switch (VideoModeVal)
@@ -934,64 +1007,90 @@ static bool UpdateSettingsMenu(void)
 				ncfg->VideoMode &= ~NIN_VID_MASK;
 				ncfg->VideoMode |= NIN_VID_AUTO;
 				VideoModeIndex = NIN_VID_INDEX_AUTO;
+				break;
 		}
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoModeIndex] );
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+			    "%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoModeIndex] );
 		ListLoopIndex++;
 
 		if( ncfg->VideoMode & NIN_VID_FORCE )
 		{
+			// Video mode selection.
+			// Only available if video mode is Force or Force (Deflicker).
 			VideoModeVal = ncfg->VideoMode & NIN_VID_FORCE_MASK;
 			u32 VideoTestVal = NIN_VID_FORCE_PAL50;
-			for (VideoModeIndex = 0; (VideoTestVal <= NIN_VID_FORCE_MPAL) && (VideoModeVal != VideoTestVal); VideoModeIndex++)
+			for (VideoModeIndex = 0; (VideoTestVal <= NIN_VID_FORCE_MPAL) && (VideoModeVal != VideoTestVal); VideoModeIndex++) {
 				VideoTestVal <<= 1;
+			}
+
 			if ( VideoModeVal < VideoTestVal )
 			{
 				ncfg->VideoMode &= ~NIN_VID_FORCE_MASK;
 				ncfg->VideoMode |= NIN_VID_FORCE_NTSC;
 				VideoModeIndex = NIN_VID_INDEX_FORCE_NTSC;
 			}
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),"%-18s:%-5s", OptionStrings[ListLoopIndex], VideoModeStrings[VideoModeIndex] );
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+				    "%-18s:%-5s", OptionStrings[ListLoopIndex], VideoModeStrings[VideoModeIndex] );
 		}
 		ListLoopIndex++;
 
+		// Memory card emulation.
 		if ((ncfg->Config & NIN_CFG_MEMCARDEMU) == NIN_CFG_MEMCARDEMU)
 		{
 			u32 MemCardBlocksVal = ncfg->MemCardBlocks;
-			if (MemCardBlocksVal > MEM_CARD_MAX)
+			if (MemCardBlocksVal > MEM_CARD_MAX) {
 				MemCardBlocksVal = 0;
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4d%s", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal), MemCardBlocksVal > 2 ? "Unstable" : "");
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex+1), "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
+			}
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex),
+				    "%-18s:%-4d%s", OptionStrings[ListLoopIndex], MEM_CARD_BLOCKS(MemCardBlocksVal), MemCardBlocksVal > 2 ? "Unstable" : "");
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex+1),
+				    "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
 		}
 		ListLoopIndex+=2;
 
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex), "%-18s:%-4s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
+		// Native controllers. (Required for GBA link; disables Bluetooth and USB HID.)
+		// FIXME: Gray out on vWii and maybe RVL-101?
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", OptionStrings[ListLoopIndex],
+			    (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
 		ListLoopIndex++;
 
+		/** Right column **/
+		ListLoopIndex = 0; //reset on other side
+
+		// Video width.
 		char vidWidth[10];
-		if(ncfg->VideoScale < 40 || ncfg->VideoScale > 120)
-		{
+		if (ncfg->VideoScale < 40 || ncfg->VideoScale > 120) {
 			ncfg->VideoScale = 0;
 			snprintf(vidWidth, sizeof(vidWidth), "Auto");
-		}	
-		else
+		} else {
 			snprintf(vidWidth, sizeof(vidWidth), "%i", ncfg->VideoScale + 600);
+		}
 
 		char vidOffset[10];
-		if(ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20)
+		if (ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20) {
 			ncfg->VideoOffset = 0;
+		}
 		snprintf(vidOffset, sizeof(vidOffset), "%i", ncfg->VideoOffset);
 
-		ListLoopIndex = 0; //reset on other side
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Video Width", vidWidth);
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Video Width", vidWidth);
 		ListLoopIndex++;
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Screen Position", vidOffset);
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Screen Position", vidOffset);
 		ListLoopIndex++;
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Patch PAL50", (ncfg->VideoMode & (NIN_VID_PATCH_PAL50)) ? "On " : "Off");
+
+		// Patch PAL60.
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Patch PAL50", (ncfg->VideoMode & (NIN_VID_PATCH_PAL50)) ? "On " : "Off");
 		ListLoopIndex++;
-		if(settingPart == 0)
+
+		// Draw the cursor.
+		if (settingPart == 0) {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);
-		else
+		} else {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(PosX), ARROW_RIGHT);
+		}
 
 		// GRRLIB rendering is done by SelectGame().
 	}
