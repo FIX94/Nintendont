@@ -1104,24 +1104,29 @@ bool SelectDevAndGame(void)
 {
 	// Select the source device. (SD or USB)
 	bool SaveSettings = false;
+	bool redraw = true;	// Need to draw the menu the first time.
 	while (1)
 	{
 		VIDEO_WaitVSync();
 		FPAD_Update();
 
-		UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
-		PrintInfo();
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
+		if (redraw)
+		{
+			UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
+			PrintInfo();
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
+			redraw = false;
 
-		// Render the screen here to prevent a blank frame
-		// when returning from SelectGame().
-		GRRLIB_Render();
-		ClearScreen();
+			// Render the screen here to prevent a blank frame
+			// when returning from SelectGame().
+			GRRLIB_Render();
+			ClearScreen();
+		}
 
 		if (FPAD_OK(0))
 		{
@@ -1129,6 +1134,7 @@ bool SelectDevAndGame(void)
 			int ret = SelectGame();
 			if (ret & 2) SaveSettings = true;
 			if (ret & 1) break;
+			redraw = true;
 		}
 		else if (FPAD_Start(0))
 		{
@@ -1137,10 +1143,12 @@ bool SelectDevAndGame(void)
 		else if (FPAD_Down(0))
 		{
 			ncfg->Config = ncfg->Config | NIN_CFG_USB;
+			redraw = true;
 		}
 		else if (FPAD_Up(0))
 		{
 			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
+			redraw = true;
 		}
 	}
 
