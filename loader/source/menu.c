@@ -895,7 +895,15 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 						ncfg->Config ^= NIN_CFG_WIIU_WIDE;
 					}
 				} else {
-					ncfg->Config ^= (1 << ctx->settings.posX);
+					if (IsWiiU() &&
+					    (ctx->settings.posX == NIN_CFG_BIT_DEBUGGER ||
+					     ctx->settings.posX == NIN_CFG_BIT_DEBUGWAIT))
+					{
+						// Debugger is only available on Wii.
+						// Don't do anything.
+					} else {
+						ncfg->Config ^= (1 << ctx->settings.posX);
+					}
 				}
 			}
 			else switch (ctx->settings.posX)
@@ -1010,7 +1018,15 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+50, SettingY(ListLoopIndex),
 					    "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_WIIU_WIDE)) ? "On " : "Off");
 			} else {
-				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
+				u32 item_color = BLACK;
+				if (IsWiiU() &&
+				    (ListLoopIndex == NIN_CFG_BIT_DEBUGGER ||
+				     ListLoopIndex == NIN_CFG_BIT_DEBUGWAIT))
+				{
+					// Debugger is only available on Wii.
+					item_color = DARK_GRAY;
+				}
+				PrintFormat(MENU_SIZE, item_color, MENU_POS_X+50, SettingY(ListLoopIndex),
 					    "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
 			}
 		}
