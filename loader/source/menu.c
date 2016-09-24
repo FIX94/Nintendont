@@ -457,27 +457,43 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	return DEV_OK;
 }
 
-// FIXME: Put these variables into a context struct.
-static bool selected = false;	// Set to TRUE if the user selected a game.
+// Menu selection context.
+typedef struct _MenuCtx
+{
+	u32 menuMode;		// Menu mode. (0 == games; 1 == settings)
+	bool redraw;		// If true, redraw is required.
+	bool selected;		// If true, the user selected a game.
+	bool saveSettings;	// If true, save settings to nincfg.bin.
 
-static u32 redraw = 1;
-static u32 settingPart = 0;
-static s32 PosX = 0, prevPosX = 0;
-static s32 ScrollX = 0, prevScrollX = 0;
-static u32 MenuMode = 0;
+	// Counters for key repeat.
+	struct {
+		u32 up;
+		u32 down;
+	} held;
 
-static u32 ListMax = 0;
-static bool SaveSettings = false;
+	// Games menu.
+	struct {
+		s32 posX;	// Selected game index.
+		s32 scrollX;	// Current scrolling position.
+		u32 listMax;	// Maximum number of games to show onscreen at once.
 
-static u32 UpHeld = 0, DownHeld = 0;
+		const gameinfo *gi;	// Game information.
+		int gamecount;		// Game count.
+	} games;
+
+	// Settings menu.
+	struct {
+		u32 settingPart;	// 0 == left column; 1 == right column
+		s32 posX;		// Selected setting index.
+	} settings;
+} MenuCtx;
 
 /**
  * Update the Game Select menu.
- * @param gi		[in] Game info.
- * @param gamecount	[in] Game count.
+ * @param ctx		[in] Menu context.
  * @return True to exit; false to continue.
  */
-static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
+static bool UpdateGameSelectMenu(MenuCtx *ctx)
 {
 	u32 i;
 	bool clearCheats = false;
@@ -485,35 +501,35 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 	if( FPAD_Down(1) )
 	{
 		// Down: Move the cursor down by 1 entry.
-		if(DownHeld == 0 || DownHeld > 10)
+		if (ctx->held.down == 0 || ctx->held.down > 10)
 		{
 			// Remove the current arrow.
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
 
 			// Adjust the scrolling position.
-			if( PosX + 1 >= ListMax )
+			if (ctx->games.posX + 1 >= ctx->games.listMax)
 			{
-				if( PosX + 1 + ScrollX < gamecount ) {
+				if (ctx->games.posX + 1 + ctx->games.scrollX < ctx->games.gamecount) {
 					// Need to adjust the scroll position.
-					ScrollX++;
+					ctx->games.scrollX++;
 				} else {
 					// Wraparound.
-					PosX	= 0;
-					ScrollX = 0;
+					ctx->games.posX	= 0;
+					ctx->games.scrollX = 0;
 				}
 			} else {
-				PosX++;
+				ctx->games.posX++;
 			}
 
 			clearCheats = true;
-			redraw=1;
-			SaveSettings = true;
+			ctx->redraw = true;
+			ctx->saveSettings = true;
 		}
-		DownHeld++;
+		ctx->held.down++;
 	}
 	else
 	{
-		DownHeld = 0;
+		ctx->held.down = 0;
 	}
 
 	if( FPAD_Right(0) )
@@ -522,59 +538,59 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 		// TODO: Add delay like for Up/Down?
 
 		// Remove the current arrow.
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
 
 		// Adjust the scrolling position.
-		if( PosX == ListMax - 1 )
+		if (ctx->games.posX == ctx->games.listMax - 1)
 		{
-			if( PosX + ListMax + ScrollX < gamecount ) {
-				ScrollX += ListMax;
-			} else if ( PosX + ScrollX != gamecount - 1 ) {
-				ScrollX = gamecount - ListMax;
+			if (ctx->games.posX + ctx->games.listMax + ctx->games.scrollX < ctx->games.gamecount) {
+				ctx->games.scrollX += ctx->games.listMax;
+			} else if (ctx->games.posX + ctx->games.scrollX != ctx->games.gamecount - 1) {
+				ctx->games.scrollX = ctx->games.gamecount - ctx->games.listMax;
 			} else {
-				PosX	= 0;
-				ScrollX = 0;
+				ctx->games.posX	= 0;
+				ctx->games.scrollX = 0;
 			}
 		} else {
-			PosX = ListMax - 1;
+			ctx->games.posX = ctx->games.listMax - 1;
 		}
 
 		clearCheats = true;
-		redraw=1;
-		SaveSettings = true;
+		ctx->redraw = true;
+		ctx->saveSettings = true;
 	}
 
 	if (FPAD_Up(1))
 	{
 		// Up: Move the cursor up by 1 entry.
-		if( UpHeld == 0 || UpHeld > 10 )
+		if (ctx->held.up == 0 || ctx->held.up > 10)
 		{
 			// Remove the current arrow.
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
 
 			// Adjust the scrolling position.
-			if( PosX <= 0 )
+			if (ctx->games.posX <= 0)
 			{
-				if( ScrollX > 0 ) {
-					ScrollX--;
+				if (ctx->games.scrollX > 0) {
+					ctx->games.scrollX--;
 				} else {
 					// Wraparound.
-					PosX	= ListMax - 1;
-					ScrollX = gamecount - ListMax;
+					ctx->games.posX	= ctx->games.listMax - 1;
+					ctx->games.scrollX = ctx->games.gamecount - ctx->games.listMax;
 				}
 			} else {
-				PosX--;
+				ctx->games.posX--;
 			}
 
 			clearCheats = true;
-			redraw=1;
-			SaveSettings = true;
+			ctx->redraw = true;
+			ctx->saveSettings = true;
 		}
-		UpHeld++;
+		ctx->held.up++;
 	}
 	else
 	{
-		UpHeld = 0;
+		ctx->held.up = 0;
 	}
 
 	if (FPAD_Left(0))
@@ -583,31 +599,31 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 		// TODO: Add delay like for Up/Down?
 
 		// Remove the current arrow.
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + PosX * 20, " " );
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
 
 		// Adjust the scrolling position.
-		if( PosX == 0 )
+		if (ctx->games.posX == 0)
 		{
-			if( ScrollX - (s32)ListMax >= 0 ) {
-				ScrollX -= ListMax;
-			} else if( ScrollX != 0 ) {
-				ScrollX = 0;
+			if (ctx->games.scrollX - (s32)ctx->games.listMax >= 0) {
+				ctx->games.scrollX -= ctx->games.listMax;
+			} else if (ctx->games.scrollX != 0) {
+				ctx->games.scrollX = 0;
 			} else {
-				ScrollX = gamecount - ListMax;
+				ctx->games.scrollX = ctx->games.gamecount - ctx->games.listMax;
 			}
 		} else {
-			PosX = 0;
+			ctx->games.posX = 0;
 		}
 
 		clearCheats = true;
-		redraw=1;
-		SaveSettings = true;
+		ctx->redraw = true;
+		ctx->saveSettings = true;
 	}
 
 	if (FPAD_OK(0))
 	{
 		// User selected a game.
-		selected = true;
+		ctx->selected = true;
 		return true;
 	}
 
@@ -621,7 +637,7 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 		}
 	}
 
-	if (redraw)
+	if (ctx->redraw)
 	{
 		// Redraw the game list.
 		// TODO: Only if menuMode or scrollX has changed?
@@ -635,12 +651,13 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 			gamelist_y += 20;
 		}
 
-		const gameinfo *cur_gi = &gi[ScrollX];
-		int gamesToPrint = gamecount - ScrollX;
-		if (gamesToPrint > ListMax)
-			gamesToPrint = ListMax;
+		const gameinfo *gi = &ctx->games.gi[ctx->games.scrollX];
+		int gamesToPrint = ctx->games.gamecount - ctx->games.scrollX;
+		if (gamesToPrint > ctx->games.listMax) {
+			gamesToPrint = ctx->games.listMax;
+		}
 
-		for (i = 0; i < gamesToPrint; ++i, gamelist_y += 20, cur_gi++)
+		for (i = 0; i < gamesToPrint; ++i, gamelist_y += 20, gi++)
 		{
 			// FIXME: Print all 64 characters of the game name?
 			// Currently truncated to 50.
@@ -654,22 +671,22 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 				0x001A55FF,	// CISO
 			};
 
-			const u32 color = colors[cur_gi->Flags & GIFLAG_FORMAT_MASK];
-			if (cur_gi->DiscNumber == 0)
+			const u32 color = colors[gi->Flags & GIFLAG_FORMAT_MASK];
+			if (gi->DiscNumber == 0)
 			{
 				// Disc 1.
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
 					    "%50.50s [%.6s]%s",
-					    cur_gi->Name, cur_gi->ID,
-					    i == PosX ? ARROW_LEFT : " ");
+					    gi->Name, gi->ID,
+					    i == ctx->games.posX ? ARROW_LEFT : " ");
 			}
 			else
 			{
 				// Disc 2 or higher.
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
 					    "%46.46s (%d) [%.6s]%s",
-					    cur_gi->Name, cur_gi->DiscNumber+1, cur_gi->ID,
-					    i == PosX ? ARROW_LEFT : " ");
+					    gi->Name, gi->DiscNumber+1, gi->ID,
+					    i == ctx->games.posX ? ARROW_LEFT : " ");
 			}
 		}
 
@@ -681,98 +698,111 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 
 /**
  * Update the Settings menu.
+ * @param ctx		[in] Menu context.
  * @return True to exit; false to continue.
  */
-static bool UpdateSettingsMenu(void)
+static bool UpdateSettingsMenu(MenuCtx *ctx)
 {
 	if(FPAD_X(0))
 	{
 		// Start the updater.
 		UpdateNintendont();
-		redraw = 1;
+		ctx->redraw = 1;
 	}
 
 	if( FPAD_Down(0) )
 	{
 		// Down: Move the cursor down by 1 setting.
-		if(settingPart == 0) {
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(PosX), " " );
+		if (ctx->settings.settingPart == 0) {
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(ctx->settings.posX), " " );
 		} else {
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+300, SettingY(PosX), " " );
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+300, SettingY(ctx->settings.posX), " " );
 		}
 
-		PosX++;
-		if(settingPart == 0)
+		ctx->settings.posX++;
+		if (ctx->settings.settingPart == 0)
 		{
 			// Some items are hidden if certain values aren't set.
-			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE)) {
-				PosX++;
+			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) &&
+			    (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
+			{
+				ctx->settings.posX++;
 			}
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS)) {
-				PosX++;
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) &&
+			    (ctx->settings.posX == NIN_SETTINGS_MEMCARDBLOCKS))
+			{
+				ctx->settings.posX++;
 			}
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI)) {
-				PosX++;
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) &&
+			    (ctx->settings.posX == NIN_SETTINGS_MEMCARDMULTI))
+			{
+				ctx->settings.posX++;
 			}
 		}
 
 		// Check for wraparound.
-		if ((settingPart == 0 && PosX >= ListMax) ||
-		    (settingPart == 1 && PosX >= 3))
+		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 3))
 		{
-			PosX = 0;
-			settingPart ^= 1;
+			ctx->settings.posX = 0;
+			ctx->settings.settingPart ^= 1;
 		}
 	
-		redraw=1;
+		ctx->redraw = true;
 
 	}
 	else if( FPAD_Up(0) )
 	{
 		// Up: Move the cursor up by 1 setting.
-		if(settingPart == 0) {
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(PosX), " " );
+		if (ctx->settings.settingPart == 0) {
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(ctx->settings.posX), " " );
 		} else {
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+300, SettingY(PosX), " " );
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+300, SettingY(ctx->settings.posX), " " );
 		}
 
-		PosX--;
+		ctx->settings.posX--;
 
 		// Check for wraparound.
-		if (PosX < 0)
+		if (ctx->settings.posX < 0)
 		{
-			settingPart ^= 1;
-			if(settingPart == 0) {
-				PosX = ListMax - 1;
+			ctx->settings.settingPart ^= 1;
+			if (ctx->settings.settingPart == 0) {
+				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				PosX = 2;
+				ctx->settings.posX = 2;
 			}
 		}
 
-		if(settingPart == 0)
+		if (ctx->settings.settingPart == 0)
 		{
 			// Some items are hidden if certain values aren't set.
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDMULTI)) {
-				PosX--;
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) &&
+			    (ctx->settings.posX == NIN_SETTINGS_MEMCARDMULTI))
+			{
+				ctx->settings.posX--;
 			}
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (PosX == NIN_SETTINGS_MEMCARDBLOCKS)) {
-				PosX--;
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) &&
+			    (ctx->settings.posX == NIN_SETTINGS_MEMCARDBLOCKS))
+			{
+				ctx->settings.posX--;
 			}
-			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (PosX == NIN_SETTINGS_VIDEOMODE)) {
-				PosX--;
+			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) &&
+			    (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
+			{
+				ctx->settings.posX--;
 			}
 		}
 
-		redraw=1;
+		ctx->redraw = true;
 	}
 
 	if( FPAD_Left(0) )
 	{
 		// Left: Decrement a setting. (Right column only.)
-		if(settingPart == 1)
+		if (ctx->settings.settingPart == 1)
 		{
-			SaveSettings = true;
-			switch (PosX)
+			ctx->saveSettings = true;
+			switch (ctx->settings.posX)
 			{
 				case 0:
 					// Video width.
@@ -785,7 +815,7 @@ static bool UpdateSettingsMenu(void)
 						}
 					}
 					ReconfigVideo(rmode);
-					redraw = 1;
+					ctx->redraw = true;
 					break;
 
 				case 1:
@@ -795,7 +825,7 @@ static bool UpdateSettingsMenu(void)
 						ncfg->VideoOffset = 20;
 					}
 					ReconfigVideo(rmode);
-					redraw = 1;
+					ctx->redraw = true;
 					break;
 
 				default:
@@ -806,10 +836,10 @@ static bool UpdateSettingsMenu(void)
 	else if( FPAD_Right(0) )
 	{
 		// Right: Increment a setting. (Right column only.)
-		if(settingPart == 1)
+		if (ctx->settings.settingPart == 1)
 		{
-			SaveSettings = true;
-			switch (PosX)
+			ctx->saveSettings = true;
+			switch (ctx->settings.posX)
 			{
 				case 0:
 					// Video width.
@@ -822,7 +852,7 @@ static bool UpdateSettingsMenu(void)
 						}
 					}
 					ReconfigVideo(rmode);
-					redraw = 1;
+					ctx->redraw = true;
 					break;
 
 				case 1:
@@ -832,7 +862,7 @@ static bool UpdateSettingsMenu(void)
 						ncfg->VideoOffset = -20;
 					}
 					ReconfigVideo(rmode);
-					redraw = 1;
+					ctx->redraw = true;
 					break;
 
 				default:
@@ -844,21 +874,21 @@ static bool UpdateSettingsMenu(void)
 	if( FPAD_OK(0) )
 	{
 		// A: Adjust the setting.
-		if(settingPart == 0)
+		if (ctx->settings.settingPart == 0)
 		{
 			// Left column.
-			SaveSettings = true;
-			if ( PosX < NIN_CFG_BIT_LAST )
+			ctx->saveSettings = true;
+			if (ctx->settings.posX < NIN_CFG_BIT_LAST)
 			{
 				// Standard boolean setting.
-				if (PosX == NIN_CFG_BIT_USB) {
+				if (ctx->settings.posX == NIN_CFG_BIT_USB) {
 					// USB option is replaced with Wii U widescreen.
 					ncfg->Config ^= NIN_CFG_WIIU_WIDE;
 				} else {
-					ncfg->Config ^= (1 << PosX);
+					ncfg->Config ^= (1 << ctx->settings.posX);
 				}
 			}
-			else switch( PosX )
+			else switch (ctx->settings.posX)
 			{
 				case NIN_SETTINGS_MAX_PADS:
 					ncfg->MaxPads++;
@@ -938,22 +968,22 @@ static bool UpdateSettingsMenu(void)
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDBLOCKS), "%29s", "");
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDMULTI), "%29s", "");
 			}
-			redraw = 1;
+			ctx->redraw = true;
 		}
-		else if(settingPart == 1)
+		else if (ctx->settings.settingPart == 1)
 		{
 			// Right column.
-			if(PosX == 2)
+			if (ctx->settings.posX == 2)
 			{
 				// PAL50 patch.
-				SaveSettings = true;
+				ctx->saveSettings = true;
 				ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
-				redraw = 1;
+				ctx->redraw = true;
 			}
 		}
 	}
 
-	if( redraw )
+	if (ctx->redraw)
 	{
 		// Redraw the settings menu.
 		u32 ListLoopIndex = 0;
@@ -961,7 +991,7 @@ static bool UpdateSettingsMenu(void)
 		// Standard boolean settings.
 		for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
 		{
-			if(ListLoopIndex == NIN_CFG_BIT_USB) {
+			if (ListLoopIndex == NIN_CFG_BIT_USB) {
 				// USB option is replaced with Wii U widescreen.
 				// FIXME: Gray out on standard Wii.
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
@@ -1086,10 +1116,10 @@ static bool UpdateSettingsMenu(void)
 		ListLoopIndex++;
 
 		// Draw the cursor.
-		if (settingPart == 0) {
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);
+		if (ctx->settings.settingPart == 0) {
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		} else {
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(PosX), ARROW_RIGHT);
+			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		}
 
 		// GRRLIB rendering is done by SelectGame().
@@ -1143,39 +1173,42 @@ static int SelectGame(void)
 		}
 	}
 
-	// Reset the context variables.
-	// TODO: Use a struct.
-	selected = false;	// Set to TRUE if the user selected a game.
+	// Initialize the menu context.
+	MenuCtx ctx;
+	memset(&ctx, 0, sizeof(ctx));
+	ctx.menuMode = 0;	// Start in the games list.
+	ctx.redraw = true;	// Redraw initially.
+	ctx.selected = false;	// Set to TRUE if the user selected a game.
+	ctx.saveSettings = false;
 
-	redraw = 1;
-	settingPart = 0;
-	PosX = 0; prevPosX = 0;
-	ScrollX = 0; prevScrollX = 0;
-	MenuMode = 0;
+	// Initialize ctx.games.
+	ctx.games.listMax = gamecount;
+	if (ctx.games.listMax > 15) {
+		ctx.games.listMax = 15;
+	}
+	ctx.games.gi = gi;
+	ctx.games.gamecount = gamecount;
 
-	ListMax = gamecount;
-	if( ListMax > 15 )
-		ListMax = 15;
-	SaveSettings = false;
-
-	// set default game to game that currently set in configuration
+	// Set the default game to the game that's currently set
+	// in the configuration.
 	u32 i;
 	for (i = 0; i < gamecount; ++i)
 	{
 		if (strcasecmp(strchr(gi[i].Path,':')+1, ncfg->GamePath) == 0)
 		{
-			if( i >= ListMax )
-			{
-				PosX	= ListMax - 1;
-				ScrollX = i - ListMax + 1;
+			if (i >= ctx.games.listMax) {
+				// Need to adjust the scroll position.
+				ctx.games.posX    = ctx.games.listMax - 1;
+				ctx.games.scrollX = i - ctx.games.listMax + 1;
 			} else {
-				PosX = i;
+				// Game is on the first page.
+				// No scroll position adjustment is required.
+				ctx.games.posX = i;
 			}
 			break;
 		}
 	}
 
-	UpHeld = 0; DownHeld = 0;
 	while(1)
 	{
 		VIDEO_WaitVSync();
@@ -1184,66 +1217,56 @@ static int SelectGame(void)
 		if( FPAD_Start(1) )
 		{
 			// Go back to the Settings menu.
-			selected = false;
+			ctx.selected = false;
 			break;
 		}
 
 		if( FPAD_Cancel(0) )
 		{
-			MenuMode ^= 1;
+			// Switch menu modes.
+			ctx.menuMode = !ctx.menuMode;
+			ctx.held.up = 0;
+			ctx.held.down = 0;
 
-			if( MenuMode == 0 )
+			if (ctx.menuMode == 1)
 			{
-				ListMax = gamecount;
-				if( ListMax > 15 )
-					ListMax = 15;
-				PosX = prevPosX;
-				ScrollX = prevScrollX;
-			}
-			else
-			{
-				ListMax = NIN_SETTINGS_LAST;
-
-				prevPosX = PosX;
-				PosX	= 0;
-				prevScrollX = ScrollX;
-				ScrollX = 0;
-				settingPart = 0;
+				// Reset the settings position.
+				ctx.settings.posX = 0;
+				ctx.settings.settingPart = 0;
 			}
 
-			redraw = 1;
+			ctx.redraw = 1;
 		}
 
 		bool ret = false;
-		if (MenuMode == 0)
-		{
+		if (ctx.menuMode == 0) {
 			// Game Select menu.
-			ret = UpdateGameSelectMenu(gi, gamecount);
+			ret = UpdateGameSelectMenu(&ctx);
 		} else {
 			// Settings menu.
-			ret = UpdateSettingsMenu();
+			ret = UpdateSettingsMenu(&ctx);
 		}
 
 		if (ret)
 		{
-			// User selected a game.
+			// User has exited the menu.
 			break;
 		}
 
-		if (redraw)
+		if (ctx.redraw)
 		{
 			// Redraw the header.
 			PrintInfo();
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", MenuMode ? "Modify" : "Select");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", MenuMode ? "Game List" : "Settings ");
-			if (MenuMode)
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", ctx.menuMode ? "Modify" : "Select");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", ctx.menuMode ? "Game List" : "Settings ");
+			if (ctx.menuMode)
 			{
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Update");
 			}
 
-			if (MenuMode == 0 ||
-			    (MenuMode == 1 && devState == DEV_OK))
+			if (ctx.menuMode == 0 ||
+			    (ctx.menuMode == 1 && devState == DEV_OK))
 			{
 				// FIXME: If devState != DEV_OK,
 				// the device info overlaps with the settings menu.
@@ -1254,15 +1277,17 @@ static int SelectGame(void)
 			GRRLIB_Render();
 			Screenshot();
 			ClearScreen();
-			redraw = 0;
+			ctx.redraw = false;
 		}
 	}
 
-	u32 SelectedGame = PosX + ScrollX;
-	char* StartChar = gi[SelectedGame].Path + 3;
-	if (StartChar[0] == ':')
+	// Save the selected game to the configuration.
+	u32 SelectedGame = ctx.games.posX + ctx.games.scrollX;
+	const char* StartChar = gi[SelectedGame].Path + 3;
+	if (StartChar[0] == ':') {
 		StartChar++;
-	memcpy(ncfg->GamePath, StartChar, strlen(gi[SelectedGame].Path));
+	}
+	strncpy(ncfg->GamePath, StartChar, sizeof(ncfg->GamePath));
 	memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
 	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 
@@ -1274,7 +1299,7 @@ static int SelectGame(void)
 		free(gi[i].Path);
 	}
 
-	if (!selected)
+	if (!ctx.selected)
 	{
 		// No game selected.
 		return 0;
@@ -1282,7 +1307,7 @@ static int SelectGame(void)
 
 	// Game is selected.
 	// TODO: Return an enum.
-	return (SaveSettings ? 3 : 1);
+	return (ctx.saveSettings ? 3 : 1);
 }
 
 /**
