@@ -3077,17 +3077,21 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", cheatPath );
 			}
 		}
-		//set if debugger is requested
+
+		// Debug Wait setting.
+		vu32 *debug_wait = (vu32*)(P2C(*(vu32*)0x1000));
 		if( IsWiiU )
 		{
-			*(vu32*)(P2C(*(vu32*)0x1000)) = 0;
+			// Debugger is not supported on Wii U.
+			*debug_wait = 0;
 		}
 		else
 		{
-			if( ConfigGetConfig(NIN_CFG_DEBUGWAIT) )
-				*(vu32*)(P2C(*(vu32*)0x1000)) = 1;
-			else
-				*(vu32*)(P2C(*(vu32*)0x1000)) = 0;
+			if (ConfigGetConfig(NIN_CFG_DEBUGWAIT)) {
+				*debug_wait = 1;
+			} else {
+				*debug_wait = 0;
+			}
 		}
 		//if(DebuggerHook) PatchB( codehandler_stub_offset, DebuggerHook );
 		//if(DebuggerHook2) PatchB( codehandler_stub_offset, DebuggerHook2 );
