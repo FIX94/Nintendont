@@ -480,6 +480,7 @@ static u32 UpHeld = 0, DownHeld = 0;
 static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 {
 	u32 i;
+	bool clearCheats = false;
 
 	if( FPAD_Down(1) )
 	{
@@ -504,13 +505,7 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 				PosX++;
 			}
 
-			if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
-			{
-				// If a cheat path being used, clear it because it
-				// can't be correct for a different game.
-				ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
-			}
-
+			clearCheats = true;
 			redraw=1;
 			SaveSettings = true;
 		}
@@ -544,13 +539,7 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 			PosX = ListMax - 1;
 		}
 
-		if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
-		{
-			// If a cheat path being used, clear it because it
-			// can't be correct for a different game.
-			ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
-		}
-
+		clearCheats = true;
 		redraw=1;
 		SaveSettings = true;
 	}
@@ -577,13 +566,7 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 				PosX--;
 			}
 
-			if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
-			{
-				// If a cheat path being used, clear it because it
-				// can't be correct for a different game.
-				ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
-			}
-
+			clearCheats = true;
 			redraw=1;
 			SaveSettings = true;
 		}
@@ -616,13 +599,7 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 			PosX = 0;
 		}
 
-		if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
-		{
-			// If a cheat path being used, clear it because it
-			// can't be correct for a different game.
-			ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
-		}
-
+		clearCheats = true;
 		redraw=1;
 		SaveSettings = true;
 	}
@@ -632,6 +609,16 @@ static bool UpdateGameSelectMenu(const gameinfo *gi, int gamecount)
 		// User selected a game.
 		selected = true;
 		return true;
+	}
+
+	if (clearCheats)
+	{
+		if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
+		{
+			// If a cheat path being used, clear it because it
+			// can't be correct for a different game.
+			ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
+		}
 	}
 
 	if (redraw)
