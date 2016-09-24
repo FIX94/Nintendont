@@ -510,7 +510,7 @@ FPAD_WRAPPER_REPEAT(Right)
 
 /**
  * Update the Game Select menu.
- * @param ctx		[in] Menu context.
+ * @param ctx	[in] Menu context.
  * @return True to exit; false to continue.
  */
 static bool UpdateGameSelectMenu(MenuCtx *ctx)
@@ -701,8 +701,198 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 }
 
 /**
+ * Get a description for the Settings menu.
+ * @param ctx	[in] Menu context.
+ * @return Description, or NULL if none is available.
+ */
+static const char *const *GetSettingsDescription(const MenuCtx *ctx)
+{
+	if (ctx->settings.settingPart == 0)
+	{
+		switch (ctx->settings.posX)
+		{
+			case NIN_CFG_BIT_CHEATS:
+			case NIN_CFG_BIT_DEBUGGER:
+			case NIN_CFG_BIT_DEBUGWAIT:
+				break;
+
+			case NIN_CFG_BIT_MEMCARDEMU: {
+				static const char *desc_mcemu[] = {
+					"Emulates a memory card in",
+					"Slot A using a .raw file.",
+					"",
+					"Disable this option if you",
+					"want to use a real memory",
+					"card on an original Wii.",
+					NULL
+				};
+				return desc_mcemu;
+			}
+
+			case NIN_CFG_BIT_CHEAT_PATH:
+				break;
+
+			case NIN_CFG_BIT_FORCE_WIDE: {
+				static const char *const desc_force_wide[] = {
+					"Patch games to use a 16:9",
+					"aspect ratio. (widescreen)",
+					"",
+					"Not all games support this",
+					"option. The patches will not",
+					"be applied to games that have",
+					"built-in support for 16:9;",
+					"use the game's options screen",
+					"to configure the display mode.",
+					NULL
+				};
+				return desc_force_wide;
+			}
+
+			case NIN_CFG_BIT_FORCE_PROG: {
+				static const char *const desc_force_prog[] = {
+					"Patch games to always use 480p",
+					"(progressive scan) output.",
+					"",
+					"Requires component cables, or",
+					"an HDMI cable on Wii U.",
+					NULL
+				};
+				return desc_force_prog;
+			}
+
+			case NIN_CFG_BIT_AUTO_BOOT:
+				break;
+
+			case NIN_CFG_BIT_REMLIMIT: {
+				static const char *desc_remlimit[] = {
+					"Disc read speed is normally",
+					"limited to the performance of",
+					"the original GameCube disc",
+					"drive.",
+					"",
+					"Unlocking read speed can allow",
+					"for faster load times, but it",
+					"can cause problems with games",
+					"that are extremely sensitive",
+					"to disc read timing.",
+					NULL
+				};
+				return desc_remlimit;
+			}
+
+			case NIN_CFG_BIT_OSREPORT:
+				break;
+
+			case NIN_CFG_BIT_USB: {	// WiiU Widescreen
+				static const char *desc_wiiu_widescreen[] = {
+					"On Wii U, Nintendont sets the",
+					"display to 4:3, which results",
+					"in bars on the sides of the",
+					"screen. If playing a game that",
+					"supports widescreen, enable",
+					"this option to set the display",
+					"back to 16:9.",
+					"",
+					"This option has no effect on",
+					"original Wii systems.",
+					NULL
+				};
+				return desc_wiiu_widescreen;
+			}
+
+			case NIN_CFG_BIT_LED: {
+				static const char *desc_led[] = {
+					"Use the drive slot LED as a",
+					"disk activity indicator.",
+					"",
+					"The LED will be turned on",
+					"when reading from or writing",
+					"to the storage device.",
+					"",
+					"This option has no effect on",
+					"Wii U, since the Wii U does",
+					"not have a drive slot LED.",
+					NULL
+				};
+				return desc_led;
+			}
+
+			case NIN_CFG_BIT_LOG:
+				break;
+
+			case NIN_SETTINGS_MAX_PADS: {
+				static const char *desc_max_pads[] = {
+					"Set the maximum number of",
+					"controllers to be detected.",
+					"",
+					"Keep this at 4 unless you know",
+					"what you're doing.",
+					NULL
+				};
+				return desc_max_pads;
+			}
+
+			case NIN_SETTINGS_MEMCARDBLOCKS: {
+				static const char *desc_memcard_blocks[] = {
+					"Default size for new memory",
+					"card images.",
+					"",
+					"NOTE: Sizes larger than 251",
+					"blocks are known to cause",
+					"issues.",
+					NULL
+				};
+				return desc_memcard_blocks;
+			}
+
+			case NIN_SETTINGS_MEMCARDMULTI: {
+				static const char *desc_memcard_multi[] = {
+					"Nintendont usually uses one",
+					"emulated memory card image",
+					"per game.",
+					"",
+					"Enabling MULTI switches this",
+					"to use one memory card image",
+					"for all USA and PAL games,",
+					"and one image for all JPN",
+					"games.",
+					NULL
+				};
+				return desc_memcard_multi;
+			}
+
+			case NIN_SETTINGS_NATIVE_SI: {
+				static const char *desc_native_si[] = {
+					"Native Control allows use of",
+					"GBA link cables on original",
+					"Wii systems.",
+					"",
+					"NOTE: Enabling Native Control",
+					"will disable Bluetooth and",
+					"USB HID controllers.",
+					"",
+					"This option is not available",
+					"on Wii U, since it does not",
+					"have built-in GameCube",
+					"controller ports.",
+					NULL
+				};
+				return desc_native_si;
+			}
+
+			default:
+				break;
+		}
+	}
+
+	// No description is available.
+	return NULL;
+}
+
+
+/**
  * Update the Settings menu.
- * @param ctx		[in] Menu context.
+ * @param ctx	[in] Menu context.
  * @return True to exit; false to continue.
  */
 static bool UpdateSettingsMenu(MenuCtx *ctx)
@@ -897,9 +1087,10 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				} else {
 					if (IsWiiU() &&
 					    (ctx->settings.posX == NIN_CFG_BIT_DEBUGGER ||
-					     ctx->settings.posX == NIN_CFG_BIT_DEBUGWAIT))
+					     ctx->settings.posX == NIN_CFG_BIT_DEBUGWAIT ||
+					     ctx->settings.posX == NIN_CFG_BIT_LED))
 					{
-						// Debugger is only available on Wii.
+						// These options are only available on Wii.
 						// Don't do anything.
 					} else {
 						ncfg->Config ^= (1 << ctx->settings.posX);
@@ -1021,9 +1212,10 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				u32 item_color = BLACK;
 				if (IsWiiU() &&
 				    (ListLoopIndex == NIN_CFG_BIT_DEBUGGER ||
-				     ListLoopIndex == NIN_CFG_BIT_DEBUGWAIT))
+				     ListLoopIndex == NIN_CFG_BIT_DEBUGWAIT ||
+				     ListLoopIndex == NIN_CFG_BIT_LED))
 				{
-					// Debugger is only available on Wii.
+					// These options are only available on Wii.
 					item_color = DARK_GRAY;
 				}
 				PrintFormat(MENU_SIZE, item_color, MENU_POS_X+50, SettingY(ListLoopIndex),
@@ -1157,6 +1349,22 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 30, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		} else {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
+		}
+
+		// Print a description for the selected option.
+		// desc contains pointers to lines, and is
+		// terminated with NULL.
+		const char *const *desc = GetSettingsDescription(ctx);
+		if (desc != NULL)
+		{
+			int line_num = 4;
+			do {
+				if (**desc != 0)
+				{
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(line_num), *desc);
+				}
+				line_num++;
+			} while (*(++desc) != NULL);
 		}
 
 		// GRRLIB rendering is done by SelectGame().
