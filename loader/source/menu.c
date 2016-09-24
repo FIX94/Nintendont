@@ -467,8 +467,10 @@ typedef struct _MenuCtx
 
 	// Counters for key repeat.
 	struct {
-		u32 up;
-		u32 down;
+		u32 Up;
+		u32 Down;
+		u32 Left;
+		u32 Right;
 	} held;
 
 	// Games menu.
@@ -488,6 +490,24 @@ typedef struct _MenuCtx
 	} settings;
 } MenuCtx;
 
+/** Key repeat wrapper functions. **/
+#define FPAD_WRAPPER_REPEAT(Key) \
+static inline int FPAD_##Key##_Repeat(MenuCtx *ctx) \
+{ \
+	int ret = 0; \
+	if (FPAD_##Key(1)) { \
+		ret = (ctx->held.Key == 0 || ctx->held.Key > 10); \
+		ctx->held.Key++; \
+	} else { \
+		ctx->held.Key = 0; \
+	} \
+	return ret; \
+}
+FPAD_WRAPPER_REPEAT(Up)
+FPAD_WRAPPER_REPEAT(Down)
+FPAD_WRAPPER_REPEAT(Left)
+FPAD_WRAPPER_REPEAT(Right)
+
 /**
  * Update the Game Select menu.
  * @param ctx		[in] Menu context.
@@ -498,44 +518,36 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 	u32 i;
 	bool clearCheats = false;
 
-	if( FPAD_Down(1) )
+	if (FPAD_Down_Repeat(ctx))
 	{
 		// Down: Move the cursor down by 1 entry.
-		if (ctx->held.down == 0 || ctx->held.down > 10)
+		
+		// Remove the current arrow.
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
+
+		// Adjust the scrolling position.
+		if (ctx->games.posX + 1 >= ctx->games.listMax)
 		{
-			// Remove the current arrow.
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
-
-			// Adjust the scrolling position.
-			if (ctx->games.posX + 1 >= ctx->games.listMax)
-			{
-				if (ctx->games.posX + 1 + ctx->games.scrollX < ctx->games.gamecount) {
-					// Need to adjust the scroll position.
-					ctx->games.scrollX++;
-				} else {
-					// Wraparound.
-					ctx->games.posX	= 0;
-					ctx->games.scrollX = 0;
-				}
+			if (ctx->games.posX + 1 + ctx->games.scrollX < ctx->games.gamecount) {
+				// Need to adjust the scroll position.
+				ctx->games.scrollX++;
 			} else {
-				ctx->games.posX++;
+				// Wraparound.
+				ctx->games.posX	= 0;
+				ctx->games.scrollX = 0;
 			}
-
-			clearCheats = true;
-			ctx->redraw = true;
-			ctx->saveSettings = true;
+		} else {
+			ctx->games.posX++;
 		}
-		ctx->held.down++;
-	}
-	else
-	{
-		ctx->held.down = 0;
+
+		clearCheats = true;
+		ctx->redraw = true;
+		ctx->saveSettings = true;
 	}
 
-	if( FPAD_Right(0) )
+	if (FPAD_Right_Repeat(ctx))
 	{
 		// Right: Move the cursor down by 1 page.
-		// TODO: Add delay like for Up/Down?
 
 		// Remove the current arrow.
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
@@ -560,43 +572,35 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		ctx->saveSettings = true;
 	}
 
-	if (FPAD_Up(1))
+	if (FPAD_Up_Repeat(ctx))
 	{
 		// Up: Move the cursor up by 1 entry.
-		if (ctx->held.up == 0 || ctx->held.up > 10)
+
+		// Remove the current arrow.
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
+
+		// Adjust the scrolling position.
+		if (ctx->games.posX <= 0)
 		{
-			// Remove the current arrow.
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
-
-			// Adjust the scrolling position.
-			if (ctx->games.posX <= 0)
-			{
-				if (ctx->games.scrollX > 0) {
-					ctx->games.scrollX--;
-				} else {
-					// Wraparound.
-					ctx->games.posX	= ctx->games.listMax - 1;
-					ctx->games.scrollX = ctx->games.gamecount - ctx->games.listMax;
-				}
+			if (ctx->games.scrollX > 0) {
+				ctx->games.scrollX--;
 			} else {
-				ctx->games.posX--;
+				// Wraparound.
+				ctx->games.posX	= ctx->games.listMax - 1;
+				ctx->games.scrollX = ctx->games.gamecount - ctx->games.listMax;
 			}
-
-			clearCheats = true;
-			ctx->redraw = true;
-			ctx->saveSettings = true;
+		} else {
+			ctx->games.posX--;
 		}
-		ctx->held.up++;
-	}
-	else
-	{
-		ctx->held.up = 0;
+
+		clearCheats = true;
+		ctx->redraw = true;
+		ctx->saveSettings = true;
 	}
 
-	if (FPAD_Left(0))
+	if (FPAD_Left_Repeat(ctx))
 	{
 		// Left: Move the cursor up by 1 page.
-		// TODO: Add delay like for Up/Down?
 
 		// Remove the current arrow.
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
@@ -710,7 +714,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		ctx->redraw = 1;
 	}
 
-	if( FPAD_Down(0) )
+	if (FPAD_Down_Repeat(ctx))
 	{
 		// Down: Move the cursor down by 1 setting.
 		if (ctx->settings.settingPart == 0) {
@@ -751,7 +755,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		ctx->redraw = true;
 
 	}
-	else if( FPAD_Up(0) )
+	else if (FPAD_Up_Repeat(ctx))
 	{
 		// Up: Move the cursor up by 1 setting.
 		if (ctx->settings.settingPart == 0) {
@@ -796,7 +800,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		ctx->redraw = true;
 	}
 
-	if( FPAD_Left(0) )
+	if (FPAD_Left_Repeat(ctx))
 	{
 		// Left: Decrement a setting. (Right column only.)
 		if (ctx->settings.settingPart == 1)
@@ -833,7 +837,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			}
 		}
 	}
-	else if( FPAD_Right(0) )
+	else if (FPAD_Right_Repeat(ctx))
 	{
 		// Right: Increment a setting. (Right column only.)
 		if (ctx->settings.settingPart == 1)
@@ -1225,8 +1229,7 @@ static int SelectGame(void)
 		{
 			// Switch menu modes.
 			ctx.menuMode = !ctx.menuMode;
-			ctx.held.up = 0;
-			ctx.held.down = 0;
+			memset(&ctx.held, 0, sizeof(ctx.held));
 
 			if (ctx.menuMode == 1)
 			{
