@@ -41,8 +41,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern char launch_dir[MAXPATHLEN];
 
 typedef struct {
-	const char titleID[6];
-	const char titleName[LINE_LENGTH];
+	const char titleID[8];
+	const char *titleName;
 } SpecialTitles_t;
 
 static const SpecialTitles_t TriforceTitles[] = {
