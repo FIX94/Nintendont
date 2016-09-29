@@ -513,7 +513,7 @@ int main(int argc, char **argv)
 		{
 			ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
 		}
-		else if(strstr(ncfg->GamePath, ".iso") != NULL)
+		else if (IsSupportedFileExt(ncfg->GamePath))
 		{
 			char GamePath[260];
 			snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);

@@ -263,38 +263,6 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 }
 
 /**
- * Does a filename have a supported file extension?
- * @return True if it does; false if it doesn't.
- */
-bool IsSupportedFileExt(const char *filename)
-{
-	size_t len = strlen(filename);
-	if (len >= 5 && filename[len-4] == '.')
-	{
-		const int extpos = len-3;
-		if (!strcasecmp(&filename[extpos], "gcm") ||
-		    !strcasecmp(&filename[extpos], "iso") ||
-		    !strcasecmp(&filename[extpos], "cso"))
-		{
-			// File extension is supported.
-			return true;
-		}
-	}
-	else if (len >= 6 && filename[len-5] == '.')
-	{
-		const int extpos = len-4;
-		if (!strcasecmp(&filename[extpos], "ciso"))
-		{
-			// File extension is supported.
-			return true;
-		}
-	}
-
-	// File extension is NOT supported.
-	return false;
-}
-
-/**
  * Get all games from the games/ directory on the selected storage device.
  * On Wii, this also adds a pseudo-game for loading GameCube games from disc.
  *

@@ -181,7 +181,12 @@ const WCHAR *MountDevice(BYTE pdrv);
 int UnmountDevice(BYTE pdrv);
 void CloseDevices(void);
 
+/**
+ * Does a filename have a supported file extension?
+ * @return True if it does; false if it doesn't.
+ */
+bool IsSupportedFileExt(const char *filename);
+
 #endif
 
 // 78A94
-
