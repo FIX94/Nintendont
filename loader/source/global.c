@@ -597,3 +597,33 @@ bool IsSupportedFileExt(const char *filename)
 	// File extension is NOT supported.
 	return false;
 }
+
+/**
+ * Check if an ID6 is a known multi-game disc.
+ * @param id6 ID6. (must be 6 bytes)
+ * @return True if this is a known multi-game disc; false if not.
+ */
+bool IsMultiGameDisc(const char *id6)
+{
+	// Reference: https://gbatemp.net/threads/wit-wiimms-iso-tools-gamecube-disc-support.251630/#post-3088119
+	if (!memcmp(id6, "GCO", 3) && id6[4]=='D' && id6[5]=='V')
+	{
+		// GCOSDV(D5) or GCOSDV(D9).
+		return true;
+	}
+
+	// Check for older IDs.
+	static const char multi_game_ids[3][8] = {"COBRAM", "GGCOSD", "RGCOSD"};
+	u32 i;
+	for (i = 0; i < 3; i++)
+	{
+		if (!memcmp(id6, multi_game_ids[i], 6))
+		{
+			// Found a multi-game disc.
+			return true;
+		}
+	}
+
+	// Not a multi-game disc.
+	return false;
+}

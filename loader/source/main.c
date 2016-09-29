@@ -201,6 +201,180 @@ void changeToDefaultDrive()
 	f_chdir_char("/");
 }
 
+/**
+ * Check for a multi-game image.
+ * @param CurDICMD DI command. (0 == disc image, DIP_CMD_NORMAL == GameCube disc, DIP_CMD_DVDR == DVD-R)
+ * @return ISO Shift. (0 for non-multi; byte offset for multi.)
+ */
+static int CheckForMultiGame(u32 CurDICMD)
+{
+	// Re-read the disc header to get the full ID6.
+	u8 *MultiHdr = memalign(32, 0x800);
+
+	FIL f;
+	UINT read;
+	FRESULT fres = FR_DISK_ERR;
+
+	if(CurDICMD)
+	{
+		ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
+	}
+	else if (IsSupportedFileExt(ncfg->GamePath))
+	{
+		char GamePath[260];
+		snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
+		fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
+		if (fres != FR_OK)
+		{
+			// Error opening the file.
+			free(MultiHdr);
+			return 0;
+		}
+
+		f_read(&f, MultiHdr, 0x800, &read);
+		if (read != 0x800)
+		{
+			// Error reading from the file.
+			f_close(&f);
+			free(MultiHdr);
+			return 0;
+		}
+
+		// NOTE: Not checking for CISO format here.
+	}
+
+	if (!IsMultiGameDisc((const char*)MultiHdr))
+	{
+		// Not a multi-game disc.
+		f_close(&f);
+		free(MultiHdr);
+		return 0;
+	}
+
+	// Up to 15 games are supported.
+	// In theory, the format supports up to 48 games, but
+	// you'll run into the DVD size limit way before you
+	// ever reach that limit.
+	u32 i = 0;
+	u32 gamecount = 0;
+	u32 Offsets[15];
+	gameinfo gi[15];
+
+	u8 *GameHdr = memalign(32, 0x800);
+	// GCOPDV(D9) uses Wii-style 34-bit shifted addresses.
+	// FIXME: Needs 64-bit offsets.
+	const u32 *hdr32 = (const u32*)MultiHdr;
+	bool NeedShift = (hdr32[1] == 0x44564439);
+	for (i = 0x10; i < 0x40 && gamecount < 15; i++)
+	{
+		const u32 TmpOffset = hdr32[i];
+		if (TmpOffset > 0)
+		{
+			Offsets[gamecount] = NeedShift ? TmpOffset << 2 : TmpOffset;
+			if(CurDICMD)
+			{
+				ReadRealDisc(GameHdr, Offsets[gamecount], 0x800, CurDICMD);
+			}
+			else
+			{
+				// FIXME: CISO support.
+				f_lseek(&f, Offsets[gamecount]);
+				f_read(&f, GameHdr, 0x800, &read);
+			}
+
+			// Make sure the title in the header is NULL terminated.
+			GameHdr[0x20+65] = 0;
+
+			// TODO: titles.txt support?
+			memcpy(gi[gamecount].ID, GameHdr, 6);
+			gi[gamecount].DiscNumber = 0;
+			gi[gamecount].Flags = GIFLAG_NAME_ALLOC;
+			gi[gamecount].Name = strdup((char*)&GameHdr[0x20]);
+			gi[gamecount].Path = NULL;
+			gamecount++;
+		}
+	}
+
+	free(GameHdr);
+	free(MultiHdr);
+	if (!CurDICMD)
+	{
+		f_close(&f);
+	}
+
+	// TODO: Share code with menu.c.
+	bool redraw = true;
+	ClearScreen();
+	u32 PosX = 0;
+	u32 UpHeld = 0, DownHeld = 0;
+	while (true)
+	{
+		VIDEO_WaitVSync();
+		FPAD_Update();
+		if( FPAD_OK(0) )
+			break;
+
+		if( FPAD_Down(1) )
+		{
+			if(DownHeld == 0 || DownHeld > 10)
+			{
+				PosX++;
+				if(PosX == gamecount) PosX = 0;
+				redraw = true;
+			}
+			DownHeld++;
+		}
+		else
+		{
+			DownHeld = 0;
+		}
+
+		if( FPAD_Up(1) )
+		{
+			if(UpHeld == 0 || UpHeld > 10)
+			{
+				if(PosX == 0) PosX = gamecount;
+				PosX--;
+				redraw = true;
+			}
+			UpHeld++;
+		}
+		else
+		{
+			UpHeld = 0;
+		}
+
+		// TODO: Home = Go Back?
+
+		if( redraw )
+		{
+			PrintInfo();
+			static const int subheader_x = (640 - (40*10)) / 2;
+			PrintFormat(DEFAULT_SIZE, BLACK, subheader_x, MENU_POS_Y + 20*3,
+				    "Select a game from this multi-game disc:");
+			for (i = 0; i < gamecount; ++i)
+			{
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
+					    gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
+			}
+			GRRLIB_Render();
+			Screenshot();
+			ClearScreen();
+			redraw = false;
+		}
+	}
+
+	// Free the allocated names.
+	for (i = 0; i < gamecount; ++i)
+	{
+		if (gi[i].Flags & GIFLAG_NAME_ALLOC)
+			free(gi[i].Name);
+	}
+
+	memcpy(&(ncfg->GameID), gi[PosX].ID, 4);
+	return Offsets[PosX];
+}
+
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -495,123 +669,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	// Check for multi-game disc images.
-	u32 ISOShift = 0;
-	if(memcmp(&(ncfg->GameID), "COBR", 4) == 0 || memcmp(&(ncfg->GameID), "GGCO", 4) == 0
-		|| memcmp(&(ncfg->GameID), "GCO", 3) == 0 || memcmp(&(ncfg->GameID), "RGCO", 4) == 0)
-	{
-		u32 i, j = 0;
-		u32 Offsets[15];
-		gameinfo gi[15];
-		u8 *MultiHdr = memalign(32, 0x800);
-
-		FIL f;
-		UINT read;
-		FRESULT fres = FR_DISK_ERR;
-
-		if(CurDICMD)
-		{
-			ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
-		}
-		else if (IsSupportedFileExt(ncfg->GamePath))
-		{
-			char GamePath[260];
-			snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
-			fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
-			if (fres == FR_OK)
-				f_read(&f, MultiHdr, 0x800, &read);
-		}
-
-		//Damn you COD for sharing this ID!
-		if (fres != FR_OK || (memcmp(MultiHdr, "GCO", 3) == 0 && memcmp(MultiHdr+4, "52", 3) == 0))
-		{
-			free(MultiHdr);
-			if (fres == FR_OK)
-				f_close(&f);
-		}
-		else
-		{
-			u8 *GameHdr = memalign(32, 0x800);
-			u32 NeedShift = (*(vu32*)(MultiHdr+4) == 0x44564439);
-			for(i = 0x40; i < 0x100; i += 4)
-			{
-				u32 TmpOffset = *(vu32*)(MultiHdr+i);
-				if(TmpOffset > 0)
-				{
-					Offsets[j] = NeedShift ? TmpOffset << 2 : TmpOffset;
-					if(CurDICMD)
-					{
-						ReadRealDisc(GameHdr, Offsets[j], 0x800, CurDICMD);
-					}
-					else
-					{
-						f_lseek(&f, Offsets[j]);
-						f_read(&f, GameHdr, 0x800, &read);
-					}
-
-					// TODO: titles.txt support?
-					// FIXME: This memory is never freed!
-					memcpy(gi[j].ID, GameHdr, 6);
-					gi[j].Name = strdup((char*)GameHdr+0x20);
-					j++;
-					if(j == 15) break;
-				}
-			}
-			free(GameHdr);
-			free(MultiHdr);
-			f_close(&f);
-
-			bool redraw = 1;
-			ClearScreen();
-			u32 PosX = 0;
-			u32 UpHeld = 0, DownHeld = 0;
-			while(1)
-			{
-				VIDEO_WaitVSync();
-				FPAD_Update();
-				if( FPAD_OK(0) )
-					break;
-				else if( FPAD_Down(1) )
-				{
-					if(DownHeld == 0 || DownHeld > 10)
-					{
-						PosX++;
-						if(PosX == j) PosX = 0;
-						redraw = true;
-					}
-					DownHeld++;
-				}
-				else
-					DownHeld = 0;
-				if( FPAD_Up(1) )
-				{
-					if(UpHeld == 0 || UpHeld > 10)
-					{
-						if(PosX == 0) PosX = j;
-						PosX--;
-						redraw = true;
-					}
-					UpHeld++;
-				}
-				else
-					UpHeld = 0;
-				if( redraw )
-				{
-					PrintInfo();
-					for( i=0; i < j; ++i )
-						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
-							gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
-					GRRLIB_Render();
-					Screenshot();
-					ClearScreen();
-					redraw = false;
-				}
-			}
-			ISOShift = Offsets[PosX];
-			memcpy(&(ncfg->GameID), gi[PosX].ID, 4);
-		}
-	}
-//multi-iso game hack
+	// Check if this is a multi-game disc image.
+	u32 ISOShift = CheckForMultiGame(CurDICMD);
 	*(vu32*)0xD300300C = ISOShift;
 
 //Set Language

@@ -111,11 +111,10 @@ int compare_names(const void *a, const void *b)
  * @param gi		[out] gameinfo struct to store game information if the disc is valid.
  * @return True if the image is valid; false if not.
  */
-bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
+static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 {
 	// TODO: Handle FST format (sys/boot.bin).
 	u8 buf[0x100];		// Disc header.
-	int i;
 
 	FIL in;
 	if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
@@ -183,26 +182,7 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 
 		// Check if this is a multi-game image.
 		// Reference: https://gbatemp.net/threads/wit-wiimms-iso-tools-gamecube-disc-support.251630/#post-3088119
-		bool is_multigame = false;
-		if (!memcmp(buf, "GCO", 3) && buf[4]=='D' && buf[5]=='V')
-		{
-			// GCOSDV(D5) or GCOSDV(D9).
-			is_multigame = true;
-		}
-		else
-		{
-			static const char multi_game_ids[3][8] = {"COBRAM", "GGCOSD", "RGCOSD"};
-			for (i = 0; i < 3; i++)
-			{
-				if (!memcmp(buf, multi_game_ids[i], 6))
-				{
-					// Found a multi-game disc.
-					is_multigame = true;
-					break;
-				}
-			}
-		}
-
+		const bool is_multigame = IsMultiGameDisc((const char*)buf);
 		if (is_multigame)
 		{
 			if (gi->Flags == GIFLAG_FORMAT_CISO)
