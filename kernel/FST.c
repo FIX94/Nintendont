@@ -34,6 +34,40 @@ extern int dbgprintf( const char *fmt, ...);
 // If 1, use extracted FST.
 u32 FSTMode = 0;
 
+typedef struct
+{
+	union
+	{
+		struct
+		{
+			u32 Type	:8;
+			u32 NameOffset	:24;
+		};
+		u32 TypeName;
+	};
+	union
+	{
+		struct		// File Entry
+		{
+			u32 FileOffset;
+			u32 FileLength;
+		};
+		struct		// Dir Entry
+		{
+			u32 ParentOffset;
+			u32 NextOffset;
+		};
+		u32 entry[2];
+	};
+} FEntry;
+
+typedef struct
+{
+	u32 Offset;
+	u32 Size;
+	FIL File;
+} FileCache;
+
 #include "ff_utf8.h"
 static u8 *FSTable ALIGNED(32);
 static u32 ApploaderSize = 0;
