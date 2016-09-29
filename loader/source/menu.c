@@ -114,8 +114,7 @@ int compare_names(const void *a, const void *b)
 bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 {
 	// TODO: Handle FST format (sys/boot.bin).
-	char gamename[65];		// Game title.
-	char buf[0x100];		// Disc header.
+	u8 buf[0x100];		// Disc header.
 	int i;
 
 	FIL in;
@@ -141,7 +140,7 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	// NOTE: CISO block size is little-endian.
 	static const uint8_t CISO_MAGIC[8] = {'C','I','S','O',0x00,0x00,0x20,0x00};
 	if (!memcmp(buf, CISO_MAGIC, sizeof(CISO_MAGIC)) &&
-	    !IsGCGame((u8*)buf))
+	    !IsGCGame(buf))
 	{
 		// CISO magic is present, and GCN magic isn't.
 		// This is most likely a CISO image.
@@ -177,7 +176,7 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	// File is no longer needed.
 	f_close(&in);
 
-	if (IsGCGame((u8*)buf))	// Must be GC game
+	if (IsGCGame(buf))	// Must be GC game
 	{
 		memcpy(gi->ID, buf, 6); //ID for EXI
 		gi->DiscNumber = discNumber;
@@ -248,9 +247,10 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 			{
 				// Title not found.
 				// Use the title from the disc header.
-				strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
-				gamename[sizeof(gamename)-1] = 0;
-				gi->Name = strdup(gamename);
+
+				// Make sure the title in the header is NULL terminated.
+				buf[0x20+65] = 0;
+				gi->Name = strdup((const char*)&buf[0x20]);
 				gi->Flags |= GIFLAG_NAME_ALLOC;
 			}
 		}
@@ -279,8 +279,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 {
 	// Create a list of games
 	char filename[MAXPATHLEN];	// Current filename.
-	char gamename[65];		// Game title.
-	char buf[0x100];		// Disc header.
+	u8 buf[0x100];			// Disc header.
 	int gamecount = 0;		// Current game count.
 
 	if( !IsWiiU() )
@@ -407,21 +406,22 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 					f_read(&in, buf, 0x100, &read);
 					f_close(&in);
 
-					if (read == 0x100 && IsGCGame((u8*)buf))	// Must be GC game
+					if (read == 0x100 && IsGCGame(buf))	// Must be GC game
 					{
 						// Terminate the filename at the game's base directory.
 						filename[fnlen] = 0;
+
+						// Make sure the title in the header is NULL terminated.
+						buf[0x20+65] = 0;
 
 						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
 						gi[gamecount].DiscNumber = 0;
 
 						// TODO: Check titles.txt?
-						strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
-						gamename[sizeof(gamename)-1] = 0;
-						gi[gamecount].Name = strdup(gamename);
+						gi[gamecount].Name = strdup((const char*)&buf[0x20]);
 						gi[gamecount].Flags = GIFLAG_NAME_ALLOC | GIFLAG_FORMAT_FST;
 
-						gi[gamecount].Path = strdup( filename );
+						gi[gamecount].Path = strdup(filename);
 						gamecount++;
 					}
 				}
