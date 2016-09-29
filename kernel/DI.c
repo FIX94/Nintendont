@@ -777,7 +777,7 @@ void DIUpdateRegisters( void )
 }
 
 extern u32 Patch31A0Backup;
-static u8 *di_src = NULL;
+static const u8 *di_src = NULL;
 static char *di_dest = NULL;
 static u32 di_length = 0, di_offset = 0;
 u32 DIReadThread(void *arg)

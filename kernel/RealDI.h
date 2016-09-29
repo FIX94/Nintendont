@@ -28,6 +28,6 @@ void RealDI_Update();
 void RealDI_Identify(bool NeedsGC);
 bool RealDI_NewDisc();
 void ClearRealDiscBuffer(void);
-u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync);
+const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync);
 
 #endif

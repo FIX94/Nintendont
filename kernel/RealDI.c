@@ -90,7 +90,7 @@ void RealDI_Identify(bool NeedsGC)
 	ClearRealDiscBuffer();
 	u32 Length = 0x800;
 	RealDiscCMD = DIP_CMD_NORMAL;
-	u8 *TmpBuf = ReadRealDisc(&Length, 0, false);
+	const u8 *TmpBuf = ReadRealDisc(&Length, 0, false);
 	if(IsGCGame((u32)TmpBuf) == false)
 	{
 		Length = 0x800;
@@ -175,7 +175,7 @@ void ClearRealDiscBuffer(void)
 }
 
 extern bool access_led;
-u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
+const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 {
 	//dbgprintf("ReadRealDisc(%08x %08x)\r\n", *Length, Offset);
 

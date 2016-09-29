@@ -81,7 +81,7 @@ static u32 FCState[FILECACHE_MAX];
 
 extern u32 Region;
 
-u32 FSTInit( char *GamePath )
+u32 FSTInit( const char *GamePath )
 {
 	char Path[256];
 	FIL fd;
@@ -144,7 +144,7 @@ void FSTCleanup()
 	FSTMode = 0;
 	FSTable = NULL;
 }
-u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
+const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 {
 	if (*Length > DI_READ_BUFFER_LENGTH)
 		*Length = DI_READ_BUFFER_LENGTH;

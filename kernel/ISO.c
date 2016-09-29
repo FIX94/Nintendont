@@ -358,7 +358,7 @@ void ISOSeek(u32 Offset)
 	}
 }
 
-u8 *ISORead(u32* Length, u32 Offset)
+const u8 *ISORead(u32* Length, u32 Offset)
 {
 	if(CacheInited == 0)
 	{
