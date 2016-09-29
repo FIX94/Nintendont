@@ -67,11 +67,12 @@ bool GenerateMemCard(const char *MemCard)
 	if (f_open_char(&f, MemCard, FA_WRITE|FA_CREATE_NEW) != FR_OK)
 		return false;
 
-	//Get memory to format
-	u8 *MemcardBase = memalign(32, MEM_CARD_SIZE(ncfg->MemCardBlocks));
-	memset(MemcardBase, 0, MEM_CARD_SIZE(ncfg->MemCardBlocks));
-	//Fill Header and Dir Memory with 0xFF
+	// Get memory to format (5 blocks)
+	u8 *MemcardBase = memalign(32, 0xA000);
+	// Fill Header and Dir Memory with 0xFF.
 	memset(MemcardBase, 0xFF, 0x6000);
+	// Fill the Block table with 0x00.
+	memset(&MemcardBase[0x6000], 0x00, 0x4000);
 
 	// Header block.
 	card_header *header = (card_header*)MemcardBase;
@@ -114,9 +115,25 @@ bool GenerateMemCard(const char *MemCard)
 	doChecksum((u16*)&MemcardBase[0x6004], 0x1FFC, (u16*)&MemcardBase[0x6000], (u16*)&MemcardBase[0x6002]);
 	doChecksum((u16*)&MemcardBase[0x8004], 0x1FFC, (u16*)&MemcardBase[0x8000], (u16*)&MemcardBase[0x8002]);
 
-	//Write it into a file
+	// Reserve space in the memory card file.
+	const u32 total_size = MEM_CARD_SIZE(ncfg->MemCardBlocks);
+	f_expand(&f, total_size, 1);
+
+	// Write the header (5 blocks) to the file.
 	UINT wrote;
-	f_write(&f, MemcardBase, MEM_CARD_SIZE(ncfg->MemCardBlocks), &wrote);
+	f_write(&f, MemcardBase, 0xA000, &wrote);
+
+	// Write 3 blank blocks. (8 blocks total)
+	memset(MemcardBase, 0, 0x8000);
+	f_write(&f, MemcardBase, 0x6000, &wrote);
+
+	// Write the remaining blocks.
+	u32 i;
+	for (i = 0x10000; i < total_size; i += 0x8000)
+	{
+		f_write(&f, MemcardBase, 0x8000, &wrote);
+	}
+
 	f_close(&f);
 	free(MemcardBase);
 	gprintf("Memory Card File created!\r\n");

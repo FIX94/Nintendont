@@ -61,7 +61,14 @@
 /* This option switches fast seek function. (0:Disable or 1:Enable) */
 
 
+#ifdef __PPC__
+// Nintendont loader: f_expand() is used when creating blank
+// memory card images as an optimization.
+#define	_USE_EXPAND		1
+#else /* !__PPC__ */
+// Nintendont kernel
 #define	_USE_EXPAND		0
+#endif /* __PPC__ */
 /* This option switches f_expand function. (0:Disable or 1:Enable) */
 
 
