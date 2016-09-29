@@ -257,7 +257,8 @@ static int CheckForMultiGame(u32 CurDICMD)
 	// ever reach that limit.
 	u32 i = 0;
 	u32 gamecount = 0;
-	u32 Offsets[15];
+	u64 Offsets[15];
+	u8 gameIsOver4GB[15];
 	gameinfo gi[15];
 
 	u8 *GameHdr = memalign(32, 0x800);
@@ -270,17 +271,24 @@ static int CheckForMultiGame(u32 CurDICMD)
 		const u32 TmpOffset = hdr32[i];
 		if (TmpOffset > 0)
 		{
-			Offsets[gamecount] = NeedShift ? TmpOffset << 2 : TmpOffset;
+			Offsets[gamecount] = NeedShift ? (u64)TmpOffset << 2 : (u64)TmpOffset;
 			if(CurDICMD)
 			{
-				ReadRealDisc(GameHdr, Offsets[gamecount], 0x800, CurDICMD);
+				// FIXME: Use u64 and test an actual DVD-R9.
+				ReadRealDisc(GameHdr, (u32)Offsets[gamecount], 0x800, CurDICMD);
 			}
 			else
 			{
-				// FIXME: CISO support.
 				f_lseek(&f, Offsets[gamecount]);
 				f_read(&f, GameHdr, 0x800, &read);
 			}
+
+			// If the game is over 4GB, mark it as such and
+			// don't allow it to be selected.
+			// TODO: Fix >4GB support.
+			// NOTE: The previous game might also be over 4GB,
+			// so it might show up, but it'll crash.
+			gameIsOver4GB[gamecount] = (Offsets[gamecount] > 0xFFFFFFFFULL);
 
 			// Make sure the title in the header is NULL terminated.
 			GameHdr[0x20+65] = 0;
@@ -312,7 +320,11 @@ static int CheckForMultiGame(u32 CurDICMD)
 		VIDEO_WaitVSync();
 		FPAD_Update();
 		if( FPAD_OK(0) )
-			break;
+		{
+			// TODO: Fix support for >4GB.
+			if (!gameIsOver4GB[PosX])
+				break;
+		}
 
 		if( FPAD_Down(1) )
 		{
@@ -354,7 +366,8 @@ static int CheckForMultiGame(u32 CurDICMD)
 				    "Select a game from this multi-game disc:");
 			for (i = 0; i < gamecount; ++i)
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
+				const u32 color = gameIsOver4GB[i] ? MAROON : BLACK;
+				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
 					    gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
 			}
 			GRRLIB_Render();
