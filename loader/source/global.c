@@ -606,9 +606,10 @@ bool IsSupportedFileExt(const char *filename)
 bool IsMultiGameDisc(const char *id6)
 {
 	// Reference: https://gbatemp.net/threads/wit-wiimms-iso-tools-gamecube-disc-support.251630/#post-3088119
+	// NOTE: GCOx52 is "Call of Duty: Finest Hour".
 	if (!memcmp(id6, "GCO", 3) && id6[4]=='D' && id6[5]=='V')
 	{
-		// GCOSDV(D5) or GCOSDV(D9).
+		// GCOxDV(D5) or GCOxDV(D9).
 		return true;
 	}
 
