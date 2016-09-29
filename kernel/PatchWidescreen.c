@@ -537,9 +537,11 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 		case 0x4D32: // Super Monkey Ball 2
 		case 0x334C: // Super Monkey Ball Adventure
 		case 0x5355: // Superman: Shadow of Apokolips
+		case 0x4A46: // The Adventures of Jimmy Neutron Boy Genius: Jet Fusion
 		case 0x3653: // The Legend of Spyro: A New Beginning
 		case 0x5051: // The Powerpuff Girls: Relish Rampage
 		case 0x3346: // TimeSplitters: Future Perfect
+		case 0x5434: // Tony Hawk's Pro Skater 4
 		case 0x5444: // Tony Hawk's Underground
 		case 0x3254: // Tony Hawk's Underground 2
 		case 0x4839: // Tony Hawk's American Wasteland
