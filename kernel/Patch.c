@@ -1557,13 +1557,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	u32 cheatsWanted = 0, debuggerWanted = 0;
 	if(ConfigGetConfig(NIN_CFG_CHEATS))
 		cheatsWanted = 1;
-	if(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER))
+	if(!IsWiiU() && ConfigGetConfig(NIN_CFG_DEBUGGER))
 		debuggerWanted = 1;
 	if(cheatsWanted || debuggerWanted)
 		PatchCount &= ~FPATCH_OSSleepThread;
 	/* So this can be used but for now we just use PADRead */
-	/*if( (IsWiiU && ConfigGetConfig(NIN_CFG_CHEATS)) ||
-		(!IsWiiU && ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS)) )
+	/*if( (IsWiiU() && ConfigGetConfig(NIN_CFG_CHEATS)) ||
+		(!IsWiiU() && ConfigGetConfig(NIN_CFG_DEBUGGER|NIN_CFG_CHEATS)) )
 	{
 		PatchCount &= ~(
 			FPATCH_OSSleepThread | //Hook 1
@@ -2630,7 +2630,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								break;
 							}
 
-							if( IsWiiU )
+							if( IsWiiU() )
 							{
 								if( CurPatterns[j].Patch == patch_fwrite_GC ) // patch_fwrite_Log works fine
 								{
@@ -3080,7 +3080,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 		// Debug Wait setting.
 		vu32 *debug_wait = (vu32*)(P2C(*(vu32*)0x1000));
-		if( IsWiiU )
+		if( IsWiiU() )
 		{
 			// Debugger is not supported on Wii U.
 			*debug_wait = 0;

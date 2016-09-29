@@ -270,7 +270,7 @@ int _main( int argc, char *argv[] )
 
 	// Set the Wii U widescreen setting.
 	u32 ori_widesetting = 0;
-	if(IsWiiU)
+	if (IsWiiU())
 	{
 		ori_widesetting = read32(0xd8006a0);
 		if( ConfigGetConfig(NIN_CFG_WIIU_WIDE) )
@@ -519,7 +519,7 @@ int _main( int argc, char *argv[] )
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);
 
-	if(IsWiiU)
+	if (IsWiiU())
 	{
 		write32(0xd8006a0, ori_widesetting);
 		mask32(0xd8006a8, 0, 2);

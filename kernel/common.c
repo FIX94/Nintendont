@@ -164,7 +164,7 @@ void Shutdown( void )
 #endif
 
 #endif
-	if( IsWiiU )
+	if( IsWiiU() )
 	{
 		write32( 0x0D8005E0, 0xFFFFFFFE );
 
