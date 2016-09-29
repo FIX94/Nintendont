@@ -116,6 +116,7 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	// TODO: Handle FST format (sys/boot.bin).
 	char gamename[65];		// Game title.
 	char buf[0x100];		// Disc header.
+	int i;
 
 	FIL in;
 	if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
@@ -181,34 +182,77 @@ bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		memcpy(gi->ID, buf, 6); //ID for EXI
 		gi->DiscNumber = discNumber;
 
-		// Check if this title is in titles.txt.
-		bool isTriforce;
-		const char *dbTitle = SearchTitles(gi->ID, &isTriforce);
-		if (dbTitle)
+		// Check if this is a multi-game image.
+		// Reference: https://gbatemp.net/threads/wit-wiimms-iso-tools-gamecube-disc-support.251630/#post-3088119
+		bool is_multigame = false;
+		if (!memcmp(buf, "GCO", 3) && buf[4]=='D' && buf[5]=='V')
 		{
-			// Title found.
-			gi->Name = (char*)dbTitle;
-			gi->Flags &= ~GIFLAG_NAME_ALLOC;
-
-			if (isTriforce)
+			// GCOSDV(D5) or GCOSDV(D9).
+			is_multigame = true;
+		}
+		else
+		{
+			static const char multi_game_ids[3][8] = {"COBRAM", "GGCOSD", "RGCOSD"};
+			for (i = 0; i < 3; i++)
 			{
-				// Clear the format value if it's "shrunken",
-				// since Triforce titles are never the size
-				// of a full 1:1 GameCube disc image.
-				if ((gi->Flags & GIFLAG_FORMAT_MASK) == GIFLAG_FORMAT_SHRUNKEN)
+				if (!memcmp(buf, multi_game_ids[i], 6))
 				{
-					gi->Flags &= ~GIFLAG_FORMAT_MASK;
+					// Found a multi-game disc.
+					is_multigame = true;
+					break;
 				}
+			}
+		}
+
+		if (is_multigame)
+		{
+			if (gi->Flags == GIFLAG_FORMAT_CISO)
+			{
+				// Multi-game + CISO is NOT supported.
+				ret = false;
+			}
+			else
+			{
+				// Multi-game disc.
+				char *name = (char*)malloc(65);
+				const char *slash_pos = strrchr(filename, '/');
+				snprintf(name, 65, "Multi-Game Disc (%s)", (slash_pos ? slash_pos+1 : filename));
+				gi->Name = name;
+				gi->Flags = GIFLAG_FORMAT_MULTI | GIFLAG_NAME_ALLOC;
 			}
 		}
 		else
 		{
-			// Title not found.
-			// Use the title from the disc header.
-			strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
-			gamename[sizeof(gamename)-1] = 0;
-			gi->Name = strdup(gamename);
-			gi->Flags |= GIFLAG_NAME_ALLOC;
+			// Check if this title is in titles.txt.
+			bool isTriforce;
+			const char *dbTitle = SearchTitles(gi->ID, &isTriforce);
+			if (dbTitle)
+			{
+				// Title found.
+				gi->Name = (char*)dbTitle;
+				gi->Flags &= ~GIFLAG_NAME_ALLOC;
+
+				if (isTriforce)
+				{
+					// Clear the format value if it's "shrunken",
+					// since Triforce titles are never the size
+					// of a full 1:1 GameCube disc image.
+					if ((gi->Flags & GIFLAG_FORMAT_MASK) == GIFLAG_FORMAT_SHRUNKEN)
+					{
+						gi->Flags &= ~GIFLAG_FORMAT_MASK;
+					}
+				}
+			}
+
+			if (!dbTitle)
+			{
+				// Title not found.
+				// Use the title from the disc header.
+				strncpy(gamename, buf + 0x20, sizeof(gamename)-1);
+				gamename[sizeof(gamename)-1] = 0;
+				gi->Name = strdup(gamename);
+				gi->Flags |= GIFLAG_NAME_ALLOC;
+			}
 		}
 
 		gi->Path = strdup(filename);
@@ -667,12 +711,16 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 			// Currently truncated to 50.
 
 			// Determine color based on disc format.
-			static const u32 colors[4] =
+			static const u32 colors[8] =
 			{
 				BLACK,		// Full
 				0x551A00FF,	// Shrunken (dark brown)
 				0x00551AFF,	// Extracted FST
 				0x001A55FF,	// CISO
+				0x551A55FF,	// Multi-Game
+				GRAY,		// undefined
+				GRAY,		// undefined
+				GRAY,		// undefined
 			};
 
 			const u32 color = colors[gi->Flags & GIFLAG_FORMAT_MASK];

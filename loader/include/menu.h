@@ -32,7 +32,8 @@ typedef enum
 	GIFLAG_FORMAT_SHRUNKEN	= (1 << 0),	// Shrunken via DiscEX
 	GIFLAG_FORMAT_FST	= (2 << 0),	// Extracted FST
 	GIFLAG_FORMAT_CISO	= (3 << 0),	// CISO format
-	GIFLAG_FORMAT_MASK	= (3 << 0),
+	GIFLAG_FORMAT_MULTI	= (4 << 0),	// Multi-game disc
+	GIFLAG_FORMAT_MASK	= (7 << 0),
 
 	// GameInfo.Name was allocated via strdup()
 	// and must be freed.
