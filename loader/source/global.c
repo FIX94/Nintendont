@@ -57,10 +57,6 @@ u32 POffset;
 NIN_CFG* ncfg = (NIN_CFG*)0x93002900;
 bool UseSD;
 
-inline bool IsWiiU( void )
-{
-	return ( (*(vu32*)(0xCd8005A0) >> 16 ) == 0xCAFE );
-}
 const char* const GetRootDevice()
 {
 	static const char* const SdStr = "sd";

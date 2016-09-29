@@ -141,7 +141,15 @@ typedef struct
 
 } __attribute__((packed)) TitleMetaData;
 
-bool IsWiiU( void );
+/**
+ * Is this system a Wii U?
+ * @return True if this is Wii U; false if not.
+ */
+static inline bool IsWiiU(void)
+{
+	return ((*(vu32*)(0xCd8005A0) >> 16) == 0xCAFE);
+}
+
 // FIXME: This return type isn't quite correct...
 const char* const GetRootDevice();
 void RAMInit(void);
