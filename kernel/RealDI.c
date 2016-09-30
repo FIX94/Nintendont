@@ -212,20 +212,29 @@ const u8 *ReadRealDisc(u32 *Length, u64 Offset, bool NeedSync)
 		*Length = DISC_DRIVE_BUFFER_LENGTH - ReadDiff;
 		//dbgprintf("New Length: %08x\r\n", *Length);
 	}
-	u32 TmpLen = *Length;
-	u64 TmpOffset = Offset;
-	if(RealDiscCMD == DIP_CMD_DVDR)
-	{
-		TmpLen = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800) - CachedBlockStart;
-		TmpOffset = ALIGN_BACKWARD(Offset, 0x800) + CachedBlockStart;
-	}
 
 	write32(DIP_STATUS, 0x54); //mask and clear interrupts
 
+	u32 TmpLen = *Length;
+	u64 TmpOffset = Offset;
+
 	//Actually read
-	write32(DIP_CMD_0, RealDiscCMD << 24);
-	write32(DIP_CMD_1, (u32)(RealDiscCMD == DIP_CMD_DVDR ? (TmpOffset >> 11) : (TmpOffset >> 2)));
-	write32(DIP_CMD_2, RealDiscCMD == DIP_CMD_DVDR ? TmpLen >> 11 : TmpLen);
+	if (RealDiscCMD == DIP_CMD_DVDR)
+	{
+		// Adjust length and offset for DVD-R mode.
+		TmpLen = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800) - CachedBlockStart;
+		TmpOffset = ALIGN_BACKWARD(Offset, 0x800) + CachedBlockStart;
+
+		write32(DIP_CMD_0, DIP_CMD_DVDR << 24);
+		write32(DIP_CMD_1, (u32)(TmpOffset >> 11));
+		write32(DIP_CMD_2, TmpLen >> 11);
+	}
+	else
+	{
+		write32(DIP_CMD_0, DIP_CMD_NORMAL << 24);
+		write32(DIP_CMD_1, (u32)(TmpOffset >> 2));
+		write32(DIP_CMD_2, TmpLen);
+	}
 
 	//dbgprintf("Read %08x %08x\r\n", read32(DIP_CMD_1), read32(DIP_CMD_2));
 	sync_before_read(DISC_DRIVE_BUFFER, TmpLen);
@@ -254,8 +263,8 @@ const u8 *ReadRealDisc(u32 *Length, u64 Offset, bool NeedSync)
 
 	if(RealDiscCMD == DIP_CMD_DVDR)
 	{
-		u64 LastBlockStart = ((u64)read32(DIP_CMD_2) - 1) << 11;
-		DVD_OFFSET = ((u64)read32(DIP_CMD_1) << 11) + LastBlockStart;
+		u64 LastBlockStart = ((u64)(read32(DIP_CMD_2)) - 1) << 11;
+		DVD_OFFSET = ((u64)(read32(DIP_CMD_1)) << 11) + LastBlockStart;
 		memcpy(DISC_TMP_CACHE, DISC_DRIVE_BUFFER + LastBlockStart, 0x800);
 		sync_after_write(DISC_TMP_CACHE, 0x800);
 		if(CachedBlockStart)
