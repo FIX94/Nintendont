@@ -252,7 +252,11 @@ static int CheckForMultiGame(u32 CurDICMD)
 	if (!IsMultiGameDisc((const char*)MultiHdr))
 	{
 		// Not a multi-game disc.
-		f_close(&f);
+		if (!CurDICMD)
+		{
+			// Close the disc image file.
+			f_close(&f);
+		}
 		free(MultiHdr);
 		return 0;
 	}
