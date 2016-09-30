@@ -101,14 +101,14 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 				read_sz = Length;
 
 			// Get the physical block number first.
-			u16 blockStart = Offset / CISO_BLOCK_SIZE;
+			const u32 blockStart = Offset / CISO_BLOCK_SIZE;
 			if (blockStart >= CISO_MAP_SIZE)
 			{
 				// Out of range.
 				return;
 			}
 
-			u16 physBlockStartIdx = ciso_block_map[blockStart];
+			const u16 physBlockStartIdx = ciso_block_map[blockStart];
 			if (physBlockStartIdx == 0xFFFF)
 			{
 				// Empty block.
@@ -117,7 +117,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 			else
 			{
 				// Seek to the physical block address.
-				u32 physBlockStartAddr = CISO_HEADER_SIZE + ((u32)physBlockStartIdx * CISO_BLOCK_SIZE);
+				const u32 physBlockStartAddr = CISO_HEADER_SIZE + ((u32)physBlockStartIdx * CISO_BLOCK_SIZE);
 				f_lseek(&GameFile, physBlockStartAddr + blockStartOffset);
 				// Read read_sz bytes.
 				f_read(&GameFile, ptr8, read_sz, &read);
@@ -139,14 +139,14 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 		    Length -= CISO_BLOCK_SIZE, ptr8 += CISO_BLOCK_SIZE,
 		    Offset += CISO_BLOCK_SIZE)
 		{
-			uint16_t blockIdx = (Offset / CISO_BLOCK_SIZE);
+			const u32 blockIdx = (Offset / CISO_BLOCK_SIZE);
 			if (blockIdx >= CISO_MAP_SIZE)
 			{
 				// Out of range.
 				return;
 			}
 
-			uint16_t physBlockIdx = ciso_block_map[blockIdx];
+			const u16 physBlockIdx = ciso_block_map[blockIdx];
 			if (physBlockIdx == 0xFFFF)
 			{
 				// Empty block.
@@ -155,7 +155,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 			else
 			{
 				// Seek to the physical block address.
-				u32 physBlockAddr = CISO_HEADER_SIZE + ((u32)physBlockIdx * CISO_BLOCK_SIZE);
+				const u32 physBlockAddr = CISO_HEADER_SIZE + ((u32)physBlockIdx * CISO_BLOCK_SIZE);
 				f_lseek(&GameFile, physBlockAddr);
 				// Read one block worth of data.
 				f_read(&GameFile, ptr8, CISO_BLOCK_SIZE, &read);
@@ -172,14 +172,14 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 			// Not a full block.
 
 			// Get the physical block number first.
-			uint16_t blockEnd = (Offset / CISO_BLOCK_SIZE);
+			const u32 blockEnd = (Offset / CISO_BLOCK_SIZE);
 			if (blockEnd >= CISO_MAP_SIZE)
 			{
 				// Out of range.
 				return;
 			}
 
-			uint16_t physBlockEndIdx = ciso_block_map[blockEnd];
+			const u16 physBlockEndIdx = ciso_block_map[blockEnd];
 			if (physBlockEndIdx == 0xFFFF)
 			{
 				// Empty block.
@@ -188,7 +188,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 			else
 			{
 				// Seek to the physical block address.
-				u32 physBlockEndAddr = CISO_HEADER_SIZE + ((u32)physBlockEndIdx * CISO_BLOCK_SIZE);
+				const u32 physBlockEndAddr = CISO_HEADER_SIZE + ((u32)physBlockEndIdx * CISO_BLOCK_SIZE);
 				f_lseek(&GameFile, physBlockEndAddr);
 				// Read Length bytes.
 				f_read(&GameFile, ptr8, Length, &read);
@@ -356,7 +356,24 @@ void ISOSeek(u64 Offset)
 
 	if(LastOffset != Offset)
 	{
-		f_lseek( &GameFile, Offset );
+		if (ISO_IsCISO)
+		{
+			const u32 blockIdx = Offset / CISO_BLOCK_SIZE;
+			if (blockIdx >= CISO_MAP_SIZE)
+				return;
+
+			const u16 physBlockIdx = ciso_block_map[blockIdx];
+			if (physBlockIdx == 0xFFFF)
+				return;
+
+			const u32 blockOffset = Offset % CISO_BLOCK_SIZE;
+			const u32 physAddr = CISO_HEADER_SIZE + ((u32)physBlockIdx * CISO_BLOCK_SIZE) + blockOffset;
+			f_lseek( &GameFile, physAddr );
+		}
+		else
+		{
+			f_lseek( &GameFile, Offset );
+		}
 		LastOffset = Offset;
 	}
 }
