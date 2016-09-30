@@ -284,8 +284,7 @@ static int CheckForMultiGame(u32 CurDICMD)
 			Offsets[gamecount] = NeedShift ? (u64)TmpOffset << 2 : (u64)TmpOffset;
 			if(CurDICMD)
 			{
-				// FIXME: Use u64 and test an actual DVD-R9.
-				ReadRealDisc(GameHdr, (u32)Offsets[gamecount], 0x800, CurDICMD);
+				ReadRealDisc(GameHdr, Offsets[gamecount], 0x800, CurDICMD);
 			}
 			else
 			{

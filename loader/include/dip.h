@@ -66,7 +66,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define		DIP_CMD_NORMAL	0xA8
 #define		DIP_CMD_DVDR	0xD0
 
-void ReadRealDisc(u8 *Buffer, u32 Offset, u32 Length, u32 Command);
+void ReadRealDisc(u8 *Buffer, u64 Offset, u32 Length, u32 Command);
 void DVDStartCache(void);
 
 #endif

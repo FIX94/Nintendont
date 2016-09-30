@@ -73,11 +73,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define ALIGNED(x) __attribute__((aligned(x)))
 #define NORETURN __attribute__ ((noreturn))
 
-#define ALIGN_FORWARD(x,align) \
-	((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
+#define ALIGN_FORWARD(x, align) \
+	((typeof(x))(((x) + (typeof(x))(align) - 1) & (~((typeof(x))(align) - 1))))
 
-#define ALIGN_BACKWARD(x,align) \
-	((typeof(x))(((u32)(x)) & (~(align-1))))
+#define ALIGN_BACKWARD(x, align) \
+	((typeof(x))((x) & (~((typeof(x))(align) - 1))))
 
 extern bool UseSD;
 extern u32 POffset;
