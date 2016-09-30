@@ -242,6 +242,12 @@ static int CheckForMultiGame(u32 CurDICMD)
 
 		// NOTE: Not checking for CISO format here.
 	}
+	else
+	{
+		// Extracted FST format.
+		// Multi-game isn't supported.
+		return 0;
+	}
 
 	if (!IsMultiGameDisc((const char*)MultiHdr))
 	{
