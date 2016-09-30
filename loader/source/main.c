@@ -204,9 +204,9 @@ void changeToDefaultDrive()
 /**
  * Check for a multi-game image.
  * @param CurDICMD DI command. (0 == disc image, DIP_CMD_NORMAL == GameCube disc, DIP_CMD_DVDR == DVD-R)
- * @return ISO Shift. (0 for non-multi; byte offset for multi.)
+ * @return ISO Shift. (0 for non-multi; 34-bit rshifted byte offset for multi.)
  */
-static int CheckForMultiGame(u32 CurDICMD)
+static u32 CheckForMultiGame(u32 CurDICMD)
 {
 	// Re-read the disc header to get the full ID6.
 	u8 *MultiHdr = memalign(32, 0x800);
@@ -267,37 +267,49 @@ static int CheckForMultiGame(u32 CurDICMD)
 	// ever reach that limit.
 	u32 i = 0;
 	u32 gamecount = 0;
-	u64 Offsets[15];
-	u8 gameIsOver4GB[15];
+	u32 Offsets[15]; // 34-bit, rshifted by 2
 	gameinfo gi[15];
+
+	// Games must be aligned to 4-byte boundaries, since
+	// we're using 34-bit rsh2 (Wii) offsets.
+	u8 gameIsUnaligned[15];
 
 	u8 *GameHdr = memalign(32, 0x800);
 	// GCOPDV(D9) uses Wii-style 34-bit shifted addresses.
 	// FIXME: Needs 64-bit offsets.
 	const u32 *hdr32 = (const u32*)MultiHdr;
-	bool NeedShift = (hdr32[1] == 0x44564439);
+	bool IsShifted = (hdr32[1] == 0x44564439);
 	for (i = 0x10; i < 0x40 && gamecount < 15; i++)
 	{
 		const u32 TmpOffset = hdr32[i];
 		if (TmpOffset > 0)
 		{
-			Offsets[gamecount] = NeedShift ? (u64)TmpOffset << 2 : (u64)TmpOffset;
-			if(CurDICMD)
+			u64 RealOffset;
+			if (IsShifted)
 			{
-				ReadRealDisc(GameHdr, Offsets[gamecount], 0x800, CurDICMD);
+				// Disc uses 34-bit shifted offsets.
+				Offsets[gamecount] = TmpOffset;
+				RealOffset = (u64)TmpOffset << 2;
 			}
 			else
 			{
-				f_lseek(&f, Offsets[gamecount]);
-				f_read(&f, GameHdr, 0x800, &read);
+				// Disc uses 32-bit unshifted offsets.
+				// If the value isn't a multiple of 4, it's unusable.
+				// TODO: Fix this, or will this "never" happen?
+				gameIsUnaligned[gamecount] = !!(TmpOffset & 3);
+				Offsets[gamecount] = TmpOffset >> 2;
+				RealOffset = TmpOffset;
 			}
 
-			// If the game is over 4GB, mark it as such and
-			// don't allow it to be selected.
-			// TODO: Fix >4GB support.
-			// NOTE: The previous game might also be over 4GB,
-			// so it might show up, but it'll crash.
-			gameIsOver4GB[gamecount] = (Offsets[gamecount] > 0xFFFFFFFFULL);
+			if(CurDICMD)
+			{
+				ReadRealDisc(GameHdr, RealOffset, 0x800, CurDICMD);
+			}
+			else
+			{
+				f_lseek(&f, RealOffset);
+				f_read(&f, GameHdr, 0x800, &read);
+			}
 
 			// Make sure the title in the header is NULL terminated.
 			GameHdr[0x20+65] = 0;
@@ -330,8 +342,8 @@ static int CheckForMultiGame(u32 CurDICMD)
 		FPAD_Update();
 		if( FPAD_OK(0) )
 		{
-			// TODO: Fix support for >4GB.
-			if (!gameIsOver4GB[PosX])
+			// TODO: Fix support for unaligned games?
+			if (!gameIsUnaligned[PosX])
 				break;
 		}
 
@@ -375,7 +387,7 @@ static int CheckForMultiGame(u32 CurDICMD)
 				    "Select a game from this multi-game disc:");
 			for (i = 0; i < gamecount; ++i)
 			{
-				const u32 color = gameIsOver4GB[i] ? MAROON : BLACK;
+				const u32 color = gameIsUnaligned[i] ? MAROON : BLACK;
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
 					    gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
 			}
@@ -393,7 +405,7 @@ static int CheckForMultiGame(u32 CurDICMD)
 			free(gi[i].Name);
 	}
 
-	memcpy(&(ncfg->GameID), gi[PosX].ID, 4);
+	memcpy(&ncfg->GameID, gi[PosX].ID, 4);
 	return Offsets[PosX];
 }
 
@@ -692,6 +704,7 @@ int main(int argc, char **argv)
 	}
 
 	// Check if this is a multi-game disc image.
+	// NOTE: This is a 34-bit shifted offset.
 	u32 ISOShift = CheckForMultiGame(CurDICMD);
 	*(vu32*)0xD300300C = ISOShift;
 

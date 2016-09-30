@@ -166,16 +166,16 @@ bool RealDI_NewDisc()
 	return false;
 }
 
-static u32 DVD_OFFSET = UINT_MAX;
+static u64 DVD_OFFSET = ~0;
 void ClearRealDiscBuffer(void)
 {
-	DVD_OFFSET = UINT_MAX;
+	DVD_OFFSET = ~0;
 	memset32(DISC_DRIVE_BUFFER, 0, DISC_DRIVE_BUFFER_LENGTH);
 	sync_after_write(DISC_DRIVE_BUFFER, DISC_DRIVE_BUFFER_LENGTH);
 }
 
 extern bool access_led;
-const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
+const u8 *ReadRealDisc(u32 *Length, u64 Offset, bool NeedSync)
 {
 	//dbgprintf("ReadRealDisc(%08x %08x)\r\n", *Length, Offset);
 
@@ -183,8 +183,8 @@ const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 	u32 ReadDiff = 0;
 	if(RealDiscCMD == DIP_CMD_DVDR)
 	{
-		u32 AlignedOffset = ALIGN_BACKWARD(Offset, 0x800);
-		ReadDiff = Offset - AlignedOffset;
+		u64 AlignedOffset = ALIGN_BACKWARD(Offset, 0x800);
+		ReadDiff = (u32)(Offset - AlignedOffset);
 		if(AlignedOffset == DVD_OFFSET)
 		{
 			sync_before_read(DISC_TMP_CACHE, 0x800);
@@ -213,7 +213,7 @@ const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 		//dbgprintf("New Length: %08x\r\n", *Length);
 	}
 	u32 TmpLen = *Length;
-	u32 TmpOffset = Offset;
+	u64 TmpOffset = Offset;
 	if(RealDiscCMD == DIP_CMD_DVDR)
 	{
 		TmpLen = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800) - CachedBlockStart;
@@ -224,7 +224,7 @@ const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 
 	//Actually read
 	write32(DIP_CMD_0, RealDiscCMD << 24);
-	write32(DIP_CMD_1, RealDiscCMD == DIP_CMD_DVDR ? TmpOffset >> 11 : TmpOffset >> 2);
+	write32(DIP_CMD_1, (u32)(RealDiscCMD == DIP_CMD_DVDR ? (TmpOffset >> 11) : (TmpOffset >> 2)));
 	write32(DIP_CMD_2, RealDiscCMD == DIP_CMD_DVDR ? TmpLen >> 11 : TmpLen);
 
 	//dbgprintf("Read %08x %08x\r\n", read32(DIP_CMD_1), read32(DIP_CMD_2));
@@ -254,8 +254,8 @@ const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 
 	if(RealDiscCMD == DIP_CMD_DVDR)
 	{
-		u32 LastBlockStart = (read32(DIP_CMD_2) - 1) << 11;
-		DVD_OFFSET = (read32(DIP_CMD_1) << 11) + LastBlockStart;
+		u64 LastBlockStart = ((u64)read32(DIP_CMD_2) - 1) << 11;
+		DVD_OFFSET = ((u64)read32(DIP_CMD_1) << 11) + LastBlockStart;
 		memcpy(DISC_TMP_CACHE, DISC_DRIVE_BUFFER + LastBlockStart, 0x800);
 		sync_after_write(DISC_TMP_CACHE, 0x800);
 		if(CachedBlockStart)

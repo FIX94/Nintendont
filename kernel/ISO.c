@@ -35,7 +35,7 @@ u32 ISOFileOpen = 0;
 
 typedef struct
 {
-	u32 Offset;
+	u64 Offset;	// NOTE: u64 is required for GCOS DVD-9.
 	u32 Size;
 	u8 *Data;
 } DataCache;
@@ -49,7 +49,7 @@ static DataCache DC[CACHE_MAX];
 
 extern u32 USBReadTimer;
 static FIL GameFile;
-static u32 LastOffset = UINT_MAX, readptr;
+static u64 LastOffset = ~0;
 bool Datel = false;
 
 // CISO: On-disc structure.
@@ -70,18 +70,19 @@ typedef struct _CISO_t {
 static uint16_t ciso_block_map[CISO_MAP_SIZE];
 static bool ISO_IsCISO = false;	// Set to 1 for CISO mode.
 
-static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
+static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 {
 	if(ISOFileOpen == 0)
 		return;
 
+	UINT read;
 	if (!ISO_IsCISO)
 	{
 		// Standard ISO/GCM file.
 		if(LastOffset != Offset)
 			f_lseek( &GameFile, Offset );
 
-		f_read( &GameFile, Buffer, Length, &readptr );
+		f_read( &GameFile, Buffer, Length, &read );
 	}
 	else
 	{
@@ -119,8 +120,8 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 				u32 physBlockStartAddr = CISO_HEADER_SIZE + ((u32)physBlockStartIdx * CISO_BLOCK_SIZE);
 				f_lseek(&GameFile, physBlockStartAddr + blockStartOffset);
 				// Read read_sz bytes.
-				f_read(&GameFile, ptr8, read_sz, &readptr);
-				if (readptr != read_sz)
+				f_read(&GameFile, ptr8, read_sz, &read);
+				if (read != read_sz)
 				{
 					// Error reading the data.
 					return;
@@ -157,8 +158,8 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 				u32 physBlockAddr = CISO_HEADER_SIZE + ((u32)physBlockIdx * CISO_BLOCK_SIZE);
 				f_lseek(&GameFile, physBlockAddr);
 				// Read one block worth of data.
-				f_read(&GameFile, ptr8, CISO_BLOCK_SIZE, &readptr);
-				if (readptr != CISO_BLOCK_SIZE)
+				f_read(&GameFile, ptr8, CISO_BLOCK_SIZE, &read);
+				if (read != CISO_BLOCK_SIZE)
 				{
 					// Error reading the data.
 					return;
@@ -190,8 +191,8 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 				u32 physBlockEndAddr = CISO_HEADER_SIZE + ((u32)physBlockEndIdx * CISO_BLOCK_SIZE);
 				f_lseek(&GameFile, physBlockEndAddr);
 				// Read Length bytes.
-				f_read(&GameFile, ptr8, Length, &readptr);
-				if (readptr != Length)
+				f_read(&GameFile, ptr8, Length, &read);
+				if (read != Length)
 				{
 					// Error reading the data.
 					return;
@@ -207,7 +208,9 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u32 Offset)
 	USBReadTimer = read32(HW_TIMER);
 }
 
-extern u32 ISOShift;
+// ISO shift offset.
+extern u64 ISOShift64;
+
 bool ISOInit()
 {
 	s32 ret = f_open_char( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
@@ -233,7 +236,7 @@ bool ISOInit()
 
 	/* Setup direct reader */
 	ISOFileOpen = 1;
-	LastOffset = UINT_MAX;
+	LastOffset = ~0;
 	ISO_IsCISO = false;
 
 	/* Check for CISO format. */
@@ -283,17 +286,17 @@ bool ISOInit()
 	}
 
 	/* Set Low Mem */
-	ISOReadDirect((void*)0x0, 0x20, 0x0 + ISOShift);
+	ISOReadDirect((void*)0x0, 0x20, 0x0 + ISOShift64);
 	sync_after_write((void*)0x0, 0x20); //used by game so sync it
 	/* Get Region */
-	ISOReadDirect(&Region, sizeof(u32), 0x458 + ISOShift);
+	ISOReadDirect(&Region, sizeof(u32), 0x458 + ISOShift64);
 	/* Reset Cache */
 	CacheInited = 0;
 
 	if ((read32(0) == 0x474E4845) && (read32(4) == 0x35640000))
 	{
 		u32 DatelName[2];
-		ISOReadDirect(DatelName, 2 * sizeof(u32), 0x19848 + ISOShift);
+		ISOReadDirect(DatelName, 2 * sizeof(u32), 0x19848 + ISOShift64);
 		if ((DatelName[0] == 0x20446174) && ((DatelName[1] >> 16) == 0x656C))
 			Datel = true;
 	}
@@ -346,7 +349,7 @@ void ISOSetupCache()
 	CacheInited = 1;
 }
 
-void ISOSeek(u32 Offset)
+void ISOSeek(u64 Offset)
 {
 	if(ISOFileOpen == 0)
 		return;
@@ -358,7 +361,7 @@ void ISOSeek(u32 Offset)
 	}
 }
 
-const u8 *ISORead(u32* Length, u32 Offset)
+const u8 *ISORead(u32* Length, u64 Offset)
 {
 	if(CacheInited == 0)
 	{

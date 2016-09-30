@@ -55,7 +55,7 @@ static u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
-u32 ISOShift = 0;
+u64 ISOShift64 = 0;
 static u32 Streaming = 0; //internal
 extern u32 StreamSize, StreamStart, StreamCurrent, StreamEndOffset;
 
@@ -211,7 +211,7 @@ void DIinit( bool FirstTime )
 			write32( DIP_COVER, 4 ); //disable cover irq which DIP enabled
 		}
 		sync_before_read((void*)0x13003000, 0x20);
-		ISOShift = read32(0x1300300C);
+		ISOShift64 = (u64)(read32(0x1300300C)) << 2;
 
 		MediaBuffer = (u8*)malloc( 0x40 );
 		memset32( MediaBuffer, 0, 0x40 );
@@ -779,7 +779,8 @@ void DIUpdateRegisters( void )
 extern u32 Patch31A0Backup;
 static const u8 *di_src = NULL;
 static char *di_dest = NULL;
-static u32 di_length = 0, di_offset = 0;
+static u32 di_length = 0;
+static u64 di_offset = 0;
 u32 DIReadThread(void *arg)
 {
 	//dbgprintf("DI Thread Running\r\n");
@@ -833,7 +834,7 @@ u32 DIReadThread(void *arg)
 				di_src = 0;
 				di_dest = (char*)di_msg->ioctl.buffer_io;
 				di_length = di_msg->ioctl.length_io;
-				di_offset = ((u32)di_msg->ioctl.buffer_in) + ISOShift;
+				di_offset = ((u32)di_msg->ioctl.buffer_in) + ISOShift64;
 				u32 Offset = 0;
 				u32 Length = di_length;
 				for (Offset = 0; Offset < di_length; Offset += Length)
@@ -842,7 +843,7 @@ u32 DIReadThread(void *arg)
 					if( RealDiscCMD )
 						di_src = ReadRealDisc(&Length, di_offset + Offset, true);
 					else if( FSTMode )
-						di_src = FSTRead(GamePath, &Length, di_offset + Offset);
+						di_src = FSTRead(GamePath, &Length, (u32)di_offset + Offset);
 					else
 						di_src = ISORead(&Length, di_offset + Offset);
 					// Copy data at a later point to prevent MEM1 issues
