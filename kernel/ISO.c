@@ -35,7 +35,7 @@ u32 ISOFileOpen = 0;
 
 typedef struct
 {
-	u64 Offset;	// NOTE: u64 is required for GCOS DVD-9.
+	u32 Offset;
 	u32 Size;
 	u8 *Data;
 } DataCache;
@@ -49,7 +49,7 @@ static DataCache DC[CACHE_MAX];
 
 extern u32 USBReadTimer;
 static FIL GameFile;
-static u64 LastOffset = ~0;
+static u64 LastOffset64 = ~0ULL;
 bool Datel = false;
 
 // CISO: On-disc structure.
@@ -70,7 +70,14 @@ typedef struct _CISO_t {
 static uint16_t ciso_block_map[CISO_MAP_SIZE];
 static bool ISO_IsCISO = false;	// Set to 1 for CISO mode.
 
-static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
+/**
+ * Read directly from the ISO file.
+ * CISO mapping is done here.
+ * @param Buffer Output buffer.
+ * @param Length Data length.
+ * @param Offset ISO file offset. (Must have ISOShift64 added!)
+ */
+static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 {
 	if(ISOFileOpen == 0)
 		return;
@@ -79,19 +86,19 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 	if (!ISO_IsCISO)
 	{
 		// Standard ISO/GCM file.
-		if(LastOffset != Offset)
-			f_lseek( &GameFile, Offset );
+		if(LastOffset64 != Offset64)
+			f_lseek( &GameFile, Offset64 );
 
 		f_read( &GameFile, Buffer, Length, &read );
 	}
 	else
 	{
 		// CISO. Handle individual blocks.
-		// TODO: LastOffset optimization?
+		// TODO: LastOffset64 optimization?
 		u8 *ptr8 = (u8*)Buffer;
 
 		// Check if we're not starting on a block boundary.
-		const u32 blockStartOffset = Offset % CISO_BLOCK_SIZE;
+		const u32 blockStartOffset = (u32)(Offset64 % CISO_BLOCK_SIZE);
 		if (blockStartOffset != 0)
 		{
 			// Not a block boundary.
@@ -101,7 +108,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 				read_sz = Length;
 
 			// Get the physical block number first.
-			const u32 blockStart = Offset / CISO_BLOCK_SIZE;
+			const u32 blockStart = Offset64 / CISO_BLOCK_SIZE;
 			if (blockStart >= CISO_MAP_SIZE)
 			{
 				// Out of range.
@@ -131,15 +138,15 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 			// Starting block read.
 			Length -= read_sz;
 			ptr8 += read_sz;
-			Offset += read_sz;
+			Offset64 += read_sz;
 		}
 
 		// Read entire blocks.
 		for (; Length >= CISO_BLOCK_SIZE;
 		    Length -= CISO_BLOCK_SIZE, ptr8 += CISO_BLOCK_SIZE,
-		    Offset += CISO_BLOCK_SIZE)
+		    Offset64 += CISO_BLOCK_SIZE)
 		{
-			const u32 blockIdx = (Offset / CISO_BLOCK_SIZE);
+			const u32 blockIdx = (u32)(Offset64 / CISO_BLOCK_SIZE);
 			if (blockIdx >= CISO_MAP_SIZE)
 			{
 				// Out of range.
@@ -172,7 +179,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 			// Not a full block.
 
 			// Get the physical block number first.
-			const u32 blockEnd = (Offset / CISO_BLOCK_SIZE);
+			const u32 blockEnd = (u32)(Offset64 / CISO_BLOCK_SIZE);
 			if (blockEnd >= CISO_MAP_SIZE)
 			{
 				// Out of range.
@@ -199,11 +206,11 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset)
 				}
 			}
 
-			Offset += Length;
+			Offset64 += Length;
 		}
 	}
 
-	LastOffset = Offset + Length;
+	LastOffset64 = Offset64 + Length;
 	//refresh read timeout
 	USBReadTimer = read32(HW_TIMER);
 }
@@ -236,7 +243,7 @@ bool ISOInit()
 
 	/* Setup direct reader */
 	ISOFileOpen = 1;
-	LastOffset = ~0;
+	LastOffset64 = ~0ULL;
 	ISO_IsCISO = false;
 
 	/* Check for CISO format. */
@@ -349,16 +356,17 @@ void ISOSetupCache()
 	CacheInited = 1;
 }
 
-void ISOSeek(u64 Offset)
+void ISOSeek(u32 Offset)
 {
 	if(ISOFileOpen == 0)
 		return;
 
-	if(LastOffset != Offset)
+	const u64 Offset64 = (u64)Offset + ISOShift64;
+	if(LastOffset64 != Offset64)
 	{
 		if (ISO_IsCISO)
 		{
-			const u32 blockIdx = Offset / CISO_BLOCK_SIZE;
+			const u32 blockIdx = (u32)(Offset64 / CISO_BLOCK_SIZE);
 			if (blockIdx >= CISO_MAP_SIZE)
 				return;
 
@@ -366,19 +374,19 @@ void ISOSeek(u64 Offset)
 			if (physBlockIdx == 0xFFFF)
 				return;
 
-			const u32 blockOffset = Offset % CISO_BLOCK_SIZE;
+			const u32 blockOffset = (u32)(Offset64 % CISO_BLOCK_SIZE);
 			const u32 physAddr = CISO_HEADER_SIZE + ((u32)physBlockIdx * CISO_BLOCK_SIZE) + blockOffset;
 			f_lseek( &GameFile, physAddr );
 		}
 		else
 		{
-			f_lseek( &GameFile, Offset );
+			f_lseek( &GameFile, Offset64 );
 		}
-		LastOffset = Offset;
+		LastOffset64 = Offset64;
 	}
 }
 
-const u8 *ISORead(u32* Length, u64 Offset)
+const u8 *ISORead(u32* Length, u32 Offset)
 {
 	if(CacheInited == 0)
 	{
@@ -399,7 +407,8 @@ const u8 *ISORead(u32* Length, u64 Offset)
 		}
 	}
 
-	if( (Offset == LastOffset) && (*Length < 0x8000) )
+	u64 Offset64 = Offset + ISOShift64;
+	if( (Offset64 == LastOffset64) && (*Length < 0x8000) )
 	{	//pre-load data, guessing
 		u32 OriLength = *Length;
 		while((*Length += OriLength) < 0x10000) ;
@@ -425,7 +434,7 @@ const u8 *ISORead(u32* Length, u64 Offset)
 	DC[pos].Offset = Offset;
 	DC[pos].Size = *Length;
 
-	ISOReadDirect(DC[pos].Data, *Length, Offset);
+	ISOReadDirect(DC[pos].Data, *Length, Offset64);
 
 	DataCacheOffset += *Length;
 	return DC[pos].Data;

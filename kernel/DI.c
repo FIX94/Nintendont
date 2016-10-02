@@ -780,7 +780,7 @@ extern u32 Patch31A0Backup;
 static const u8 *di_src = NULL;
 static char *di_dest = NULL;
 static u32 di_length = 0;
-static u64 di_offset = 0;
+static u32 di_offset = 0;
 u32 DIReadThread(void *arg)
 {
 	//dbgprintf("DI Thread Running\r\n");
@@ -834,16 +834,18 @@ u32 DIReadThread(void *arg)
 				di_src = 0;
 				di_dest = (char*)di_msg->ioctl.buffer_io;
 				di_length = di_msg->ioctl.length_io;
-				di_offset = ((u32)di_msg->ioctl.buffer_in) + ISOShift64;
+				di_offset = (u32)di_msg->ioctl.buffer_in;
 				u32 Offset = 0;
 				u32 Length = di_length;
 				for (Offset = 0; Offset < di_length; Offset += Length)
 				{
+					// NOTE: ISOShift64 is applied in the RealDI and ISO readers.
+					// Not supported for FST.
 					Length = di_length - Offset;
 					if( RealDiscCMD )
 						di_src = ReadRealDisc(&Length, di_offset + Offset, true);
 					else if( FSTMode )
-						di_src = FSTRead(GamePath, &Length, (u32)di_offset + Offset);
+						di_src = FSTRead(GamePath, &Length, di_offset + Offset);
 					else
 						di_src = ISORead(&Length, di_offset + Offset);
 					// Copy data at a later point to prevent MEM1 issues
