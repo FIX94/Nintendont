@@ -82,6 +82,7 @@ static u32 FCState[FILECACHE_MAX];
 u32 FSTInit( const char *GamePath )
 {
 	char Path[256];
+	u8 buf[0x100];
 	FIL fd;
 	u32 read;
 
@@ -94,27 +95,35 @@ u32 FSTInit( const char *GamePath )
 		return 0;
 
 	} else {
-		u8 *rbuf = (u8*)malloc( 0x100 );
-
 		f_lseek( &fd, 0 );
-		f_read( &fd, rbuf, 0x100, &read );
+		f_read( &fd, buf, 0x100, &read );
+		if (read != 0x100)
+		{
+			dbgprintf( "DIP:[%s] Read error!\r\n", Path );
+			f_close( &fd );
+			return 0;
+		}
 
 		/* Set Low Mem */
-		memcpy( (void*)0, rbuf, 0x20);
+		memcpy( (void*)0, buf, 0x20);
 		sync_after_write( (void*)0, 0x20 );
 
 		dbgprintf("DIP:Loading game %.6s: %s\r\n", rbuf, (char *)(rbuf+0x20));
 
 		//Read DOL/FST offset/sizes for later usage
 		f_lseek( &fd, 0x0420 );
-		f_read( &fd, rbuf, 0x20, &read );
+		f_read( &fd, buf, 0x20, &read );
+		if (read != 0x20)
+		{
+			dbgprintf( "DIP:[%s] Read error!\r\n", Path );
+			f_close( &fd );
+			return 0;
+		}
 
-		dolOffset		= *(u32*)(rbuf);
-		FSTableOffset	= *(u32*)(rbuf+4);
-		FSTableSize		= *(u32*)(rbuf+8);
+		dolOffset	= *(u32*)(buf);
+		FSTableOffset	= *(u32*)(buf+4);
+		FSTableSize	= *(u32*)(buf+8);
 
-		free( rbuf );
-		
 		dbgprintf( "DIP:FSTableOffset:%08X\r\n", FSTableOffset );
 		dbgprintf( "DIP:FSTableSize:  %08X\r\n", FSTableSize );
 		dbgprintf( "DIP:DolOffset:    %08X\r\n", dolOffset );
@@ -124,6 +133,25 @@ u32 FSTInit( const char *GamePath )
 		FC = (FileCache*)malloc( sizeof(FileCache) * FILECACHE_MAX );
 
 		f_close( &fd );
+	}
+
+	// Load the BI2 region code.
+	_sprintf( Path, "%ssys/bi2.bin", GamePath );
+	if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+	{
+		dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
+		return 0;
+	} else {
+		f_read( &fd, buf, 48, &read );
+		f_close( &fd );
+		if (read != 48)
+		{
+			dbgprintf( "DIP:[%s] Read error!\r\n", Path );
+			return 0;
+		}
+
+		// BI2.bin region code.
+		BI2region = *(vu32*)(buf+0x18);
 	}
 
 	//Init cache
@@ -328,14 +356,10 @@ const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 			return DI_READ_BUFFER;
 		} else {
 			//dbgprintf( "DIP:[bi2.bin] Offset:%08X Size:%08X\r\n", Offset, *Length );
-			
+
 			f_lseek( &fd, Offset );
 			f_read( &fd, DI_READ_BUFFER, *Length, &read );
-
 			f_close( &fd );
-
-			// BI2.bin region code.
-			BI2region = *(vu32*)(DI_READ_BUFFER+0x18);
 
 			return DI_READ_BUFFER;
 		}
