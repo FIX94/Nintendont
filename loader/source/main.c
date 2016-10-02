@@ -801,7 +801,7 @@ int main(int argc, char **argv)
 		memset(MemCardName, 0, 8);
 		if ( ncfg->Config & NIN_CFG_MC_MULTI )
 		{
-			// "Multi" mode enabled.
+			// "Multi" mode is enabled.
 			// Use one memory card for USA/PAL games,
 			// and another memory card for JPN games.
 			switch (BI2region)
