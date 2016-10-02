@@ -451,13 +451,19 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 			free(gi[i].Name);
 	}
 
+	// Set the ISOShift and BI2region values.
+	if (ISOShift)
+	{
+		*ISOShift = Offsets[PosX];
+	}
 	if (BI2region)
 	{
 		*BI2region = BI2region_codes[PosX];
 	}
 
+	// Save the Game ID.
 	memcpy(&ncfg->GameID, gi[PosX].ID, 4);
-	return Offsets[PosX];
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -755,11 +761,11 @@ int main(int argc, char **argv)
 	}
 
 	// Get multi-game and region code information.
-	u32 ISOShift;	// NOTE: This is a 34-bit shifted offset.
-	u32 BI2region;	// bi2.bin region code [TODO: Validate?]
+	u32 ISOShift = 0;	// NOTE: This is a 34-bit shifted offset.
+	u32 BI2region = 0;	// bi2.bin region code [TODO: Validate?]
 	if (CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region) != 0)
 	{
-		ShowMessageScreenAndExit("CheckMultiGameAndRegion() failed.", 1);
+		ShowMessageScreenAndExit("CheckForMultiGameAndRegion() failed.", 1);
 	}
 	*(vu32*)0xD300300C = ISOShift;
 
