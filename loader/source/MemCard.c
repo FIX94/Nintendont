@@ -56,9 +56,10 @@ static void doChecksum(const u16 *buffer, u32 size, u16 *c1, u16 *c2)
 /**
  * Create a blank memory card image.
  * @param MemCard Memory card filename.
+ * @param BI2region bi2.bin region code.
  * @return True on success; false on error.
  */
-bool GenerateMemCard(const char *MemCard)
+bool GenerateMemCard(const char *MemCard, u32 BI2region)
 {
 	if (!MemCard || MemCard[0] == 0)
 		return false;
@@ -84,14 +85,30 @@ bool GenerateMemCard(const char *MemCard)
 	header->sramBias = 0x17CA2A85;
 	//Use current language for SRAM language
 	header->sramLang = ncfg->Language;
-	//Memory Card File Mode
-	header->reserved2 = ((ncfg->GameID & 0xFF) == 'J' ? 2 : 0);
 	//Assuming slot A.
 	header->device_id = 0;
 	//Memory Card size in MBits total
 	header->size = MEM_CARD_SIZE(ncfg->MemCardBlocks) >> 17;
-	//Memory Card filename encoding
-	header->encoding = ((ncfg->GameID & 0xFF) == 'J');
+
+	// Region-specific data.
+	switch (BI2region)
+	{
+		case BI2_REGION_JAPAN:
+		case BI2_REGION_SOUTH_KOREA:
+			// JPN games.
+			header->reserved2 = 2;	// "File mode"?
+			header->encoding = 1;	// Encoding. (Shift-JIS)
+			break;
+
+		case BI2_REGION_USA:
+		case BI2_REGION_PAL:
+		default:
+			// USA/PAL games.
+			header->reserved2 = 0;	// "File mode"?
+			header->encoding = 0;	// Encoding. (cp1252)
+			break;
+	}
+
 	//Generate Header Checksum
 	doChecksum((u16*)header, 0x1FC, &header->chksum1, &header->chksum2);
 

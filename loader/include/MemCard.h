@@ -23,8 +23,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /**
  * Create a blank memory card image.
  * @param MemCard Memory card filename.
+ * @param BI2region bi2.bin region code.
  * @return True on success; false on error.
  */
-bool GenerateMemCard(const char *MemCard);
+bool GenerateMemCard(const char *MemCard, u32 BI2region);
 
 #endif

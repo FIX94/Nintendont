@@ -156,4 +156,13 @@ enum VideoModes
 #define MEM_CARD_SIZE(x) (1<<(x+19))
 #define MEM_CARD_BLOCKS(x) ((1<<(x+6))-5)
 
+// bi2.bin region codes. (0x458)
+enum BI2region_codes
+{
+	BI2_REGION_JAPAN	= 0,
+	BI2_REGION_USA		= 1,
+	BI2_REGION_PAL		= 2,
+	BI2_REGION_SOUTH_KOREA	= 4,
+};
+
 #endif
