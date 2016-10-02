@@ -37,7 +37,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
-extern u32 Region;
 extern vu32 useipl;
 
 static u32 Device = 0;
@@ -83,10 +82,24 @@ void EXIInit( void )
 		memcpy(MemCardName, "/saves/", 7);
 		if ( ConfigGetConfig(NIN_CFG_MC_MULTI) )
 		{
-			if ((GameID & 0xFF) == 'J')  // JPN games
-				memcpy(MemCardName+7, "ninmemj.raw", 11);
-			else
-				memcpy(MemCardName+7, "ninmem.raw", 10);
+			// "Multi" mode is enabled.
+			// Use one memory card for USA/PAL games,
+			// and another memory card for JPN games.
+			switch (BI2region)
+			{
+				case BI2_REGION_JAPAN:
+				case BI2_REGION_SOUTH_KOREA:
+				default:
+					// JPN games.
+					memcpy(MemCardName+7, "ninmemj", 7);
+					break;
+
+				case BI2_REGION_USA:
+				case BI2_REGION_PAL:
+					// USA/PAL games.
+					memcpy(MemCardName+7, "ninmem", 6);
+					break;
+			}
 		}
 		else
 		{
@@ -140,6 +153,12 @@ void EXIInit( void )
 }
 
 extern vu32 TRIGame;
+
+/**
+ * Set EXI timings based on the game ID.
+ * @param TitleID Game ID, rshifted by 8.
+ * @param Region Region byte from Game ID.
+ */
 void EXISetTimings(u32 TitleID, u32 Region)
 {
 	//GC BIOS, Trifoce Game, X-Men Legends 2, Rainbow Six 3 or Starfox Assault (NTSC-U)

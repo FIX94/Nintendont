@@ -24,7 +24,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "ff_utf8.h"
 
-extern u32 Region;
 extern u32 TRIGame;
 
 u32 ISOFileOpen = 0;
@@ -295,8 +294,8 @@ bool ISOInit()
 	/* Set Low Mem */
 	ISOReadDirect((void*)0x0, 0x20, 0x0 + ISOShift64);
 	sync_after_write((void*)0x0, 0x20); //used by game so sync it
-	/* Get Region */
-	ISOReadDirect(&Region, sizeof(u32), 0x458 + ISOShift64);
+	/* Get BI2.bin region code */
+	ISOReadDirect(&BI2region, sizeof(BI2region), 0x458 + ISOShift64);
 	/* Reset Cache */
 	CacheInited = 0;
 

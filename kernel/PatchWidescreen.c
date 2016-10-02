@@ -126,6 +126,13 @@ bool PatchWidescreen(u32 FirstVal, u32 Buffer)
 extern vu32 TRIGame;
 extern u32 IsN64Emu;
 extern u32 DOLSize;
+
+/**
+ * Apply a static widescreen patch.
+ * @param TitleID Game ID, rshifted by 8.
+ * @param Region Region byte from Game ID.
+ * @return True if a patch was applied; false if not.
+ */
 bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 {
 	switch (TRIGame)

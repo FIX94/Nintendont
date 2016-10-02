@@ -2,8 +2,6 @@
 #include "SRAM.h"
 #include "Config.h"
 
-extern u32 Region;
-
 // Initial SRAM values.
 GC_SRAM sram ALIGNED(32) =
 {
@@ -73,58 +71,72 @@ void SRAM_Init(void)
 	sram.Flags    &= ~0x80;	// Clear Progmode
 	sram.Flags    &= ~3;	// Clear Videomode
 	sram.DisplayOffsetH = 0;
-
-	const u32 GameID = ConfigGetGameID();
-	switch (GameID & 0xFF)
-	{
-		case 'E':
-		case 'J':
-			//BMX XXX doesnt even boot on a real gc with component cables
-			if ((ConfigGetGameID() >> 8) != 0x474233 &&
-			    (ConfigGetVideoMode() & NIN_VID_PROG))
-			{
-				sram.Flags |= 0x80;	// Set Progmode
-			}
-			break;
-		default:
-			sram.BootMode	|= 0x40;	// Set PAL60
-			break;
-	}
-
 	sram.Language = ConfigGetLanguage();
 
+	// Apply settings based on the actual game region.
+	u32 tmp_BI2region = BI2region;
+	if (tmp_BI2region == BI2_REGION_PAL)
+	{
+		// Enable PAL60.
+		sram.BootMode |= 0x40;
+
+		// TODO: Set the progressive scan flag on PAL?
+	}
+	else
+	{
+		// Disable PAL60.
+		sram.BootMode &= 0x40;
+
+		// Set the progressive scan flag if a component cable
+		// is connected (or HDMI on Wii U), unless we're loading
+		// BMX XXX, since that game won't even boot on a real
+		// GameCube if a component cable is connected.
+		if ((ncfg->GameID >> 24) != 0x474233 &&
+		    (ncfg->VideoMode & NIN_VID_PROG))
+		{
+			sram.Flags |= 0x80;
+		}
+	}
+
+	// Are we forcing a video mode?
 	if( ConfigGetVideoMode() & NIN_VID_FORCE )
 	{
 		switch( ConfigGetVideoMode() & NIN_VID_FORCE_MASK )
 		{
 			case NIN_VID_FORCE_NTSC:
-			{
-				Region = 0;
-			} break;
+				// Force NTSC.
+				tmp_BI2region = BI2_REGION_JAPAN;
+				break;
+
 			case NIN_VID_FORCE_MPAL:
 			case NIN_VID_FORCE_PAL50:
 			case NIN_VID_FORCE_PAL60:
-			{
-				Region = 2;
-			} break;
+				// Force PAL.
+				tmp_BI2region = BI2_REGION_PAL;
+				break;
+
+			default:
+				break;
 		}
 	}
 
-	switch(Region)
+	// Check for PAL60 with the forced video mode.
+	switch (tmp_BI2region)
 	{
+		case BI2_REGION_JAPAN:
+		case BI2_REGION_USA:
+		case BI2_REGION_SOUTH_KOREA:
 		default:
-		case 0:
-		case 1:
-		{
+			// NTSC
 #ifdef DEBUG_EXI
 			dbgprintf("SRAM:NTSC\r\n");
 #endif
 			*(vu32*)0xCC = 0;
-			
-		} break;
-		case 2:
-		{
-			if( *(vu32*)0xCC == 5 )
+			break;
+
+		case BI2_REGION_PAL:
+			// PAL
+			if (*(vu32*)0xCC == 5)
 			{
 #ifdef DEBUG_EXI
 				dbgprintf("SRAM:PAL60\r\n");
@@ -135,10 +147,11 @@ void SRAM_Init(void)
 #endif
 				*(vu32*)0xCC = 1;
 			}
-			sram.Flags		|= 1;
-
-		} break;
+			sram.Flags |= 1;
+			break;
 	}
+
+	sync_after_write((void*)0xCC, 4);
 
 	// Update the SRAM checksum.
 	SRAM_UpdateChecksum();

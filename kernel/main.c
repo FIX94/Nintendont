@@ -261,12 +261,23 @@ int _main( int argc, char *argv[] )
 	write32( HW_PPCIRQMASK, (1<<30) );
 	write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );
 
-//This bit seems to be different on japanese consoles
+	//This bit seems to be different on japanese consoles
 	u32 ori_ppcspeed = read32(HW_PPCSPEED);
-	if((ConfigGetGameID() & 0xFF) == 'J')
-		set32(HW_PPCSPEED, (1<<17));
-	else
-		clear32(HW_PPCSPEED, (1<<17));
+	switch (BI2region)
+	{
+		case BI2_REGION_JAPAN:
+		case BI2_REGION_SOUTH_KOREA:
+		default:
+			// JPN games.
+			set32(HW_PPCSPEED, (1<<17));
+			break;
+
+		case BI2_REGION_USA:
+		case BI2_REGION_PAL:
+			// USA/PAL games.
+			clear32(HW_PPCSPEED, (1<<17));
+			break;
+	}
 
 	// Set the Wii U widescreen setting.
 	u32 ori_widesetting = 0;

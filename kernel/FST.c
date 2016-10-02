@@ -79,8 +79,6 @@ static u32 FCEntry = 0;
 static FileCache *FC;
 static u32 FCState[FILECACHE_MAX];
 
-extern u32 Region;
-
 u32 FSTInit( const char *GamePath )
 {
 	char Path[256];
@@ -336,7 +334,8 @@ const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 
 			f_close( &fd );
 
-			Region = *(vu32*)(DI_READ_BUFFER+0x18);
+			// BI2.bin region code.
+			BI2region = *(vu32*)(DI_READ_BUFFER+0x18);
 
 			return DI_READ_BUFFER;
 		}

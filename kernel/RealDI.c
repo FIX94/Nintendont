@@ -31,7 +31,6 @@ static u32 identify[8] __attribute__((aligned(32)));
 static u32 readdiscid[8] __attribute__((aligned(32)));
 static const char di_path[] __attribute__((aligned(32))) = "/dev/di";
 static s32 di_fd = -1;
-extern u32 Region;
 u32 RealDiscCMD = 0, RealDiscError = 0;
 
 //No ISO Cache so lets take alot of memory
@@ -112,7 +111,7 @@ void RealDI_Identify(bool NeedsGC)
 	}
 	memcpy((void*)0, TmpBuf, 0x20); //Disc Header
 	sync_after_write((void*)0, 0x20);
-	Region = read32((u32)(TmpBuf+0x458)); //Game Region
+	BI2region = read32((u32)(TmpBuf+0x458)); // BI2.bin region code
 	dbgprintf("DI:Reading real disc with command 0x%02X\r\n", RealDiscCMD);
 }
 

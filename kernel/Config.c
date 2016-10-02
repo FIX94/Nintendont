@@ -2,6 +2,9 @@
 #include "debug.h"
 #include "ff_utf8.h"
 
+// BI2.bin region code.
+u32 BI2region = 0;
+
 void ConfigSyncBeforeRead( void )
 {
 	sync_before_read(ncfg, sizeof(NIN_CFG));
