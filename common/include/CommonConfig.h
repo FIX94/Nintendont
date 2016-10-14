@@ -5,7 +5,7 @@
 #include "NintendontVersion.h"
 #include "Metadata.h"
 
-#define NIN_CFG_VERSION		0x00000006
+#define NIN_CFG_VERSION		0x00000007
 
 #define NIN_CFG_MAXPAD 4
 
@@ -47,6 +47,7 @@ enum ninconfigbitpos
 	NIN_CFG_BIT_MC_MULTI	= (13),
 	NIN_CFG_BIT_NATIVE_SI	= (14),
 	NIN_CFG_BIT_WIIU_WIDE	= (15),
+	NIN_CFG_BIT_ARCADE_MODE = (16),
 };
 
 enum ninconfig
@@ -68,6 +69,7 @@ enum ninconfig
 	NIN_CFG_MC_MULTI	= (1<<NIN_CFG_BIT_MC_MULTI),
 	NIN_CFG_NATIVE_SI	= (1<<NIN_CFG_BIT_NATIVE_SI),
 	NIN_CFG_WIIU_WIDE	= (1<<NIN_CFG_BIT_WIIU_WIDE),
+	NIN_CFG_ARCADE_MODE = (1<<NIN_CFG_BIT_ARCADE_MODE),
 };
 
 enum ninextrasettings

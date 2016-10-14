@@ -318,6 +318,9 @@ int main(int argc, char **argv)
 		}
 	}
 
+	gprintf("Nintendont at your service!\r\n%s\r\n", NIN_BUILD_STRING);
+	KernelLoaded = 1;
+
 	// Checking for storage devices...
 	if(argsboot == false)
 		ShowMessageScreen("Checking storage devices...");
@@ -348,9 +351,6 @@ int main(int argc, char **argv)
 		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found!");
 		ExitToLoader(1);
 	}
-
-	gprintf("Nintendont at your service!\r\n%s\r\n", NIN_BUILD_STRING);
-	KernelLoaded = 1;
 
 	char* first_slash = strrchr(argv[0], '/');
 	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);

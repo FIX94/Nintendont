@@ -32,7 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "HID.h"
 #include "EXI.h"
 #include "debug.h"
-#include "GCAM.h"
+#include "TRI.h"
 #include "Patch.h"
 
 #include "diskio.h"
@@ -211,7 +211,7 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(10, s_size, s_cnt);
 
-	GCAMInit();
+	TRIInit();
 
 	EXIInit();
 

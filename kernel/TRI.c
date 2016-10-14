@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "DI.h"
 #include "EXI.h"
 #include "ff_utf8.h"
-
+#include "Config.h"
 #include "asm/PADReadGP.h"
 #include "asm/PADReadF.h"
 #include "asm/PADReadVS3.h"
@@ -77,6 +77,13 @@ extern u16 GAME_ID6;
 
 vu32 TRIGame = TRI_NONE;
 extern vu32 AXTimerOffset;
+
+u32 arcadeMode = 0;
+void TRIInit()
+{
+	GCAMInit();
+	arcadeMode = ConfigGetConfig(NIN_CFG_ARCADE_MODE);
+}
 
 void TRIReset()
 {
@@ -165,30 +172,33 @@ void TRISetupGames()
 		//VS wait
 		write32( 0x00BE10C, 0x4800002C );
 
-		//Remove some menu timers
-		write32( 0x0019BFF8, 0x60000000 ); //card check
-		write32( 0x001BCAA8, 0x60000000 ); //want to make a card
-		write32( 0x00195748, 0x60000000 ); //card view
-		write32( 0x000CFABC, 0x60000000 ); //select game mode
-		write32( 0x000D9F14, 0x60000000 ); //select character
-		write32( 0x001A8CF8, 0x60000000 ); //select cup
-		write32( 0x001A89B8, 0x60000000 ); //select round
-		write32( 0x001A36CC, 0x60000000 ); //select item pack (card)
-		write32( 0x001A2A10, 0x60000000 ); //select item (card)
-		write32( 0x001B9724, 0x60000000 ); //continue
-		write32( 0x001E61B4, 0x60000000 ); //rewrite rank
-		write32( 0x001A822C, 0x60000000 ); //select course p1 (time attack)
-		write32( 0x001A7F0C, 0x60000000 ); //select course p2 (time attack)
-		write32( 0x000D6234, 0x60000000 ); //enter name (time attack, card)
-		write32( 0x001BF1DC, 0x60000000 ); //save record p1 (time attack on card)
-		write32( 0x001BF1DC, 0x60000000 ); //save record p2 (time attack on card)
-		write32( 0x000E01B4, 0x60000000 ); //select record place (time attack on card)
+		if(!arcadeMode)
+		{
+			//Remove some menu timers
+			write32( 0x0019BFF8, 0x60000000 ); //card check
+			write32( 0x001BCAA8, 0x60000000 ); //want to make a card
+			write32( 0x00195748, 0x60000000 ); //card view
+			write32( 0x000CFABC, 0x60000000 ); //select game mode
+			write32( 0x000D9F14, 0x60000000 ); //select character
+			write32( 0x001A8CF8, 0x60000000 ); //select cup
+			write32( 0x001A89B8, 0x60000000 ); //select round
+			write32( 0x001A36CC, 0x60000000 ); //select item pack (card)
+			write32( 0x001A2A10, 0x60000000 ); //select item (card)
+			write32( 0x001B9724, 0x60000000 ); //continue
+			write32( 0x001E61B4, 0x60000000 ); //rewrite rank
+			write32( 0x001A822C, 0x60000000 ); //select course p1 (time attack)
+			write32( 0x001A7F0C, 0x60000000 ); //select course p2 (time attack)
+			write32( 0x000D6234, 0x60000000 ); //enter name (time attack, card)
+			write32( 0x001BF1DC, 0x60000000 ); //save record p1 (time attack on card)
+			write32( 0x001BF1DC, 0x60000000 ); //save record p2 (time attack on card)
+			write32( 0x000E01B4, 0x60000000 ); //select record place (time attack on card)
 
-		//Make some menu timers invisible
-		PatchB( 0x000B12EC, 0x000B12E0 );
+			//Make some menu timers invisible
+			PatchB( 0x000B12EC, 0x000B12E0 );
 
-		//Make coin count (layer 7) invisible
-		write32( 0x0008650C, 0x4E800020 );
+			//Make coin count (layer 7) invisible
+			write32( 0x0008650C, 0x4E800020 );
+		}
 
 		//Modify to regular GX pattern to patch later
 		write32( 0x363660, 0x00 ); //NTSC Interlaced
@@ -239,29 +249,32 @@ void TRISetupGames()
 		write32( 0x0084FC4, 0x4800000C );
 		write32( 0x0085000, 0x60000000 );
 
-		//Remove some menu timers (thanks conanac)
-		write32( 0x001C1074, 0x60000000 ); //card check
-		write32( 0x001C0174, 0x60000000 ); //want to make a card
-		write32( 0x00232818, 0x60000000 ); //card view
-		write32( 0x001C1A08, 0x60000000 ); //select game mode
-		write32( 0x001C3380, 0x60000000 ); //select character
-		write32( 0x001D7594, 0x60000000 ); //select kart
-		write32( 0x001C7A7C, 0x60000000 ); //select cup
-		write32( 0x001C9ED8, 0x60000000 ); //select round
-		write32( 0x00237B3C, 0x60000000 ); //select item (card)
-		write32( 0x0024D35C, 0x60000000 ); //continue
-		write32( 0x0015F2F4, 0x60000000 ); //rewrite rank
-		write32( 0x001CF5DC, 0x60000000 ); //select course (time attack)
-		write32( 0x001BE248, 0x60000000 ); //enter name (time attack, card)
-		write32( 0x0021DFF0, 0x60000000 ); //save record (time attack on card)
+		if(!arcadeMode)
+		{
+			//Remove some menu timers (thanks conanac)
+			write32( 0x001C1074, 0x60000000 ); //card check
+			write32( 0x001C0174, 0x60000000 ); //want to make a card
+			write32( 0x00232818, 0x60000000 ); //card view
+			write32( 0x001C1A08, 0x60000000 ); //select game mode
+			write32( 0x001C3380, 0x60000000 ); //select character
+			write32( 0x001D7594, 0x60000000 ); //select kart
+			write32( 0x001C7A7C, 0x60000000 ); //select cup
+			write32( 0x001C9ED8, 0x60000000 ); //select round
+			write32( 0x00237B3C, 0x60000000 ); //select item (card)
+			write32( 0x0024D35C, 0x60000000 ); //continue
+			write32( 0x0015F2F4, 0x60000000 ); //rewrite rank
+			write32( 0x001CF5DC, 0x60000000 ); //select course (time attack)
+			write32( 0x001BE248, 0x60000000 ); //enter name (time attack, card)
+			write32( 0x0021DFF0, 0x60000000 ); //save record (time attack on card)
 
-		//Make some menu timers invisible
-		write32( 0x001B7D2C, 0x60000000 );
-		write32( 0x00231CA0, 0x60000000 );
+			//Make some menu timers invisible
+			write32( 0x001B7D2C, 0x60000000 );
+			write32( 0x00231CA0, 0x60000000 );
 
-		//Make coin count (layer 7) invisible
-		write32( 0x001B87A8, 0x60000000 );
-		write32( 0x00247A68, 0x60000000 );
+			//Make coin count (layer 7) invisible
+			write32( 0x001B87A8, 0x60000000 );
+			write32( 0x00247A68, 0x60000000 );
+		}
 
 		//Modify to regular GX pattern to patch later
 		write32( 0x3F1FD0, 0x00 ); //NTSC Interlaced
@@ -316,15 +329,18 @@ void TRISetupGames()
 		//English
 		write32( 0x000DF430, 0x38000000 );
 
-		//Remove some menu timers (thanks dj_skual)
-		// (menu gets constantly removed in JVSIO.c)
-		write32( 0x0015AE40, 0x60000000 ); //after race
+		if(!arcadeMode)
+		{
+			//Remove some menu timers (thanks dj_skual)
+			// (menu gets constantly removed in JVSIO.c)
+			write32( 0x0015AE40, 0x60000000 ); //after race
 
-		//Make some menu timers invisible (thanks dj_skual)
-		write32( 0x002370DC, 0x40200000 ); //menu inner
-		write32( 0x00237114, 0x40200000 ); //menu outer
-		write32( 0x00236E74, 0x00000000 ); //after race inner
-		write32( 0x00236EAC, 0x00000000 ); //after race outer
+			//Make some menu timers invisible (thanks dj_skual)
+			write32( 0x002370DC, 0x40200000 ); //menu inner
+			write32( 0x00237114, 0x40200000 ); //menu outer
+			write32( 0x00236E74, 0x00000000 ); //after race inner
+			write32( 0x00236EAC, 0x00000000 ); //after race outer
+		}
 
 		//Check for already existing settings
 		if(TRI_BackupAvailable == 0)
@@ -402,15 +418,18 @@ void TRISetupGames()
 		//English
 		write32( 0x000DF698, 0x38000000 );
 
-		//Remove some menu timers (thanks dj_skual)
-		// (menu gets constantly removed in JVSIO.c)
-		write32( 0x0015B148, 0x60000000 ); //after race
+		if(!arcadeMode)
+		{
+			//Remove some menu timers (thanks dj_skual)
+			// (menu gets constantly removed in JVSIO.c)
+			write32( 0x0015B148, 0x60000000 ); //after race
 
-		//Make some menu timers invisible (thanks dj_skual)
-		write32( 0x0023759C, 0x40200000 ); //menu inner
-		write32( 0x002375D4, 0x40200000 ); //menu outer
-		write32( 0x00237334, 0x00000000 ); //after race inner
-		write32( 0x0023736C, 0x00000000 ); //after race outer
+			//Make some menu timers invisible (thanks dj_skual)
+			write32( 0x0023759C, 0x40200000 ); //menu inner
+			write32( 0x002375D4, 0x40200000 ); //menu outer
+			write32( 0x00237334, 0x00000000 ); //after race inner
+			write32( 0x0023736C, 0x00000000 ); //after race outer
+		}
 
 		//Check for already existing settings
 		if(TRI_BackupAvailable == 0)
@@ -486,15 +505,18 @@ void TRISetupGames()
 		//English
 		write32( 0x000DF818, 0x38000000 );
 
-		//Remove some menu timers (thanks dj_skual)
-		// (menu gets constantly removed in JVSIO.c)
-		write32( 0x0015B638, 0x60000000 ); //after race
+		if(!arcadeMode)
+		{
+			//Remove some menu timers (thanks dj_skual)
+			// (menu gets constantly removed in JVSIO.c)
+			write32( 0x0015B638, 0x60000000 ); //after race
 
-		//Make some menu timers invisible (thanks dj_skual)
-		write32( 0x00237A1C, 0x40200000 ); //menu inner
-		write32( 0x00237A54, 0x40200000 ); //menu outer
-		write32( 0x002377B4, 0x00000000 ); //after race inner
-		write32( 0x002377EC, 0x00000000 ); //after race outer
+			//Make some menu timers invisible (thanks dj_skual)
+			write32( 0x00237A1C, 0x40200000 ); //menu inner
+			write32( 0x00237A54, 0x40200000 ); //menu outer
+			write32( 0x002377B4, 0x00000000 ); //after race inner
+			write32( 0x002377EC, 0x00000000 ); //after race outer
+		}
 
 		//Check for already existing settings
 		if(TRI_BackupAvailable == 0)
@@ -578,8 +600,11 @@ void TRISetupGames()
 		TRISettingsLoc = 0x0602520-0x14C4;
 		TRISettingsSize = 0x2B;
 
-		//Set menu timer to about 51 days
-		write32( 0x00C1D0C, 0x3C800FFF );
+		if(!arcadeMode)
+		{
+			//Set menu timer to about 51 days
+			write32( 0x00C1D0C, 0x3C800FFF );
+		}
 
 		//Allow test menu if requested
 		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3B444 );
@@ -606,8 +631,11 @@ void TRISetupGames()
 		TRISettingsLoc = 0x05C5FE0-0x2CA8; //NOTE:logic turned around!
 		TRISettingsSize = 0x2B;
 
-		//Set menu timer to about 51 days
-		write32( 0x00C1564, 0x3C800FFF );
+		if(!arcadeMode)
+		{
+			//Set menu timer to about 51 days
+			write32( 0x00C1564, 0x3C800FFF );
+		}
 
 		//Allow test menu if requested
 		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3B3E8 );
@@ -641,8 +669,11 @@ void TRISetupGames()
 		//dont wait for other cabinets to link up
 		write32( 0x0056114, 0x38600001 );
 
-		//Set menu timer to about 51 days
-		write32( 0x00D7420, 0x3C800FFF );
+		if(!arcadeMode)
+		{
+			//Set menu timer to about 51 days
+			write32( 0x00D7420, 0x3C800FFF );
+		}
 
 		//Allow test menu if requested
 		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3ECD8 );
@@ -670,16 +701,19 @@ void TRISetupGames()
 		TRISettingsSize = 0x2B;
 		DISetDIMMVersion(0xA3A479);
 
-		//Set menu timer to about 51 days
-		write32( 0x00CBB7C, 0x3C800FFF );
+		if(!arcadeMode)
+		{
+			//Set menu timer to about 51 days
+			write32( 0x00CBB7C, 0x3C800FFF );
 
-		//Hide timer updater (red font)
-		PatchBL( 0x011BDEC, 0x001738E0 );
-		PatchBL( 0x011BDEC, 0x00173950 );
+			//Hide timer updater (red font)
+			PatchBL( 0x011BDEC, 0x001738E0 );
+			PatchBL( 0x011BDEC, 0x00173950 );
 
-		//Hide timer updater (blue font)
-		PatchBL( 0x011BDEC, 0x001739D4 );
-		PatchBL( 0x011BDEC, 0x00173A44 );
+			//Hide timer updater (blue font)
+			PatchBL( 0x011BDEC, 0x001739D4 );
+			PatchBL( 0x011BDEC, 0x00173A44 );
+		}
 
 		//Allow test menu if requested
 		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3B804 );

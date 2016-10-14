@@ -889,7 +889,7 @@ unsigned int sb311block[54] =
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x200E1AFF,
     0xFFFF0000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 } ;
-
+extern u32 arcadeMode;
 static bool TRIGameStarted = false;
 //make sure ambbBackupMem is filled correctly
 void EXIPrepareTRIGameStart()
@@ -900,6 +900,11 @@ void EXIPrepareTRIGameStart()
 	memset32(ambbBackupMem, 0, 0x400);
 	memcpy(ambbBackupMem, sb311block, sizeof(sb311block));
 	memcpy(ambbBackupMem + 0x200, sb311block, sizeof(sb311block));
+	if(arcadeMode)
+	{	//standard coin settings instead of free play
+		ambbBackupMem[0x022] = 1; ambbBackupMem[0x023] = 0;
+		ambbBackupMem[0x222] = 1; ambbBackupMem[0x223] = 0;
+	}
 	memset32(ambbBackupMem + 0x400, 0xFF, 0x10000 - 0x400);
 	TRIGameStarted = true;
 }

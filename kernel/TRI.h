@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef _TRI_H_
 #define _TRI_H_
 
+void TRIInit();
 void TRIReset();
 void TRIReadSettings();
 void TRIBackupSettings();

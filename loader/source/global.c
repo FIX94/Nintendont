@@ -388,6 +388,11 @@ void UpdateNinCFG()
 		ncfg->VideoMode &= ~NIN_VID_PATCH_PAL50;
 		ncfg->Version = 6;
 	}
+	if (ncfg->Version == 6)
+	{	//New flag, disabled by default
+		ncfg->Config &= ~NIN_CFG_ARCADE_MODE;
+		ncfg->Version = 7;
+	}
 }
 
 int CreateNewFile(const char *Path, u32 size)
