@@ -1104,7 +1104,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 						ncfg->Config ^= NIN_CFG_WIIU_WIDE;
 					}
 				} else {
-					if (!IsWiiU() &&
+					if (IsWiiU() &&
 					    (ctx->settings.posX == NIN_CFG_BIT_DEBUGGER ||
 					     ctx->settings.posX == NIN_CFG_BIT_DEBUGWAIT ||
 					     ctx->settings.posX == NIN_CFG_BIT_LED))
