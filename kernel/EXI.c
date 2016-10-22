@@ -91,13 +91,13 @@ void EXIInit( void )
 				case BI2_REGION_SOUTH_KOREA:
 				default:
 					// JPN games.
-					memcpy(MemCardName+7, "ninmemj", 7);
+					memcpy(MemCardName+7, "ninmemj.raw", 11);
 					break;
 
 				case BI2_REGION_USA:
 				case BI2_REGION_PAL:
 					// USA/PAL games.
-					memcpy(MemCardName+7, "ninmem", 6);
+					memcpy(MemCardName+7, "ninmem.raw", 10);
 					break;
 			}
 		}
