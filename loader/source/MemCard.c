@@ -69,12 +69,14 @@ bool GenerateMemCard(const char *MemCard, u32 BI2region)
 	if (f_open_char(&f, MemCard, FA_WRITE|FA_CREATE_NEW) != FR_OK)
 		return false;
 
-	// Get memory to format (5 blocks)
-	u8 *MemcardBase = memalign(32, 0xA000);
+	// Get memory to format. (8 block window)
+	u8 *MemcardBase = memalign(32, 0x10000);
 	// Fill Header and Dir Memory with 0xFF.
 	memset(MemcardBase, 0xFF, 0x6000);
 	// Fill the Block table with 0x00.
 	memset(&MemcardBase[0x6000], 0x00, 0x4000);
+	// Clear the initial data area.
+	memset(&MemcardBase[0xA000], 0x00, 0x6000);
 
 	// Header block.
 	card_header *header = (card_header*)MemcardBase;
@@ -146,19 +148,16 @@ bool GenerateMemCard(const char *MemCard, u32 BI2region)
 	// FIXME: This seems to make it slower...
 	//f_expand(&f, total_size, 1);
 
-	// Write the header (5 blocks) to the file.
+	// Write the header (5 blocks) and initial data area
+	// (3 blocks) to the file.
 	UINT wrote;
-	f_write(&f, MemcardBase, 0xA000, &wrote);
-
-	// Write 3 blank blocks. (8 blocks total)
-	memset(MemcardBase, 0, 0x8000);
-	f_write(&f, MemcardBase, 0x6000, &wrote);
+	f_write(&f, MemcardBase, 0x10000, &wrote);
 
 	// Write the remaining blocks.
 	u32 i;
-	for (i = 0x10000; i < total_size; i += 0x8000)
+	for (i = 0x10000; i < total_size; i += 0x10000)
 	{
-		f_write(&f, MemcardBase, 0x8000, &wrote);
+		f_write(&f, MemcardBase, 0x10000, &wrote);
 	}
 
 	f_close(&f);
