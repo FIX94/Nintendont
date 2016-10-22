@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "exi.h"
 #include "ff_utf8.h"
 #include "menu.h"
+#include "font.h"
 
 // Memory card header.
 typedef struct __attribute__ ((packed)) _card_header
@@ -52,6 +53,38 @@ static void doChecksum(const u16 *buffer, u32 size, u16 *c1, u16 *c2)
 	}
 	if (*c1 == 0xFFFF) *c1 = 0;
 	if (*c2 == 0xFFFF) *c2 = 0;
+}
+
+/**
+ * Show memory card formatting progress.
+ * @param written Bytes written.
+ * @param total Total bytes to write.
+ */
+static void showProgress(u32 written, u32 total)
+{
+	ClearScreen();
+	PrintInfo();
+
+	char buf[128];
+	int len, x;
+
+	// First line.
+	len = snprintf(buf, sizeof(buf),
+		"Initializing virtual %u-block memory card...",
+		MEM_CARD_BLOCKS(ncfg->MemCardBlocks));
+	x = (640 - (len*10)) / 2;
+	PrintFormat(DEFAULT_SIZE, BLACK, x, 232-20, "%s", buf);
+
+	// Second line.
+	len = snprintf(buf, sizeof(buf),
+		"%u of %u KiB written",
+		written / 1024, total / 1024);
+	x = (640 - (len*10)) / 2;
+	PrintFormat(DEFAULT_SIZE, BLACK, x, 232+20, "%s", buf);
+
+	// Render the text.
+	GRRLIB_Render();
+	ClearScreen();
 }
 
 /**
@@ -136,13 +169,6 @@ bool GenerateMemCard(const char *MemCard, u32 BI2region)
 	doChecksum((u16*)&MemcardBase[0x8004], 0x1FFC, (u16*)&MemcardBase[0x8000], (u16*)&MemcardBase[0x8002]);
 
 	const u32 total_size = MEM_CARD_SIZE(ncfg->MemCardBlocks);
-	char buf[128];
-	snprintf(buf, sizeof(buf),
-		"Initializing virtual %u-block memory card...",
-		MEM_CARD_BLOCKS(ncfg->MemCardBlocks));
-	ShowMessageScreen(buf);
-	gprintf(buf);
-	gprintf("\r\n");
 
 	// Reserve space in the memory card file.
 	// FIXME: This seems to make it slower...
@@ -150,15 +176,19 @@ bool GenerateMemCard(const char *MemCard, u32 BI2region)
 
 	// Write the header (5 blocks) and initial data area
 	// (3 blocks) to the file.
+	// FIXME: Initial write and second write seem to be slow.
 	UINT wrote;
+	showProgress(0, total_size);
 	f_write(&f, MemcardBase, 0x10000, &wrote);
 
 	// Write the remaining blocks.
 	u32 i;
 	for (i = 0x10000; i < total_size; i += 0x10000)
 	{
+		showProgress(i, total_size);
 		f_write(&f, MemcardBase, 0x10000, &wrote);
 	}
+	showProgress(total_size, total_size);
 
 	f_close(&f);
 	free(MemcardBase);
