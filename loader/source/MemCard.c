@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "exi.h"
 #include "ff_utf8.h"
+#include "menu.h"
 
 // Memory card header.
 typedef struct __attribute__ ((packed)) _card_header
@@ -132,9 +133,18 @@ bool GenerateMemCard(const char *MemCard, u32 BI2region)
 	doChecksum((u16*)&MemcardBase[0x6004], 0x1FFC, (u16*)&MemcardBase[0x6000], (u16*)&MemcardBase[0x6002]);
 	doChecksum((u16*)&MemcardBase[0x8004], 0x1FFC, (u16*)&MemcardBase[0x8000], (u16*)&MemcardBase[0x8002]);
 
-	// Reserve space in the memory card file.
 	const u32 total_size = MEM_CARD_SIZE(ncfg->MemCardBlocks);
-	f_expand(&f, total_size, 1);
+	char buf[128];
+	snprintf(buf, sizeof(buf),
+		"Initializing virtual %u-block memory card...",
+		MEM_CARD_BLOCKS(ncfg->MemCardBlocks));
+	ShowMessageScreen(buf);
+	gprintf(buf);
+	gprintf("\r\n");
+
+	// Reserve space in the memory card file.
+	// FIXME: This seems to make it slower...
+	//f_expand(&f, total_size, 1);
 
 	// Write the header (5 blocks) to the file.
 	UINT wrote;
