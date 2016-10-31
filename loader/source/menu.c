@@ -1395,7 +1395,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 4;
+			int line_num = 5;
 			do {
 				if (**desc != 0)
 				{
