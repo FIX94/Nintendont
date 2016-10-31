@@ -173,8 +173,9 @@ static u32 font_ttf_size = 0;
 /**
  * Initialize the loader.
  * This also loads the background image.
+ * @param autoboot Set if autobooting. (This disables the fade-in.)
  */
-void Initialise(void)
+void Initialise(bool autoboot)
 {
 	int i;
 	AUDIO_Init(NULL);
@@ -204,18 +205,21 @@ void Initialise(void)
 		bg_xPos = 0;
 	}
 
-	for (i=0; i<255; i +=5) // Fade background image in from black screen
+	if(autoboot == false)
 	{
-		if (bg_isWidescreen)
+		for (i=0; i<255; i +=5) // Fade background image in from black screen
 		{
-			// Clear the sides.
-			GRRLIB_Rectangle(0, 0, 80, 480, RGBA(222, 223, 224, i), true);
-			GRRLIB_Rectangle(80+480, 0, 80, 480, RGBA(222, 223, 224, i), true);
+			if (bg_isWidescreen)
+			{
+				// Clear the sides.
+				GRRLIB_Rectangle(0, 0, 80, 480, RGBA(222, 223, 224, i), true);
+				GRRLIB_Rectangle(80+480, 0, 80, 480, RGBA(222, 223, 224, i), true);
+			}
+			GRRLIB_DrawImg(bg_xPos, 0, background, 0, bg_xScale, 1, RGBA(255, 255, 255, i)); // Opacity increases as i does
+			GRRLIB_Render();
 		}
-		GRRLIB_DrawImg(bg_xPos, 0, background, 0, bg_xScale, 1, RGBA(255, 255, 255, i)); // Opacity increases as i does
-		GRRLIB_Render();
+		ClearScreen();
 	}
-	ClearScreen();
 	gprintf("Initialize Finished\r\n");
 }
 
@@ -418,6 +422,11 @@ void UpdateNinCFG()
 	{	//New Video Mode option
 		ncfg->VideoMode &= ~NIN_VID_PATCH_PAL50;
 		ncfg->Version = 6;
+	}
+	if (ncfg->Version == 6)
+	{	//New flag, disabled by default
+		ncfg->Config &= ~NIN_CFG_ARCADE_MODE;
+		ncfg->Version = 7;
 	}
 }
 

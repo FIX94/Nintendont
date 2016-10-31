@@ -18,6 +18,7 @@ extern vu32 m_ptr;
 extern vu8 m_msg[0x80];
 
 extern vu32 TRIGame;
+extern u32 arcadeMode;
 vu32 AXTimerOffset = 0;
 static const char TRI_SegaChar[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
 static const char TRI_NamcoChar[] = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
@@ -26,13 +27,15 @@ static const u32 TRI_DefaultCoinCount = 9;
 static const PADStatus *PadBuff = (PADStatus*)0x13002800;
 static const vu32 *IN_TESTMENU = (vu32*)0x13002760;
 static u32 TestMenuTimer = 0, TestMenuTimerRunning = 0;
+static u32 CoinAddTimer = 0;
 
 static vu8 jvs_io_buffer[0x80];
 
 void JVSIOCommand( char *DataIn, char *DataOut )
 {
 	static u32 coin	= 0;
-	static u32 mcoin = 9;
+	static u32 mcoin = 0;
+	static u32 coinreq = 0;
 
 	//dbgprintf("JVS-IO (%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X)\n", DataIn[DataPos],
 	//																DataIn[DataPos+1],
@@ -43,7 +46,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 	//																DataIn[DataPos+6],
 	//																DataIn[DataPos+7] );
 
-	if(AXTimerOffset)
+	if(!arcadeMode && AXTimerOffset)
 	{
 		sync_before_read( (void*)AXTimerOffset, 0x20 );
 		write32( AXTimerOffset, 0x00001734 );	// FZeroAX menu timer to 99
@@ -190,6 +193,22 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 				sync_before_read((void*)IN_TESTMENU, 0x20);
 				vu32 inTestMenu = *IN_TESTMENU;
 
+				// Coin Input
+				if(arcadeMode)
+				{
+					if( PadBuff[0].substickX < -0x40 || PadBuff[0].substickX > 0x40 
+						|| PadBuff[0].substickY < -0x40 || PadBuff[0].substickY > 0x40)
+					{
+						if(CoinAddTimer == 0 || TimerDiffSeconds(CoinAddTimer) > 0)
+						{
+							CoinAddTimer = read32(HW_TIMER);
+							coinreq = 1;
+						}
+					}
+					else
+						CoinAddTimer = 0;
+				}
+
 				// Test button
 				if( PadBuff[0].button & PAD_TRIGGER_Z )
 				{
@@ -328,7 +347,15 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 			//	dbgprintf("JVS-IO:Get Coins Slots:%u\n", slots );
 
 				if( mcoin )
-					coin = !coin;
+				{
+					if(coin > 0) coin--;
+					mcoin = 0;
+				}
+				else if( coinreq )
+				{
+					if(coin < 99) coin++;
+					coinreq = 0;
+				}
 
 				addDataByte(1);
 				while (slots--)
@@ -410,7 +437,7 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 #endif
 
 				if( a == 1 )
-					mcoin = 0;
+					mcoin = 1;
 
 				addDataByte(1);
 

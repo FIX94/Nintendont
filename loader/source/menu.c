@@ -958,7 +958,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 3))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 4))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -985,7 +985,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 2;
+				ctx->settings.posX = 3;
 			}
 		}
 
@@ -1217,6 +1217,13 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
 				ctx->redraw = true;
 			}
+			else if (ctx->settings.posX == 3)
+			{
+				// Triforce Arcade Mode.
+				ctx->saveSettings = true;
+				ncfg->VideoMode ^= (NIN_CFG_ARCADE_MODE);
+				ctx->redraw = true;
+			}
 		}
 	}
 
@@ -1360,6 +1367,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		// Patch PAL60.
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
 			    "%-18s:%-4s", "Patch PAL50", (ncfg->VideoMode & (NIN_VID_PATCH_PAL50)) ? "On " : "Off");
+		ListLoopIndex++;
+
+		// Triforce Arcade Mode.
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "TRI Arcade Mode", (ncfg->Config & (NIN_CFG_ARCADE_MODE)) ? "On " : "Off");
 		ListLoopIndex++;
 
 		// Draw the cursor.
