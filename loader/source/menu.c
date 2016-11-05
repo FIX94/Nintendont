@@ -41,6 +41,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "../../common/include/CommonConfigStrings.h"
 
 #include "ff_utf8.h"
+#include "md5.h"
+
+// Dark gray for grayed-out menu items.
+#define DARK_GRAY 0x666666FF
 
 // Device state.
 typedef enum {
@@ -473,6 +477,8 @@ typedef struct _MenuCtx
 
 		const gameinfo *gi;	// Game information.
 		int gamecount;		// Game count.
+
+		bool canVerifyMD5;	// Selected game can be verified using MD5.
 	} games;
 
 	// Settings menu.
@@ -501,6 +507,136 @@ FPAD_WRAPPER_REPEAT(Left)
 FPAD_WRAPPER_REPEAT(Right)
 
 /**
+ * Verify a game's MD5.
+ * @param gameinfo Game to verify.
+ */
+static void VerifyMD5(const gameinfo *gi)
+{
+	md5_state_t state;
+	md5_byte_t digest[16];
+	md5_init(&state);
+
+	ClearScreen();
+	PrintInfo();
+
+	// First line.
+	#define STR_X(len) ((640 - ((len)*10)) / 2)
+	#define STR_CONST_X(str) STR_X(sizeof(str)-1)
+	#define STR_PTR_X(str) STR_X(strlen(str))
+	static const char opening_str[] = "Opening disc image for verification:";
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(opening_str), 232-40, opening_str);
+	// Second line.
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gi->Path), 232, "%s", gi->Path);
+	// Render the text.
+	GRRLIB_Render();
+	ClearScreen();
+
+	// Open the file.
+	FIL in;
+	if (f_open_char(&in, gi->Path, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+	{
+		// Could not open the disc image.
+		// TODO: Show an error.
+		return;
+	}
+
+	// snprintf() buffer for the status message.
+	char status_msg[128];
+	int len, x;
+
+	// Read 64 KB at a time.
+	static const u32 buf_sz = 64*1024;
+	u8 *buf = (u8*)malloc(buf_sz);
+	if (!buf)
+	{
+		// Memory allocation failed.
+		// TODO: Show an error.
+		f_close(&in);
+		return;
+	}
+
+	u32 total_read = 0;
+	const u32 total_size = f_size(&in);
+	while (!f_eof(&in))
+	{
+		UINT read;
+		FRESULT res = f_read(&in, buf, buf_sz, &read);
+		if (res != FR_OK)
+		{
+			// TODO: Show an error.
+			free(buf);
+			f_close(&in);
+			return;
+		}
+
+		// Process the data.
+		md5_append(&state, (const md5_byte_t*)buf, read);
+		total_read += read;
+
+		// Status update.
+		ClearScreen();
+		PrintInfo();
+		static const char md5_calculating[] = "Calculating MD5...";
+		PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(md5_calculating), 232-40, md5_calculating);
+		PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gi->Path), 232, "%s", gi->Path);
+
+		// Print the status, in MiB.
+		len = snprintf(status_msg, sizeof(status_msg),
+			"%u of %u MiB processed",
+			total_read / (1024*1024), total_size / (1024*1024));
+		PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232+40, "%s", status_msg);
+
+		// Render the text.
+		GRRLIB_Render();
+		ClearScreen();
+	}
+	md5_finish(&state, digest);
+	free(buf);
+	f_close(&in);
+
+	// Finished processing the MD5.
+	// TODO: Verify against a list of MD5s.
+	ClearScreen();
+	PrintInfo();
+	static const char md5_calc[] = "MD5 calculated for:";
+	static const char press_a_btn[] = "Press the A button to continue.";
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(md5_calc), 232-40, md5_calc);
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gi->Path), 232, "%s", gi->Path);
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(press_a_btn), 232+80, press_a_btn);
+
+	// Convert the MD5 to a string.
+	static const char hex_lookup[16] = {
+		'0','1','2','3','4','5','6','7',
+		'8','9','A','B','C','D','E','F'
+	};
+	char md5_str[33];
+	int i;
+	for (i = 0; i < 16; i++) {
+		md5_str[(i*2)+0] = hex_lookup[digest[i] >> 4];
+		md5_str[(i*2)+1] = hex_lookup[digest[i] & 0x0F];
+	}
+	md5_str[32] = 0;
+
+	// Print the MD5.
+	len = snprintf(status_msg, sizeof(status_msg), "MD5: %s", md5_str);
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232+40, "%s", status_msg);
+
+	// Render the text.
+	GRRLIB_Render();
+	ClearScreen();
+
+	// Wait for the user to press the A button.
+	while (1)
+	{
+		VIDEO_WaitVSync();
+		FPAD_Update();
+
+		if (FPAD_OK(0))
+			break;
+	}
+}
+
+/**
  * Update the Game Select menu.
  * @param ctx	[in] Menu context.
  * @return True to exit; false to continue.
@@ -509,6 +645,16 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 {
 	u32 i;
 	bool clearCheats = false;
+
+	if(FPAD_X(0))
+	{
+		// Can we verify this game's MD5?
+		if (ctx->games.canVerifyMD5)
+		{
+			VerifyMD5(&ctx->games.gi[ctx->games.posX + ctx->games.scrollX]);
+			ctx->redraw = 1;
+		}
+	}
 
 	if (FPAD_Down_Repeat(ctx))
 	{
@@ -672,6 +818,21 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 			};
 
 			const u32 color = colors[gi->Flags & GIFLAG_FORMAT_MASK];
+			// Check if the selected game is a 1:1 image.
+			// If it is, the MD5 can be verified.
+			if (i == ctx->games.posX)
+			{
+				// Shortcut, since we're only using black for
+				// 1:1 disc images.
+				ctx->games.canVerifyMD5 = (color == BLACK);
+				if (!IsWiiU() && (ctx->games.scrollX + i) == 0)
+				{
+					// "Real Disc" option.
+					// Don't allow verifying the MD5.
+					ctx->games.canVerifyMD5 = false;
+				}
+			}
+
 			if (gi->DiscNumber == 0)
 			{
 				// Disc 1.
@@ -916,9 +1077,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
  */
 static bool UpdateSettingsMenu(MenuCtx *ctx)
 {
-	// Dark gray for grayed-out menu items.
-	#define DARK_GRAY 0x666666FF
-
 	if(FPAD_X(0))
 	{
 		// Start the updater.
@@ -1542,7 +1700,14 @@ static int SelectGame(void)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", ctx.menuMode ? "Modify" : "Select");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", ctx.menuMode ? "Game List" : "Settings ");
-			if (ctx.menuMode)
+			// TODO: Better layout.
+			if (ctx.menuMode == 0)
+			{
+				// If the selected game is 1:1, allow MD5 verification.
+				const u32 color = ((ctx.games.canVerifyMD5) ? BLACK : DARK_GRAY);
+				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Verify MD5");
+			}
+			else
 			{
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Update");
 			}
