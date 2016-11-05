@@ -653,13 +653,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		// TODO: Only if menuMode or scrollX has changed?
 
 		// Starting position.
-		int gamelist_y = MENU_POS_Y + 20*4;
-		if (devState != DEV_OK)
-		{
-			// The warning message overlaps "Boot GC Disc in Drive".
-			// Move the list down by one row.
-			gamelist_y += 20;
-		}
+		int gamelist_y = MENU_POS_Y + 20*5;
 
 		const gameinfo *gi = &ctx->games.gi[ctx->games.scrollX];
 		int gamesToPrint = ctx->games.gamecount - ctx->games.scrollX;
