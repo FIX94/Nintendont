@@ -29,12 +29,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dip.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <ogc/stm.h>
 #include <ogc/video.h>
 #include <ogc/video_types.h>
 #include <ogc/consol.h>
 #include <ogc/system.h>
+#include <ogc/lwp_watchdog.h>
 //#include <fat.h>
 #include <di/di.h>
 #include "menu.h"
@@ -507,6 +509,32 @@ FPAD_WRAPPER_REPEAT(Left)
 FPAD_WRAPPER_REPEAT(Right)
 
 /**
+ * Get the time of day with correct microseconds.
+ * @param tv struct timeval
+ * @param tz struct timezone
+ */
+static int gettimeofday_rvlfix(struct timeval *tv, struct timezone *tz)
+{
+	int ret = gettimeofday(tv, tz);
+	if (ret != 0)
+		return ret;
+
+	// devkitPPC's gettimeofday() is completely broken.
+	// tv_sec is correct, but tv_usec always returns a value less than 400.
+	// Reference: http://devkitpro.org/viewtopic.php?t=3056&p=15322
+#ifdef tick_microsecs
+#undef tick_microsecs
+#endif
+#ifdef tick_nanosecs
+#undef tick_nanosecs
+#endif
+#define tick_microsecs(ticks) ((((u64)(ticks)*8)/(u64)(TB_TIMER_CLOCK/125))%1000000)
+#define tick_nanosecs(ticks) ((((u64)(ticks)*8000)/(u64)(TB_TIMER_CLOCK/125))%1000000000)
+	tv->tv_usec = tick_microsecs(gettick());
+	return ret;
+}
+
+/**
  * Verify a game's MD5.
  * @param gameinfo Game to verify.
  */
@@ -519,15 +547,13 @@ static void VerifyMD5(const gameinfo *gi)
 	ClearScreen();
 	PrintInfo();
 
-	// First line.
+	// Initial status.
 	#define STR_X(len) ((640 - ((len)*10)) / 2)
 	#define STR_CONST_X(str) STR_X(sizeof(str)-1)
 	#define STR_PTR_X(str) STR_X(strlen(str))
 	static const char opening_str[] = "Opening disc image for verification:";
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(opening_str), 232-40, opening_str);
-	// Second line.
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gi->Path), 232, "%s", gi->Path);
-	// Render the text.
 	GRRLIB_Render();
 	ClearScreen();
 
@@ -542,7 +568,7 @@ static void VerifyMD5(const gameinfo *gi)
 
 	// snprintf() buffer for the status message.
 	char status_msg[128];
-	int len, x;
+	int len;
 
 	// Read 64 KB at a time.
 	static const u32 buf_sz = 64*1024;
@@ -554,6 +580,11 @@ static void VerifyMD5(const gameinfo *gi)
 		f_close(&in);
 		return;
 	}
+
+	// Start time.
+	struct timeval tv;
+	gettimeofday_rvlfix(&tv, NULL);
+	float time_start = tv.tv_sec + ((float)tv.tv_usec / 1000000.0f);
 
 	u32 total_read = 0;
 	const u32 total_size = f_size(&in);
@@ -594,13 +625,17 @@ static void VerifyMD5(const gameinfo *gi)
 	free(buf);
 	f_close(&in);
 
+	// End time.
+	gettimeofday_rvlfix(&tv, NULL);
+	float time_end = tv.tv_sec + ((float)tv.tv_usec / 1000000.0f);
+
 	// Finished processing the MD5.
 	// TODO: Verify against a list of MD5s.
 	ClearScreen();
 	PrintInfo();
-	static const char md5_calc[] = "MD5 calculated for:";
+	len = snprintf(status_msg, sizeof(status_msg), "MD5 calculated in %0.1f seconds.", time_end - time_start);
 	static const char press_a_btn[] = "Press the A button to continue.";
-	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(md5_calc), 232-40, md5_calc);
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232-40, status_msg);
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gi->Path), 232, "%s", gi->Path);
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(press_a_btn), 232+80, press_a_btn);
 
