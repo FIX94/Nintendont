@@ -652,6 +652,26 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		// Redraw the game list.
 		// TODO: Only if menuMode or scrollX has changed?
 
+		// Color codes for the different formats.
+		static const u32 format_colors[8] =
+		{
+			BLACK,		// Full
+			0x551A00FF,	// Shrunken (dark brown)
+			0x00551AFF,	// Extracted FST
+			0x001A55FF,	// CISO
+			0x551A55FF,	// Multi-Game
+			GRAY,		// undefined
+			GRAY,		// undefined
+			GRAY,		// undefined
+		};
+
+		// Print the color codes.
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*3, "Colors  : 1:1");
+		PrintFormat(DEFAULT_SIZE, format_colors[1], MENU_POS_X+(14*10), MENU_POS_Y + 20*3, "Shrunk");
+		PrintFormat(DEFAULT_SIZE, format_colors[2], MENU_POS_X+(21*10), MENU_POS_Y + 20*3, "FST");
+		PrintFormat(DEFAULT_SIZE, format_colors[3], MENU_POS_X+(25*10), MENU_POS_Y + 20*3, "CISO");
+		PrintFormat(DEFAULT_SIZE, format_colors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
+
 		// Starting position.
 		int gamelist_y = MENU_POS_Y + 20*5;
 
@@ -667,19 +687,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 			// Currently truncated to 50.
 
 			// Determine color based on disc format.
-			static const u32 colors[8] =
-			{
-				BLACK,		// Full
-				0x551A00FF,	// Shrunken (dark brown)
-				0x00551AFF,	// Extracted FST
-				0x001A55FF,	// CISO
-				0x551A55FF,	// Multi-Game
-				GRAY,		// undefined
-				GRAY,		// undefined
-				GRAY,		// undefined
-			};
-
-			const u32 color = colors[gi->Flags & GIFLAG_FORMAT_MASK];
+			const u32 color = format_colors[gi->Flags & GIFLAG_FORMAT_MASK];
 			// Check if the selected game is a 1:1 image.
 			// If it is, the MD5 can be verified.
 			if (i == ctx->games.posX)
