@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define __MENU_H__
 
 #include <gctypes.h>
+#include <ogc/video.h>
 
 #define MAX_GAMES 1024
 
