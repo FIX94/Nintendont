@@ -601,7 +601,7 @@ static void VerifyMD5(const gameinfo *gi)
 	int len;
 
 	// Read 64 KB at a time.
-	static const u32 buf_sz = 64*1024;
+	static const u32 buf_sz = 1024*1024;
 	u8 *buf = (u8*)malloc(buf_sz);
 	if (!buf)
 	{
@@ -617,6 +617,7 @@ static void VerifyMD5(const gameinfo *gi)
 	float time_start = tv.tv_sec + ((float)tv.tv_usec / 1000000.0f);
 
 	u32 total_read = 0;
+	u32 total_read_mb = 0;
 	const u32 total_size = f_size(&in);
 	bool cancel = false;
 	while (!f_eof(&in))
@@ -643,24 +644,31 @@ static void VerifyMD5(const gameinfo *gi)
 		md5_append(&state, (const md5_byte_t*)buf, read);
 		total_read += read;
 
-		// Status update.
-		ClearScreen();
-		PrintInfo();
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : Cancel");
+		// Only update the screen if the total read MB has changed.
+		u32 new_total_read_mb = total_read / (1024*1024);
+		if (new_total_read_mb != total_read_mb)
+		{
+			new_total_read_mb = total_read_mb;
 
-		static const char md5_calculating[] = "Calculating MD5...";
-		PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(md5_calculating), 232-40, md5_calculating);
-		PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gi->Path), 232, "%s", gi->Path);
+			// Status update.
+			ClearScreen();
+			PrintInfo();
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : Cancel");
 
-		// Print the status, in MiB.
-		len = snprintf(status_msg, sizeof(status_msg),
-			"%u of %u MiB processed",
-			total_read / (1024*1024), total_size / (1024*1024));
-		PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232+40, "%s", status_msg);
+			static const char md5_calculating[] = "Calculating MD5...";
+			PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(md5_calculating), 232-40, md5_calculating);
+			PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gi->Path), 232, "%s", gi->Path);
 
-		// Render the text.
-		GRRLIB_Render();
-		ClearScreen();
+			// Print the status, in MiB.
+			len = snprintf(status_msg, sizeof(status_msg),
+				"%u of %u MiB processed",
+				total_read / (1024*1024), total_size / (1024*1024));
+			PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232+40, "%s", status_msg);
+
+			// Render the text.
+			GRRLIB_Render();
+			ClearScreen();
+		}
 	}
 
 	free(buf);
