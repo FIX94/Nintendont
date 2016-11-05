@@ -233,8 +233,13 @@
 / System Configurations
 /---------------------------------------------------------------------------*/
 
-// FIXME: Change for loader?
+#ifdef __PPC__
+// Nintendont loader: Use one sector buffer per file.
+#define _FS_TINY	0
+#else /* !__PPC__ */
+// Nintendont kernel: Use a single sector buffer.
 #define	_FS_TINY	1
+#endif /* __PPC__ */
 /* This option switches tiny buffer configuration. (0:Normal or 1:Tiny)
 /  At the tiny configuration, size of file object (FIL) is reduced _MAX_SS bytes.
 /  Instead of private sector buffer eliminated from the file object, common sector
