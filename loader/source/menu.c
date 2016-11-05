@@ -618,8 +618,17 @@ static void VerifyMD5(const gameinfo *gi)
 
 	u32 total_read = 0;
 	const u32 total_size = f_size(&in);
+	bool cancel = false;
 	while (!f_eof(&in))
 	{
+		FPAD_Update();
+		if (FPAD_Cancel(0))
+		{
+			// User cancelled the operation.
+			cancel = true;
+			break;
+		}
+
 		UINT read;
 		FRESULT res = f_read(&in, buf, buf_sz, &read);
 		if (res != FR_OK)
@@ -637,6 +646,8 @@ static void VerifyMD5(const gameinfo *gi)
 		// Status update.
 		ClearScreen();
 		PrintInfo();
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : Cancel");
+
 		static const char md5_calculating[] = "Calculating MD5...";
 		PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(md5_calculating), 232-40, md5_calculating);
 		PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gi->Path), 232, "%s", gi->Path);
@@ -651,12 +662,21 @@ static void VerifyMD5(const gameinfo *gi)
 		GRRLIB_Render();
 		ClearScreen();
 	}
-	md5_finish(&state, digest);
+
 	free(buf);
 	f_close(&in);
 #ifdef _USE_FASTSEEK
 	free(in.cltbl);
 #endif
+
+	if (cancel)
+	{
+		// User cancelled the operation.
+		return;
+	}
+
+	// Finish the MD5 calculations.
+	md5_finish(&state, digest);
 
 	// End time.
 	gettimeofday_rvlfix(&tv, NULL);
