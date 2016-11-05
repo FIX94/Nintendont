@@ -566,6 +566,36 @@ static void VerifyMD5(const gameinfo *gi)
 		return;
 	}
 
+#ifdef _USE_FASTSEEK
+	// Set up a FatFS link map for faster operation.
+	u32 tblsize = 4; //minimum default size
+	in.cltbl = malloc(tblsize * sizeof(DWORD));
+	in.cltbl[0] = tblsize;
+	int ret = f_lseek(&in, CREATE_LINKMAP);
+	if (ret == FR_NOT_ENOUGH_CORE)
+	{
+		// Need to allocate more memory for the link map.
+		tblsize = in.cltbl[0];
+		free(in.cltbl);
+		in.cltbl = malloc(tblsize * sizeof(DWORD));
+		in.cltbl[0] = tblsize;
+		ret = f_lseek(&in, CREATE_LINKMAP);
+		if (ret != FR_OK)
+		{
+			// Error creating the link map.
+			// We'll continue without it.
+			free(in.cltbl);
+			in.cltbl = NULL;
+		}
+	} else if (ret != FR_OK)
+	{
+		// Error creating the link map.
+		// We'll continue without it.
+		free(in.cltbl);
+		in.cltbl = NULL;
+	}
+#endif /* _USE_FASTSEEK */
+
 	// snprintf() buffer for the status message.
 	char status_msg[128];
 	int len;
@@ -624,6 +654,9 @@ static void VerifyMD5(const gameinfo *gi)
 	md5_finish(&state, digest);
 	free(buf);
 	f_close(&in);
+#ifdef _USE_FASTSEEK
+	free(in.cltbl);
+#endif
 
 	// End time.
 	gettimeofday_rvlfix(&tv, NULL);

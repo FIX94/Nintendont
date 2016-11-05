@@ -49,15 +49,7 @@
 /* This option switches f_mkfs() function. (0:Disable or 1:Enable) */
 
 
-#ifdef __PPC__
-// Nintendont loader: Disable fast seek, since we're only checking
-// file headers and/or reading the entire file all at once.
-#define	_USE_FASTSEEK	0
-#else /* !__PPC__ */
-// Nintendont kernel: Enable fast seek to allow seeking quickly
-// throughout the 1.46 GB disc image.
 #define	_USE_FASTSEEK	1
-#endif /* __PPC__ */
 /* This option switches fast seek function. (0:Disable or 1:Enable) */
 
 
