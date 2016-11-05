@@ -28,7 +28,7 @@ INCLUDES	:= include ../fatfs
 #---------------------------------------------------------------------------------
 
 CFLAGS	:= -O3 -g -std=gnu89 \
-	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH
+	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN
 CXXFLAGS := $(CFLAGS)
 
 # NOTE: Do NOT change to := - needed for proper expansion of $(CURDIR) later.
