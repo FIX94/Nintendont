@@ -243,6 +243,7 @@ static s32 Download(DOWNLOADS download_number)  {
 			UINT wrote;
 			f_write(&file, outbuf, filesize, &wrote);
 			f_close(&file);
+			FlushDevices();
 			ret = 1;
 		}
 	}

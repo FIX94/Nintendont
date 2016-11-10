@@ -191,6 +191,7 @@ static void updateMetaXml(void)
 		UINT wrote;
 		f_write(&meta, new_meta, len, &wrote);
 		f_close(&meta);
+		FlushDevices();
 	}
 }
 
@@ -762,6 +763,8 @@ int main(int argc, char **argv)
 			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);
 		}
+
+		FlushDevices();
 	}
 
 	// Get multi-game and region code information.

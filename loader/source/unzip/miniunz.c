@@ -17,6 +17,7 @@
 
 #include "unzip.h"
 #include "ff_utf8.h"
+#include "global.h"
 
 #define CASESENSITIVITY (0)
 #define WRITEBUFFERSIZE (8192)
@@ -179,6 +180,7 @@ static int do_extract_currentfile(unzFile uf,const int* popt_extract_without_pat
             if (res == FR_OK)
 			{
 				f_close(&f);
+				FlushDevices();
 				res = FR_NO_FILE;
 			}
 		}

@@ -459,6 +459,7 @@ int CreateNewFile(const char *Path, u32 size)
 	UINT wrote;
 	f_write(&f, buf, size, &wrote);
 	f_close(&f);
+	FlushDevices();
 	free(buf);
 	gprintf("Created %s with %u bytes!\r\n", Path, wrote);
 	return 0;
