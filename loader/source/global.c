@@ -566,13 +566,18 @@ int UnmountDevice(BYTE pdrv)
  */
 void CloseDevices(void)
 {
-	int i;
-
 	closeLog();
-	for (i = DEV_SD; i <= DEV_USB; i++)
-	{
-		UnmountDevice(i);
-	}
+	UnmountDevice(DEV_SD);
+	UnmountDevice(DEV_USB);
+}
+
+/**
+ * Flush all device caches.
+ */
+void FlushDevices(void)
+{
+	disk_flush(DEV_SD);
+	disk_flush(DEV_USB);
 }
 
 /**

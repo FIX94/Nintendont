@@ -254,3 +254,23 @@ DRESULT disk_shutdown (BYTE pdrv)
 	disk_isInit[pdrv] = false;
 	return RES_OK;
 }
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Nintendont: Flush the disk cache.                                     */
+/*-----------------------------------------------------------------------*/
+DRESULT disk_flush (BYTE pdrv)
+{
+	if (pdrv < DEV_SD || pdrv > DEV_USB)
+		return RES_PARERR;
+	if (!disk_isInit[pdrv])
+		return RES_OK;
+
+	if (cache[pdrv]) {
+		// Flush the cache.
+		_FAT_cache_flush(cache[pdrv]);
+	}
+
+	return RES_OK;
+}

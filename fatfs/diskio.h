@@ -38,8 +38,11 @@ typedef enum {
 DSTATUS disk_initialize (BYTE pdrv);
 DSTATUS disk_status (BYTE pdrv);
 
-// Nintendont: Shut down a device.
+#ifdef __PPC__
+// Nintendont loader functions.
 DRESULT disk_shutdown (BYTE pdrv);
+DRESULT disk_flush (BYTE pdrv);
+#endif
 
 #ifdef __PPC__
 // Nintendont loader: Use the standard FatFS read/write interface.

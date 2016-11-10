@@ -193,5 +193,8 @@ bool GenerateMemCard(const char *MemCard, u32 BI2region)
 	f_close(&f);
 	free(MemcardBase);
 	gprintf("Memory Card File created!\r\n");
+
+	// Flush the devices to make sure everything is written.
+	FlushDevices();
 	return true;
 }
