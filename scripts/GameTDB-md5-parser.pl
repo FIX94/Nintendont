@@ -76,7 +76,15 @@ sub handle_elem_start {
 		}
 		case 'rom' {
 			# ROM information.
-			$record->{'md5s'}->{$atts{'version'}} = $atts{'md5'};
+			my $md5s = $record->{'md5s'};
+			my $version = $atts{'version'};
+			if (defined($md5s->{$version})) {
+				print STDERR "WARNING: Duplicate version $atts{'version'} for $record->{'id6'}.\n";
+				do {
+					$version = '!'.$version;
+				} while (defined($md5s->{$version}));
+			}
+			$md5s->{$version} = $atts{'md5'};
 		}
 		case 'locale' {
 			# Save the current locale language for later.
