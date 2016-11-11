@@ -71,7 +71,7 @@ static void md5_to_str(char md5_str[33], const md5_byte_t digest[16])
 	// Convert the MD5 to a string.
 	static const char hex_lookup[16] = {
 		'0','1','2','3','4','5','6','7',
-		'8','9','A','B','C','D','E','F'
+		'8','9','a','b','c','d','e','f'
 	};
 	int i;
 	for (i = 0; i < 16; i++) {
