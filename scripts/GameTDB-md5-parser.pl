@@ -76,7 +76,8 @@ sub handle_elem_start {
 		}
 		case 'rom' {
 			# ROM information.
-			$record->{'md5s'}->{lc($atts{'version'})} = $atts{'md5'};
+			my $version = clean_version($atts{'version'});
+			$record->{'md5s'}->{$version} = $atts{'md5'};
 		}
 		case 'locale' {
 			# Save the current locale language for later.
@@ -107,6 +108,22 @@ sub handle_char_data {
 			}
 		}
 	}
+}
+
+# Clean a GameTDB version.
+# Converts all disc number variants to a standard format.
+sub clean_version {
+	my ($version) = @_;
+	$version = lc($version);
+
+	switch ($version) {
+		case 'disc 1'		{ $version = 'disc1'; }
+		case 'disc 2'		{ $version = 'disc2'; }
+		case 'disc 1-1.02'	{ $version = 'disc1-1.02'; }
+		case 'disc 2-1.02'	{ $version = 'disc2-1.02'; }
+	}
+
+	return $version;
 }
 
 # Parse a GameTDB version.
