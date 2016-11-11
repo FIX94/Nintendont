@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "font.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <ogc/lwp_watchdog.h>
@@ -34,6 +35,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ff_utf8.h"
 
 extern char launch_dir[MAXPATHLEN];
+
+/**
+ * MD5 database format:
+ * 3a62f8d10fd210d4928ad37e3816e33c|GALE01|00|Super Smash Bros. Melee
+ * - Field 1: MD5 (lowercase ASCII)
+ * - Field 2: ID6
+ * - Field 3: Revision (two-digit decimal)
+ * - Field 4: Game name
+ */
 
 typedef enum {
 	MD5_DB_OK = 0,
@@ -186,6 +196,114 @@ static void ShowFinishScreen(float time_diff, const char *gamepath, const char *
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232+40, "%s", status_msg);
 
 	// Caller should print other lines and then render the text.
+}
+
+/**
+ * Find an MD5 in the MD5 database.
+ * @param md5_db	[in] MD5 database in memory.
+ * @param md5_db_size	[in] Size of md5_db, in bytes.
+ * @param md5_str	[in] MD5 string in lowercase ASCII. (32 chars + NULL)
+ * @return Copy of the MD5 line from the database, NULL-terminated; NULL if not found. (Must be freed after use!)
+ */
+static char *FindMD5(const char *md5_db, u32 md5_db_size, const char *md5_str)
+{
+	// End of MD5 DB. (actually one past, same semantics as C++ iterators)
+	const char *md5_db_end = md5_db + md5_db_size;
+
+	while (md5_db < md5_db_end)
+	{
+		// Find the newline and/or NULL terminator.
+		const char *nl;
+		for (nl = md5_db; nl < md5_db_end; nl++) {
+			if (*nl == '\n' || *nl == 0)
+				break;
+		}
+
+		// Found the newline and/or NULL terminator.
+		const u32 str_sz = (u32)(nl - md5_db);
+		if (str_sz < 33) {
+			// Empty line, or line isn't big enough.
+			if (nl == md5_db_end || *nl == 0) {
+				// End of database or NULL terminator.
+				break;
+			}
+			// Next line.
+			md5_db = nl + 1;
+			continue;
+		}
+
+		// Compare the first 32 characters to the requested MD5.
+		// NOTE: This will handle comment lines, since # isn't
+		// a valid character in an MD5.
+		if (md5_db[32] == '|' && !memcmp(md5_db, md5_str, 32)) {
+			// We have a match!
+			char *buf = (char*)malloc(str_sz+1);
+			if (!buf)
+				return NULL;
+			memcpy(buf, md5_db, str_sz);
+			buf[str_sz] = 0;
+			return buf;
+		}
+
+		// Not a match. Proceed to the next line.
+		md5_db = nl + 1;
+	}
+
+	// No match.
+	return NULL;
+}
+
+/**
+ * Print a line from the MD5 database.
+ * @param md5_db_line MD5 database line. (May be modified by strtok_r().)
+ */
+static void PrintMD5Line(char *md5_db_line)
+{
+	char *saveptr;
+	// strdup()'d tokens.
+	char *id6 = NULL, *rev = NULL;
+
+	// Field 1: MD5 (lowercase ASCII)
+	// This field isn't actually being printed.
+	char *token = strtok_r(md5_db_line, "|", &saveptr);
+	if (!token) {
+		// No MD5. (Shouldn't happen...)
+		static const char no_md5_field[] = "WARNING: No MD5 field in DB entry.";
+		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_md5_field), 232+80, no_md5_field);
+		return;
+	}
+
+	// Field 2: ID6
+	token = strtok_r(NULL, "|", &saveptr);
+	if (token)
+		id6 = strdup(token);
+
+	// Field 3: Revision
+	token = strtok_r(NULL, "|", &saveptr);
+	if (token)
+		rev = strdup(token);
+
+	// Field 4: Game name.
+	token = strtok_r(NULL, "", &saveptr);
+
+	// Print everything.
+	if (token)
+	{
+		PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(token), 232+70, token);
+	}
+	else
+	{
+		static const char no_game_name[] = "(no game name)";
+		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_game_name), 232+70, no_game_name);
+	}
+
+	// ID6, revision.
+	char buf[32];
+	snprintf(buf, sizeof(buf), "%.6s, Rev.%.2s", (id6 ? id6 : "??????"), (rev ? rev : "??"));
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(buf), 232+90, buf);
+
+	free(id6);
+	free(rev);
 }
 
 /**
@@ -386,13 +504,10 @@ void VerifyMD5(const gameinfo *gi)
 	const float time_diff = time_end - time_start;
 
 	// Finished processing the MD5.
-	// TODO: Verify against a list of MD5s.
 	char md5_str[33];
 	md5_to_str(md5_str, digest);
 	ShowFinishScreen(time_diff, gi->Path, md5_str);
 	ShowMD5DBStatus(md5_db_status);
-
-	static const char press_a_button[] = "Press the A button to continue...";
 
 	if (md5_db != NULL)
 	{
@@ -403,15 +518,36 @@ void VerifyMD5(const gameinfo *gi)
 		GRRLIB_Render();
 		ClearScreen();
 
-		// TODO: Look up the MD5 in the database.
+		// Look up the MD5 in the database.
+		char *md5_db_line = FindMD5(md5_db, md5_db_size, md5_str);
+
+		// Do we have a match?
+		ShowFinishScreen(time_diff, gi->Path, md5_str);
+		ShowMD5DBStatus(md5_db_status);
+		if (md5_db_line)
+		{
+			// Found a match!
+			PrintMD5Line(md5_db_line);
+			free(md5_db_line);
+		}
+		else
+		{
+			// No match.
+			static const char no_md5_match[] = "MD5 not found in database.";
+			PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_md5_match), 232+80, no_md5_match);
+		}
 	}
 	else
 	{
-		PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(press_a_button), 232+80, press_a_button);
-		// Render the text.
-		GRRLIB_Render();
-		ClearScreen();
+		static const char cannot_verify[] = "Cannot verify MD5 due to database error.";
+		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(cannot_verify), 232+80, cannot_verify);
 	}
+
+	static const char press_a_button[] = "Press the A button to continue...";
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(press_a_button), 232+120, press_a_button);
+	// Render the text.
+	GRRLIB_Render();
+	ClearScreen();
 
 	// Wait for the user to press the A button.
 	while (1)
