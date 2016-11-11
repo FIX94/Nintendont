@@ -171,12 +171,10 @@ bool GenerateMemCard(const char *MemCard, u32 BI2region)
 	const u32 total_size = MEM_CARD_SIZE(ncfg->MemCardBlocks);
 
 	// Reserve space in the memory card file.
-	// FIXME: This seems to make it slower...
-	//f_expand(&f, total_size, 1);
+	f_expand(&f, total_size, 1);
 
 	// Write the header (5 blocks) and initial data area
 	// (3 blocks) to the file.
-	// FIXME: Initial write and second write seem to be slow.
 	UINT wrote;
 	showProgress(0, total_size);
 	f_write(&f, MemcardBase, 0x10000, &wrote);
