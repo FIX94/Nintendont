@@ -76,7 +76,7 @@ sub handle_elem_start {
 		}
 		case 'rom' {
 			# ROM information.
-			$record->{'md5s'}->{$atts{'version'}} = $atts{'md5'};
+			$record->{'md5s'}->{lc($atts{'version'})} = $atts{'md5'};
 		}
 		case 'locale' {
 			# Save the current locale language for later.
@@ -107,6 +107,30 @@ sub handle_char_data {
 			}
 		}
 	}
+}
+
+# Parse a GameTDB version.
+sub parse_version {
+	my ($version) = @_;
+	if (!defined($version) || $version eq '') {
+		# Empty version field. Assume 00.
+		return '00';
+	}
+
+	switch ($version) {
+		case '1'	{ return '00'; }
+		case '1.'	{ return '00'; }
+		case '1.0'	{ return '00'; }
+		case '1.00'	{ return '00'; }
+		case '1.1'	{ return '01'; }
+		case '1.01'	{ return '01'; }
+		case '1.02'	{ return '02'; }
+		case '1.03'	{ return '03'; }
+		case '1.05'	{ return '05'; }
+		case '1.48'	{ return '48'; }
+	}
+
+	return "UNHANDLED VERSION: $version";
 }
 
 # End of element.
@@ -161,7 +185,8 @@ sub handle_elem_end {
 		my @keys = sort(keys(%$md5s));
 		foreach my $version (@keys) {
 			if (defined($md5s->{$version}) && length($md5s->{$version}) == 32) {
-				print $md5s->{$version}.'|'.$record->{'id6'}.'|'.$version.'|0|'.$record->{'title'}."\n";
+				my $print_version = parse_version($version);
+				print $md5s->{$version}.'|'.$record->{'id6'}.'|'.$print_version.'|0|'.$record->{'title'}."\n";
 			}
 		}
 	}
