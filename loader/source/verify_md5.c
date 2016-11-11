@@ -256,12 +256,13 @@ static char *FindMD5(const char *md5_db, u32 md5_db_size, const char *md5_str)
 /**
  * Print a line from the MD5 database.
  * @param md5_db_line MD5 database line. (May be modified by strtok_r().)
+ * @param header Minimal disc header for the game ID in case of conflicts.
  */
-static void PrintMD5Line(char *md5_db_line)
+static void PrintMD5Line(char *md5_db_line, const u8 header[16])
 {
 	char *saveptr;
 	// strdup()'d tokens.
-	char *id6 = NULL, *rev = NULL;
+	char *discnum = NULL;
 
 	// Field 1: MD5 (lowercase ASCII)
 	// This field isn't actually being printed.
@@ -274,16 +275,21 @@ static void PrintMD5Line(char *md5_db_line)
 	}
 
 	// Field 2: ID6
+	// NOTE: Ignored in favor of 'header'.
 	token = strtok_r(NULL, "|", &saveptr);
-	if (token)
-		id6 = strdup(token);
 
 	// Field 3: Revision
+	// NOTE: Ignored in favor of 'header'.
+	token = strtok_r(NULL, "|", &saveptr);
+
+	// Field 4: Disc number.
+	// The header has the disc number, but it doesn't
+	// distinguish between "Disc 1" and "single-disc game".
 	token = strtok_r(NULL, "|", &saveptr);
 	if (token)
-		rev = strdup(token);
+		discnum = strdup(token);
 
-	// Field 4: Game name.
+	// Field 5: Game name.
 	token = strtok_r(NULL, "", &saveptr);
 
 	// Print everything.
@@ -297,13 +303,22 @@ static void PrintMD5Line(char *md5_db_line)
 		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_game_name), 232+70, no_game_name);
 	}
 
-	// ID6, revision.
-	char buf[32];
-	snprintf(buf, sizeof(buf), "%.6s, Rev.%.2s", (id6 ? id6 : "??????"), (rev ? rev : "??"));
+	// ID6, revision, disc number.
+	// ID6 and revision are obtained from the header, since some
+	// GameTDB entries have the same MD5 for different ID6s.
+	// Disc number is taken from the MD5 database file.
+	char buf[40];
+	if (discnum && discnum[0] != '0')
+	{
+		snprintf(buf, sizeof(buf), "%.6s, Rev.%02u, Disc %.1s", header, header[7], discnum);
+	}
+	else
+	{
+		snprintf(buf, sizeof(buf), "%.6s, Rev.%02u", header, header[7]);
+	}
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(buf), 232+90, buf);
 
-	free(id6);
-	free(rev);
+	free(discnum);
 }
 
 /**
@@ -424,7 +439,7 @@ void VerifyMD5(const gameinfo *gi)
 		md5_db_status = MD5_DB_READ_ERROR;
 	}
 
-	// Read 64 KB at a time.
+	// Read 1 MB at a time.
 	static const u32 buf_sz = 1024*1024;
 	u8 *buf = (u8*)memalign(32, buf_sz);
 	if (!buf)
@@ -438,6 +453,11 @@ void VerifyMD5(const gameinfo *gi)
 		free(md5_db);
 		return;
 	}
+
+	// Minimal disc header.
+	// Used to show the actual game ID in case there's
+	// conflicts with multiple versions.
+	u8 header[16];
 
 	// Start time.
 	struct timeval tv;
@@ -465,6 +485,11 @@ void VerifyMD5(const gameinfo *gi)
 			// TODO: Show an error.
 			cancel = true;
 			break;
+		}
+
+		if (total_read == 0) {
+			// Save the minimal disc header.
+			memcpy(header, buf, sizeof(header));
 		}
 
 		// Process the data.
@@ -529,7 +554,7 @@ void VerifyMD5(const gameinfo *gi)
 		if (md5_db_line)
 		{
 			// Found a match!
-			PrintMD5Line(md5_db_line);
+			PrintMD5Line(md5_db_line, header);
 			free(md5_db_line);
 		}
 		else
