@@ -35,6 +35,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 extern char launch_dir[MAXPATHLEN];
 
+typedef enum {
+	MD5_DB_OK = 0,
+	MD5_DB_NOT_FOUND,
+	MD5_DB_TOO_BIG,
+	MD5_DB_NO_MEM,
+	MD5_DB_READ_ERROR,
+} MD5_DB_STATUS;
+
 /**
  * Get the time of day with correct microseconds.
  * @param tv struct timeval
@@ -85,17 +93,58 @@ static void md5_to_str(char md5_str[33], const md5_byte_t digest[16])
 #define STR_CONST_X(str) STR_X(sizeof(str)-1)
 #define STR_PTR_X(str) STR_X(strlen(str))
 
-static const char db_not_found[] = "WARNING: gcn_md5.txt not found; cannot verify MD5s.";
+/**
+ * Show the MD5 database status.
+ * Call this function after one of the regular Show*() functions.
+ * @param md5_db_status MD5 database status.
+ */
+static void ShowMD5DBStatus(MD5_DB_STATUS md5_db_status)
+{
+	switch (md5_db_status)
+	{
+		case MD5_DB_OK:
+			// MD5 database has been loaded.
+			break;
+
+		case MD5_DB_NOT_FOUND: {
+			// Could not find the MD5 database.
+			static const char db_not_found[] = "WARNING: gcn_md5.txt not found; cannot verify MD5s.";
+			PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(db_not_found), 232+180, db_not_found);
+			break;
+		}
+
+		case MD5_DB_TOO_BIG: {
+			// MD5 database is too big.
+			static const char db_too_big[] = "WARNING: gcn_md5.txt is larger than 1 MiB; cannot load.";
+			PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(db_too_big), 232+180, db_too_big);
+			break;
+		}
+
+		case MD5_DB_NO_MEM: {
+			// Could not allocate memory for the MD5 database.
+			static const char db_no_mem[] = "WARNING: memalign() failed loading the MD5 database.";
+			PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(db_no_mem), 232+180, db_no_mem);
+			break;
+		}
+
+		case MD5_DB_READ_ERROR:
+		default: {
+			// Error reading the MD5 database.
+			static const char db_read_error[] = "WARNING: Read error loading MD5 database.";
+			PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(db_read_error), 232+180, db_read_error);
+			break;
+		}
+	}
+}
 
 /**
  * Show a status update.
  * NOTE: Caller should print other lines and then render the text.
- * @param is_md5_found True if gcn_md5.txt was found.
  * @param gamepath Game path.
  * @param total_read Total number of bytes read so far.
  * @param total_size Total size of the disc image.
  */
-static void ShowStatusUpdate(bool is_md5_found, const char *gamepath, u32 total_read, u32 total_size)
+static void ShowStatusUpdate(const char *gamepath, u32 total_read, u32 total_size)
 {
 	// Status update.
 	ClearScreen();
@@ -113,22 +162,16 @@ static void ShowStatusUpdate(bool is_md5_found, const char *gamepath, u32 total_
 		total_read / (1024*1024), total_size / (1024*1024));
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232+40, "%s", status_msg);
 
-	if (!is_md5_found)
-	{
-		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(db_not_found), 232+180, db_not_found);
-	}
-
 	// Caller should print other lines and then render the text.
 }
 /**
  * Show the "Finish" screen.
  * NOTE: Caller should print other lines and then render the text.
- * @param is_md5_found True if gcn_md5.txt was found.
  * @param time_diff Time taken to calculate the MD5.
  * @param gamepath Game path.
  * @param md5_str MD5 as a string.
  */
-static void ShowFinishScreen(bool is_md5_found, float time_diff, const char *gamepath, const char *md5_str)
+static void ShowFinishScreen(float time_diff, const char *gamepath, const char *md5_str)
 {
 	char status_msg[128];
 
@@ -141,11 +184,6 @@ static void ShowFinishScreen(bool is_md5_found, float time_diff, const char *gam
 	// Print the MD5.
 	len = snprintf(status_msg, sizeof(status_msg), "MD5: %s", md5_str);
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232+40, "%s", status_msg);
-
-	if (!is_md5_found)
-	{
-		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(db_not_found), 232+180, db_not_found);
-	}
 
 	// Caller should print other lines and then render the text.
 }
@@ -216,21 +254,67 @@ void VerifyMD5(const gameinfo *gi)
 	snprintf(filepath, sizeof(filepath), "%sgcn_md5.txt",
 		 launch_dir[0] != 0 ? launch_dir : "/apps/Nintendont/");
 	FIL f_md5;
-	bool is_md5_found = false;
-	if (f_open_char(&f_md5, filepath, FA_READ|FA_OPEN_EXISTING) == FR_OK)
+	MD5_DB_STATUS md5_db_status = MD5_DB_OK;
+	char *md5_db = NULL;
+	u32 md5_db_size = 0;
+	FRESULT res = f_open_char(&f_md5, filepath, FA_READ|FA_OPEN_EXISTING);
+	if (res == FR_OK)
 	{
-		// Found the MD5 database file.
-		is_md5_found = true;
+		// Load the MD5 database. (Should be 1 MB or less.)
+		static const u32 md5_db_size_max = 1024*1024;
+		if (f_size(&f_md5) <= md5_db_size_max)
+		{
+			md5_db_size = (u32)f_size(&f_md5);
+			md5_db = (char*)memalign(32, md5_db_size);
+			if (md5_db)
+			{
+				UINT read;
+				FRESULT res = f_read(&in, md5_db, md5_db_size, &read);
+				f_close(&f_md5);
+				if (res != FR_OK || read != md5_db_size)
+				{
+					// Read error.
+					md5_db_status = MD5_DB_READ_ERROR;
+					md5_db_size = 0;
+					free(md5_db);
+					md5_db = NULL;
+				}
+			}
+			else
+			{
+				// Memory allocation failed.
+				md5_db_status = MD5_DB_NO_MEM;
+				md5_db_size = 0;
+			}
+		}
+		else
+		{
+			// MD5 database is too big.
+			md5_db_status = MD5_DB_TOO_BIG;
+		}
+		f_close(&f_md5);
+	}
+	else if (res == FR_NO_FILE || res == FR_NO_PATH)
+	{
+		// File not found.
+		md5_db_status = MD5_DB_NOT_FOUND;
+	}
+	else
+	{
+		// Some other error...
+		// TODO: Better error code?
+		md5_db_status = MD5_DB_READ_ERROR;
 	}
 
 	// Read 64 KB at a time.
 	static const u32 buf_sz = 1024*1024;
-	u8 *buf = (u8*)malloc(buf_sz);
+	u8 *buf = (u8*)memalign(32, buf_sz);
 	if (!buf)
 	{
 		// Memory allocation failed.
 		// TODO: Show an error.
 		f_close(&in);
+		free(md5_db);
 		return;
 	}
 
@@ -272,7 +356,8 @@ void VerifyMD5(const gameinfo *gi)
 		if (new_total_read_mb != total_read_mb)
 		{
 			new_total_read_mb = total_read_mb;
-			ShowStatusUpdate(is_md5_found, gi->Path, total_read, total_size);
+			ShowStatusUpdate(gi->Path, total_read, total_size);
+			ShowMD5DBStatus(md5_db_status);
 			// Render the text.
 			GRRLIB_Render();
 			ClearScreen();
@@ -288,10 +373,7 @@ void VerifyMD5(const gameinfo *gi)
 	if (cancel)
 	{
 		// User cancelled the operation.
-		if (is_md5_found)
-		{
-			f_close(&f_md5);
-		}
+		free(md5_db);
 		return;
 	}
 
@@ -307,11 +389,12 @@ void VerifyMD5(const gameinfo *gi)
 	// TODO: Verify against a list of MD5s.
 	char md5_str[33];
 	md5_to_str(md5_str, digest);
-	ShowFinishScreen(is_md5_found, time_diff, gi->Path, md5_str);
+	ShowFinishScreen(time_diff, gi->Path, md5_str);
+	ShowMD5DBStatus(md5_db_status);
 
 	static const char press_a_button[] = "Press the A button to continue...";
 
-	if (is_md5_found)
+	if (md5_db != NULL)
 	{
 		// Check the MD5 database.
 		static const char checking_db[] = "Checking MD5 database...";
@@ -320,8 +403,7 @@ void VerifyMD5(const gameinfo *gi)
 		GRRLIB_Render();
 		ClearScreen();
 
-		// TODO: Verify the MD5.
-		f_close(&f_md5);
+		// TODO: Look up the MD5 in the database.
 	}
 	else
 	{
@@ -340,4 +422,6 @@ void VerifyMD5(const gameinfo *gi)
 		if (FPAD_OK(0))
 			break;
 	}
+
+	free(md5_db);
 }
