@@ -60,7 +60,14 @@ sector is 0 or greater
 buffer is a pointer to the memory to fill
 */
 static inline bool _FAT_disc_readSectors (const DISC_INTERFACE* disc, sec_t sector, sec_t numSectors, void* buffer) {
-	return disc->readSectors (sector, numSectors, buffer);
+	// Nintendont: Attempt reading up to 10 times.
+	int ret, i;
+	for (i = 10; i > 0; i--) {
+		ret = disc->readSectors (sector, numSectors, buffer);
+		if (ret != 0)
+			break;
+	}
+	return ret;
 }
 
 /*
