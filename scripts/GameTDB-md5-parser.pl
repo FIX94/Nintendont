@@ -40,7 +40,6 @@ my $parser = XML::Parser->new(
 my $lang;	# Locale language in the current <locale> element.
 my $record;	# points to a hash of element contents
 my @context;	# array of current elements (highest index is current)
-my %records;	# set of game entries
 
 eval { $parser->parsefile($xmlfile); };
 
@@ -72,13 +71,12 @@ sub handle_elem_start {
 			# New game entry.
 			$record = {};
 			$record->{'name'} = $atts{'name'};
+			$record->{'md5s'} = {};
 			$lang = '';
 		}
 		case 'rom' {
 			# ROM information.
-			# TODO: Convert the various 'version' formats to two-digit.
-			$record->{'version'} = $atts{'version'};
-			$record->{'md5'} = $atts{'md5'};
+			$record->{'md5s'}->{$atts{'version'}} = $atts{'md5'};
 		}
 		case 'locale' {
 			# Save the current locale language for later.
@@ -120,11 +118,53 @@ sub handle_elem_end {
 	# Game type must be 'GameCube'.
 	return unless(defined($record->{'type'}) && $record->{'type'} eq 'GameCube');
 
-	# MD5 must exist and be 32 characters long.
-	return unless(defined($record->{'md5'}) && length($record->{'md5'}) == 32);
+	# Database entry format:
+	# MD5|ID6|Rev|Disc#|Title
+	my $md5s = $record->{'md5s'};
 
-	# Print the game information.
-	print $record->{'md5'}.'|'.$record->{'id6'}.'|'.$record->{'version'}.'|'.$record->{'title'}."\n";
+	# Check for multi-disc games.
+	if ( defined($md5s->{'disc1'}) &&
+	     defined($md5s->{'disc2'}) &&
+	    !defined($md5s->{'disc0'}))
+	{
+		# Found disc 1 and 2.
+		# TODO: Parse version numbers in some cases?
+
+		# Print disc 1.
+		if (defined($md5s->{'disc1'}) && length($md5s->{'disc1'}) == 32) {
+			print $md5s->{'disc1'}.'|'.$record->{'id6'}.'|00|1|'.$record->{'title'}."\n";
+		}
+		# Print disc 2.
+		if (defined($md5s->{'disc2'}) && length($md5s->{'disc2'}) == 32) {
+			print $md5s->{'disc2'}.'|'.$record->{'id6'}.'|00|2|'.$record->{'title'}."\n";
+		}
+	}
+	elsif ( defined($md5s->{'disc0'}) &&
+	        defined($md5s->{'disc1'}) &&
+	       !defined($md5s->{'disc2'}))
+	{
+		# Found disc 0 and 1. (handle as 1 and 2)
+		# TODO: Parse version numbers in some cases?
+
+		# Print disc 0.
+		if (defined($md5s->{'disc0'}) && length($md5s->{'disc0'}) == 32) {
+			print $md5s->{'disc0'}.'|'.$record->{'id6'}.'|00|1|'.$record->{'title'}."\n";
+		}
+		# Print disc 1.
+		if (defined($md5s->{'disc1'}) && length($md5s->{'disc1'}) == 32) {
+			print $md5s->{'disc1'}.'|'.$record->{'id6'}.'|00|2|'.$record->{'title'}."\n";
+		}
+	}
+	else
+	{
+		# Single disc game, but there may be multiple revisions.
+		my @keys = sort(keys(%$md5s));
+		foreach my $version (@keys) {
+			if (defined($md5s->{$version}) && length($md5s->{$version}) == 32) {
+				print $md5s->{$version}.'|'.$record->{'id6'}.'|'.$version.'|0|'.$record->{'title'}."\n";
+			}
+		}
+	}
 }
 
 # End of document.
