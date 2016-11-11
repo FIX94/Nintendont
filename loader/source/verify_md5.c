@@ -432,6 +432,9 @@ void VerifyMD5(const gameinfo *gi)
 		// Memory allocation failed.
 		// TODO: Show an error.
 		f_close(&in);
+#ifdef _USE_FASTSEEK
+		free(in.cltbl);
+#endif
 		free(md5_db);
 		return;
 	}
@@ -460,9 +463,8 @@ void VerifyMD5(const gameinfo *gi)
 		if (res != FR_OK)
 		{
 			// TODO: Show an error.
-			free(buf);
-			f_close(&in);
-			return;
+			cancel = true;
+			break;
 		}
 
 		// Process the data.
