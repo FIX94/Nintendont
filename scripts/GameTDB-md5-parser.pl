@@ -76,8 +76,7 @@ sub handle_elem_start {
 		}
 		case 'rom' {
 			# ROM information.
-			my $version = clean_version($atts{'version'});
-			$record->{'md5s'}->{$version} = $atts{'md5'};
+			$record->{'md5s'}->{$atts{'version'}} = $atts{'md5'};
 		}
 		case 'locale' {
 			# Save the current locale language for later.
@@ -110,44 +109,55 @@ sub handle_char_data {
 	}
 }
 
-# Clean a GameTDB version.
-# Converts all disc number variants to a standard format.
-sub clean_version {
-	my ($version) = @_;
-	$version = lc($version);
-
-	switch ($version) {
-		case 'disc 1'		{ $version = 'disc1'; }
-		case 'disc 2'		{ $version = 'disc2'; }
-		case 'disc 1-1.02'	{ $version = 'disc1-1.02'; }
-		case 'disc 2-1.02'	{ $version = 'disc2-1.02'; }
-	}
-
-	return $version;
-}
-
 # Parse a GameTDB version.
+# Returns the revision number and disc number.
 sub parse_version {
-	my ($version) = @_;
+	my ($version, $disc_offset) = @_;
 	if (!defined($version) || $version eq '') {
-		# Empty version field. Assume 00.
-		return '00';
+		# Empty version field. Assume Rev.00 and a
+		# single-disc game unless $disc_offset is non-zero.
+		return ('00', $disc_offset);
 	}
 
-	switch ($version) {
-		case '1'	{ return '00'; }
-		case '1.'	{ return '00'; }
-		case '1.0'	{ return '00'; }
-		case '1.00'	{ return '00'; }
-		case '1.1'	{ return '01'; }
-		case '1.01'	{ return '01'; }
-		case '1.02'	{ return '02'; }
-		case '1.03'	{ return '03'; }
-		case '1.05'	{ return '05'; }
-		case '1.48'	{ return '48'; }
+	# Revision number.
+	my $rev = '00';
+	if ($version =~ /1.1$/ ||
+	    $version =~ /1.01$/)
+	{
+		$rev = '01';
+	} elsif ($version =~ /1.02$/) {
+		$rev = '02';
+	} elsif ($version =~ /1.03$/) {
+		$rev = '03';
+	} elsif ($version =~ /1.05$/) {
+		$rev = '05';
+	} elsif ($version =~ /1.48$/) {
+		$rev = '48';
+	} elsif ($version =~ /^disc ?\d$/i) {
+		# Disc number only. Assume Rev.00.
+		$rev = '00';
+	} else {
+		# Check for generic 1.0 versions.
+		switch (lc($version)) {
+			case '1'	{ $rev = '00'; }
+			case '1.'	{ $rev = '00'; }
+			case '1.0'	{ $rev = '00'; }
+			case '1.00'	{ $rev = '00'; }
+			else { $rev = "UNHANDLED VERSION $version"; }
+		}
 	}
 
-	return "UNHANDLED VERSION: $version";
+	# Disc number.
+	my $discnum = 0;
+	if ($version =~ /^disc ?(\d)/i) {
+		$discnum = $1;
+	} elsif ($version =~ /disc/i) {
+		# Unhandled disc number.
+		print STDERR "WARNING: Unhandled disc number $version.\n";
+		$discnum = -1;
+	}
+ 
+	return ($rev, $discnum + $disc_offset);
 }
 
 # End of element.
@@ -163,48 +173,19 @@ sub handle_elem_end {
 	# MD5|ID6|Rev|Disc#|Title
 	my $md5s = $record->{'md5s'};
 
-	# Check for multi-disc games.
-	if ( defined($md5s->{'disc1'}) &&
-	     defined($md5s->{'disc2'}) &&
-	    !defined($md5s->{'disc0'}))
-	{
-		# Found disc 1 and 2.
-		# TODO: Parse version numbers in some cases?
-
-		# Print disc 1.
-		if (defined($md5s->{'disc1'}) && length($md5s->{'disc1'}) == 32) {
-			print $md5s->{'disc1'}.'|'.$record->{'id6'}.'|00|1|'.$record->{'title'}."\n";
-		}
-		# Print disc 2.
-		if (defined($md5s->{'disc2'}) && length($md5s->{'disc2'}) == 32) {
-			print $md5s->{'disc2'}.'|'.$record->{'id6'}.'|00|2|'.$record->{'title'}."\n";
-		}
+	# Check for 'disc0', in which case we have to use an offset for multi-disc.
+	my $disc_offset = 0;
+	if (defined($md5s->{'disc0'}) || defined($md5s->{'Disc0'})) {
+		# Disc 0 is present.
+		$disc_offset = 1;
 	}
-	elsif ( defined($md5s->{'disc0'}) &&
-	        defined($md5s->{'disc1'}) &&
-	       !defined($md5s->{'disc2'}))
-	{
-		# Found disc 0 and 1. (handle as 1 and 2)
-		# TODO: Parse version numbers in some cases?
 
-		# Print disc 0.
-		if (defined($md5s->{'disc0'}) && length($md5s->{'disc0'}) == 32) {
-			print $md5s->{'disc0'}.'|'.$record->{'id6'}.'|00|1|'.$record->{'title'}."\n";
-		}
-		# Print disc 1.
-		if (defined($md5s->{'disc1'}) && length($md5s->{'disc1'}) == 32) {
-			print $md5s->{'disc1'}.'|'.$record->{'id6'}.'|00|2|'.$record->{'title'}."\n";
-		}
-	}
-	else
-	{
-		# Single disc game, but there may be multiple revisions.
-		my @keys = sort(keys(%$md5s));
-		foreach my $version (@keys) {
-			if (defined($md5s->{$version}) && length($md5s->{$version}) == 32) {
-				my $print_version = parse_version($version);
-				print $md5s->{$version}.'|'.$record->{'id6'}.'|'.$print_version.'|0|'.$record->{'title'}."\n";
-			}
+	# Parse all revisions.
+	my @keys = sort(keys(%$md5s));
+	foreach my $version (@keys) {
+		if (defined($md5s->{$version}) && length($md5s->{$version}) == 32) {
+			my ($rev, $discnum) = parse_version($version, $disc_offset);
+			print $md5s->{$version}.'|'.$record->{'id6'}.'|'.$rev.'|'.$discnum.'|'.$record->{'title'}."\n";
 		}
 	}
 }
