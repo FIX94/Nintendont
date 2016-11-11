@@ -188,6 +188,12 @@ static void updateMetaXml(void)
 	// Write the new meta.xml.
 	if (f_open_char(&meta, filepath, FA_WRITE|FA_CREATE_ALWAYS) == FR_OK)
 	{
+		// Reserve space in the file.
+		if (f_size(&meta) < len) {
+			f_expand(&meta, len, 1);
+		}
+
+		// Write the new meta.xml.
 		UINT wrote;
 		f_write(&meta, new_meta, len, &wrote);
 		f_close(&meta);
@@ -749,6 +755,12 @@ int main(int argc, char **argv)
 		FIL cfg;
 		if (f_open_char(&cfg, "/nincfg.bin", FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
+			// Reserve space in the file.
+			if (f_size(&cfg) < sizeof(NIN_CFG)) {
+				f_expand(&cfg, sizeof(NIN_CFG), 1);
+			}
+
+			// Write nincfg.bin.
 			UINT wrote;
 			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);
@@ -759,6 +771,12 @@ int main(int argc, char **argv)
 		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/nincfg.bin", GetRootDevice());
 		if (f_open_char(&cfg, ConfigPath, FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
+			// Reserve space in the file.
+			if (f_size(&cfg) < sizeof(NIN_CFG)) {
+				f_expand(&cfg, sizeof(NIN_CFG), 1);
+			}
+
+			// Write nincfg.bin.
 			UINT wrote;
 			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);

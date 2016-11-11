@@ -240,6 +240,10 @@ static s32 Download(DOWNLOADS download_number)  {
 			ret = -3;
 			goto end;
 		} else {
+			// Reserve space in the file.
+			f_expand(&file, filesize, 1);
+
+			// Write the file.
 			UINT wrote;
 			f_write(&file, outbuf, filesize, &wrote);
 			f_close(&file);

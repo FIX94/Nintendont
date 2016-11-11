@@ -441,19 +441,24 @@ int CreateNewFile(const char *Path, u32 size)
 		return -1;
 	}
 
-	if (f_open_char(&f, Path, FA_WRITE|FA_CREATE_NEW) != FR_OK)
-	{
-		gprintf("Failed to create %s!\r\n", Path);
-		return -2;
-	}
-
 	// Allocate a temporary buffer.
 	void *buf = calloc(size, 1);
 	if(buf == NULL)
 	{
 		gprintf("Failed to allocate %u bytes!\r\n", size);
+		return -2;
+	}
+
+	// Create the file.
+	if (f_open_char(&f, Path, FA_WRITE|FA_CREATE_NEW) != FR_OK)
+	{
+		gprintf("Failed to create %s!\r\n", Path);
+		free(buf);
 		return -3;
 	}
+
+	// Reserve space in the file.
+	f_expand(&f, size, 1);
 
 	// Write the temporary buffer to disk.
 	UINT wrote;

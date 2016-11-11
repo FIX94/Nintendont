@@ -167,7 +167,11 @@ static int do_extract_currentfile(unzFile uf,const int* popt_extract_without_pat
                 }
                 if (err>0)
 				{
-					UINT wrote;
+                    // Reserve space in the file.
+                    f_expand(&f, err, 1);
+
+                    // Write the file.
+                    UINT wrote;
                     if (f_write(&f,buf,err,&wrote)!=FR_OK)
                     {
                         printf("error in writing extracted file\n");
