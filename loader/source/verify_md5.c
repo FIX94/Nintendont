@@ -269,7 +269,7 @@ void VerifyMD5(const gameinfo *gi)
 			if (md5_db)
 			{
 				UINT read;
-				FRESULT res = f_read(&in, md5_db, md5_db_size, &read);
+				FRESULT res = f_read(&f_md5, md5_db, md5_db_size, &read);
 				f_close(&f_md5);
 				if (res != FR_OK || read != md5_db_size)
 				{
