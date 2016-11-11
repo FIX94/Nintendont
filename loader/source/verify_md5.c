@@ -181,7 +181,7 @@ static void ShowStatusUpdate(const char *gamepath, u32 total_read, u32 total_siz
  * @param gamepath Game path.
  * @param md5_str MD5 as a string.
  */
-static void ShowFinishScreen(float time_diff, const char *gamepath, const char *md5_str)
+static void ShowFinishScreen(double time_diff, const char *gamepath, const char *md5_str)
 {
 	char status_msg[128];
 
@@ -462,7 +462,7 @@ void VerifyMD5(const gameinfo *gi)
 	// Start time.
 	struct timeval tv;
 	gettimeofday_rvlfix(&tv, NULL);
-	const float time_start = tv.tv_sec + ((float)tv.tv_usec / 1000000.0f);
+	const double time_start = tv.tv_sec + ((double)tv.tv_usec / 1000000.0f);
 
 	u32 total_read = 0;
 	u32 total_read_mb = 0;
@@ -527,8 +527,8 @@ void VerifyMD5(const gameinfo *gi)
 
 	// End time.
 	gettimeofday_rvlfix(&tv, NULL);
-	const float time_end = tv.tv_sec + ((float)tv.tv_usec / 1000000.0f);
-	const float time_diff = time_end - time_start;
+	const double time_end = tv.tv_sec + ((double)tv.tv_usec / 1000000.0f);
+	const double time_diff = time_end - time_start;
 
 	// Finished processing the MD5.
 	char md5_str[33];
