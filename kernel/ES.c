@@ -51,8 +51,6 @@ static u32 *KeyID = (u32*)NULL;
 static TitleMetaData *iTMD = (TitleMetaData *)NULL;	//used for information during title import
 static u8 *iTIK		= (u8 *)NULL;			//used for information during title import
 
-static u16 TitleVersion;
-
 // General ES functions
 
 u32 ES_Init( u8 *MessageHeap )
@@ -90,7 +88,7 @@ u32 ES_Init( u8 *MessageHeap )
 #endif
 	ES_BootSystem();
 
-	dbgprintf("ES:TitleID:%08x-%08x version:%d\r\n", (u32)((TitleID)>>32), (u32)(TitleID), TitleVersion );
+	dbgprintf("ES:TitleID:%08x-%08x\r\n", (u32)((TitleID)>>32), (u32)(TitleID) );
 
 	return MessageQueue;
 }

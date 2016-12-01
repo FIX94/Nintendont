@@ -1665,7 +1665,15 @@ void  GRRLIB_BMFX_Sepia (const GRRLIB_texImg *texsrc, GRRLIB_texImg *texdest) {
 			sr = R(color)*0.393 + G(color)*0.769 + B(color)*0.189;
 			sg = R(color)*0.349 + G(color)*0.686 + B(color)*0.168;
 			sb = R(color)*0.272 + G(color)*0.534 + B(color)*0.131;
-			if (sr>255) sr=255;  if (sg>255) sg=255;  if (sb>255) sb=255;
+			if (sr>255) {
+				sr=255;
+			}
+			if (sg>255) {
+				sg=255;
+			}
+			if (sb>255) {
+				sb=255;
+			}
 			GRRLIB_SetPixelTotexImg(x, y, texdest,
 									RGBA(sr,sg,sb,A(color)));
 		}

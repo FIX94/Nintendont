@@ -90,7 +90,7 @@ distribution.
 static s32 hId = -1;
 static const char __oh0_path[] ATTRIBUTE_ALIGN(32) = "/dev/usb/oh0";
 static const char __ven_path[] ATTRIBUTE_ALIGN(32) = "/dev/usb/ven";
-static const char __hid_path[] ATTRIBUTE_ALIGN(32) = "/dev/usb/hid";
+//static const char __hid_path[] ATTRIBUTE_ALIGN(32) = "/dev/usb/hid";
 
 typedef struct _usb_cb_list {
 	usbcallback cb;

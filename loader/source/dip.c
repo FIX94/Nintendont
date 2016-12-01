@@ -32,7 +32,7 @@ void DVDStartCache(void)
 
 //Use same buffer as kernel, uncached though, to see howto cache see DI.c
 static u8 *const DISC_DRIVE_BUFFER = (u8*)0x92000800;
-static const u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
+//static const u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
 void ReadRealDisc(u8 *Buffer, u64 Offset, u32 Length, u32 Command)
 {
 	u32 ReadDiff = 0;

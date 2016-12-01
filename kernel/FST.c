@@ -70,7 +70,6 @@ typedef struct
 
 #include "ff_utf8.h"
 static u8 *FSTable ALIGNED(32);
-static u32 ApploaderSize = 0;
 static u32 dolOffset = 0;
 static u32 FSTableSize = 0;
 static u32 FSTableOffset = 0;
@@ -82,7 +81,7 @@ static u32 FCState[FILECACHE_MAX];
 u32 FSTInit( const char *GamePath )
 {
 	char Path[256];
-	u8 buf[0x100];
+	u32 buf[0x40];
 	FIL fd;
 	u32 read;
 
@@ -120,9 +119,9 @@ u32 FSTInit( const char *GamePath )
 			return 0;
 		}
 
-		dolOffset	= *(u32*)(buf);
-		FSTableOffset	= *(u32*)(buf+4);
-		FSTableSize	= *(u32*)(buf+8);
+		dolOffset	= buf[0];
+		FSTableOffset	= buf[1];
+		FSTableSize	= buf[2];
 
 		dbgprintf( "DIP:FSTableOffset:%08X\r\n", FSTableOffset );
 		dbgprintf( "DIP:FSTableSize:  %08X\r\n", FSTableSize );
@@ -151,7 +150,7 @@ u32 FSTInit( const char *GamePath )
 		}
 
 		// BI2.bin region code.
-		BI2region = *(vu32*)(buf+0x18);
+		BI2region = buf[6];
 	}
 
 	//Init cache
