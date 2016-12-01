@@ -24,7 +24,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <gctypes.h>
 #include <stdio.h>
 #include <ogc/ipc.h>
-#include "background_png.h"
 #include "Config.h"
 #include "grrlib.h"
 
@@ -74,11 +73,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define ALIGNED(x) __attribute__((aligned(x)))
 #define NORETURN __attribute__ ((noreturn))
 
-#define ALIGN_FORWARD(x,align) \
-	((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
+#define ALIGN_FORWARD(x, align) \
+	((typeof(x))(((x) + (typeof(x))(align) - 1) & (~((typeof(x))(align) - 1))))
 
-#define ALIGN_BACKWARD(x,align) \
-	((typeof(x))(((u32)(x)) & (~(align-1))))
+#define ALIGN_BACKWARD(x, align) \
+	((typeof(x))((x) & (~((typeof(x))(align) - 1))))
 
 extern bool UseSD;
 extern u32 POffset;
@@ -142,7 +141,15 @@ typedef struct
 
 } __attribute__((packed)) TitleMetaData;
 
-bool IsWiiU( void );
+/**
+ * Is this system a Wii U?
+ * @return True if this is Wii U; false if not.
+ */
+static inline bool IsWiiU(void)
+{
+	return ((*(vu32*)(0xCd8005A0) >> 16) == 0xCAFE);
+}
+
 // FIXME: This return type isn't quite correct...
 const char* const GetRootDevice();
 void RAMInit(void);
@@ -181,8 +188,21 @@ void AfterIOSReload(raw_irq_handler_t handle, u32 rev);
 const WCHAR *MountDevice(BYTE pdrv);
 int UnmountDevice(BYTE pdrv);
 void CloseDevices(void);
+void FlushDevices(void);
+
+/**
+ * Does a filename have a supported file extension?
+ * @return True if it does; false if it doesn't.
+ */
+bool IsSupportedFileExt(const char *filename);
+
+/**
+ * Check if an ID6 is a known multi-game disc.
+ * @param id6 ID6. (must be 6 bytes)
+ * @return True if this is a known multi-game disc; false if not.
+ */
+bool IsMultiGameDisc(const char *id6);
 
 #endif
 
 // 78A94
-

@@ -16,22 +16,20 @@
 #include "ff.h"
 #include "usb_ogc.h"
 
+#include <limits.h>
+#include "ff_cache/cache.h"
+
 extern DISC_INTERFACE __io_wiisd;
 extern DISC_INTERFACE __io_custom_usbstorage;
 DISC_INTERFACE *driver[_VOLUMES] = { &__io_wiisd, &__io_custom_usbstorage };
 static bool disk_isInit[_VOLUMES] = {0};
 
-/* simple but very effective sector cache */
-#define CACHE_SIZE 64  /* 64 sectors per device */
-static struct {
-	u32 pos;			// Next cache entry to use.
-	u32 sectorSize;			// Sector size.
-	DWORD sectorNum[CACHE_SIZE];	// Sector numbers. (0 == invalid entry)
-	BYTE data[CACHE_SIZE][_MAX_SS];	// Cache entries.
-} cache[_VOLUMES];
+// Disk cache.
+unsigned int sectorSize[_VOLUMES] = {0, 0};
+CACHE *cache[_VOLUMES] = {NULL, NULL};
 
 //from usbstorage.c
-extern u32 __sector_size;
+extern u32 __sector_size;	// USB sector size. (Not known until device init.)
 extern void USBStorageOGC_Deinitialize();
 
 /*-----------------------------------------------------------------------*/
@@ -77,25 +75,26 @@ DSTATUS disk_initialize (
 	if (!driver[pdrv]->isInserted())
 		return STA_NODISK;
 
-	// Initialize the sector cache.
-	int i;
-	for (i = CACHE_SIZE-1; i >= 0; i--) {
-		cache[pdrv].sectorNum[i] = 0;
-	}
-	cache[pdrv].pos = 0;
-
 	// Determine the sector size.
 	// - USB: 512 or 4096, depending on drive.
 	// - SD: Always 512.
 	switch (pdrv) {
 		case DEV_SD:
 		default:
-			cache[pdrv].sectorSize = 512;
+			sectorSize[pdrv] = 512;
 			break;
 		case DEV_USB:
-			cache[pdrv].sectorSize = 4096;
+			sectorSize[pdrv] = __sector_size;
 			break;
 	}
+
+	// Initialize the disk cache.
+	// libfat/source/common.h:
+	// - DEFAULT_CACHE_PAGES = 4
+	// - DEFAULT_SECTORS_PAGE = 64
+	// NOTE: endOfPartition isn't usable, since this is a
+	// per-disk cache, not per-partition. Use UINT_MAX-1.
+	cache[pdrv] = _FAT_cache_constructor(4, 64, driver[pdrv], UINT_MAX-1, sectorSize[pdrv]);
 
 	// Device initialized.
 	disk_isInit[pdrv] = true;
@@ -109,50 +108,25 @@ DSTATUS disk_initialize (
 DRESULT disk_read (
 	BYTE pdrv,		/* Physical drive number to identify the drive */
 	BYTE *buff,		/* Data buffer to store read data */
-	DWORD sector,	/* Sector address in LBA */
+	DWORD sector,	/* Start sector in LBA */
 	UINT count		/* Number of sectors to read */
 )
 {
 	if (pdrv < DEV_SD || pdrv > DEV_USB || count == 0)
 		return RES_PARERR;
 
-	// For single-sector reads, check the cache first.
-	// NOTE: Sector 0 is not cached, since '0' is used
-	// to indicate an invalid cache entry. (It's also
-	// only read once per volume on startup when
-	// finding partitions.)
-	if (count == 1 && sector != 0) {
-		int i;
-		for (i = 0; i < CACHE_SIZE; i++) {
-			if (cache[pdrv].sectorNum[i] == sector) {
-				memcpy(buff, cache[pdrv].data[i], cache[pdrv].sectorSize);
-				return RES_OK;
-			}
-		}
+	// Read from the cache.
+	// TODO: Copy the "attempt 10 reads" code to cache.c?
+	bool ret;
+	if (count == 1) {
+		// Single sector.
+		ret = _FAT_cache_readSector(cache[pdrv], buff, sector);
+	} else {
+		// Multiple sectors.
+		ret = _FAT_cache_readSectors(cache[pdrv], sector, count, buff);
 	}
 
-	int retry;
-	for (retry = 10; retry >= 0; retry--) {
-		if (driver[pdrv]->readSectors(sector, count, buff))
-			break;
-	}
-
-	if (retry < 0)
-		return RES_ERROR;
-
-	// Copy the sector to the cache.
-	if (count == 1 && cache[pdrv].sectorSize >= 512) {
-		u32 cPos = cache[pdrv].pos;
-		cache[pdrv].sectorNum[cPos] = sector;
-		memcpy(cache[pdrv].data[cPos], buff, cache[pdrv].sectorSize);
-		cPos++;
-		/* Wrap cache around */
-		if(cPos == CACHE_SIZE)
-			cPos = 0;
-		cache[pdrv].pos = cPos;
-	}
-
-	return RES_OK;
+	return (ret ? RES_OK : RES_ERROR);
 }
 
 
@@ -164,27 +138,24 @@ DRESULT disk_read (
 DRESULT disk_write (
 	BYTE pdrv,			/* Physical drive number to identify the drive */
 	const BYTE *buff,	/* Data to be written */
-	DWORD sector,		/* Sector address in LBA */
+	DWORD sector,		/* Start sector in LBA */
 	UINT count			/* Number of sectors to write */
 )
 {
 	if (pdrv < DEV_SD || pdrv > DEV_USB || count == 0)
 		return RES_PARERR;
 
-	// If any of these sectors were cached, invalidate them.
-	int i;
-	for (i = CACHE_SIZE-1; i >= 0; i--) {
-		if (cache[pdrv].sectorNum[i] >= sector &&
-		    cache[pdrv].sectorNum[i] < (sector+count))
-		{	
-			cache[pdrv].sectorNum[i] = 0;
-		}
+	// Write to the cache.
+	bool ret;
+	if (count == 1) {
+		// Single sector.
+		ret = _FAT_cache_writeSector(cache[pdrv], buff, sector);
+	} else {
+		// Multiple sectors.
+		ret = _FAT_cache_writeSectors(cache[pdrv], sector, count, buff);
 	}
 
-	if (driver[pdrv]->writeSectors(sector, count, buff) < 0)
-		return RES_ERROR;
-
-	return RES_OK;
+	return (ret ? RES_OK : RES_ERROR);
 }
 
 
@@ -204,13 +175,7 @@ DRESULT disk_ioctl (
 
 	switch (cmd) {
 		case GET_SECTOR_SIZE:
-			if (pdrv == 0) {
-				// Hardcoded SD sector size.
-				*(WORD*)buff = 512;
-			} else {
-				// USB sector size.
-				*(WORD*)buff = __sector_size;
-			}
+			*(WORD*)buff = sectorSize[pdrv];
 			ret = RES_OK;
 			break;
 
@@ -273,11 +238,39 @@ DRESULT disk_shutdown (BYTE pdrv)
 	if (!disk_isInit[pdrv])
 		return RES_OK;
 
+	if (cache[pdrv]) {
+		// Flush and destroy the cache.
+		_FAT_cache_destructor(cache[pdrv]);
+		cache[pdrv] = NULL;
+	}
+
+	// Shut down the device.
 	driver[pdrv]->shutdown();
 	if (pdrv == DEV_USB) {
+		// Shut down the USB subsystem as well.
 		USBStorageOGC_Deinitialize();
 		USB_OGC_Deinitialize();
 	}
 	disk_isInit[pdrv] = false;
+	return RES_OK;
+}
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Nintendont: Flush the disk cache.                                     */
+/*-----------------------------------------------------------------------*/
+DRESULT disk_flush (BYTE pdrv)
+{
+	if (pdrv < DEV_SD || pdrv > DEV_USB)
+		return RES_PARERR;
+	if (!disk_isInit[pdrv])
+		return RES_OK;
+
+	if (cache[pdrv]) {
+		// Flush the cache.
+		_FAT_cache_flush(cache[pdrv]);
+	}
+
 	return RES_OK;
 }

@@ -39,7 +39,7 @@
 extern int dbgprintf( const char *fmt, ...);
 #endif
 
-s32 __sd0_fd;
+static s32 __sd0_fd;
 static u16 __sd0_rca;
 static s32 __sd0_initialized;
 static s32 __sd0_sdhc;
@@ -98,7 +98,7 @@ static s32 __sdio_setclock(u32 set)
 	return ret;
 }
 
-u32 *status = NULL;
+static u32 *status = NULL;
 s32 __sdio_getstatus()
 {
 	s32 ret;

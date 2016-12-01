@@ -188,9 +188,16 @@ static void updateMetaXml(void)
 	// Write the new meta.xml.
 	if (f_open_char(&meta, filepath, FA_WRITE|FA_CREATE_ALWAYS) == FR_OK)
 	{
+		// Reserve space in the file.
+		if (f_size(&meta) < len) {
+			f_expand(&meta, len, 1);
+		}
+
+		// Write the new meta.xml.
 		UINT wrote;
 		f_write(&meta, new_meta, len, &wrote);
 		f_close(&meta);
+		FlushDevices();
 	}
 }
 
@@ -199,6 +206,271 @@ void changeToDefaultDrive()
 {
 	f_chdrive(primaryDevice);
 	f_chdir_char("/");
+}
+
+/**
+ * Get multi-game and region code information.
+ * @param CurDICMD	[in] DI command. (0 == disc image, DIP_CMD_NORMAL == GameCube disc, DIP_CMD_DVDR == DVD-R)
+ * @param ISOShift	[out,opt] ISO Shift. (34-bit rshifted byte offset)
+ * @param BI2region	[out,opt] bi2.bin region code.
+ * @return 0 on success; non-zero on error.
+ */
+static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2region)
+{
+	char GamePath[260];
+
+	// Re-read the disc header to get the full ID6.
+	u8 *MultiHdr = memalign(32, 0x800);
+
+	FIL f;
+	UINT read;
+	FRESULT fres = FR_DISK_ERR;
+
+	if(CurDICMD)
+	{
+		ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
+	}
+	else if (IsSupportedFileExt(ncfg->GamePath))
+	{
+		snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
+		fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
+		if (fres != FR_OK)
+		{
+			// Error opening the file.
+			free(MultiHdr);
+			return -1;
+		}
+
+		f_read(&f, MultiHdr, 0x800, &read);
+		if (read != 0x800)
+		{
+			// Error reading from the file.
+			f_close(&f);
+			free(MultiHdr);
+			return -2;
+		}
+
+		// NOTE: Not checking for CISO format here.
+	}
+	else
+	{
+		// Extracted FST format.
+		// Multi-game isn't supported.
+		if (ISOShift)
+			*ISOShift = 0;
+		if (!BI2region)
+			return 0;
+
+		// Get the bi2.bin region code.
+		snprintf(GamePath, sizeof(GamePath), "%s:%ssys/bi2.bin", GetRootDevice(), ncfg->GamePath);
+		fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
+		if (fres != FR_OK)
+		{
+			// Error opening bi2.bin.
+			free(MultiHdr);
+			return -3;
+		}
+
+		// bi2.bin is normally 8 KB, but we only need
+		// the first 48 bytes.
+		f_read(&f, MultiHdr, 48, &read);
+		f_close(&f);
+		if (read != 48)
+		{
+			// Could not read bi2.bin.
+			f_close(&f);
+			free(MultiHdr);
+			return -3;
+		}
+
+		// BI2.bin is at 0x440.
+		// Region code is at 0x458. (0x18 within BI2.bin.)
+		*BI2region = *(u32*)(&MultiHdr[0x18]);
+		return 0;
+	}
+
+	if (!IsMultiGameDisc((const char*)MultiHdr))
+	{
+		// Not a multi-game disc.
+		if (!CurDICMD)
+		{
+			// Close the disc image file.
+			f_close(&f);
+		}
+
+		if (BI2region)
+		{
+			// BI2.bin is at 0x440.
+			// Region code is at 0x458.
+			*BI2region = *(u32*)(&MultiHdr[0x458]);
+		}
+
+		free(MultiHdr);
+		return 0;
+	}
+
+	// Up to 15 games are supported.
+	// In theory, the format supports up to 48 games, but
+	// you'll run into the DVD size limit way before you
+	// ever reach that limit.
+	u32 i = 0;
+	u32 gamecount = 0;
+	u32 Offsets[15]; // 34-bit, rshifted by 2
+	u32 BI2region_codes[15];
+	gameinfo gi[15];
+
+	// Games must be aligned to 4-byte boundaries, since
+	// we're using 34-bit rsh2 (Wii) offsets.
+	u8 gameIsUnaligned[15];
+
+	u8 *GameHdr = memalign(32, 0x800);
+	// GCOPDV(D9) uses Wii-style 34-bit shifted addresses.
+	// FIXME: Needs 64-bit offsets.
+	const u32 *hdr32 = (const u32*)MultiHdr;
+	bool IsShifted = (hdr32[1] == 0x44564439);
+	for (i = 0x10; i < 0x40 && gamecount < 15; i++)
+	{
+		const u32 TmpOffset = hdr32[i];
+		if (TmpOffset > 0)
+		{
+			u64 RealOffset;
+			if (IsShifted)
+			{
+				// Disc uses 34-bit shifted offsets.
+				Offsets[gamecount] = TmpOffset;
+				RealOffset = (u64)TmpOffset << 2;
+			}
+			else
+			{
+				// Disc uses 32-bit unshifted offsets.
+				// If the value isn't a multiple of 4, it's unusable.
+				// TODO: Fix this, or will this "never" happen?
+				gameIsUnaligned[gamecount] = !!(TmpOffset & 3);
+				Offsets[gamecount] = TmpOffset >> 2;
+				RealOffset = TmpOffset;
+			}
+
+			if(CurDICMD)
+			{
+				ReadRealDisc(GameHdr, RealOffset, 0x800, CurDICMD);
+			}
+			else
+			{
+				f_lseek(&f, RealOffset);
+				f_read(&f, GameHdr, 0x800, &read);
+			}
+
+			// Make sure the title in the header is NULL terminated.
+			GameHdr[0x20+65] = 0;
+
+			// BI2.bin is at 0x440.
+			// Region code is at 0x458.
+			BI2region_codes[gamecount] = *(u32*)(&GameHdr[0x458]);
+
+			// TODO: titles.txt support?
+			memcpy(gi[gamecount].ID, GameHdr, 6);
+			gi[gamecount].DiscNumber = 0;
+			gi[gamecount].Flags = GIFLAG_NAME_ALLOC;
+			gi[gamecount].Name = strdup((char*)&GameHdr[0x20]);
+			gi[gamecount].Path = NULL;
+			gamecount++;
+		}
+	}
+
+	free(GameHdr);
+	free(MultiHdr);
+	if (!CurDICMD)
+	{
+		f_close(&f);
+	}
+
+	// TODO: Share code with menu.c.
+	bool redraw = true;
+	ClearScreen();
+	u32 PosX = 0;
+	u32 UpHeld = 0, DownHeld = 0;
+	while (true)
+	{
+		VIDEO_WaitVSync();
+		FPAD_Update();
+		if( FPAD_OK(0) )
+		{
+			// TODO: Fix support for unaligned games?
+			if (!gameIsUnaligned[PosX])
+				break;
+		}
+
+		if( FPAD_Down(1) )
+		{
+			if(DownHeld == 0 || DownHeld > 10)
+			{
+				PosX++;
+				if(PosX == gamecount) PosX = 0;
+				redraw = true;
+			}
+			DownHeld++;
+		}
+		else
+		{
+			DownHeld = 0;
+		}
+
+		if( FPAD_Up(1) )
+		{
+			if(UpHeld == 0 || UpHeld > 10)
+			{
+				if(PosX == 0) PosX = gamecount;
+				PosX--;
+				redraw = true;
+			}
+			UpHeld++;
+		}
+		else
+		{
+			UpHeld = 0;
+		}
+
+		// TODO: Home = Go Back?
+
+		if( redraw )
+		{
+			PrintInfo();
+			static const int subheader_x = (640 - (40*10)) / 2;
+			PrintFormat(DEFAULT_SIZE, BLACK, subheader_x, MENU_POS_Y + 20*3,
+				    "Select a game from this multi-game disc:");
+			for (i = 0; i < gamecount; ++i)
+			{
+				const u32 color = gameIsUnaligned[i] ? MAROON : BLACK;
+				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
+					    gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
+			}
+			GRRLIB_Render();
+			Screenshot();
+			ClearScreen();
+			redraw = false;
+		}
+	}
+
+	// Free the allocated names.
+	for (i = 0; i < gamecount; ++i)
+	{
+		if (gi[i].Flags & GIFLAG_NAME_ALLOC)
+			free(gi[i].Name);
+	}
+
+	// Set the ISOShift and BI2region values.
+	if (ISOShift)
+	{
+		*ISOShift = Offsets[PosX];
+	}
+	if (BI2region)
+	{
+		*BI2region = BI2region_codes[PosX];
+	}
+
+	// Save the Game ID.
+	memcpy(&ncfg->GameID, gi[PosX].ID, 4);
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -483,6 +755,12 @@ int main(int argc, char **argv)
 		FIL cfg;
 		if (f_open_char(&cfg, "/nincfg.bin", FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
+			// Reserve space in the file.
+			if (f_size(&cfg) < sizeof(NIN_CFG)) {
+				f_expand(&cfg, sizeof(NIN_CFG), 1);
+			}
+
+			// Write nincfg.bin.
 			UINT wrote;
 			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);
@@ -493,129 +771,27 @@ int main(int argc, char **argv)
 		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/nincfg.bin", GetRootDevice());
 		if (f_open_char(&cfg, ConfigPath, FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
+			// Reserve space in the file.
+			if (f_size(&cfg) < sizeof(NIN_CFG)) {
+				f_expand(&cfg, sizeof(NIN_CFG), 1);
+			}
+
+			// Write nincfg.bin.
 			UINT wrote;
 			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);
 		}
+
+		FlushDevices();
 	}
 
-	// Check for multi-game disc images.
-	u32 ISOShift = 0;
-	if(memcmp(&(ncfg->GameID), "COBR", 4) == 0 || memcmp(&(ncfg->GameID), "GGCO", 4) == 0
-		|| memcmp(&(ncfg->GameID), "GCO", 3) == 0 || memcmp(&(ncfg->GameID), "RGCO", 4) == 0)
+	// Get multi-game and region code information.
+	u32 ISOShift = 0;	// NOTE: This is a 34-bit shifted offset.
+	u32 BI2region = 0;	// bi2.bin region code [TODO: Validate?]
+	if (CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region) != 0)
 	{
-		u32 i, j = 0;
-		u32 Offsets[15];
-		gameinfo gi[15];
-		u8 *MultiHdr = memalign(32, 0x800);
-
-		FIL f;
-		UINT read;
-		FRESULT fres = FR_DISK_ERR;
-
-		if(CurDICMD)
-		{
-			ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
-		}
-		else if(strstr(ncfg->GamePath, ".iso") != NULL)
-		{
-			char GamePath[260];
-			snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
-			fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
-			if (fres == FR_OK)
-				f_read(&f, MultiHdr, 0x800, &read);
-		}
-
-		//Damn you COD for sharing this ID!
-		if (fres != FR_OK || (memcmp(MultiHdr, "GCO", 3) == 0 && memcmp(MultiHdr+4, "52", 3) == 0))
-		{
-			free(MultiHdr);
-			if (fres == FR_OK)
-				f_close(&f);
-		}
-		else
-		{
-			u8 *GameHdr = memalign(32, 0x800);
-			u32 NeedShift = (*(vu32*)(MultiHdr+4) == 0x44564439);
-			for(i = 0x40; i < 0x100; i += 4)
-			{
-				u32 TmpOffset = *(vu32*)(MultiHdr+i);
-				if(TmpOffset > 0)
-				{
-					Offsets[j] = NeedShift ? TmpOffset << 2 : TmpOffset;
-					if(CurDICMD)
-					{
-						ReadRealDisc(GameHdr, Offsets[j], 0x800, CurDICMD);
-					}
-					else
-					{
-						f_lseek(&f, Offsets[j]);
-						f_read(&f, GameHdr, 0x800, &read);
-					}
-
-					// TODO: titles.txt support?
-					// FIXME: This memory is never freed!
-					memcpy(gi[j].ID, GameHdr, 6);
-					gi[j].Name = strdup((char*)GameHdr+0x20);
-					j++;
-					if(j == 15) break;
-				}
-			}
-			free(GameHdr);
-			free(MultiHdr);
-			f_close(&f);
-
-			bool redraw = 1;
-			ClearScreen();
-			u32 PosX = 0;
-			u32 UpHeld = 0, DownHeld = 0;
-			while(1)
-			{
-				VIDEO_WaitVSync();
-				FPAD_Update();
-				if( FPAD_OK(0) )
-					break;
-				else if( FPAD_Down(1) )
-				{
-					if(DownHeld == 0 || DownHeld > 10)
-					{
-						PosX++;
-						if(PosX == j) PosX = 0;
-						redraw = true;
-					}
-					DownHeld++;
-				}
-				else
-					DownHeld = 0;
-				if( FPAD_Up(1) )
-				{
-					if(UpHeld == 0 || UpHeld > 10)
-					{
-						if(PosX == 0) PosX = j;
-						PosX--;
-						redraw = true;
-					}
-					UpHeld++;
-				}
-				else
-					UpHeld = 0;
-				if( redraw )
-				{
-					PrintInfo();
-					for( i=0; i < j; ++i )
-						PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
-							gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
-					GRRLIB_Render();
-					Screenshot();
-					ClearScreen();
-					redraw = false;
-				}
-			}
-			ISOShift = Offsets[PosX];
-			memcpy(&(ncfg->GameID), gi[PosX].ID, 4);
-		}
+		ShowMessageScreenAndExit("CheckForMultiGameAndRegion() failed.", 1);
 	}
-//multi-iso game hack
 	*(vu32*)0xD300300C = ISOShift;
 
 //Set Language
@@ -656,13 +832,24 @@ int main(int argc, char **argv)
 		memset(MemCardName, 0, 8);
 		if ( ncfg->Config & NIN_CFG_MC_MULTI )
 		{
-			// "Multi" mode enabled.
+			// "Multi" mode is enabled.
 			// Use one memory card for USA/PAL games,
 			// and another memory card for JPN games.
-			if ((ncfg->GameID & 0xFF) == 'J')  // JPN games
-				memcpy(MemCardName, "ninmemj", 7);
-			else
-				memcpy(MemCardName, "ninmem", 6);
+			switch (BI2region)
+			{
+				case BI2_REGION_JAPAN:
+				case BI2_REGION_SOUTH_KOREA:
+				default:
+					// JPN games.
+					memcpy(MemCardName, "ninmemj", 7);
+					break;
+
+				case BI2_REGION_USA:
+				case BI2_REGION_PAL:
+					// USA/PAL games.
+					memcpy(MemCardName, "ninmem", 6);
+					break;
+			}
 		}
 		else
 		{
@@ -677,7 +864,7 @@ int main(int argc, char **argv)
 		if (f_open_char(&f, MemCard, FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		{
 			// Memory card file not found. Create it.
-			if(GenerateMemCard(MemCard) == false)
+			if(GenerateMemCard(MemCard, BI2region) == false)
 			{
 				ClearScreen();
 				ShowMessageScreenAndExit("Failed to create Memory Card File!", 1);
@@ -716,20 +903,22 @@ int main(int argc, char **argv)
 		// Attempt to load the GameCube IPL.
 		char iplchar[32];
 		iplchar[0] = 0;
-		switch (ncfg->GameID & 0xFF)
+		switch (BI2region)
 		{
-			case 'E':	// USA region
+			case BI2_REGION_USA:
 				snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
 				break;
-			case 'J':	// JPN region
+
+			case BI2_REGION_JAPAN:
+			case BI2_REGION_SOUTH_KOREA:
+			default:
 				snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
 				break;
-			case 'P':	// PAL region
+
+			case BI2_REGION_PAL:
 				// FIXME: PAL IPL is broken on Wii U.
 				if (!IsWiiU())
 					snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
-				break;
-			default:
 				break;
 		}
 
@@ -954,44 +1143,45 @@ int main(int argc, char **argv)
 	progressive = (ncfg->Config & NIN_CFG_FORCE_PROG)
 		&& !useipl && !useipltri;
 
-	switch (ncfg->GameID & 0x000000FF)
+	switch (BI2region)
 	{
-		// EUR
-		case 'D':
-		case 'F':
-		case 'H':
-		case 'I':
-		case 'M':
-		case 'P':
-		case 'S':
-		case 'U':
-		case 'X':
-		case 'Y':
-		case 'Z':
-			if(progressive || (vidForce && (vidForceMode == NIN_VID_FORCE_PAL60 ||
-				vidForceMode == NIN_VID_FORCE_MPAL || vidForceMode == NIN_VID_FORCE_NTSC)))
+		case BI2_REGION_PAL:
+			if (progressive || (vidForce &&
+			    (vidForceMode == NIN_VID_FORCE_PAL60 ||
+			     vidForceMode == NIN_VID_FORCE_MPAL ||
+			     vidForceMode == NIN_VID_FORCE_NTSC)))
+			{
+				// PAL60 and/or PAL-M
 				*(vu32*)0x800000CC = 5;
+			}
 			else
+			{
+				// PAL50
 				*(vu32*)0x800000CC = 1;
+			}
 			vmode = &TVPal528IntDf;
 			break;
-		//US
-		case 'E':
-			if((vidForce && vidForceMode == NIN_VID_FORCE_MPAL)
-				|| (!vidForce && CONF_GetVideo() == CONF_VIDEO_MPAL))
+
+		case BI2_REGION_USA:
+			if ((vidForce && vidForceMode == NIN_VID_FORCE_MPAL) ||
+			    (!vidForce && CONF_GetVideo() == CONF_VIDEO_MPAL))
 			{
+				// PAL-M
 				*(vu32*)0x800000CC = 3;
 				vmode = &TVMpal480IntDf;
 			}
 			else
 			{
+				// NTSC
 				*(vu32*)0x800000CC = 0;
 				vmode = &TVNtsc480IntDf;
 			}
 			break;
-		//JP
-		case 'J':
+
+		case BI2_REGION_JAPAN:
+		case BI2_REGION_SOUTH_KOREA:
 		default:
+			// NTSC
 			*(vu32*)0x800000CC = 0;
 			vmode = &TVNtsc480IntDf;
 			break;
@@ -1023,22 +1213,33 @@ int main(int argc, char **argv)
 		syssram *sram;
 		sram = __SYS_LockSram();
 		sram->display_offsetH = 0;	// Clear Offset
-		sram->ntd		&= ~0x40;	// Clear PAL60
 		sram->flags		&= ~0x80;	// Clear Progmode
 		sram->flags		&= ~3;		// Clear Videomode
-		switch(ncfg->GameID & 0xFF)
+
+		// PAL60 flag.
+		if (BI2region == BI2_REGION_PAL)
 		{
-			case 'E':
-			case 'J':
-				//BMX XXX doesnt even boot on a real gc with component cables
-				if( (ncfg->GameID >> 8) != 0x474233 &&
-					(ncfg->VideoMode & NIN_VID_PROG) )
-					sram->flags |= 0x80;	// Set Progmode
-				break;
-			default:
-				sram->ntd		|= 0x40;	// Set PAL60
-				break;
+			// Enable PAL60.
+			sram->ntd |= 0x40;
+
+			// TODO: Set the progressive scan flag on PAL?
 		}
+		else
+		{
+			// Disable PAL60.
+			sram->ntd &= 0x40;
+
+			// Set the progressive scan flag if a component cable
+			// is connected (or HDMI on Wii U), unless we're loading
+			// BMX XXX, since that game won't even boot on a real
+			// GameCube if a component cable is connected.
+			if ((ncfg->GameID >> 24) != 0x474233 &&
+			    (ncfg->VideoMode & NIN_VID_PROG))
+			{
+				sram->flags |= 0x80;
+			}
+		}
+
 		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5)
 			sram->flags	|= 1; //PAL Video Mode
 		__SYS_UnlockSram(1); // 1 -> write changes

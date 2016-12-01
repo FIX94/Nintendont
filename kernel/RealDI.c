@@ -31,16 +31,16 @@ static u32 identify[8] __attribute__((aligned(32)));
 static u32 readdiscid[8] __attribute__((aligned(32)));
 static const char di_path[] __attribute__((aligned(32))) = "/dev/di";
 static s32 di_fd = -1;
-extern u32 Region;
 u32 RealDiscCMD = 0, RealDiscError = 0;
-//No ISO Cache so lets take alot of memory
-u8 *DISC_FRONT_CACHE = (u8*)0x12000000;
-u8 *DISC_DRIVE_BUFFER = (u8*)0x12000800;
-u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
-u8 *DISC_TMP_CACHE = (u8*)0x127FF800;
 
-s32 realdiqueue = -1;
-vu32 realdi_msgrecv = 0;
+//No ISO Cache so lets take alot of memory
+static u8 *const DISC_FRONT_CACHE = (u8*)0x12000000;
+static u8 *const DISC_DRIVE_BUFFER = (u8*)0x12000800;
+static const u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
+static u8 *const DISC_TMP_CACHE = (u8*)0x127FF800;
+
+static s32 realdiqueue = -1;
+static vu32 realdi_msgrecv = 0;
 u32 RealDI_Thread(void *arg)
 {
 	struct ipcmessage *msg = NULL;
@@ -89,7 +89,7 @@ void RealDI_Identify(bool NeedsGC)
 	ClearRealDiscBuffer();
 	u32 Length = 0x800;
 	RealDiscCMD = DIP_CMD_NORMAL;
-	u8 *TmpBuf = ReadRealDisc(&Length, 0, false);
+	const u8 *TmpBuf = ReadRealDisc(&Length, 0, false);
 	if(IsGCGame((u32)TmpBuf) == false)
 	{
 		Length = 0x800;
@@ -111,11 +111,11 @@ void RealDI_Identify(bool NeedsGC)
 	}
 	memcpy((void*)0, TmpBuf, 0x20); //Disc Header
 	sync_after_write((void*)0, 0x20);
-	Region = read32((u32)(TmpBuf+0x458)); //Game Region
+	BI2region = read32((u32)(TmpBuf+0x458)); // BI2.bin region code
 	dbgprintf("DI:Reading real disc with command 0x%02X\r\n", RealDiscCMD);
 }
 
-vu32 WaitForWrite = 0, WaitForRead = 0;
+static vu32 WaitForWrite = 0, WaitForRead = 0;
 void RealDI_Update()
 {
 	if(WaitForWrite == 1)
@@ -165,31 +165,38 @@ bool RealDI_NewDisc()
 	return false;
 }
 
-static u32 DVD_OFFSET = UINT_MAX;
+static u64 DVD_OFFSET64 = ~0;
 void ClearRealDiscBuffer(void)
 {
-	DVD_OFFSET = UINT_MAX;
+	DVD_OFFSET64 = ~0;
 	memset32(DISC_DRIVE_BUFFER, 0, DISC_DRIVE_BUFFER_LENGTH);
 	sync_after_write(DISC_DRIVE_BUFFER, DISC_DRIVE_BUFFER_LENGTH);
 }
+
 extern bool access_led;
-u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
+extern u64 ISOShift64;
+const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 {
 	//dbgprintf("ReadRealDisc(%08x %08x)\r\n", *Length, Offset);
 
 	u32 CachedBlockStart = 0;
 	u32 ReadDiff = 0;
+
+	u32 TmpLen = *Length;
+	u64 TmpOffset = (u64)Offset + ISOShift64;
 	if(RealDiscCMD == DIP_CMD_DVDR)
 	{
-		u32 AlignedOffset = ALIGN_BACKWARD(Offset, 0x800);
-		ReadDiff = Offset - AlignedOffset;
-		if(AlignedOffset == DVD_OFFSET)
+		// Wii's disc drive can only read full ISO-9660
+		// sectors when using standard DVD media. (2048 bytes)
+		u64 AlignedOffset = ALIGN_BACKWARD(TmpOffset, 0x800);
+		ReadDiff = (u32)(TmpOffset - AlignedOffset);
+		if(AlignedOffset == DVD_OFFSET64)
 		{
 			sync_before_read(DISC_TMP_CACHE, 0x800);
-			//dbgprintf("Using cached offset %08x\r\n", DVD_OFFSET>>11);
+			//dbgprintf("Using cached offset %08llx\r\n", DVD_OFFSET64>>11);
 			memcpy(DISC_FRONT_CACHE, DISC_TMP_CACHE, 0x800);
 			CachedBlockStart = 0x800;
-			u32 AlignedLength = ALIGN_FORWARD(*Length + ReadDiff, 0x800);
+			u32 AlignedLength = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800);
 			if( AlignedLength > 0 && AlignedLength == CachedBlockStart )
 				return (DISC_FRONT_CACHE + ReadDiff);
 		}
@@ -205,25 +212,32 @@ u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 	//turn on drive led
 	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
-	if (*Length > DISC_DRIVE_BUFFER_LENGTH - ReadDiff)
+	if (TmpLen > DISC_DRIVE_BUFFER_LENGTH - ReadDiff)
 	{
-		*Length = DISC_DRIVE_BUFFER_LENGTH - ReadDiff;
-		//dbgprintf("New Length: %08x\r\n", *Length);
-	}
-	u32 TmpLen = *Length;
-	u32 TmpOffset = Offset;
-	if(RealDiscCMD == DIP_CMD_DVDR)
-	{
-		TmpLen = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800) - CachedBlockStart;
-		TmpOffset = ALIGN_BACKWARD(Offset, 0x800) + CachedBlockStart;
+		TmpLen = DISC_DRIVE_BUFFER_LENGTH - ReadDiff;
+		*Length = TmpLen;
+		//dbgprintf("New Length: %08x\r\n", TmpLen);
 	}
 
 	write32(DIP_STATUS, 0x54); //mask and clear interrupts
 
 	//Actually read
-	write32(DIP_CMD_0, RealDiscCMD << 24);
-	write32(DIP_CMD_1, RealDiscCMD == DIP_CMD_DVDR ? TmpOffset >> 11 : TmpOffset >> 2);
-	write32(DIP_CMD_2, RealDiscCMD == DIP_CMD_DVDR ? TmpLen >> 11 : TmpLen);
+	if (RealDiscCMD == DIP_CMD_DVDR)
+	{
+		// Adjust length and offset for DVD-R mode.
+		TmpLen = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800) - CachedBlockStart;
+		TmpOffset = ALIGN_BACKWARD(TmpOffset, 0x800) + CachedBlockStart;
+
+		write32(DIP_CMD_0, DIP_CMD_DVDR << 24);
+		write32(DIP_CMD_1, (u32)(TmpOffset >> 11));
+		write32(DIP_CMD_2, TmpLen >> 11);
+	}
+	else
+	{
+		write32(DIP_CMD_0, DIP_CMD_NORMAL << 24);
+		write32(DIP_CMD_1, (u32)(TmpOffset >> 2));
+		write32(DIP_CMD_2, TmpLen);
+	}
 
 	//dbgprintf("Read %08x %08x\r\n", read32(DIP_CMD_1), read32(DIP_CMD_2));
 	sync_before_read(DISC_DRIVE_BUFFER, TmpLen);
@@ -252,8 +266,8 @@ u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 
 	if(RealDiscCMD == DIP_CMD_DVDR)
 	{
-		u32 LastBlockStart = (read32(DIP_CMD_2) - 1) << 11;
-		DVD_OFFSET = (read32(DIP_CMD_1) << 11) + LastBlockStart;
+		u64 LastBlockStart = ((u64)(read32(DIP_CMD_2)) - 1) << 11;
+		DVD_OFFSET64 = ((u64)(read32(DIP_CMD_1)) << 11) + LastBlockStart;
 		memcpy(DISC_TMP_CACHE, DISC_DRIVE_BUFFER + LastBlockStart, 0x800);
 		sync_after_write(DISC_TMP_CACHE, 0x800);
 		if(CachedBlockStart)

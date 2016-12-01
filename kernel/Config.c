@@ -2,6 +2,9 @@
 #include "debug.h"
 #include "ff_utf8.h"
 
+// BI2.bin region code.
+u32 BI2region = 0;
+
 void ConfigSyncBeforeRead( void )
 {
 	sync_before_read(ncfg, sizeof(NIN_CFG));
@@ -35,10 +38,13 @@ void ConfigInit( void )
 		ConfigSyncBeforeRead();
 	}
 
-	if( IsWiiU )
+	if( IsWiiU() )
 	{
 		//ncfg->Config |= NIN_CFG_HID;
 		ncfg->MaxPads = 0;
+
+		// Disable debugging and the drive access LED.
+		ncfg->Config &= ~(NIN_CFG_DEBUGGER | NIN_CFG_DEBUGWAIT | NIN_CFG_LED);
 	}
 
 	//if( (read32(0) >> 8) == 0x47504F )	// PSO 1&2 disable cheats/debugging

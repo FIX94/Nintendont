@@ -47,8 +47,8 @@ static u32 Repeat;
 #define LEFT_STICK_DOWN (status->exp.classic.ljs.ang >= 120 && status->exp.classic.ljs.ang <= 240)
 #define LEFT_STICK_LEFT (status->exp.classic.ljs.ang >= 210 && status->exp.classic.ljs.ang <= 330)
 
-u32 (*PADRead)(u32) = (void*)0x93000000;
-NIN_CFG *PADCFG = (NIN_CFG*)0x93002900;
+static u32 (*const PADRead)(u32) = (void*)0x93000000;
+static NIN_CFG *const PADCFG = (NIN_CFG*)0x93002900;
 #define C_NOT_SET	(0<<0)
 void FPAD_Init( void )
 {

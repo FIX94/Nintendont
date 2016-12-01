@@ -31,27 +31,35 @@ void DVDStartCache(void)
 }
 
 //Use same buffer as kernel, uncached though, to see howto cache see DI.c
-u8 *DISC_DRIVE_BUFFER = (u8*)0x92000800;
-u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
-void ReadRealDisc(u8 *Buffer, u32 Offset, u32 Length, u32 Command)
+static u8 *const DISC_DRIVE_BUFFER = (u8*)0x92000800;
+static const u32 DISC_DRIVE_BUFFER_LENGTH = 0x7FF000;
+void ReadRealDisc(u8 *Buffer, u64 Offset, u32 Length, u32 Command)
 {
 	u32 ReadDiff = 0;
 
 	u32 TmpLen = Length;
-	u32 TmpOffset = Offset;
-	if(Command == DIP_CMD_DVDR)
-	{
-		TmpOffset = ALIGN_BACKWARD(Offset, 0x800);
-		ReadDiff = Offset - TmpOffset;
-		TmpLen = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800);
-	}
+	u64 TmpOffset = Offset;
 
 	write32(DIP_STATUS, 0x54); //mask and clear interrupts
 
 	//Actually read
-	write32(DIP_CMD_0, Command << 24);
-	write32(DIP_CMD_1, Command == DIP_CMD_DVDR ? TmpOffset >> 11 : TmpOffset >> 2);
-	write32(DIP_CMD_2, Command == DIP_CMD_DVDR ? TmpLen >> 11 : TmpLen);
+	if (Command == DIP_CMD_DVDR)
+	{
+		// Adjust length and offset for DVD-R mode.
+		TmpOffset = ALIGN_BACKWARD(Offset, 0x800);
+		ReadDiff = (u32)(Offset - TmpOffset);
+		TmpLen = ALIGN_FORWARD(TmpLen + ReadDiff, 0x800);
+
+		write32(DIP_CMD_0, DIP_CMD_DVDR << 24);
+		write32(DIP_CMD_1, (u32)(TmpOffset >> 11));
+		write32(DIP_CMD_2, TmpLen >> 11);
+	}
+	else
+	{
+		write32(DIP_CMD_0, DIP_CMD_NORMAL << 24);
+		write32(DIP_CMD_1, (u32)(TmpOffset >> 2));
+		write32(DIP_CMD_2, TmpLen);
+	}
 
 	DCInvalidateRange(DISC_DRIVE_BUFFER, TmpLen);
 	write32(DIP_DMA_ADR, (u32)DISC_DRIVE_BUFFER);

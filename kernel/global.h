@@ -341,6 +341,13 @@ static inline void sync_after_write_align32(void *Buf, u32 Len)
 
 #define RESET_STATUS 0x13003420
 
-#define IsWiiU ( (*(u32*)0x0d8005A0 >> 16 ) == 0xCAFE )
+/**
+ * Is this system a Wii U?
+ * @return True if this is Wii U; false if not.
+ */
+static inline bool IsWiiU(void)
+{
+	return ((*(vu32*)(0x0d8005A0) >> 16) == 0xCAFE);
+}
 
 #endif

@@ -18,6 +18,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
+
+// strcasecmp()
+#include <strings.h>
+
 #include "global.h"
 #include "DI.h"
 #include "RealDI.h"
@@ -47,12 +51,11 @@ extern int dbgprintf( const char *fmt, ...);
 
 struct ipcmessage DI_CallbackMsg;
 u32 DI_MessageQueue = 0xFFFFFFFF;
-u8 *DI_MessageHeap = NULL;
+static u8 *DI_MessageHeap = NULL;
 bool DI_IRQ = false;
 u32 DI_Thread = 0;
 s32 DI_Handle = -1;
-bool MultipleDiscs = true;
-u32 ISOShift = 0;
+u64 ISOShift64 = 0;
 static u32 Streaming = 0; //internal
 extern u32 StreamSize, StreamStart, StreamCurrent, StreamEndOffset;
 
@@ -65,8 +68,8 @@ extern u32 RealDiscCMD;
 extern u32 RealDiscError;
 u32 WaitForRealDisc = 0;
 
-u8 *DI_READ_BUFFER = (u8*)0x12E80000;
-u32 DI_READ_BUFFER_LENGTH = 0x80000;
+u8 *const DI_READ_BUFFER = (u8*)0x12E80000;
+const u32 DI_READ_BUFFER_LENGTH = 0x80000;
 
 extern u32 GAME_ID;
 extern u16 GAME_ID6;
@@ -76,13 +79,24 @@ extern u32 TITLE_ID;
 extern vu32 TRIGame;
 extern vu32 useipltri;
 
-u32 GCAMKeyA;
-u32 GCAMKeyB;
-u32 GCAMKeyC;
+static u32 GCAMKeyA;
+static u32 GCAMKeyB;
+static u32 GCAMKeyC;
 
-u8 *MediaBuffer;
-u8 *NetworkCMDBuffer;
-u8 *DIMMMemory = (u8*)0x12B80000;
+static u8 *MediaBuffer;
+static u8 *NetworkCMDBuffer;
+static u8 *const DIMMMemory = (u8*)0x12B80000;
+
+// Multi-disc filenames.
+static const char disc_filenames[8][16] = {
+	"game.ciso", "game.cso", "game.gcm", "game.iso",
+	"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso"
+};
+
+// Filename portions for 2-disc mode.
+// Points to entries in disc_filenames.
+// NOTE: If either is NULL, assume single-disc mode.
+static const char *DI_2disc_filenames[2] = {NULL, NULL};
 
 void DIRegister(void)
 {
@@ -121,7 +135,7 @@ void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode)
 }
 
 //ISO Cache is disabled while SegaBoot runs
-u8 *SegaBoot = (u8*)0x12A80000;
+static u8 *const SegaBoot = (u8*)0x12A80000;
 void ReadSegaBoot(u32 Buffer, u32 Offset, u32 Length)
 {
 	if(Offset > 0x100000) //set invalid
@@ -147,24 +161,49 @@ void DIinit( bool FirstTime )
 	{
 		if(RealDiscCMD == 0)
 		{
-			// Move this to ISO.c?
-			u32 i;
+			// Check if this is a 2-disc game.
+			u32 i, slash_pos;
 			char TempDiscName[256];
 			_sprintf(TempDiscName, "%s", ConfigGetGamePath());
 
 			//search the string backwards for '/'
-			for( i=strlen(TempDiscName); i > 0; --i )
-				if( TempDiscName[i] == '/' )
+			for (slash_pos = strlen(TempDiscName); slash_pos > 0; --slash_pos)
+			{
+				if (TempDiscName[slash_pos] == '/')
 					break;
-			i++;
+			}
+			slash_pos++;
 
-			_sprintf(TempDiscName+i, "disc2.iso");
-			FIL ExistsFile;
-			s32 ret = f_open_char(&ExistsFile, TempDiscName, FA_READ);
-			if (ret != FR_OK)
-				MultipleDiscs = false;
-			else
-				f_close(&ExistsFile);
+			// First, make sure the disc's filename is game.(ciso|cso|gcm|iso).
+			DI_2disc_filenames[0] = NULL;
+			DI_2disc_filenames[1] = NULL;
+			for (i = 0; i < 4; i++)
+			{
+				if (!strcasecmp(TempDiscName+slash_pos, disc_filenames[i]))
+				{
+					// This is game.(ciso|cso|gcm|iso).
+					DI_2disc_filenames[0] = disc_filenames[i];
+					break;
+				}
+			}
+
+			if (DI_2disc_filenames[0] != NULL)
+			{
+				// Check for the disc2 file.
+				for (i = 4; i < 8; i++)
+				{
+					_sprintf(TempDiscName+slash_pos, disc_filenames[i]);
+					FIL ExistsFile;
+					s32 ret = f_open_char(&ExistsFile, TempDiscName, FA_READ);
+					if (ret == FR_OK)
+					{
+						// Found the disc image.
+						f_close(&ExistsFile);
+						DI_2disc_filenames[1] = disc_filenames[i];
+						break;
+					}
+				}
+			}
 		}
 		else
 		{
@@ -172,7 +211,7 @@ void DIinit( bool FirstTime )
 			write32( DIP_COVER, 4 ); //disable cover irq which DIP enabled
 		}
 		sync_before_read((void*)0x13003000, 0x20);
-		ISOShift = read32(0x1300300C);
+		ISOShift64 = (u64)(read32(0x1300300C)) << 2;
 
 		MediaBuffer = (u8*)malloc( 0x40 );
 		memset32( MediaBuffer, 0, 0x40 );
@@ -204,23 +243,26 @@ void DISetDIMMVersion( u32 Version )
 }
 bool DIChangeDisc( u32 DiscNumber )
 {
-	if (!MultipleDiscs)
+	// Don't do anything if multi-disc mode isn't enabled.
+	if (!DI_2disc_filenames[0] ||
+	    !DI_2disc_filenames[1] ||
+	    DiscNumber > 1)
+	{
 		return false;
+	}
 
-	u32 i;
+	u32 slash_pos;
 	char* DiscName = ConfigGetGamePath();
 
 	//search the string backwards for '/'
-	for( i=strlen(DiscName); i > 0; --i )
-		if( DiscName[i] == '/' )
+	for (slash_pos = strlen(DiscName); slash_pos > 0; --slash_pos)
+	{
+		if (DiscName[slash_pos] == '/')
 			break;
-	i++;
+	}
+	slash_pos++;
 
-	if( DiscNumber == 0 )
-		_sprintf( DiscName+i, "game.iso" );
-	else
-		_sprintf( DiscName+i, "disc2.iso" );
-
+	_sprintf(DiscName+slash_pos, DI_2disc_filenames[DiscNumber]);
 	dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
 	DIinit(false);
 	return true;
@@ -735,7 +777,10 @@ void DIUpdateRegisters( void )
 }
 
 extern u32 Patch31A0Backup;
-u8 *di_src = NULL; char *di_dest = NULL; u32 di_length = 0, di_offset = 0;
+static const u8 *di_src = NULL;
+static char *di_dest = NULL;
+static u32 di_length = 0;
+static u32 di_offset = 0;
 u32 DIReadThread(void *arg)
 {
 	//dbgprintf("DI Thread Running\r\n");
@@ -789,11 +834,13 @@ u32 DIReadThread(void *arg)
 				di_src = 0;
 				di_dest = (char*)di_msg->ioctl.buffer_io;
 				di_length = di_msg->ioctl.length_io;
-				di_offset = ((u32)di_msg->ioctl.buffer_in) + ISOShift;
+				di_offset = (u32)di_msg->ioctl.buffer_in;
 				u32 Offset = 0;
 				u32 Length = di_length;
 				for (Offset = 0; Offset < di_length; Offset += Length)
 				{
+					// NOTE: ISOShift64 is applied in the RealDI and ISO readers.
+					// Not supported for FST.
 					Length = di_length - Offset;
 					if( RealDiscCMD )
 						di_src = ReadRealDisc(&Length, di_offset + Offset, true);
@@ -846,7 +893,7 @@ struct _TGCInfo
 	u32 fstupdate;
 	u32 isTGC;
 };
-static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x13002FE0;
+static struct _TGCInfo *const TGCInfo = (struct _TGCInfo*)0x13002FE0;
 
 #define PATCH_STATE_PATCH 2
 extern u32 PatchState, DOLSize, DOLMinOff, DOLMaxOff;

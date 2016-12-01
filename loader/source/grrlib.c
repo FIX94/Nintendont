@@ -47,7 +47,7 @@ THE SOFTWARE.
 #define ENABLE_TTF
 
 GRRLIB_drawSettings  GRRLIB_Settings;
-Mtx                  GXmodelView2D;
+static Mtx           GXmodelView2D;
 
 static void  *gp_fifo = NULL;
 

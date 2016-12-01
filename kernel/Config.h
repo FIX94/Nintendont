@@ -43,6 +43,9 @@ enum SystemLanguage {	Japanese,
 void ConfigSyncBeforeRead( void );
 void ConfigInit( void );
 
+// BI2.bin region code.
+extern u32 BI2region;
+
 // Nintendont configuration.
 static NIN_CFG *const ncfg = (NIN_CFG*)0x13002900;
 

@@ -11,7 +11,7 @@ OBJCOPY = $(PREFIX)objcopy
 RANLIB = $(PREFIX)ranlib
 STRIP = $(PREFIX)strip
 
-ifeq ($(windows), 1)
+ifeq ($(OS),Windows_NT)
 	BIN2H =	../bin2h/bin2h.exe
 else
 	BIN2H =	../bin2h/bin2h

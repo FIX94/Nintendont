@@ -69,25 +69,26 @@ const u8 DiskDriveInfo[32] = {
 	0x00,0x00,0x00,0x00
 };
 
-const u8 GXIntDfAt04[] = {
+static const u8 GXIntDfAt04[] = {
 	0x02, 0x80, 0x01, 0xE0, 0x01, 0xE0, 0x00, 0x28, 0x00, 0x00, 0x02, 0x80, 0x01, 0xE0, 0x00, 0x00,
 };
 
-const u8 GXDeflickerOn[] = {
+static const u8 GXDeflickerOn[] = {
 	0x08, 0x08, 0x0A, 0x0C, 0x0A, 0x08, 0x08
 };
 
-const u8 GXDeflickerOff[] = {
+static const u8 GXDeflickerOff[] = {
 	0x00, 0x00, 0x15, 0x16, 0x15, 0x00, 0x00
 };
 
-const u32 DVDGetDriveStatus[] = {
+static const u32 DVDGetDriveStatus[] = {
         0x38600000,     //  li		r3, 0
         0x4E800020      //  blr
 };
+
 #ifndef AUDIOSTREAM
 // Audio streaming replacement functions copied from Swiss r92
-const u32 DVDLowAudioStatusNULL[17] = {
+static const u32 DVDLowAudioStatusNULL[17] = {
         // execute function(1); passed in on r4
         0x9421FFC0,     //  stwu        sp, -0x0040 (sp)
         0x7C0802A6,     //  mflr        r0
@@ -108,7 +109,7 @@ const u32 DVDLowAudioStatusNULL[17] = {
         0x4E800020      //  blr
 };
 
-const u32 DVDLowAudioConfigNULL[10] = {
+static const u32 DVDLowAudioConfigNULL[10] = {
         // execute callback(1); passed in on r5 without actually touching the drive!
         0x9421FFC0,     //  stwu        sp, -0x0040 (sp)
         0x7C0802A6,     //  mflr        r0
@@ -136,8 +137,9 @@ const u32 DVDLowReadAudioNULL[10] = {
         0x4E800020      //  blr
 };
 #endif
+
 //function header is good enough to verify
-const u32 PADIsBarrelOri[] = {
+static const u32 PADIsBarrelOri[] = {
 		0x2C030000,		// cmpwi	r3,0
 		0x4180000C,		// blt		0x10
 		0x2C030004,		// cmpwi	r3,4

@@ -31,10 +31,11 @@ int LoadTitles(void);
 /**
  * Find a title in the titles database.
  * Loaded from titles.txt, plus special exceptions for Triforce.
- * @param titleID Title ID. (ID6)
+ * @param titleID	[in] Title ID. (ID6)
+ * @param pIsTriforce	[out,opt] Set to true if this is a Triforce title.
  * @return Title, or NULL if not found.
  * WARNING: DO NOT FREE the returned title!
  */
-const char *SearchTitles(const char *titleID);
+const char *SearchTitles(const char *titleID, bool *pIsTriforce);
 
 #endif

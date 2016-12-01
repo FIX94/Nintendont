@@ -31,23 +31,58 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 extern int dbgprintf( const char *fmt, ...);
 #endif
 
+// If 1, use extracted FST.
+u32 FSTMode = 0;
+
+typedef struct
+{
+	union
+	{
+		struct
+		{
+			u32 Type	:8;
+			u32 NameOffset	:24;
+		};
+		u32 TypeName;
+	};
+	union
+	{
+		struct		// File Entry
+		{
+			u32 FileOffset;
+			u32 FileLength;
+		};
+		struct		// Dir Entry
+		{
+			u32 ParentOffset;
+			u32 NextOffset;
+		};
+		u32 entry[2];
+	};
+} FEntry;
+
+typedef struct
+{
+	u32 Offset;
+	u32 Size;
+	FIL File;
+} FileCache;
+
 #include "ff_utf8.h"
 static u8 *FSTable ALIGNED(32);
-u32 ApploaderSize=0;
-u32 dolOffset=0;
-u32 FSTMode = 0;
-u32 FSTableSize=0;
-u32 FSTableOffset=0;
+static u32 ApploaderSize = 0;
+static u32 dolOffset = 0;
+static u32 FSTableSize = 0;
+static u32 FSTableOffset = 0;
 
-u32 FCEntry=0;
-FileCache *FC;
-u32 FCState[FILECACHE_MAX];
+static u32 FCEntry = 0;
+static FileCache *FC;
+static u32 FCState[FILECACHE_MAX];
 
-extern u32 Region;
-
-u32 FSTInit( char *GamePath )
+u32 FSTInit( const char *GamePath )
 {
 	char Path[256];
+	u8 buf[0x100];
 	FIL fd;
 	u32 read;
 
@@ -60,27 +95,35 @@ u32 FSTInit( char *GamePath )
 		return 0;
 
 	} else {
-		u8 *rbuf = (u8*)malloc( 0x100 );
-
 		f_lseek( &fd, 0 );
-		f_read( &fd, rbuf, 0x100, &read );
+		f_read( &fd, buf, 0x100, &read );
+		if (read != 0x100)
+		{
+			dbgprintf( "DIP:[%s] Read error!\r\n", Path );
+			f_close( &fd );
+			return 0;
+		}
 
 		/* Set Low Mem */
-		memcpy( (void*)0, rbuf, 0x20);
+		memcpy( (void*)0, buf, 0x20);
 		sync_after_write( (void*)0, 0x20 );
 
 		dbgprintf("DIP:Loading game %.6s: %s\r\n", rbuf, (char *)(rbuf+0x20));
 
 		//Read DOL/FST offset/sizes for later usage
 		f_lseek( &fd, 0x0420 );
-		f_read( &fd, rbuf, 0x20, &read );
+		f_read( &fd, buf, 0x20, &read );
+		if (read != 0x20)
+		{
+			dbgprintf( "DIP:[%s] Read error!\r\n", Path );
+			f_close( &fd );
+			return 0;
+		}
 
-		dolOffset		= *(u32*)(rbuf);
-		FSTableOffset	= *(u32*)(rbuf+4);
-		FSTableSize		= *(u32*)(rbuf+8);
+		dolOffset	= *(u32*)(buf);
+		FSTableOffset	= *(u32*)(buf+4);
+		FSTableSize	= *(u32*)(buf+8);
 
-		free( rbuf );
-		
 		dbgprintf( "DIP:FSTableOffset:%08X\r\n", FSTableOffset );
 		dbgprintf( "DIP:FSTableSize:  %08X\r\n", FSTableSize );
 		dbgprintf( "DIP:DolOffset:    %08X\r\n", dolOffset );
@@ -90,6 +133,25 @@ u32 FSTInit( char *GamePath )
 		FC = (FileCache*)malloc( sizeof(FileCache) * FILECACHE_MAX );
 
 		f_close( &fd );
+	}
+
+	// Load the BI2 region code.
+	_sprintf( Path, "%ssys/bi2.bin", GamePath );
+	if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+	{
+		dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
+		return 0;
+	} else {
+		f_read( &fd, buf, 48, &read );
+		f_close( &fd );
+		if (read != 48)
+		{
+			dbgprintf( "DIP:[%s] Read error!\r\n", Path );
+			return 0;
+		}
+
+		// BI2.bin region code.
+		BI2region = *(vu32*)(buf+0x18);
 	}
 
 	//Init cache
@@ -108,7 +170,7 @@ void FSTCleanup()
 	FSTMode = 0;
 	FSTable = NULL;
 }
-u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
+const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 {
 	if (*Length > DI_READ_BUFFER_LENGTH)
 		*Length = DI_READ_BUFFER_LENGTH;
@@ -294,13 +356,10 @@ u8* FSTRead(char *GamePath, u32* Length, u32 Offset)
 			return DI_READ_BUFFER;
 		} else {
 			//dbgprintf( "DIP:[bi2.bin] Offset:%08X Size:%08X\r\n", Offset, *Length );
-			
+
 			f_lseek( &fd, Offset );
 			f_read( &fd, DI_READ_BUFFER, *Length, &read );
-
 			f_close( &fd );
-
-			Region = *(vu32*)(DI_READ_BUFFER+0x18);
 
 			return DI_READ_BUFFER;
 		}

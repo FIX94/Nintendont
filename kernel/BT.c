@@ -35,12 +35,12 @@ static vu32 BTChannelsUsed = 0;
 extern vu32 intr, bulk;
 
 static conf_pads *BTDevices = (conf_pads*)0x132C0000;
-struct BTPadStat *BTPadConnected[4];
+static struct BTPadStat *BTPadConnected[4];
 
-struct BTPadStat BTPadStatus[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
-struct linkkey_info BTKeys[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
+static struct BTPadStat BTPadStatus[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
+static struct linkkey_info BTKeys[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
 
-struct BTPadCont *BTPad = (struct BTPadCont*)0x132F0000;
+static struct BTPadCont *BTPad = (struct BTPadCont*)0x132F0000;
 
 static vu32* BTMotor = (u32*)0x13002720;
 static vu32* BTPadFree = (u32*)0x13002730;
@@ -79,7 +79,7 @@ static const u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 #define C_ISWAP		(1<<8)
 #define C_TestSWAP	(1<<9)
 
-const s8 DEADZONE = 0x1A;
+static const s8 DEADZONE = 0x1A;
 
 static void BTSetControllerState(struct bte_pcb *sock, u32 State)
 {

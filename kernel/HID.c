@@ -42,22 +42,23 @@ extern int dbgprintf( const char *fmt, ...);
 
 static const u8 ss_led_pattern[8] = {0x0, 0x02, 0x04, 0x08, 0x10, 0x12, 0x14, 0x18};
 
-s32 HIDHandle = -1;
-u32 PS3LedSet = 0;
-u32 DeviceID  = 0;
-u32 bEndpointAddress = 0;
-u32 wMaxPacketSize = 0;
-u32 MemPacketSize = 0;
-u8 *Packet = (u8*)NULL;
+static s32 HIDHandle = -1;
+static u32 PS3LedSet = 0;
+static u32 DeviceID  = 0;
+static u32 bEndpointAddress = 0;
+static u32 wMaxPacketSize = 0;
+static u32 MemPacketSize = 0;
+static u8 *Packet = (u8*)NULL;
 
-u32 RumbleType = 0;
-u32 RumbleEnabled = 0;
-u32 bEndpointAddressOut = 0;
-u8 *RawRumbleDataOn = NULL;
-u8 *RawRumbleDataOff = NULL;
-u32 RawRumbleDataLen = 0;
-u32 RumbleTransferLen = 0;
-u32 RumbleTransfers = 0;
+static u32 RumbleType = 0;
+static u32 RumbleEnabled = 0;
+static u32 bEndpointAddressOut = 0;
+static u8 *RawRumbleDataOn = NULL;
+static u8 *RawRumbleDataOff = NULL;
+static u32 RawRumbleDataLen = 0;
+static u32 RumbleTransferLen = 0;
+static u32 RumbleTransfers = 0;
+
 static const unsigned char rawData[] =
 {
 	0x01, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x27, 0x10, 0x00, 0x32, 
@@ -68,11 +69,11 @@ static const unsigned char rawData[] =
 
 struct _usb_msg readreq ALIGNED(32);
 struct _usb_msg writereq ALIGNED(32);
-u8 *ps3buf = (u8*)NULL;
-u8 *gcbuf = (u8*)NULL;
+static u8 *ps3buf = (u8*)NULL;
+static u8 *gcbuf = (u8*)NULL;
 
 typedef void (*HIDReadFunc)();
-HIDReadFunc HIDRead = NULL;
+static HIDReadFunc HIDRead = NULL;
 
 typedef void (*RumbleFunc)(u32 Enable);
 RumbleFunc HIDRumble = NULL;
@@ -81,9 +82,9 @@ static usb_device_entry AttachedDevices[32] ALIGNED(32);
 
 static struct ipcmessage *hidreadmsg = NULL, *hidchangemsg = NULL;
 static u32 HIDRead_Thread = 0, HIDChange_Thread = 0;
-u8 *hidreadheap = NULL, *hidchangeheap = NULL;
-s32 hidreadqueue = -1, hidchangequeue = -1;
-vu32 hidread = 0, hidchange = 0;
+static u8 *hidreadheap = NULL, *hidchangeheap = NULL;
+static s32 hidreadqueue = -1, hidchangequeue = -1;
+static vu32 hidread = 0, hidchange = 0;
 static u32 HIDReadAlarm();
 static u32 HIDChangeAlarm();
 static s32 HIDInterruptMessage(u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueue, struct ipcmessage *asyncmsg);

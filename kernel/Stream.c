@@ -22,14 +22,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "adp.h"
 #include "DI.h"
 extern int dbgprintf( const char *fmt, ...);
-u32 StreamEnd = 0;
+static u32 StreamEnd = 0;
 u32 StreamEndOffset = 0;
 u32 StreamSize = 0;
 u32 StreamStart = 0;
 u32 StreamCurrent = 0;
-u32 StreamLoop = 0;
+static u32 StreamLoop = 0;
 
-u8 *StreamBuffer = (u8*)0x132A0000;
+static u8 *const StreamBuffer = (u8*)0x132A0000;
 
 #define AI_CR 0x0D806C00
 #define AI_32K (1<<6)
@@ -37,19 +37,19 @@ u8 *StreamBuffer = (u8*)0x132A0000;
 #define BUFSIZE 0xC400
 #define CHUNK_48 0x3800
 #define CHUNK_48to32 0x5400
-u32 cur_chunksize = 0;
+static u32 cur_chunksize = 0;
 
-const u32 buf1 = 0x13280000;
-const u32 buf2 = 0x1328C400;
-u32 cur_buf = 0;
-u32 buf_loc = 0;
+static u32 buf1 = 0x13280000;
+static u32 buf2 = 0x1328C400;
+static u32 cur_buf = 0;
+static u32 buf_loc = 0;
 
-s16 outl[SAMPLES_PER_BLOCK], outr[SAMPLES_PER_BLOCK];
-long hist[4];
+static s16 outl[SAMPLES_PER_BLOCK], outr[SAMPLES_PER_BLOCK];
+static long hist[4];
 
-u32 samplecounter = 0;
-s16 samplebufferL = 0, samplebufferR = 0;
-PCMWriter CurrentWriter;
+static u32 samplecounter = 0;
+static s16 samplebufferL = 0, samplebufferR = 0;
+static PCMWriter CurrentWriter;
 void StreamInit()
 {
 	memset(outl, 0, sizeof(outl));

@@ -37,21 +37,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
-extern u32 Region;
 extern vu32 useipl;
 
-u32 Device=0;
-u32 SRAMWriteCount=0;
+static u32 Device = 0;
+static u32 SRAMWriteCount = 0;
 static u32 EXICommand = 0;
 static u32 BlockOff= 0;
 static bool changed = false;
 static u32 BlockOffLow = 0xFFFFFFFF;
 static u32 BlockOffHigh = 0x00000000;
-u8 *MCard = (u8 *)(0x11000000);
-u8 *FontBuf = (u8 *)(0x13100000);
-u32 CARDWriteCount = 0;
-u32 IPLReadOffset;
-FIL MemCard;
+static u8 *const MCard = (u8*)(0x11000000);
+static u8 *const FontBuf = (u8*)(0x13100000);
+static u32 CARDWriteCount = 0;
+static u32 IPLReadOffset;
+static FIL MemCard;
 bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
@@ -83,10 +82,24 @@ void EXIInit( void )
 		memcpy(MemCardName, "/saves/", 7);
 		if ( ConfigGetConfig(NIN_CFG_MC_MULTI) )
 		{
-			if ((GameID & 0xFF) == 'J')  // JPN games
-				memcpy(MemCardName+7, "ninmemj.raw", 11);
-			else
-				memcpy(MemCardName+7, "ninmem.raw", 10);
+			// "Multi" mode is enabled.
+			// Use one memory card for USA/PAL games,
+			// and another memory card for JPN games.
+			switch (BI2region)
+			{
+				case BI2_REGION_JAPAN:
+				case BI2_REGION_SOUTH_KOREA:
+				default:
+					// JPN games.
+					memcpy(MemCardName+7, "ninmemj.raw", 11);
+					break;
+
+				case BI2_REGION_USA:
+				case BI2_REGION_PAL:
+					// USA/PAL games.
+					memcpy(MemCardName+7, "ninmem.raw", 10);
+					break;
+			}
 		}
 		else
 		{
@@ -140,6 +153,12 @@ void EXIInit( void )
 }
 
 extern vu32 TRIGame;
+
+/**
+ * Set EXI timings based on the game ID.
+ * @param TitleID Game ID, rshifted by 8.
+ * @param Region Region byte from Game ID.
+ */
 void EXISetTimings(u32 TitleID, u32 Region)
 {
 	//GC BIOS, Trifoce Game, X-Men Legends 2, Rainbow Six 3 or Starfox Assault (NTSC-U)
@@ -877,7 +896,7 @@ void EXIReadFontFile(u8* Data, u32 Length)
 }
 
 //SegaBoot 3.11 with Free Play enabled
-unsigned int sb311block[54] =
+static const unsigned int sb311block[54] =
 {
     0x41434255, 0x30303031, 0x007D0512, 0x01000000, 0x00000311, 0x53424C4B, 
     0x00000000, 0x63090400, 0x01010A01, 0x01010001, 0x01010101, 0x01010101, 
@@ -888,7 +907,8 @@ unsigned int sb311block[54] =
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x200E1AFF,
     0xFFFF0000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
-} ;
+};
+
 extern u32 arcadeMode;
 static bool TRIGameStarted = false;
 //make sure ambbBackupMem is filled correctly

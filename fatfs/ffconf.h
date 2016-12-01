@@ -1,8 +1,8 @@
 /*---------------------------------------------------------------------------/
-/  FatFs - FAT file system module configuration file  R0.12  (C)ChaN, 2016
+/  FatFs - FAT file system module configuration file
 /---------------------------------------------------------------------------*/
 
-#define _FFCONF 88100	/* Revision ID */
+#define _FFCONF 68020	/* Revision ID */
 
 /*---------------------------------------------------------------------------/
 / Function Configurations
@@ -49,19 +49,18 @@
 /* This option switches f_mkfs() function. (0:Disable or 1:Enable) */
 
 
-#ifdef __PPC__
-// Nintendont loader: Disable fast seek, since we're only checking
-// file headers and/or reading the entire file all at once.
-#define	_USE_FASTSEEK	0
-#else /* !__PPC__ */
-// Nintendont kernel: Enable fast seek to allow seeking quickly
-// throughout the 1.46 GB disc image.
 #define	_USE_FASTSEEK	1
-#endif /* __PPC__ */
 /* This option switches fast seek function. (0:Disable or 1:Enable) */
 
 
+#ifdef __PPC__
+// Nintendont loader: f_expand() is used when creating blank
+// memory card images as an optimization.
+#define	_USE_EXPAND		1
+#else /* !__PPC__ */
+// Nintendont kernel
 #define	_USE_EXPAND		0
+#endif /* __PPC__ */
 /* This option switches f_expand function. (0:Disable or 1:Enable) */
 
 
@@ -76,8 +75,7 @@
 
 
 #define	_USE_FORWARD	0
-/* This option switches f_forward() function. (0:Disable or 1:Enable)
-/  To enable it, also _FS_TINY need to be 1. */
+/* This option switches f_forward() function. (0:Disable or 1:Enable) */
 
 
 /*---------------------------------------------------------------------------/
@@ -132,13 +130,13 @@
 
 
 #define	_LFN_UNICODE	1
-/* This option switches character encoding on the API. (0:ANSI/OEM or 1:Unicode)
+/* This option switches character encoding on the API. (0:ANSI/OEM or 1:UTF-16)
 /  To use Unicode string for the path name, enable LFN and set _LFN_UNICODE = 1.
 /  This option also affects behavior of string I/O functions. */
 
 
 #define _STRF_ENCODE	3
-/* When _LFN_UNICODE == 1, this option selects the character encoding on the file to
+/* When _LFN_UNICODE == 1, this option selects the character encoding ON THE FILE to
 /  be read/written via string I/O functions, f_gets(), f_putc(), f_puts and f_printf().
 /
 /  0: ANSI/OEM
@@ -235,22 +233,27 @@
 / System Configurations
 /---------------------------------------------------------------------------*/
 
-// FIXME: Change for loader?
+#ifdef __PPC__
+// Nintendont loader: Use one sector buffer per file.
+#define _FS_TINY	0
+#else /* !__PPC__ */
+// Nintendont kernel: Use a single sector buffer.
 #define	_FS_TINY	1
+#endif /* __PPC__ */
 /* This option switches tiny buffer configuration. (0:Normal or 1:Tiny)
-/  At the tiny configuration, size of the file object (FIL) is reduced _MAX_SS bytes.
+/  At the tiny configuration, size of file object (FIL) is reduced _MAX_SS bytes.
 /  Instead of private sector buffer eliminated from the file object, common sector
 /  buffer in the file system object (FATFS) is used for the file data transfer. */
 
 
 #define _FS_EXFAT	1
-/* This option switches support of exFAT file system in addition to the traditional
-/  FAT file system. (0:Disable or 1:Enable) To enable exFAT, also LFN must be enabled.
+/* This option switches support of exFAT file system. (0:Disable or 1:Enable)
+/  When enable exFAT, also LFN needs to be enabled. (_USE_LFN >= 1)
 /  Note that enabling exFAT discards C89 compatibility. */
 
 
 #define _FS_NORTC	0
-#define _NORTC_MON	3
+#define _NORTC_MON	1
 #define _NORTC_MDAY	1
 #define _NORTC_YEAR	2016
 /* The option _FS_NORTC switches timestamp functiton. If the system does not have
@@ -293,7 +296,9 @@
 /  The _FS_TIMEOUT defines timeout period in unit of time tick.
 /  The _SYNC_t defines O/S dependent sync object type. e.g. HANDLE, ID, OS_EVENT*,
 /  SemaphoreHandle_t and etc.. A header file for O/S definitions needs to be
-/  included somewhere in the scope of ff.c. */
+/  included somewhere in the scope of ff.h. */
+
+/* #include <windows.h>	// O/S definitions  */
 
 
 /*--- End of configuration options ---*/

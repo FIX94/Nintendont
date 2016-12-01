@@ -10,10 +10,10 @@
 extern int dbgprintf( const char *fmt, ...);
 #endif
 
-char *Bufo = NULL;
-char *Bufi = NULL;
-char *Buf	 = NULL;
-u32 STRInit = 0;
+static char *Bufo = NULL;
+static char *Bufi = NULL;
+static char *Buf  = NULL;
+static u32 STRInit = 0;
 u32 SystemRegion;
 
 extern vu32 d10_0;
@@ -23,22 +23,22 @@ extern u8 *res;
 extern u32 DataPos;
 extern u32 TRIGame;
 
-u8	*CARDMemory;
-u8	*CARDReadPacket;
-u8	*CARDBuffer;
+static u8 *CARDMemory;
+static u8 *CARDReadPacket;
+static u8 *CARDBuffer;
 
-u32 CARDMemorySize;
-u32 CARDIsInserted;
-u32 CARDCommand;
-u32 CARDClean;
-u32 CARDWriteLength;
-u32 CARDWrote;
-u32 CARDReadLength;
-u32 CARDRead;
-u32 CARDBit;
-u32 CARDStateCallCount;
-u32 CARDOffset;
-u32 FirstCMD;
+static u32 CARDMemorySize;
+static u32 CARDIsInserted;
+static u32 CARDCommand;
+static u32 CARDClean;
+static u32 CARDWriteLength;
+static u32 CARDWrote;
+static u32 CARDReadLength;
+static u32 CARDRead;
+static u32 CARDBit;
+static u32 CARDStateCallCount;
+static u32 CARDOffset;
+static u32 FirstCMD;
 
 static u32 BufsAllocated = 0;
 void GCAMInit( void )

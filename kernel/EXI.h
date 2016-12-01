@@ -83,7 +83,14 @@ enum EXICommands {
 #define EXI_READWRITE	2 
 
 void EXIInit();
+
+/**
+ * Set EXI timings based on the game ID.
+ * @param TitleID Game ID, rshifted by 8.
+ * @param Region Region byte from Game ID.
+ */
 void EXISetTimings(u32 TitleID, u32 Region);
+
 bool EXICheckTimer();
 void EXIInterrupt();
 void EXIUpdateRegistersNEW( void );
