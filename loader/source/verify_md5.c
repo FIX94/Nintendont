@@ -164,6 +164,7 @@ static void ShowStatusUpdate(const char *gamepath, u32 total_read, u32 total_siz
 
 	static const char md5_calculating[] = "Calculating MD5...";
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(md5_calculating), 232-40, md5_calculating);
+	// TODO: Abbreviate the path if it's too long.
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gamepath), 232, "%s", gamepath);
 
 	// Print the status, in MiB.
@@ -190,6 +191,7 @@ static void ShowFinishScreen(double time_diff, const char *gamepath, const char 
 	PrintInfo();
 	int len = snprintf(status_msg, sizeof(status_msg), "MD5 calculated in %0.1f seconds.", time_diff);
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232-40, status_msg);
+	// TODO: Abbreviate the path if it's too long.
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(gamepath), 232, "%s", gamepath);
 
 	// Print the MD5.
@@ -270,8 +272,8 @@ static void PrintMD5Line(char *md5_db_line, const u8 header[16])
 	char *token = strtok_r(md5_db_line, "|", &saveptr);
 	if (!token) {
 		// No MD5. (Shouldn't happen...)
-		static const char no_md5_field[] = "WARNING: No MD5 field in DB entry.";
-		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_md5_field), 232+80, no_md5_field);
+		static const char no_md5_field[] = "!!! MD5 DB error -1 !!!";
+		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_md5_field), 232+60, no_md5_field);
 		return;
 	}
 
@@ -294,14 +296,17 @@ static void PrintMD5Line(char *md5_db_line, const u8 header[16])
 	token = strtok_r(NULL, "", &saveptr);
 
 	// Print everything.
+#define FST_GREEN 0x00551AFF	/* Same color used for FST format on the game list. */
+	static const char md5_found[] = "MD5 verified against GameTDB's database.";
+	PrintFormat(DEFAULT_SIZE, FST_GREEN, STR_CONST_X(md5_found), 232+60, md5_found);
 	if (token)
 	{
-		PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(token), 232+70, token);
+		PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(token), 232+80, token);
 	}
 	else
 	{
 		static const char no_game_name[] = "(no game name)";
-		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_game_name), 232+70, no_game_name);
+		PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_game_name), 232+80, no_game_name);
 	}
 
 	// ID6, revision, disc number.
@@ -317,7 +322,7 @@ static void PrintMD5Line(char *md5_db_line, const u8 header[16])
 	{
 		snprintf(buf, sizeof(buf), "%.6s, Rev.%02u", header, header[7]);
 	}
-	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(buf), 232+90, buf);
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_PTR_X(buf), 232+100, buf);
 
 	free(discnum);
 }
@@ -541,7 +546,7 @@ void VerifyMD5(const gameinfo *gi)
 	{
 		// Check the MD5 database.
 		static const char checking_db[] = "Checking MD5 database...";
-		PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(checking_db), 232+80, checking_db);
+		PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(checking_db), 232+60, checking_db);
 		// Render the text.
 		GRRLIB_Render();
 		ClearScreen();
@@ -561,8 +566,10 @@ void VerifyMD5(const gameinfo *gi)
 		else
 		{
 			// No match.
-			static const char no_md5_match[] = "MD5 not found in database.";
-			PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_md5_match), 232+80, no_md5_match);
+			static const char no_md5_match_1[] = "!!! MD5 not found in database. !!!";
+			static const char no_md5_match_2[] = "!!!   This may be a bad dump.  !!!";
+			PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_md5_match_1), 232+60, no_md5_match_1);
+			PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(no_md5_match_2), 232+80, no_md5_match_2);
 		}
 	}
 	else
@@ -572,7 +579,7 @@ void VerifyMD5(const gameinfo *gi)
 	}
 
 	static const char press_a_button[] = "Press the A button to continue...";
-	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(press_a_button), 232+120, press_a_button);
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(press_a_button), 232+140, press_a_button);
 	// Render the text.
 	GRRLIB_Render();
 	ClearScreen();
