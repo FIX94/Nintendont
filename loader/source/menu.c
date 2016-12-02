@@ -1567,19 +1567,19 @@ static int SelectGame(void)
 		{
 			// Redraw the header.
 			PrintInfo();
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", ctx.menuMode ? "Modify" : "Select");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", ctx.menuMode ? "Game List" : "Settings ");
-			// TODO: Better layout.
 			if (ctx.menuMode == 0)
 			{
+				// Game List menu.
+				PrintButtonActions("Go Back", "Select", "Settings", NULL);
 				// If the selected game is 1:1, allow MD5 verification.
+				// TODO: Better layout.
 				const u32 color = ((ctx.games.canVerifyMD5) ? BLACK : DARK_GRAY);
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Verify MD5");
 			}
 			else
 			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Update");
+				// Settings menu.
+				PrintButtonActions("Go Back", "Select", "Settings", "Update");
 			}
 
 			if (ctx.menuMode == 0 ||
@@ -1645,8 +1645,7 @@ bool SelectDevAndGame(void)
 		{
 			UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 			PrintInfo();
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Exit");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
+			PrintButtonActions("Exit", "Select", NULL, NULL);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
@@ -1735,6 +1734,33 @@ void PrintInfo(void)
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %u.%u.%u",
 		    *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143);
+}
+
+/**
+ * Print button actions.
+ * Call this function after PrintInfo().
+ *
+ * If any button action is NULL, that button won't be displayed.
+ *
+ * @param btn_home	[in,opt] Home button action.
+ * @param btn_a		[in,opt] A button action.
+ * @param btn_b		[in,opt] B button action.
+ * @param btn_x1	[in,opt] X/1 button action.
+ */
+void PrintButtonActions(const char *btn_home, const char *btn_a, const char *btn_b, const char *btn_x1)
+{
+	if (btn_home) {
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: %s", btn_home);
+	}
+	if (btn_a) {
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : %s", btn_a);
+	}
+	if (btn_b) {
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", btn_b);
+	}
+	if (btn_x1) {
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "X/1 : %s", btn_x1);
+	}
 }
 
 /**

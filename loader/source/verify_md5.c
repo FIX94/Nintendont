@@ -160,7 +160,7 @@ static void ShowStatusUpdate(const char *gamepath, u32 total_read, u32 total_siz
 	// Status update.
 	ClearScreen();
 	PrintInfo();
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : Cancel");
+	PrintButtonActions(NULL, NULL, "Cancel", NULL);
 
 	static const char md5_calculating[] = "Calculating MD5...";
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(md5_calculating), 232-40, md5_calculating);
@@ -189,6 +189,8 @@ static void ShowFinishScreen(double time_diff, const char *gamepath, const char 
 
 	ClearScreen();
 	PrintInfo();
+	PrintButtonActions(NULL, "Continue", NULL, NULL);
+
 	int len = snprintf(status_msg, sizeof(status_msg), "MD5 calculated in %0.1f seconds.", time_diff);
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_X(len), 232-40, status_msg);
 	// TODO: Abbreviate the path if it's too long.

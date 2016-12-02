@@ -435,6 +435,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		if( redraw )
 		{
 			PrintInfo();
+			PrintButtonActions(NULL, "Select", NULL, NULL);
 			static const int subheader_x = (640 - (40*10)) / 2;
 			PrintFormat(DEFAULT_SIZE, BLACK, subheader_x, MENU_POS_Y + 20*3,
 				    "Select a game from this multi-game disc:");

@@ -316,6 +316,7 @@ void UpdateNintendont(void) {
 	while (true) {
 		if (redraw) {
 			PrintInfo();
+			PrintButtonActions("Go Back", "Update", NULL, NULL);
 
 			// Update menu.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*5, "Download Nintendont");
@@ -323,10 +324,6 @@ void UpdateNintendont(void) {
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*7, "Download controllers.zip");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*8, "Download gcn_md5.txt");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 35, MENU_POS_Y + 20*(5+selected), ARROW_RIGHT);
-
-			// Button options.
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Update");
 			redraw = false;
 
 			// Render the screen here to prevent a blank frame

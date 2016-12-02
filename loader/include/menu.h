@@ -86,6 +86,19 @@ static inline void ShowLoadingScreen(void)
  */
 void PrintInfo(void);
 
+/**
+ * Print button actions.
+ * Call this function after PrintInfo().
+ *
+ * If any button action is NULL, that button won't be displayed.
+ *
+ * @param btn_home	[in,opt] Home button action.
+ * @param btn_a		[in,opt] A button action.
+ * @param btn_b		[in,opt] B button action.
+ * @param btn_x1	[in,opt] X/1 button action.
+ */
+void PrintButtonActions(const char *btn_home, const char *btn_a, const char *btn_b, const char *btn_x1);
+
 typedef enum {
 	LKERR_UNKNOWN,
 	LKERR_ES_GetStoredTMDSize,
