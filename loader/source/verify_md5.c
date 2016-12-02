@@ -473,6 +473,14 @@ void VerifyMD5(const gameinfo *gi)
 	u32 total_read = 0;
 	u32 total_read_mb = 0;
 	const u32 total_size = f_size(&in);
+
+	// Show the initial status update screen.
+	ShowStatusUpdate(gi->Path, total_read, total_size);
+	ShowMD5DBStatus(md5_db_status);
+	// Render the text.
+	GRRLIB_Render();
+	ClearScreen();
+
 	bool cancel = false;
 	while (!f_eof(&in))
 	{
