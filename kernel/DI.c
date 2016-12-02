@@ -89,7 +89,9 @@ static u8 *const DIMMMemory = (u8*)0x12B80000;
 
 // Multi-disc filenames.
 static const char disc_filenames[8][16] = {
+	// Disc 1
 	"game.ciso", "game.cso", "game.gcm", "game.iso",
+	// Disc 2
 	"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso"
 };
 
@@ -164,7 +166,7 @@ void DIinit( bool FirstTime )
 			// Check if this is a 2-disc game.
 			u32 i, slash_pos;
 			char TempDiscName[256];
-			_sprintf(TempDiscName, "%s", ConfigGetGamePath());
+			strcpy(TempDiscName, ConfigGetGamePath());
 
 			//search the string backwards for '/'
 			for (slash_pos = strlen(TempDiscName); slash_pos > 0; --slash_pos)
@@ -174,32 +176,49 @@ void DIinit( bool FirstTime )
 			}
 			slash_pos++;
 
-			// First, make sure the disc's filename is game.(ciso|cso|gcm|iso).
+			// First, check if the disc filename matches
+			// the expected filenames for multi-disc games.
+			int checkIdxMin = -1, checkIdxMax = -1;
+			const char **DI_2disc_otherdisc = NULL;
 			DI_2disc_filenames[0] = NULL;
 			DI_2disc_filenames[1] = NULL;
-			for (i = 0; i < 4; i++)
+			for (i = 0; i < 8; i++)
 			{
 				if (!strcasecmp(TempDiscName+slash_pos, disc_filenames[i]))
 				{
-					// This is game.(ciso|cso|gcm|iso).
-					DI_2disc_filenames[0] = disc_filenames[i];
+					// Filename is either:
+					// -  game.(ciso|cso|gcm|iso) (Disc 1)
+					// - disc2.(ciso|cso|gcm|iso) (Disc 2)
+					const int discIdx = i / 4;	// either 0 or 1
+					DI_2disc_filenames[discIdx] = disc_filenames[i];
+
+					// Set variables to check for the other disc.
+					if (discIdx == 0) {
+						checkIdxMin = 4;
+						checkIdxMax = 7;
+						DI_2disc_otherdisc = &DI_2disc_filenames[1];
+					} else {
+						checkIdxMin = 0;
+						checkIdxMax = 3;
+						DI_2disc_otherdisc = &DI_2disc_filenames[0];
+					}
 					break;
 				}
 			}
 
-			if (DI_2disc_filenames[0] != NULL)
+			if (DI_2disc_otherdisc != NULL)
 			{
-				// Check for the disc2 file.
-				for (i = 4; i < 8; i++)
+				// Check for the other disc.
+				for (i = checkIdxMin; i < checkIdxMax; i++)
 				{
-					_sprintf(TempDiscName+slash_pos, disc_filenames[i]);
+					strcpy(TempDiscName+slash_pos, disc_filenames[i]);
 					FIL ExistsFile;
 					s32 ret = f_open_char(&ExistsFile, TempDiscName, FA_READ);
 					if (ret == FR_OK)
 					{
-						// Found the disc image.
+						// Found the other disc image.
 						f_close(&ExistsFile);
-						DI_2disc_filenames[1] = disc_filenames[i];
+						*DI_2disc_otherdisc = disc_filenames[i];
 						break;
 					}
 				}
