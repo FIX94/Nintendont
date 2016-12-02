@@ -1525,9 +1525,9 @@ static int SelectGame(void)
 		VIDEO_WaitVSync();
 		FPAD_Update();
 
-		if( FPAD_Start(1) )
+		if( FPAD_Start(0) )
 		{
-			// Go back to the Settings menu.
+			// Go back to the Device Select menu.
 			ctx.selected = false;
 			break;
 		}

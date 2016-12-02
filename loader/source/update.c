@@ -325,8 +325,8 @@ void UpdateNintendont(void) {
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 35, MENU_POS_Y + 20*(5+selected), ARROW_RIGHT);
 
 			// Button options.
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*0, "Home: Go Back");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Update");
-			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : Go Back");
 			redraw = false;
 
 			// Render the screen here to prevent a blank frame
@@ -339,7 +339,7 @@ void UpdateNintendont(void) {
 		FPAD_Update();
 		if (delay > ticks_to_millisecs(gettime())) continue;
 
-		if (FPAD_OK(1)) {
+		if (FPAD_OK(0)) {
 			if (selected <= DOWNLOAD_GAMECUBE_MD5) {
 				Download(selected);
 				ClearScreen();
@@ -347,21 +347,18 @@ void UpdateNintendont(void) {
 			} else {
 				break;
 			}
-		}
-		if (FPAD_Down(1)) {
+		} else if (FPAD_Start(0)) {
+			break;
+		} else if (FPAD_Down(1)) {
 			delay = ticks_to_millisecs(gettime()) + 150;
 			selected++;
 			if (selected > 3) selected = 0;
 			redraw = true;
-		}
-		if (FPAD_Up(1)) {
+		} else if (FPAD_Up(1)) {
 			delay = ticks_to_millisecs(gettime()) + 150;
 			selected--;
 			if (selected < 0) selected = 3;
 			redraw = true;
-		}
-		if (FPAD_Cancel(1)) {
-			break;
 		}
 	}
 
