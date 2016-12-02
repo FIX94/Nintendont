@@ -64,7 +64,7 @@ static const downloads_t Downloads[] = {
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/loader/loader.dol", "Updating Nintendont", "boot.dol", 0x400000}, // 4MB
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/titles.txt", "Updating titles.txt", "titles.txt", 0x80000}, // 512KB
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/controllerconfigs/controllers.zip", "Updating controllers.zip", "controllers.zip", 0x8000}, // 32KB
-	{"https://raw.githubusercontent.com/GerbilSoft/Nintendont/widescreen-hax.r422/nintendont/gcn_md5.zip", "Updating gcn_md5.txt", "gcn_md5.zip", 0x20000}, // 128 KB
+	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/gcn_md5.zip", "Updating gcn_md5.txt", "gcn_md5.zip", 0x20000}, // 128 KB
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/common/include/NintendontVersion.h", "Checking Latest Version", "", 0x400} // 1KB
 };
 
