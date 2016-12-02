@@ -38,11 +38,12 @@ extern char launch_dir[MAXPATHLEN];
 
 /**
  * MD5 database format:
- * 3a62f8d10fd210d4928ad37e3816e33c|GALE01|00|Super Smash Bros. Melee
+ * 3a62f8d10fd210d4928ad37e3816e33c|GALE01|00|0|Super Smash Bros. Melee
  * - Field 1: MD5 (lowercase ASCII)
  * - Field 2: ID6
  * - Field 3: Revision (two-digit decimal)
- * - Field 4: Game name
+ * - Field 4: Disc number (0 for single-disc; 1 or 2 for multi)
+ * - Field 5: Game name
  */
 
 typedef enum {
