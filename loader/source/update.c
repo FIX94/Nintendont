@@ -64,7 +64,7 @@ static const downloads_t Downloads[] = {
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/loader/loader.dol", "Updating Nintendont", "boot.dol", 0x400000}, // 4MB
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/titles.txt", "Updating titles.txt", "titles.txt", 0x80000}, // 512KB
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/controllerconfigs/controllers.zip", "Updating controllers.zip", "controllers.zip", 0x8000}, // 32KB
-	{"https://raw.githubusercontent.com/GerbilSoft/Nintendont/widescreen-hax.r422/nintendont/gcn_md5.zip", "Updating gcn_md5.txt", "gcn_md5.zip", 0x20000}, // 128 KB
+	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/nintendont/gcn_md5.zip", "Updating gcn_md5.txt", "gcn_md5.zip", 0x20000}, // 128 KB
 	{"https://raw.githubusercontent.com/FIX94/Nintendont/master/common/include/NintendontVersion.h", "Checking Latest Version", "", 0x400} // 1KB
 };
 
@@ -165,10 +165,9 @@ static inline bool LatestVersion(int *major, int *minor, int *current_line) {
 }
 
 static s32 Download(DOWNLOADS download_number)  {
-	ClearScreen();
-	
-	int line = 1;
+	int line = 5;
 	int ret, major = 0, minor = 0;
+	char errmsg[48];
 	u32 http_status = 0;
 	u8* outbuf = NULL;
 	u32 filesize;
@@ -177,16 +176,20 @@ static s32 Download(DOWNLOADS download_number)  {
 	bool dir_argument_exists = (launch_dir[0] != 0);
 	const char *dir = (dir_argument_exists ? launch_dir : "/apps/Nintendont/");
 
+	ClearScreen();
+	PrintInfo();
+
 	snprintf(filepath, sizeof(filepath), "%s%s", dir, Downloads[download_number].filename);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, Downloads[download_number].text);
 	UpdateScreen();
 
-	// TODO: Use ioapi mem and skip writing the ZIP file to disk.
 	line++;
 	gprintf("Downloading %s to %s\r\n", Downloads[download_number].url, filepath);
 	ret = net_init();
 	if (ret < 0) {
 		gprintf("Failed to init network\r\n");
+		ret = -1;
+		strcpy(errmsg, "Network initialization failed.");
 		goto end;
 	}
 	gprintf("Network Initialized\r\n");
@@ -216,14 +219,17 @@ static s32 Download(DOWNLOADS download_number)  {
 		if (ret) break;
 		if (i == 10) {
 			gprintf("Error making http request\r\n");
-			ret = -1;
+			ret = -2;
+			http_get_result(&http_status, NULL, NULL);
+			snprintf(errmsg, sizeof(errmsg), "HTTP request failed: %u", http_status);
 			goto end;
 		}
 	}
 
 	ret = http_get_result(&http_status, &outbuf, &filesize); 
 	if (((int)*outbuf & 0xF0000000) == 0xF0000000) {
-		ret = -2;
+		ret = -3;
+		snprintf(errmsg, sizeof(errmsg), "http_get_result() failed: %u", http_status);
 		goto end;
 	}
 
@@ -241,6 +247,9 @@ static s32 Download(DOWNLOADS download_number)  {
 		// controllers.zip needs to be decompressed to the
 		// active drive, since the kernel uses it.
 		ret = UnzipFile("/controllers", false, DOWNLOAD_CONTROLLERS, outbuf, filesize);
+		if (ret != 1) {
+			strcpy(errmsg, "Unzipping controllers.zip failed.");
+		}
 	}
 	else if (download_number == DOWNLOAD_GAMECUBE_MD5) {
 		// gcn_md5.zip needs to be decompressed to the
@@ -254,13 +263,19 @@ static s32 Download(DOWNLOADS download_number)  {
 
 		ret = UnzipFile(dirNoSlash, true, DOWNLOAD_GAMECUBE_MD5, outbuf, filesize);
 		free(dirNoSlash);
+
+		if (ret != 1) {
+			strcpy(errmsg, "Unzipping gcn_md5.zip failed.");
+		}
 	}
 	else
 	{
 		FIL file;
-		if (f_open_char(&file, filepath, FA_WRITE|FA_CREATE_ALWAYS) != FR_OK) {
+		FRESULT res = f_open_char(&file, filepath, FA_WRITE|FA_CREATE_ALWAYS);
+		if (res != FR_OK) {
 			gprintf("File Error\r\n");
-			ret = -3;
+			snprintf(errmsg, sizeof(errmsg), "Error opening '%s': %u", filepath, res);
+			ret = -4;
 			goto end;
 		} else {
 			// Reserve space in the file.
@@ -281,10 +296,11 @@ static s32 Download(DOWNLOADS download_number)  {
 	}
 
 end:
-	if (ret != 1)
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*line, "Update Error: %i", ret);
-	else
+	if (ret != 1) {
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*line, "Update Error: %s", errmsg);
+	} else {
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, "Restart Nintendont to complete update");
+	}
 	UpdateScreen();
 	if (outbuf != NULL) free(outbuf);
 	net_deinit();
@@ -293,43 +309,55 @@ end:
 }
 
 void UpdateNintendont(void) {
+	bool redraw = true;
 	int selected = 0;
 	u64 delay = ticks_to_millisecs(gettime()) + 500;
-	while(true) {
-		ClearScreen();
-		PrintInfo();
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*5, "Download Nintendont");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*6, "Download titles.txt");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*7, "Download controllers.zip");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*8, "Download gcn_md5.txt");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*9, "Return to Settings");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 35, MENU_POS_Y + 20*(5+selected), ARROW_RIGHT);
-		GRRLIB_Render();
+
+	while (true) {
+		if (redraw) {
+			PrintInfo();
+			PrintButtonActions("Go Back", "Update", NULL, NULL);
+
+			// Update menu.
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*5, "Download Nintendont");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*6, "Download titles.txt");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*7, "Download controllers.zip");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 50, MENU_POS_Y + 20*8, "Download gcn_md5.txt");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 35, MENU_POS_Y + 20*(5+selected), ARROW_RIGHT);
+			redraw = false;
+
+			// Render the screen here to prevent a blank frame
+			// when returning from Download().
+			UpdateScreen();
+			ClearScreen();
+		}
+
+		VIDEO_WaitVSync();
 		FPAD_Update();
 		if (delay > ticks_to_millisecs(gettime())) continue;
-		if (FPAD_Start(1)) {
-			ShowMessageScreenAndExit("Returning to loader...", 0);
-		}
-		if (FPAD_OK(1)) {
-			if (selected <= DOWNLOAD_GAMECUBE_MD5)
+
+		if (FPAD_OK(0)) {
+			if (selected <= DOWNLOAD_GAMECUBE_MD5) {
 				Download(selected);
-			else
+				ClearScreen();
+				redraw = true;
+			} else {
 				break;
-		}
-		if (FPAD_Down(1)) {
+			}
+		} else if (FPAD_Start(0)) {
+			break;
+		} else if (FPAD_Down(1)) {
 			delay = ticks_to_millisecs(gettime()) + 150;
 			selected++;
-			if (selected > 4) selected = 0;
-		}
-		if (FPAD_Up(1)) {
+			if (selected > 3) selected = 0;
+			redraw = true;
+		} else if (FPAD_Up(1)) {
 			delay = ticks_to_millisecs(gettime()) + 150;
 			selected--;
-			if (selected < 0) selected = 4;
-		}
-		if (FPAD_Cancel(1)) {
-			break;
+			if (selected < 0) selected = 3;
+			redraw = true;
 		}
 	}
-	ClearScreen();
+
 	return;
 }

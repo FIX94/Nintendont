@@ -495,8 +495,12 @@ bool http_get_result (u32 *_http_status, u8 **content, u32 *length) {
 	if (http_status) *_http_status = http_status;
 
 	if (result == HTTPR_OK) {
-		*content = http_data;
-		*length = content_length;
+		if (content) {
+			*content = http_data;
+		}
+		if (length) {
+			*length = content_length;
+		}
 
 	} else {
 		*content = NULL;
@@ -505,6 +509,8 @@ bool http_get_result (u32 *_http_status, u8 **content, u32 *length) {
 
 	free (http_host);
 	free (http_path);
+	http_host = NULL;
+	http_path = NULL;
 
 	return true;
 }

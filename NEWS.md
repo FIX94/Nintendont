@@ -1,5 +1,70 @@
 # Nintendont Changes
 
+## v4.429
+
+Changes since v4.406:
+
+### Major Changes ###
+
+* Added support for Hermes uLoader compressed ISO (CISO) format disc images.
+  CISO saves space like shrunken GCMs, but it maintains the original file
+  offsets internally, which preserves the original disc read timing.
+* Ported libfat's disk cache to FatFS in the loader. This fixes a hang seen
+  on some systems when creating memory card images.
+* Use the bi2.bin region code instead of the game ID. This fixes region
+  detection for prototype games that use the RELSAB ID as well as mutli-language
+  PAL releases that use 'X', 'Y', and 'Z'.
+* Added a built-in MD5 verifier for 1:1 disc images. The MD5 verifier uses a
+  database based on GameTDB. The database must be downloaded manually on the
+  "Update" screen.
+
+### Other Changes ###
+
+* The internal updater was accidentally broken with the switch to FatFS
+  in v4.406.
+* Improved support for certain types of third-party Wii U Pro controllers.
+* Fixes for some patches, including the code handler.
+* Nintendont will no longer display any messages if it is loaded by an external
+  loader, unless an error occurs.
+* The loader's background image is now adjusted for 16:9 display if the Wii's
+  system widescreen setting is enabled.
+* Disc images no longer have to be in a subdirectory within /games/. For example,
+  you can have a file /games/Melee.iso and it will be detected. (A subdirectory
+  is still required for 2-disc games.)
+* File extensions .iso, .gcm, .cso, and .ciso are supported.
+* The game list now colorizes game names based on their file format:
+  * Black: 1:1 full rip
+  * Dark Brown: Shrunken GCM
+  * Green: Extracted FST
+  * Blue: CISO
+  * Purple: Multi-Game
+* Fixed an issue where pressing the Home button in the Settings menu after
+  changing a setting crashed the loader.
+* Grayed out settings that don't apply to the current system, e.g. Wii U
+  Widescreen on a regular Wii.
+* Added descriptions for some settings. When selected, the description will
+  appear in the lower-right quadrant of the screen.
+* Added more widescreen exceptions for games that have built-in widescreen settings.
+* Improved support for multi-game discs. Previously, Nintendont didn't handle
+  accessing data past 4 GB. Nintendont now uses 64-bit addressing for multi-game,
+  so multi-game images on exFAT partitions now work perfectly. Multi-game on
+  DVD-Rs is still somewhat problematic.
+* Reduced memory usage and improved performance when formatting a new memory card.
+* Improved usability in the Update menu.
+
+### Triforce Improvements ###
+
+* Rumble is now supported in Mario Kart Arcade GP 1 and 2.
+* New "Triforce Arcade Mode" option that disables free play.
+  Move the C stick in any direction to insert a coin.
+
+### Low-Level Changes ###
+
+* All subprojects now use Makefiles. The original Build.bat and Build.sh files
+  are now wrappers around `make`.
+* Split the game and settings menus into different functions. The current menu
+  state is saved within a context struct.
+
 ## v4.406
 
 Changes since v3.304:

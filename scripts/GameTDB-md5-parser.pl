@@ -111,7 +111,7 @@ sub handle_char_data {
 			# Title. (Only if lang='EN'.)
 			# TODO: Other titles for other regions?
 			if (defined($lang) && $lang eq 'EN') {
-				$record->{'title'} = $text;
+				$record->{'title'} .= $text;
 			}
 		}
 	}
