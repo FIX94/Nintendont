@@ -209,7 +209,7 @@ void DIinit( bool FirstTime )
 			if (DI_2disc_otherdisc != NULL)
 			{
 				// Check for the other disc.
-				for (i = checkIdxMin; i < checkIdxMax; i++)
+				for (i = checkIdxMin; i <= checkIdxMax; i++)
 				{
 					strcpy(TempDiscName+slash_pos, disc_filenames[i]);
 					FIL ExistsFile;
