@@ -46,8 +46,7 @@ typedef struct GameInfo
 	char ID[6];		// ID6 of the game.
 	uint8_t DiscNumber;	// Disc number.
 	uint8_t Flags;		// See GameInfoFlags.
-	// If non-zero, Name was allocated via strdup().
-	                        // Otherwise, it should NOT be free()'d!
+
 	char *Name;		// Game name. (If NameAlloc, strdup()'d.)
 	char *Path;		// File path.
 } gameinfo;
