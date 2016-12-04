@@ -33,8 +33,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/lwp_watchdog.h>
 
 #include "ff_utf8.h"
-
-extern char launch_dir[MAXPATHLEN];
+#include "md5.h"
+#include "md5_db.h"
 
 // Dark gray for grayed-out menu items.
 #define DARK_GRAY 0x666666FF
@@ -45,22 +45,46 @@ extern char launch_dir[MAXPATHLEN];
 #define STR_CONST_X(str) STR_X(sizeof(str)-1)
 #define STR_PTR_X(str) STR_X(strlen(str))
 
+// MD5 verification state.
+typedef struct _MD5VerifyState_t {
+	bool supported;		// True if MD5 verification is supported.
+	bool calculated;	// True if the MD5 has been calculated.
+	uint8_t db_status;	// MD5_DB_Status
+
+	// Image variables.
+	FSIZE_t image_size;	// File size.
+	FSIZE_t image_read;	// Amount of the image that has been read.
+
+	// MD5 database.
+	MD5_DB_t md5_db;
+
+	// MD5 state.
+	md5_state_t state;
+	md5_byte_t digest[16];
+
+	// Text version of MD5.
+	char md5_str[33];
+} MD5VerifyState_t;
+
 /**
  * Show the basic game information.
- * @Param gi Game to display.
+ * @param gi Game to display.
+ * @param md5 MD5VerifyState_t
  */
-static void DrawGameInfoScreen(const gameinfo *gi)
+static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 {
 	/**
 	 * Example display:
 	 *
 	 * usb:/games/GALE01.gcm
 	 *
-	 * Title:  Super Smash Bros. Melee
-	 * Region: USA
-	 * Format: 1:1 full dump
+	 * Title:   Super Smash Bros. Melee
+	 * Game ID: GALE01
+	 * Region:  USA
+	 * Disc #:  1
+	 *
+	 * Format:  1:1 full dump
 	 */
-
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4, "%s", gi->Path);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Title:   %s", gi->Name);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "Game ID: %.6s", gi->ID);
@@ -84,14 +108,70 @@ static void DrawGameInfoScreen(const gameinfo *gi)
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*11, "Format:  %s",
 		formats[gi->Flags & GIFLAG_FORMAT_MASK]);
 
-	// TODO: MD5 verifier.
+	// Is this a 1:1 disc image?
+	if (md5->supported) {
+		// Print the MD5 status.
+		// TODO: If calculating, show "Cancel" for B.
+		if (md5->calculated) {
+			// MD5 has been calculated.
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
+				"MD5: %.32s", md5->md5_str);
+			// TODO: Did this match anything in the database?
+		} else {
+			// MD5 has not been calculated.
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
+				"MD5: Not calculated - press A to calculate");
+		}
+
+		if (md5->db_status != MD5_DB_OK) {
+			// MD5 database error.
+			const char *errmsg;
+			switch (md5->db_status) {
+				case MD5_DB_NOT_FOUND:
+					// Could not find the MD5 database.
+					errmsg = "gcn_md5.txt not found";
+					break;
+				case MD5_DB_TOO_BIG:
+					// MD5 database is too big.
+					errmsg = "gcn_md5.txt is larger than 1 MiB";
+					break;
+				case MD5_DB_NO_MEM:
+					// Could not allocate memory for the MD5 database.
+					errmsg = "memory allocation failed";
+					break;
+				case MD5_DB_READ_ERROR:
+				default:
+					// Error reading the MD5 database.
+					errmsg = "Read error occurred";
+					break;
+			}
+
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*17,
+				"WARNING: MD5 database error: %s.", errmsg);
+		}
+	} else {
+		// Not a 1:1 disc image.
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
+			"MD5 verification is disabled for this game because");
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14,
+			"it is not a 1:1 full dump.");
+	}
 
 	// TODO: There's a request to determine the DSP.
 	// Maybe also show banner information? Both of these
 	// require extracting data from the file system.
 
 	static const char PressHome[] = "Press HOME (or START) to return to the game list.";
-	PrintFormat(DEFAULT_SIZE, MAROON, STR_CONST_X(PressHome), MENU_POS_Y + 20*19, PressHome);
+	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(PressHome), MENU_POS_Y + 20*19, PressHome);
+
+	// Print information.
+	PrintInfo();
+	PrintButtonActions("Go Back", NULL, NULL, NULL);
+
+	// "Calculate MD5" should be displayed in all cases,
+	// but grayed out if it isn't supported.
+	const u32 color = (md5->supported ? BLACK : DARK_GRAY);
+	PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Verify MD5");
 }
 
 /**
@@ -100,16 +180,20 @@ static void DrawGameInfoScreen(const gameinfo *gi)
  */
 void ShowGameInfo(const gameinfo *gi)
 {
-	// Show the basic game information.
-	DrawGameInfoScreen(gi);
+	MD5VerifyState_t md5;
 
-	// Print info with current button actions.
-	PrintInfo();
-	PrintButtonActions("Go Back", NULL, NULL, NULL);
+	// Initialize the MD5 verification state.
+	memset(&md5, 0, sizeof(md5));
 	// If the selected game is 1:1, allow MD5 verification.
-	const bool can_verify_md5 = ((gi->Flags & GIFLAG_FORMAT_MASK) == GIFLAG_FORMAT_FULL);
-	const u32 color = (can_verify_md5 ? BLACK : DARK_GRAY);
-	PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Verify MD5");
+	md5.supported = ((gi->Flags & GIFLAG_FORMAT_MASK) == GIFLAG_FORMAT_FULL);
+	if (md5.supported) {
+		// 1:1 image. MD5 can be checked.
+		// Load the database.
+		md5.db_status = LoadMD5Database(&md5.md5_db);
+	}
+
+	// Show the game information.
+	DrawGameInfoScreen(gi, &md5);
 
 	// Render the text.
 	GRRLIB_Render();
@@ -123,5 +207,9 @@ void ShowGameInfo(const gameinfo *gi)
 
 		if (FPAD_Start(0))
 			break;
+	}
+
+	if ((gi->Flags & GIFLAG_FORMAT_MASK) == GIFLAG_FORMAT_FULL) {
+		FreeMD5Database(&md5.md5_db);
 	}
 }
