@@ -933,6 +933,26 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 			default:
 				break;
 		}
+	} else /*if (ctx->settings.settingPart == 1)*/ {
+		switch (ctx->settings.posX)
+		{
+			case 3: {
+				// Triforce Arcade Mode
+				static const char *desc_tri_arcade[] = {
+					"Arcade Mode re-enables the",
+					"coin slot functionality of",
+					"Triforce games.",
+					"",
+					"To insert a coin, move the",
+					"C stick in any direction.",
+					NULL
+				};
+				return desc_tri_arcade;
+			}
+
+			default:
+				break;
+		}
 	}
 
 	// No description is available.
@@ -1186,9 +1206,6 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					}
 					ncfg->VideoMode &= ~NIN_VID_MASK;
 					ncfg->VideoMode |= Video;
-					if ((Video & NIN_VID_FORCE) == 0) {
-						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(NIN_SETTINGS_VIDEOMODE), "%29s", "" );
-					}
 					break;
 				}
 
@@ -1238,19 +1255,23 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		else if (ctx->settings.settingPart == 1)
 		{
 			// Right column.
-			if (ctx->settings.posX == 2)
-			{
-				// PAL50 patch.
-				ctx->saveSettings = true;
-				ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
-				ctx->redraw = true;
-			}
-			else if (ctx->settings.posX == 3)
-			{
-				// Triforce Arcade Mode.
-				ctx->saveSettings = true;
-				ncfg->VideoMode ^= (NIN_CFG_ARCADE_MODE);
-				ctx->redraw = true;
+			switch (ctx->settings.posX) {
+				case 2:
+					// PAL50 patch.
+					ctx->saveSettings = true;
+					ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
+					ctx->redraw = true;
+					break;
+
+				case 3:
+					// Triforce Arcade Mode.
+					ctx->saveSettings = true;
+					ncfg->VideoMode ^= (NIN_CFG_ARCADE_MODE);
+					ctx->redraw = true;
+					break;
+
+				default:
+					break;
 			}
 		}
 	}
