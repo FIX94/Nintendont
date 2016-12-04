@@ -55,6 +55,9 @@ typedef struct GameInfo
 	char *Path;		// File path.
 } gameinfo;
 
+// Disc format colors.
+extern const u32 DiscFormatColors[8];
+
 void HandleSTMEvent(u32 event);
 void HandleWiiMoteEvent(s32 chan);
 
