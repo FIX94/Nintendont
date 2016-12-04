@@ -1759,7 +1759,7 @@ void PrintButtonActions(const char *btn_home, const char *btn_a, const char *btn
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", btn_b);
 	}
 	if (btn_x1) {
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "X/1 : %s", btn_x1);
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : %s", btn_x1);
 	}
 }
 
