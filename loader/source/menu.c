@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "menu.h"
 #include "../../common/include/CommonConfigStrings.h"
 #include "ff_utf8.h"
-#include "verify_md5.h"
+#include "ShowGameInfo.h"
 
 // Dark gray for grayed-out menu items.
 #define DARK_GRAY 0x666666FF
@@ -503,7 +503,7 @@ typedef struct _MenuCtx
 		const gameinfo *gi;	// Game information.
 		int gamecount;		// Game count.
 
-		bool canVerifyMD5;	// Selected game can be verified using MD5.
+		bool canShowInfo;	// Can show information for the selected game.
 	} games;
 
 	// Settings menu.
@@ -543,11 +543,12 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 
 	if(FPAD_X(0))
 	{
-		// Can we verify this game's MD5?
-		if (ctx->games.canVerifyMD5)
+		// Can we show information for the selected game?
+		if (ctx->games.canShowInfo)
 		{
-			VerifyMD5(&ctx->games.gi[ctx->games.posX + ctx->games.scrollX]);
-			ctx->redraw = 1;
+			// Show game information.
+			ShowGameInfo(&ctx->games.gi[ctx->games.posX + ctx->games.scrollX]);
+			ctx->redraw = true;
 		}
 	}
 
@@ -714,21 +715,8 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 			// Currently truncated to 50.
 
 			// Determine color based on disc format.
+			// NOTE: On Wii, DISC01 is GIFLAG_FORMAT_FULL.
 			const u32 color = format_colors[gi->Flags & GIFLAG_FORMAT_MASK];
-			// Check if the selected game is a 1:1 image.
-			// If it is, the MD5 can be verified.
-			if (i == ctx->games.posX)
-			{
-				// Shortcut, since we're only using black for
-				// 1:1 disc images.
-				ctx->games.canVerifyMD5 = (color == BLACK);
-				if (!IsWiiU() && (ctx->games.scrollX + i) == 0)
-				{
-					// "Real Disc" option.
-					// Don't allow verifying the MD5.
-					ctx->games.canVerifyMD5 = false;
-				}
-			}
 
 			if (gi->DiscNumber == 0)
 			{
@@ -746,6 +734,18 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 					    gi->Name, gi->DiscNumber+1, gi->ID,
 					    i == ctx->games.posX ? ARROW_LEFT : " ");
 			}
+		}
+
+		// Can we show information for the selected title?
+		if (!IsWiiU() && (ctx->games.scrollX + ctx->games.posX) == 0)
+		{
+			// Cannot show information for DISC01.
+			ctx->games.canShowInfo = false;
+		}
+		else
+		{
+			// Can show information for all other games.
+			ctx->games.canShowInfo = true;
 		}
 
 		// GRRLIB rendering is done by SelectGame().
@@ -1619,10 +1619,9 @@ static int SelectGame(void)
 			{
 				// Game List menu.
 				PrintButtonActions("Go Back", "Select", "Settings", NULL);
-				// If the selected game is 1:1, allow MD5 verification.
-				// TODO: Better layout.
-				const u32 color = ((ctx.games.canVerifyMD5) ? BLACK : DARK_GRAY);
-				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Verify MD5");
+				// If the selected game is not DISC01, enable "Game Info".
+				const u32 color = ((ctx.games.canShowInfo) ? BLACK : DARK_GRAY);
+				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Game Info");
 			}
 			else
 			{
