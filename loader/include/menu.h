@@ -36,6 +36,10 @@ typedef enum
 	GIFLAG_FORMAT_MULTI	= (4 << 0),	// Multi-game disc
 	GIFLAG_FORMAT_MASK	= (7 << 0),
 
+	// Game region. (from bi2.bin)
+	// BI2region_codes values, lshifted by 2.
+	GIFLAG_REGION_MASK	= (3 << 3),
+
 	// GameInfo.Name was allocated via strdup()
 	// and must be freed.
 	GIFLAG_NAME_ALLOC	= (1 << 7),

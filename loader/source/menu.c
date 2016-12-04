@@ -116,7 +116,8 @@ int compare_names(const void *a, const void *b)
 static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 {
 	// TODO: Handle FST format (sys/boot.bin).
-	u8 buf[0x100];		// Disc header.
+	u8 buf[0x100];			// Disc header.
+	u32 BI2region_addr = 0x458;	// BI2 region code address.
 
 	FIL in;
 	if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
@@ -129,8 +130,8 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	//gprintf("(%s) ok\n", filename );
 	bool ret = false;
 	UINT read;
-	f_read(&in, buf, 0x100, &read);
-	if (read != 0x100)
+	f_read(&in, buf, sizeof(buf), &read);
+	if (read != sizeof(buf))
 	{
 		// Error reading from the file.
 		f_close(&in);
@@ -155,6 +156,9 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 			return false;
 		}
 
+		// Adjust the BI2 region code address for CISO.
+		BI2region_addr = 0x8458;
+
 		gi->Flags = GIFLAG_FORMAT_CISO;
 	}
 	else
@@ -174,11 +178,22 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		}
 	}
 
-	// File is no longer needed.
-	f_close(&in);
-
 	if (IsGCGame(buf))	// Must be GC game
 	{
+		// Read the BI2 region code.
+		u32 BI2region;
+		f_lseek(&in, BI2region_addr);
+		f_read(&in, &BI2region, sizeof(BI2region), &read);
+		if (read != sizeof(BI2region)) {
+			// Error reading from the file.
+			f_close(&in);
+			return false;
+		}
+
+		// Save the region code for later.
+		gi->Flags |= ((BI2region & 3) << 3);
+
+		// Save the game ID.
 		memcpy(gi->ID, buf, 6); //ID for EXI
 		gi->DiscNumber = discNumber;
 
@@ -241,6 +256,7 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		ret = true;
 	}
 
+	f_close(&in);
 	return ret;
 }
 
@@ -380,33 +396,44 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			// check for FST format.
 			if (!found)
 			{
+				// Read the disc header from boot.bin.
 				memcpy(&filename[fnlen], "sys/boot.bin", 13);
-				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)
-				{
-					//gprintf("(%s) ok\n", filename );
-					UINT read;
-					f_read(&in, buf, 0x100, &read);
-					f_close(&in);
+				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+					continue;
+				//gprintf("(%s) ok\n", filename );
+				UINT read;
+				f_read(&in, buf, 0x100, &read);
+				f_close(&in);
+				if (read != 0x100 || !IsGCGame(buf))
+					continue;
 
-					if (read == 0x100 && IsGCGame(buf))	// Must be GC game
-					{
-						// Terminate the filename at the game's base directory.
-						filename[fnlen] = 0;
+				// Read the BI2.bin region code.
+				memcpy(&filename[fnlen], "sys/bi2.bin", 12);
+				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+					continue;
+				//gprintf("(%s) ok\n", filename );
+				u32 BI2region;
+				f_lseek(&in, 0x18);
+				f_read(&in, &BI2region, sizeof(BI2region), &read);
+				f_close(&in);
+				if (read != sizeof(BI2region))
+					continue;
 
-						// Make sure the title in the header is NULL terminated.
-						buf[0x20+65] = 0;
+				// Terminate the filename at the game's base directory.
+				filename[fnlen] = 0;
 
-						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						gi[gamecount].DiscNumber = 0;
+				// Make sure the title in the header is NULL terminated.
+				buf[0x20+65] = 0;
 
-						// TODO: Check titles.txt?
-						gi[gamecount].Name = strdup((const char*)&buf[0x20]);
-						gi[gamecount].Flags = GIFLAG_NAME_ALLOC | GIFLAG_FORMAT_FST;
+				memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
+				gi[gamecount].DiscNumber = 0;
 
-						gi[gamecount].Path = strdup(filename);
-						gamecount++;
-					}
-				}
+				// TODO: Check titles.txt?
+				gi[gamecount].Name = strdup((const char*)&buf[0x20]);
+				gi[gamecount].Flags = GIFLAG_NAME_ALLOC | GIFLAG_FORMAT_FST | ((BI2region & 3) << 3);
+
+				gi[gamecount].Path = strdup(filename);
+				gamecount++;
 			}
 		}
 		else
