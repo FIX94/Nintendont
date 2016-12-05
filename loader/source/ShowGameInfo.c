@@ -313,10 +313,10 @@ static void OpenDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 	md5->buf = (u8*)memalign(32, MD5_BUF_SZ);
 	if (!md5->buf) {
 		// Read buffer could not be allocated.
+		f_close(f_gcm);
 #ifdef _USE_FASTSEEK
 		free(f_gcm->cltbl);
 #endif /* _USE_FASTSEEK */
-		f_close(f_gcm);
 		// TODO: More specific error?
 		md5->gcm_read_error = true;
 		return;
