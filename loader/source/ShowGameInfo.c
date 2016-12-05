@@ -427,8 +427,7 @@ void ShowGameInfo(const gameinfo *gi)
 
 	// Wait for the user to press the Home button.
 	bool redraw = true;
-	while (1)
-	{
+	while (1) {
 		if (redraw) {
 			// Show the game information.
 			DrawGameInfoScreen(gi, &md5);
@@ -444,7 +443,10 @@ void ShowGameInfo(const gameinfo *gi)
 			if (res != PDI_NOT_DONE) {
 				// Redraw required.
 				redraw = true;
-				VIDEO_WaitVSync();
+				// NOTE: Don't wait for VSync here,
+				// because that slows down the
+				// MD5 process significantly.
+				// (315.0s -> 355.7s)
 			}
 		} else {
 			// Wait for VBlank.
