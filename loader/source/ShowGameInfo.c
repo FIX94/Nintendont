@@ -78,6 +78,14 @@ typedef struct _MD5VerifyState_t {
 	char md5_str[33];
 } MD5VerifyState_t;
 
+// ProcessDiscImage return value.
+typedef enum {
+	PDI_ERROR	= -1,	// Read error. (Disc image is automatically closed.)
+	PDI_FINISHED	= 0,	// Finished reading. (Disc image is automatically closed.)
+	PDI_NOT_DONE	= 1,	// Not finished.
+	PDI_NOT_DONE_MB	= 2,	// Not finished. (MB display needs to be updated)
+} PDI_RESULT;
+
 /**
  * Get the time of day with correct microseconds.
  * @param tv struct timeval
@@ -279,8 +287,7 @@ static void OpenDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 	f_gcm->cltbl = malloc(tblsize * sizeof(DWORD));
 	f_gcm->cltbl[0] = tblsize;
 	int ret = f_lseek(&md5->f_gcm, CREATE_LINKMAP);
-	if (ret == FR_NOT_ENOUGH_CORE)
-	{
+	if (ret == FR_NOT_ENOUGH_CORE) {
 		// Need to allocate more memory for the link map.
 		tblsize = f_gcm->cltbl[0];
 		free(f_gcm->cltbl);
@@ -294,8 +301,7 @@ static void OpenDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 			free(f_gcm->cltbl);
 			f_gcm->cltbl = NULL;
 		}
-	} else if (ret != FR_OK)
-	{
+	} else if (ret != FR_OK) {
 		// Error creating the link map.
 		// We'll continue without it.
 		free(f_gcm->cltbl);
@@ -349,32 +355,33 @@ static void CloseDiscImage(MD5VerifyState_t *md5)
  * Process a megabyte of the disc image for MD5 verification.
  * @param gi Game to verify.
  * @param md5 MD5VerifyState_t
- * @return 1 if not finished; 0 if finished; -1 on error. (Disc image is automatically closed.)
+ * @return PDI_RESULT.
  */
-static int ProcessDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
+static PDI_RESULT ProcessDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 {
 	if (!md5->running)
-		return 0;
+		return PDI_FINISHED;
 
 	FIL *const f_gcm = &md5->f_gcm;
 
 	// Read from the disc image.
 	UINT read;
 	FRESULT res = f_read(f_gcm, md5->buf, MD5_BUF_SZ, &read);
-	if (res != FR_OK)
-	{
+	if (res != FR_OK) {
 		// Read error.
 		CloseDiscImage(md5);
 		md5->running = false;
 		md5->gcm_read_error = true;
-		return -1;
+		return PDI_ERROR;
 	}
 
+	const u32 old_mb = md5->image_read / (1024*1024);
 	if (read > 0) {
 		// Process the data.
 		md5_append(&md5->state, (const md5_byte_t*)md5->buf, read);
 		md5->image_read += read;
 	}
+	const u32 new_mb = md5->image_read / (1024*1024);
 
 	if (f_eof(f_gcm)) {
 		// End of file.
@@ -393,11 +400,11 @@ static int ProcessDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 		gettimeofday_rvlfix(&tv, NULL);
 		md5->time_end = tv.tv_sec + ((double)tv.tv_usec / 1000000.0f);
 		md5->time_diff = md5->time_end - md5->time_start;
-		return 0;
+		return PDI_FINISHED;
 	}
 
 	// More data to process.
-	return 1;
+	return (old_mb == new_mb ? PDI_NOT_DONE : PDI_NOT_DONE_MB);
 }
 
 /**
@@ -431,16 +438,20 @@ void ShowGameInfo(const gameinfo *gi)
 			redraw = false;
 		}
 
-		VIDEO_WaitVSync();
-		FPAD_Update();
-
 		if (md5.running) {
 			// Process a megabyte of the MD5.
-			ProcessDiscImage(gi, &md5);
-			// TODO: Only redraw if the MB counter changes.
-			redraw = true;
+			PDI_RESULT res = ProcessDiscImage(gi, &md5);
+			if (res != PDI_NOT_DONE) {
+				// Redraw required.
+				redraw = true;
+				VIDEO_WaitVSync();
+			}
+		} else {
+			// Wait for VBlank.
+			VIDEO_WaitVSync();
 		}
 
+		FPAD_Update();
 		if (FPAD_Start(0)) {
 			// If MD5 is running, cancel it.
 			if (md5.running) {
