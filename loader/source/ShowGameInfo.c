@@ -69,6 +69,7 @@ typedef struct _MD5VerifyState_t {
 	md5_byte_t digest[16];
 	double time_start;
 	double time_end;
+	double time_diff;
 
 	// MD5 read buffer.
 	u8 *buf;
@@ -175,7 +176,7 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 		if (md5->calculated) {
 			// MD5 has been calculated.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
-				"MD5: %.32s", md5->md5_str);
+				"MD5: %.32s (%0.1fs)", md5->md5_str, md5->time_diff);
 			// TODO: Did this match anything in the database?
 		} else if (md5->running) {
 			// MD5 calculation is in progress.
@@ -386,6 +387,12 @@ static int ProcessDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 
 		// Convert the MD5 to a string.
 		md5_to_str(md5->md5_str, md5->digest);
+
+		// End time.
+		struct timeval tv;
+		gettimeofday_rvlfix(&tv, NULL);
+		md5->time_end = tv.tv_sec + ((double)tv.tv_usec / 1000000.0f);
+		md5->time_diff = md5->time_end - md5->time_start;
 		return 0;
 	}
 
