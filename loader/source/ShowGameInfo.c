@@ -151,17 +151,17 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 	 * Revision: 00
 	 * Format:   1:1 full dump
 	 */
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4, "%s", gi->Path);
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6, "Title:    %s", gi->Name);
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7, "Game ID:  %.6s", gi->ID);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*4,  "%s", gi->Path);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*6,  "Title:    %s", gi->Name);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7,  "Game ID:  %.6s", gi->ID);
 
 	static const char *const BI2regions[4] = {"Japan", "USA", "PAL", "South Korea"};
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8, "Region:   %s",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8,  "Region:   %s",
 		BI2regions[(gi->Flags & GIFLAG_REGION_MASK) >> 3]);
 
-	// TODO: Revision isn't available in gameinfo...
-	//PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Revision: %02u", gi->Revision);
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9, "Disc #:   %u", gi->DiscNumber+1);
+	const u8 discNumber = ((gi->Flags & GIFLAG_DISCNUMBER_MASK) >> 5);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9,  "Revision: %02u", gi->Revision);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*10, "Disc #  : %u", discNumber+1);
 
 	static const char *const formats[8] = {
 		"1:1 full dump",

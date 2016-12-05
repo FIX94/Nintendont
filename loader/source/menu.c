@@ -109,9 +109,11 @@ int compare_names(const void *a, const void *b)
 	if (ret == 0)
 	{
 		// Names are equal. Check disc number.
-		if (da->DiscNumber < db->DiscNumber)
+		const uint8_t dnuma = (da->Flags & GIFLAG_DISCNUMBER_MASK);
+		const uint8_t dnumb = (db->Flags & GIFLAG_DISCNUMBER_MASK);
+		if (dnuma < dnumb)
 			ret = -1;
-		else if (da->DiscNumber > db->DiscNumber)
+		else if (dnuma > dnumb)
 			ret = 1;
 		else
 			ret = 0;
@@ -208,7 +210,10 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 
 		// Save the game ID.
 		memcpy(gi->ID, buf, 6); //ID for EXI
-		gi->DiscNumber = discNumber;
+		gi->Flags |= (discNumber & 3) << 5;
+
+		// Save the revision number.
+		gi->Revision = buf[0x07];
 
 		// Check if this is a multi-game image.
 		// Reference: https://gbatemp.net/threads/wit-wiimms-iso-tools-gamecube-disc-support.251630/#post-3088119
@@ -299,8 +304,8 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
 		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
 		gi[0].Name = "Boot GC Disc in Drive";
+		gi[0].Revision = 0;
 		gi[0].Flags = 0;
-		gi[0].DiscNumber = 0;
 		gi[0].Path = strdup("di:di");
 		gamecount++;
 	}
@@ -439,7 +444,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 				buf[0x20+65] = 0;
 
 				memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-				gi[gamecount].DiscNumber = 0;
+				gi[gamecount].Revision = 0;
 
 				// TODO: Check titles.txt?
 				gi[gamecount].Name = strdup((const char*)&buf[0x20]);
@@ -718,7 +723,8 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 			// NOTE: On Wii, DISC01 is GIFLAG_FORMAT_FULL.
 			const u32 color = DiscFormatColors[gi->Flags & GIFLAG_FORMAT_MASK];
 
-			if (gi->DiscNumber == 0)
+			const u8 discNumber = ((gi->Flags & GIFLAG_DISCNUMBER_MASK) >> 5);
+			if (discNumber == 0)
 			{
 				// Disc 1.
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
@@ -731,7 +737,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 				// Disc 2 or higher.
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
 					    "%46.46s (%d) [%.6s]%s",
-					    gi->Name, gi->DiscNumber+1, gi->ID,
+					    gi->Name, discNumber+1, gi->ID,
 					    i == ctx->games.posX ? ARROW_LEFT : " ");
 			}
 		}

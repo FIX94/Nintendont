@@ -369,7 +369,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 
 			// TODO: titles.txt support?
 			memcpy(gi[gamecount].ID, GameHdr, 6);
-			gi[gamecount].DiscNumber = 0;
+			gi[gamecount].Revision = GameHdr[0x07];
 			gi[gamecount].Flags = GIFLAG_NAME_ALLOC;
 			gi[gamecount].Name = strdup((char*)&GameHdr[0x20]);
 			gi[gamecount].Path = NULL;
