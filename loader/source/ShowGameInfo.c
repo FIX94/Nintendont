@@ -45,13 +45,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define STR_CONST_X(str) STR_X(sizeof(str)-1)
 #define STR_PTR_X(str) STR_X(strlen(str))
 
+#define MD5_BUF_SZ (1024*1024)
+
 // MD5 verification state.
 typedef struct _MD5VerifyState_t {
 	bool supported;		// True if MD5 verification is supported.
+	bool running;		// True if MD5 calculation is currently in progress.
+	bool cancelled;		// True if MD5 calculation was cancelled.
 	bool calculated;	// True if the MD5 has been calculated.
 	uint8_t db_status;	// MD5_DB_Status
 
 	// Image variables.
+	FIL f_gcm;		// Disc image.
+	bool gcm_read_error;	// True if a read error occurred while calculating.
 	FSIZE_t image_size;	// File size.
 	FSIZE_t image_read;	// Amount of the image that has been read.
 
@@ -61,10 +67,61 @@ typedef struct _MD5VerifyState_t {
 	// MD5 state.
 	md5_state_t state;
 	md5_byte_t digest[16];
+	double time_start;
+	double time_end;
+
+	// MD5 read buffer.
+	u8 *buf;
 
 	// Text version of MD5.
 	char md5_str[33];
 } MD5VerifyState_t;
+
+/**
+ * Get the time of day with correct microseconds.
+ * @param tv struct timeval
+ * @param tz struct timezone
+ */
+static int gettimeofday_rvlfix(struct timeval *tv, struct timezone *tz)
+{
+	int ret = gettimeofday(tv, tz);
+	if (ret != 0)
+		return ret;
+
+	// devkitPPC's gettimeofday() is completely broken.
+	// tv_sec is correct, but tv_usec always returns a value less than 400.
+	// Reference: http://devkitpro.org/viewtopic.php?t=3056&p=15322
+#ifdef tick_microsecs
+#undef tick_microsecs
+#endif
+#ifdef tick_nanosecs
+#undef tick_nanosecs
+#endif
+#define tick_microsecs(ticks) ((((u64)(ticks)*8)/(u64)(TB_TIMER_CLOCK/125))%1000000)
+#define tick_nanosecs(ticks) ((((u64)(ticks)*8000)/(u64)(TB_TIMER_CLOCK/125))%1000000000)
+	tv->tv_usec = tick_microsecs(gettick());
+	return ret;
+}
+
+/**
+ * Convert MD5 bytes to a string.
+ * @param md5_str Output string. (Must be 33 bytes.)
+ * @param digest MD5 digest. (Must be 16 bytes.)
+ */
+static void md5_to_str(char md5_str[33], const md5_byte_t digest[16])
+{
+	// Convert the MD5 to a string.
+	static const char hex_lookup[16] = {
+		'0','1','2','3','4','5','6','7',
+		'8','9','a','b','c','d','e','f'
+	};
+	int i;
+	for (i = 0; i < 16; i++) {
+		md5_str[(i*2)+0] = hex_lookup[digest[i] >> 4];
+		md5_str[(i*2)+1] = hex_lookup[digest[i] & 0x0F];
+	}
+	md5_str[32] = 0;
+}
 
 /**
  * Show the basic game information.
@@ -113,16 +170,31 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 	// Is this a 1:1 disc image?
 	if (md5->supported) {
 		// Print the MD5 status.
-		// TODO: If calculating, show "Cancel" for B.
 		if (md5->calculated) {
 			// MD5 has been calculated.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
 				"MD5: %.32s", md5->md5_str);
 			// TODO: Did this match anything in the database?
+		} else if (md5->running) {
+			// MD5 calculation is in progress.
+			// Show the data read so far.
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
+				"MD5: Calculating... (%u of %u MiB processed)",
+				(u32)(md5->image_read / (1024*1024)),
+				(u32)(md5->image_size / (1024*1024)));
+		} else if (md5->gcm_read_error) {
+			// MD5 has not been calculated due to a read error.
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "MD5: ");
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+(5*10), MENU_POS_Y + 20*13,
+				"Read Error occurred (press A to try again)");
+		} else if (md5->cancelled) {
+			// MD5 calculation was cancelled.
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
+				"MD5: Cancelled (press A to recalculate)");
 		} else {
 			// MD5 has not been calculated.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
-				"MD5: Not calculated - press A to calculate");
+				"MD5: Not calculated (press A to calculate)");
 		}
 
 		if (md5->db_status != MD5_DB_OK) {
@@ -144,7 +216,7 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 				case MD5_DB_READ_ERROR:
 				default:
 					// Error reading the MD5 database.
-					errmsg = "Read error occurred";
+					errmsg = "Read Error occurred";
 					break;
 			}
 
@@ -166,19 +238,162 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 	static const char PressHome[] = "Press HOME (or START) to return to the game list.";
 	PrintFormat(DEFAULT_SIZE, BLACK, STR_CONST_X(PressHome), MENU_POS_Y + 20*19, PressHome);
 
+	// Button actions.
+	const char *const btn_B = (md5->running ? "Cancel MD5" : NULL);
+
 	// Print information.
 	PrintInfo();
-	PrintButtonActions("Go Back", NULL, NULL, NULL);
+	PrintButtonActions("Go Back", NULL, btn_B, NULL);
 
-	// "Calculate MD5" should be displayed in all cases,
+	// "Calculate MD5" should be displayed for all formats,
 	// but grayed out if it isn't supported.
-	const u32 color = (md5->supported ? BLACK : DARK_GRAY);
+	// (Also grayed out if the MD5 is being calculated or if
+	// it has been calculated.)
+	const u32 color = ((md5->supported && (!md5->running && !md5->calculated)) ? BLACK : DARK_GRAY);
 	PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Verify MD5");
 }
 
 /**
+ * Open the disc image for MD5 verification.
+ * @param gi Game to open.
+ * @param md5 MD5VerifyState_t
+ */
+static void OpenDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
+{
+	FIL *const f_gcm = &md5->f_gcm;
+
+	// Open the disc image.
+	if (f_open_char(f_gcm, gi->Path, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+	{
+		// Could not open the disc image.
+		md5->gcm_read_error = true;
+		return;
+	}
+
+#ifdef _USE_FASTSEEK
+	// Set up a FatFS link map for faster operation.
+	u32 tblsize = 4; //minimum default size
+	f_gcm->cltbl = malloc(tblsize * sizeof(DWORD));
+	f_gcm->cltbl[0] = tblsize;
+	int ret = f_lseek(&md5->f_gcm, CREATE_LINKMAP);
+	if (ret == FR_NOT_ENOUGH_CORE)
+	{
+		// Need to allocate more memory for the link map.
+		tblsize = f_gcm->cltbl[0];
+		free(f_gcm->cltbl);
+		f_gcm->cltbl = malloc(tblsize * sizeof(DWORD));
+		f_gcm->cltbl[0] = tblsize;
+		ret = f_lseek(&md5->f_gcm, CREATE_LINKMAP);
+		if (ret != FR_OK)
+		{
+			// Error creating the link map.
+			// We'll continue without it.
+			free(f_gcm->cltbl);
+			f_gcm->cltbl = NULL;
+		}
+	} else if (ret != FR_OK)
+	{
+		// Error creating the link map.
+		// We'll continue without it.
+		free(f_gcm->cltbl);
+		f_gcm->cltbl = NULL;
+	}
+#endif /* _USE_FASTSEEK */
+
+	// Allocate a read buffer.
+	md5->buf = (u8*)memalign(32, MD5_BUF_SZ);
+	if (!md5->buf) {
+		// Read buffer could not be allocated.
+#ifdef _USE_FASTSEEK
+		free(f_gcm->cltbl);
+#endif /* _USE_FASTSEEK */
+		f_close(f_gcm);
+		// TODO: More specific error?
+		md5->gcm_read_error = true;
+		return;
+	}
+
+	// Image size.
+	md5->image_size = (u32)f_size(f_gcm);
+	md5->image_read = 0;
+
+	// Start time.
+	struct timeval tv;
+	gettimeofday_rvlfix(&tv, NULL);
+	md5->time_start = tv.tv_sec + ((double)tv.tv_usec / 1000000.0f);
+
+	// File is open.
+	md5_init(&md5->state);
+	md5->running = true;
+	md5->cancelled = false;
+}
+
+/**
+ * Close the disc image.
+ * @param md5 MD5VerifyState_t
+ */
+static void CloseDiscImage(MD5VerifyState_t *md5)
+{
+	f_close(&md5->f_gcm);
+#ifdef _USE_FASTSEEK
+	free(md5->f_gcm.cltbl);
+#endif
+	free(md5->buf);
+	md5->buf = NULL;
+}
+
+/**
+ * Process a megabyte of the disc image for MD5 verification.
+ * @param gi Game to verify.
+ * @param md5 MD5VerifyState_t
+ * @return 1 if not finished; 0 if finished; -1 on error. (Disc image is automatically closed.)
+ */
+static int ProcessDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
+{
+	if (!md5->running)
+		return 0;
+
+	FIL *const f_gcm = &md5->f_gcm;
+
+	// Read from the disc image.
+	UINT read;
+	FRESULT res = f_read(f_gcm, md5->buf, MD5_BUF_SZ, &read);
+	if (res != FR_OK)
+	{
+		// Read error.
+		CloseDiscImage(md5);
+		md5->running = false;
+		md5->gcm_read_error = true;
+		return -1;
+	}
+
+	if (read > 0) {
+		// Process the data.
+		md5_append(&md5->state, (const md5_byte_t*)md5->buf, read);
+		md5->image_read += read;
+	}
+
+	if (f_eof(f_gcm)) {
+		// End of file.
+		CloseDiscImage(md5);
+		md5->running = false;
+		md5->calculated = true;
+
+		// Finish the MD5 calculations.
+		md5_finish(&md5->state, md5->digest);
+
+		// Convert the MD5 to a string.
+		md5_to_str(md5->md5_str, md5->digest);
+		return 0;
+	}
+
+	// More data to process.
+	return 1;
+}
+
+/**
  * Show a game's information.
- * @param gameinfo Game to verify.
+ * @param gameinfo Game to display.
  */
 void ShowGameInfo(const gameinfo *gi)
 {
@@ -194,21 +409,55 @@ void ShowGameInfo(const gameinfo *gi)
 		md5.db_status = LoadMD5Database(&md5.md5_db);
 	}
 
-	// Show the game information.
-	DrawGameInfoScreen(gi, &md5);
-
-	// Render the text.
-	GRRLIB_Render();
-	ClearScreen();
-
 	// Wait for the user to press the Home button.
+	bool redraw = true;
 	while (1)
 	{
+		if (redraw) {
+			// Show the game information.
+			DrawGameInfoScreen(gi, &md5);
+			// Render the text.
+			GRRLIB_Render();
+			ClearScreen();
+			redraw = false;
+		}
+
 		VIDEO_WaitVSync();
 		FPAD_Update();
 
-		if (FPAD_Start(0))
+		if (md5.running) {
+			// Process a megabyte of the MD5.
+			ProcessDiscImage(gi, &md5);
+			// TODO: Only redraw if the MB counter changes.
+			redraw = true;
+		}
+
+		if (FPAD_Start(0)) {
+			// If MD5 is running, cancel it.
+			if (md5.running) {
+				md5.running = false;
+				md5.cancelled = true;
+				CloseDiscImage(&md5);
+			}
+			// We're done here.
 			break;
+		} else if (FPAD_OK(0)) {
+			// If MD5 calculation is supported, and the
+			// MD5 calculation is either not in progress
+			// or has not been run, start it.
+			if (md5.supported && !md5.running && !md5.calculated) {
+				// Start the MD5 calculation.
+				OpenDiscImage(gi, &md5);
+				redraw = true;
+			}
+		} else if (FPAD_Cancel(0)) {
+			// If MD5 is running, cancel it.
+			if (md5.running) {
+				md5.running = false;
+				md5.cancelled = true;
+				CloseDiscImage(&md5);
+			}
+		}
 	}
 
 	if ((gi->Flags & GIFLAG_FORMAT_MASK) == GIFLAG_FORMAT_FULL) {
