@@ -67,6 +67,15 @@ void ReadSpeed_Start()
 	CMDStartTime = read32(HW_TIMER);
 }
 
+void ReadSpeed_Motor()
+{
+	if(UseReadLimit == 0)
+		return;
+
+	CMDStartTime = read32(HW_TIMER);
+	CMDTicks = SEEK_TICKS;
+}
+
 void ReadSpeed_Setup(u32 Offset, int Length)
 {
 	if(UseReadLimit == 0)

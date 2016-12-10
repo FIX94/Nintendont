@@ -531,7 +531,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 	{
 		u32 op = read32( (u32)dst + i );
 
-		if( (op & 0xFC1FFFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
+		if( (op & 0xFC00FFFF) == 0x3C00CC00 )	// lis rX, 0xCC00
 		{
 			LISReg = (op >> 21) & 0x1F;
 			LISOff = (u32)dst + i;
@@ -1169,6 +1169,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	if ((TITLE_ID) == 0x474E48)  //NHL Hitz = Possible Datel
 	{
+		if ((Length >= 0x19850)
+		     && read32((u32)Buffer+0x19848-0x2460) == 0x20446174
+                     && ((read32((u32)Buffer+0x1984C-0x2460) >> 16) == 0x656C))
+		{
+			Datel = true;
+		}
 		if (Datel)
 		{
 			switch ((u32)Buffer)
@@ -1664,6 +1670,26 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
+				else if( BufAt0 == 0x3D00CC00 && BufAt4 == 0x61083004 && read32( (u32)Buffer + i + 8 ) == 0x392000F0)
+				{
+					dbgprintf("Patch:[SetInterruptMask_Datel]: (0x%08X)\r\n", Buffer+i+0x8);
+					write32( (u32)Buffer+i+0x8, 0x392040F0 );
+					PatchCount |= FPATCH_SetInterruptMask;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+				else if( BufAt0 == 0x3D60CC00 && BufAt4 == 0x616B3004 && read32( (u32)Buffer + i + 0xC ) == 0x38000000
+					 && read32( (u32)Buffer + i + 0x10 ) == 0x914B0000 && read32( (u32)Buffer + i - 0x4 ) == 0x91490000
+					 && read32( (u32)Buffer + i - 0xC ) == 0x39400000)
+				{
+					dbgprintf("Patch:[SetInterruptMask_DatelB]: (0x%08X)\r\n", Buffer+i-0xC);
+					write32( (u32)Buffer+i-0xC, 0x38000000 );
+					write32( (u32)Buffer+i+0xC, 0x39404000 );
+					write32( (u32)Buffer+i-0x4, 0x90090000 );
+					PatchCount |= FPATCH_SetInterruptMask;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
 			}
 			if( (PatchCount & FPATCH_OSDispatchIntr) == 0 )
 			{
@@ -1685,7 +1711,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							write32A( (u32)Buffer+i+0x190, 0x80830000, 0x80830028, 1 );
 						}
 					}
-					PatchCount |= FPATCH_OSDispatchIntr;
+					if (!Datel) // Multiples in Datel discs
+						PatchCount |= FPATCH_OSDispatchIntr;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
 				}
@@ -1699,6 +1726,22 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						write32A( (u32)Buffer+i+0x138, 0x3C60C000, 0x3C60CC00, 1 );
 						write32A( (u32)Buffer+i+0x13C, 0x83C30010, 0x83C36800, 1 );
 					}
+					PatchCount |= FPATCH_OSDispatchIntr;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+				else if( BufAt0 == 0x3D20CC00 && BufAt4 == 0x61293000 && read32( (u32)Buffer + i + 8 ) == 0x83890000)
+				{
+					printpatchfound("__OSDispatchInterrupt_Datel", NULL, (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
+					PatchBL( PatchCopy(FakeInterrupt_Datel, FakeInterrupt_Datel_size), (u32)Buffer + i + 8 );
+					PatchCount |= FPATCH_OSDispatchIntr;
+					i = GotoFuncEnd(i, (u32)Buffer);
+					continue;
+				}
+				else if( BufAt0 == 0x3D20CC00 && BufAt4 == 0x61293000 && read32( (u32)Buffer + i + 8 ) == 0x81490000)
+				{
+					printpatchfound("__OSDispatchInterrupt_Datel", NULL, (u32)Buffer + GotoFuncStart(i, (u32)Buffer));
+					PatchBL( PatchCopy(FakeInterrupt_Datel, FakeInterrupt_Datel_size), (u32)Buffer + i + 8 );
 					PatchCount |= FPATCH_OSDispatchIntr;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
@@ -1728,8 +1771,23 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					if ((read32(Offset + 4) & 0xFFFF) == 0xD302)	// Loader
 						HwOffset = Offset + 4;
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
-					//PatchDiscInterface( (char*)Offset );
+					u32 OrigData = read32(HwOffset);
 					PatchBL(__DVDInterruptHandlerAddr, HwOffset);
+					if (Datel)
+					{
+						write32(__DVDInterruptHandlerAddr + __DVDInterruptHandler_size - 0x8, OrigData);
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", OrigData, HwOffset);
+						#endif
+						u32 OrigAddr = Offset + 0x74;
+						dbgprintf("Patch:[__DVDInterruptHandler]: (0x%08X)\r\n", read32(OrigAddr));
+						if (write32A(OrigAddr, 0x7CC03378, 0x7CE03378, false)) //or r0,r7,r6 -> or r0,r6,r6
+							printpatchfound("DVDInterruptHandler", "Datel", OrigAddr);
+						OrigAddr = Offset - 0xC;
+						dbgprintf("Patch:[__DVDInterruptHandler]: (0x%08X)\r\n", read32(OrigAddr));
+						if (write32A(OrigAddr, 0x60000000, 0x3C00E000, false)) //or r0,r7,r6 -> or r0,r6,r6
+							printpatchfound("DVDInterruptHandler", "Datel", OrigAddr);
+					}
 					PatchCount |= FPATCH_DVDIntrHandler;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
@@ -1752,8 +1810,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						HwOffset = Offset + 4;
 					}
 					dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", Offset, HwOffset );
-					//PatchDiscInterface( (char*)Offset );
+					u32 OrigData = read32(HwOffset);
 					PatchBL(__DVDInterruptHandlerAddr, HwOffset);
+					if (Datel)
+					{
+						write32(__DVDInterruptHandlerAddr + __DVDInterruptHandler_size - 0xC, OrigData);
+						#ifdef DEBUG_PATCH
+						dbgprintf("Patch:[__DVDInterruptHandler]: 0x%08X (0x%08X)\r\n", OrigData, HwOffset);
+						#endif
+					}
 					PatchCount |= FPATCH_DVDIntrHandler;
 					i = GotoFuncEnd(i, (u32)Buffer);
 					continue;
@@ -2984,6 +3049,28 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			if(patfound) break;
 		}
 	}
+	// Not really Triforce Arcade. Just borrowing the config. Replaces GBA games on AGP disc.
+	if (Datel && ConfigGetConfig(NIN_CFG_ARCADE_MODE))
+	{
+		if(write32A(0x00098044, 0x08900000, 0x09900000, 0))
+			printpatchfound("Absolute Zed", "Bounty Hunter", 0x00098044);
+		if(write32A(0x00098050, 0x09100000, 0x0A900000, 0))
+			printpatchfound("Alien Invasion 2", "Chopper 2", 0x00098050);
+		if(write32A(0x0009805C, 0x0A100000, 0x0B100000, 0))
+			printpatchfound("In The Garden", "Dragon Tiles 3", 0x0009805C);
+		if(write32A(0x00098068, 0x0C900000, 0x0B900000, 0))
+			printpatchfound("Llamaboost", "Invaders", 0x00098068);
+		if(write32A(0x00098074, 0x10100000, 0x0C100000, 0))
+			printpatchfound("Puzzle", "Jetpack 2", 0x00098074);
+		if(write32A(0x00098080, 0x10900000, 0x0D900000, 0))
+			printpatchfound("Q Zone", "Loop The Loop", 0x00098080);
+		if(write32A(0x0009808C, 0x11100000, 0x0E100000, 0))
+			printpatchfound("Rally Z", "Paddle Panic", 0x0009808C);
+		if(write32A(0x00098098, 0x11900000, 0x0E900000, 0))
+			printpatchfound("Space Loonies", "Popem", 0x00098098);
+		if(write32A(0x000980A4, 0x12100000, 0x0F900000, 0))
+			printpatchfound("Stick a Brick", "Proxima", 0x000980A4);
+	}
 
 	/* Check for PADInit, if not found use SIInit */
 	if(SIInitStoreAddr != 0)
@@ -3366,7 +3453,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	sync_after_write( Buffer, Length );
 
 	UseReadLimit = 1;
-	if(RealDiscCMD != 0 || TRIGame != TRI_NONE || IsN64Emu 
+	// Datel discs require read speed. (Related to Stop motor/Read Header?) 
+	if((RealDiscCMD != 0 && !Datel) || TRIGame != TRI_NONE || IsN64Emu 
 			|| ConfigGetConfig(NIN_CFG_REMLIMIT))
 		UseReadLimit = 0;
 }
