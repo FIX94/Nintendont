@@ -12,6 +12,6 @@
 
 // "Special" version.
 // This should only be set in custom builds, i.e. not mainline.
-//#define NIN_SPECIAL_VERSION			""
+#define NIN_SPECIAL_VERSION			"-GItest1"
 
 #endif
