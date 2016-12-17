@@ -26,7 +26,7 @@ GC_SRAM sram ALIGNED(32) =
 
 	0xFE,		// Last DVD error
 	0x00,		// Reserved
-	{0xC8, 0xC8},	// Flash ID checksums
+	{0xC8, 0xA2},	// Flash ID checksums
 
 	// Unused
 	0x01055728
@@ -66,6 +66,7 @@ void SRAM_Init(void)
 	// Clear the Flash IDs.
 	memset(sram.FlashID, 0, sizeof(sram.FlashID));
 	sram.FlashIDChecksum[0] = 0xFF;
+	sram.FlashIDChecksum[1] = 0xFF;
 
 	sram.BootMode &= ~0x40;	// Clear PAL60
 	sram.Flags    &= ~0x80;	// Clear Progmode

@@ -57,6 +57,7 @@ bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
+static u32 IRQ_Cause3= 0;
 
 // EXI devices.
 // Low 2 bits: Device number. (0-2)
@@ -179,6 +180,7 @@ bool EXICheckTimer(void)
 void EXIInterrupt(void)
 {
 	write32( 0x10, IRQ_Cause );
+	write32( 0x14, IRQ_Cause3 );
 	write32( 0x18, IRQ_Cause2 );
 	sync_after_write( (void*)0, 0x20 );
 	write32( EXI_INT, 0x10 ); // EXI IRQ
@@ -189,6 +191,7 @@ void EXIInterrupt(void)
 	IRQ_Timer = 0;
 	IRQ_Cause = 0;
 	IRQ_Cause2 = 0;
+	IRQ_Cause3 = 0;
 }
 
 void EXIShutdown(void)
@@ -296,7 +299,10 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 						// FIXME: ERASE command isn't implemented.
 						EXICommand[slot] = MEM_BLOCK_ERASE;
 						GCNCard_ClearWriteCount(slot);
-						IRQ_Cause = 2;			// EXI IRQ
+						if (slot==0)
+							IRQ_Cause = 2;			// EXI IRQ
+						else
+							IRQ_Cause3 = 2;			// EXI IRQ
 						EXIOK = 2;
 					} break;
 				}
@@ -317,7 +323,10 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 						// FIXME: ERASE command isn't implemented.
 						EXICommand[slot] = MEM_BLOCK_ERASE;
 						GCNCard_ClearWriteCount(slot);
-						IRQ_Cause = 2;			// EXI IRQ
+						if (slot==0)
+							IRQ_Cause = 2;			// EXI IRQ
+						else
+							IRQ_Cause3 = 2;			// EXI IRQ
 						EXIOK = 2;
 					} break;
 					case 0xF2:
@@ -353,7 +362,10 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 					case MEM_BLOCK_WRITE:
 					{
 						GCNCard_Write(slot, Data, Length);
-						IRQ_Cause = 10;	// TC(8) & EXI(2) IRQ
+						if (slot==0)
+							IRQ_Cause = 10;	// TC(8) & EXI(2) IRQ
+						else
+							IRQ_Cause3 = 10;	// TC(8) & EXI(2) IRQ
 						EXIOK = 2;
 					} break;
 				}
@@ -387,7 +399,12 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 			case MEM_BLOCK_READ:
 			{
 				GCNCard_Read(slot, Data, Length);
-				IRQ_Cause = 8;		// TC IRQ
+				if (slot==0)
+					IRQ_Cause = 8;		// TC IRQ
+	else
+					IRQ_Cause3 = 8;		// TC IRQ
+	sync_before_read_align32((void*) 0xc0, 0x20 );
+	dbgprintf("EXI Interrupt0 0x%08X 0x%08X\r\n", read32(0xc4), read32(0xc8));
 				EXIOK = 2;
 			} break;
 		}

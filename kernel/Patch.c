@@ -1737,6 +1737,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						// EXI Device 0 Control Register
 						write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
 						write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
+						// EXI Device 1 Control Register
+						write32A( (u32)Buffer+i+0x14C, 0x3C60C000, 0x3C60CC00, 1 );
+						write32A( (u32)Buffer+i+0x150, 0x38630014, 0x38636800, 1 );
+						write32A( (u32)Buffer+i+0x154, 0x80830000, 0x80830014, 1 );
 						if(TRIGame)
 						{
 							// EXI Device 2 Control Register (Trifroce)
@@ -2570,7 +2574,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							memcpy( (void*)(FOffset), EXIDMA, sizeof(EXIDMA) );
 							/* Insert CB value into patched EXIDMA */
 							W16(FOffset + 2, value);
-							W16(FOffset + 6, valueB + 4);
+							W16(FOffset + 6, valueB);
 						} break;
 						case FCODE_EXIUnlock:
 						{
