@@ -193,22 +193,24 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 			// MD5 has been calculated.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
 				"MD5: %.32s (%0.1fs)", md5->md5_str, md5->time_diff);
-			if (md5->db_entry.id6 && md5->db_entry.revision &&
-			    md5->db_entry.discnum && md5->db_entry.title)
-			{
-				PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*14,
-					"*** Verified: %s", md5->db_entry.title);
-				PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*15,
-					"*** Game ID : %s", md5->db_entry.id6);
-				PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*16,
-					"*** Revision: %s", md5->db_entry.revision);
-				if (md5->db_entry.discnum[0] != 0) {
-					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*17,
-						"*** Disc #:   %s", md5->db_entry.discnum);
+			if (md5->db_status == MD5_DB_OK) {
+				if (md5->db_entry.id6 && md5->db_entry.revision &&
+				md5->db_entry.discnum && md5->db_entry.title)
+				{
+					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*14,
+						"*** Verified: %s", md5->db_entry.title);
+					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*15,
+						"*** Game ID : %s", md5->db_entry.id6);
+					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*16,
+						"*** Revision: %s", md5->db_entry.revision);
+					if (md5->db_entry.discnum[0] != 0) {
+						PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*17,
+							"*** Disc #:   %s", md5->db_entry.discnum);
+					}
+				} else {
+					PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*14,
+						"!!! MD5 not found in database. !!!");
 				}
-			} else {
-				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*14,
-					"!!! MD5 not found in database. !!!");
 			}
 		} else if (md5->running) {
 			// MD5 calculation is in progress.
@@ -420,7 +422,10 @@ static PDI_RESULT ProcessDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 		md5_to_str(md5->md5_str, md5->digest);
 
 		// Look up the MD5 in the database.
-		char *db_line = FindMD5(&md5->md5_db, md5->md5_str);
+		char *db_line = NULL;
+		if (md5->db_status == MD5_DB_OK) {
+			db_line = FindMD5(&md5->md5_db, md5->md5_str);
+		}
 		if (db_line) {
 			// Tokenize the line.
 
