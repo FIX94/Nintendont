@@ -115,3 +115,58 @@ void FreeMD5Database(MD5_DB_t *pDB)
 	free(pDB->db);
 	pDB->db = NULL;
 }
+
+/**
+ * Find an MD5 in the MD5 database.
+ * @param pDB		[in] MD5 database in memory.
+ * @param md5_str	[in] MD5 string in lowercase ASCII. (32 chars + NULL)
+ * @return Copy of the MD5 line from the database, NULL-terminated; NULL if not found. (Must be freed after use!)
+ */
+char *FindMD5(const MD5_DB_t *pDB, const char *md5_str)
+{
+	// End of MD5 DB. (actually one past, same semantics as C++ iterators)
+	const char *db = pDB->db;
+	const char *db_end = pDB->db + pDB->size;
+
+	while (db < db_end)
+	{
+		// Find the newline and/or NULL terminator.
+		const char *nl;
+		for (nl = db; nl < db_end; nl++) {
+			if (*nl == '\n' || *nl == 0)
+				break;
+		}
+
+		// Found the newline and/or NULL terminator.
+		const u32 str_sz = (u32)(nl - db);
+		if (str_sz < 33) {
+			// Empty line, or line isn't big enough.
+			if (nl == db_end || *nl == 0) {
+				// End of database or NULL terminator.
+				break;
+			}
+			// Next line.
+			db = nl + 1;
+			continue;
+		}
+
+		// Compare the first 32 characters to the requested MD5.
+		// NOTE: This will handle comment lines, since # isn't
+		// a valid character in an MD5.
+		if (db[32] == '|' && !memcmp(db, md5_str, 32)) {
+			// We have a match!
+			char *buf = (char*)malloc(str_sz+1);
+			if (!buf)
+				return NULL;
+			memcpy(buf, db, str_sz);
+			buf[str_sz] = 0;
+			return buf;
+		}
+
+		// Not a match. Proceed to the next line.
+		db = nl + 1;
+	}
+
+	// No match.
+	return NULL;
+}

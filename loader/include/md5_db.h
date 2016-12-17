@@ -53,4 +53,12 @@ MD5_DB_Status LoadMD5Database(MD5_DB_t *pDB);
  */
 void FreeMD5Database(MD5_DB_t *pDB);
 
+/**
+ * Find an MD5 in the MD5 database.
+ * @param pDB		[in] MD5 database in memory.
+ * @param md5_str	[in] MD5 string in lowercase ASCII. (32 chars + NULL)
+ * @return Copy of the MD5 line from the database, NULL-terminated; NULL if not found. (Must be freed after use!)
+ */
+char *FindMD5(const MD5_DB_t *pDB, const char *md5_str);
+
 #endif /* __MD5_DB_H__ */

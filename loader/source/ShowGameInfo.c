@@ -64,6 +64,14 @@ typedef struct _MD5VerifyState_t {
 	// MD5 database.
 	MD5_DB_t md5_db;
 
+	// MD5 database entry. (allocated)
+	struct {
+		char *id6;
+		char *revision;
+		char *discnum;
+		char *title;
+	} db_entry;
+
 	// MD5 state.
 	md5_state_t state;
 	md5_byte_t digest[16];
@@ -185,7 +193,23 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 			// MD5 has been calculated.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
 				"MD5: %.32s (%0.1fs)", md5->md5_str, md5->time_diff);
-			// TODO: Did this match anything in the database?
+			if (md5->db_entry.id6 && md5->db_entry.revision &&
+			    md5->db_entry.discnum && md5->db_entry.title)
+			{
+				PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*14,
+					"*** Verified: %s", md5->db_entry.title);
+				PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*15,
+					"*** Game ID : %s", md5->db_entry.id6);
+				PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*16,
+					"*** Revision: %s", md5->db_entry.revision);
+				if (md5->db_entry.discnum[0] != 0) {
+					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*17,
+						"*** Disc #:   %s", md5->db_entry.discnum);
+				}
+			} else {
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*14,
+					"!!! MD5 not found in database. !!!");
+			}
 		} else if (md5->running) {
 			// MD5 calculation is in progress.
 			// Show the data read so far.
@@ -395,6 +419,37 @@ static PDI_RESULT ProcessDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 		// Convert the MD5 to a string.
 		md5_to_str(md5->md5_str, md5->digest);
 
+		// Look up the MD5 in the database.
+		char *db_line = FindMD5(&md5->md5_db, md5->md5_str);
+		if (db_line) {
+			// Tokenize the line.
+
+			// Field 1: MD5 (lowercase ASCII)
+			// This field isn't actually being printed.
+			char *saveptr;
+			char *token = strtok_r(db_line, "|", &saveptr);
+
+			// Field 2: ID6
+			token = strtok_r(NULL, "|", &saveptr);
+			md5->db_entry.id6 = (token ? strdup(token) : NULL);
+
+			// Field 3: Revision
+			token = strtok_r(NULL, "|", &saveptr);
+			md5->db_entry.revision = (token ? strdup(token) : NULL);
+
+			// Field 4: Disc number.
+			// The header has the disc number, but it doesn't
+			// distinguish between "Disc 1" and "single-disc game".
+			token = strtok_r(NULL, "|", &saveptr);
+			md5->db_entry.discnum = (token ? strdup(token) : NULL);
+
+			// Field 5: Game name.
+			token = strtok_r(NULL, "", &saveptr);
+			md5->db_entry.title = (token ? strdup(token) : NULL);
+
+			free(db_line);
+		}
+
 		// End time.
 		struct timeval tv;
 		gettimeofday_rvlfix(&tv, NULL);
@@ -485,4 +540,10 @@ void ShowGameInfo(const gameinfo *gi)
 	if ((gi->Flags & GIFLAG_FORMAT_MASK) == GIFLAG_FORMAT_FULL) {
 		FreeMD5Database(&md5.md5_db);
 	}
+
+	// Free game entry information.
+	free(md5.db_entry.id6);
+	free(md5.db_entry.revision);
+	free(md5.db_entry.discnum);
+	free(md5.db_entry.title);
 }
