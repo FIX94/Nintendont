@@ -194,16 +194,14 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
 				"MD5: %.32s (%0.1fs)", md5->md5_str, md5->time_diff);
 			if (md5->db_status == MD5_DB_OK) {
-				if (md5->db_entry.id6 && md5->db_entry.revision &&
-				md5->db_entry.discnum && md5->db_entry.title)
-				{
+				if (md5->db_entry.id6 && md5->db_entry.revision && md5->db_entry.title) {
 					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*14,
 						"*** Verified: %s", md5->db_entry.title);
 					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*15,
 						"*** Game ID:  %s", md5->db_entry.id6);
 					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*16,
 						"*** Revision: %s", md5->db_entry.revision);
-					if (md5->db_entry.discnum[0] != 0) {
+					if (md5->db_entry.discnum) {
 						PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*17,
 							"*** Disc #:   %s", md5->db_entry.discnum);
 					}
@@ -446,7 +444,11 @@ static PDI_RESULT ProcessDiscImage(const gameinfo *gi, MD5VerifyState_t *md5)
 			// The header has the disc number, but it doesn't
 			// distinguish between "Disc 1" and "single-disc game".
 			token = strtok_r(NULL, "|", &saveptr);
-			md5->db_entry.discnum = (token ? strdup(token) : NULL);
+			if (token && strcmp(token, "0") != 0) {
+				md5->db_entry.discnum = strdup(token);
+			} else {
+				md5->db_entry.discnum = NULL;
+			}
 
 			// Field 5: Game name.
 			token = strtok_r(NULL, "", &saveptr);
