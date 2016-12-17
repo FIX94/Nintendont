@@ -200,7 +200,7 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*14,
 						"*** Verified: %s", md5->db_entry.title);
 					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*15,
-						"*** Game ID : %s", md5->db_entry.id6);
+						"*** Game ID:  %s", md5->db_entry.id6);
 					PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X, MENU_POS_Y + 20*16,
 						"*** Revision: %s", md5->db_entry.revision);
 					if (md5->db_entry.discnum[0] != 0) {
