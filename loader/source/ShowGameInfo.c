@@ -161,7 +161,7 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 
 	const u8 discNumber = ((gi->Flags & GIFLAG_DISCNUMBER_MASK) >> 5);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*9,  "Revision: %02u", gi->Revision);
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*10, "Disc #  : %u", discNumber+1);
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*10, "Disc #:   %u", discNumber+1);
 
 	static const char *const formats[8] = {
 		"1:1 full dump",
@@ -176,7 +176,7 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 	const u8 disc_format = (gi->Flags & GIFLAG_FORMAT_MASK);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*11, "Format:");
 	PrintFormat(DEFAULT_SIZE, DiscFormatColors[disc_format],
-		MENU_POS_X+(9*10), MENU_POS_Y + 20*11, "%s", formats[disc_format]);
+		MENU_POS_X+(10*10), MENU_POS_Y + 20*11, "%s", formats[disc_format]);
 
 	// Is this a 1:1 disc image?
 	if (md5->supported) {
