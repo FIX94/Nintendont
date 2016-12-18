@@ -1039,7 +1039,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 4))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 6))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1066,7 +1066,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 3;
+				ctx->settings.posX = 5;
 			}
 		}
 
@@ -1303,6 +1303,20 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 
+        case 4:
+          // Wiimote CC Rumble
+          ctx->saveSettings = true;
+          ncfg->Config ^= (NIN_CFG_CC_RUMBLE);
+          ctx->redraw = true;
+          break;
+ 
+        case 5:
+          // IPL
+          ctx->saveSettings = true;
+          ncfg->Config ^= (NIN_CFG_IPL);
+          ctx->redraw = true;
+          break;
+
 				default:
 					break;
 			}
@@ -1456,6 +1470,16 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "TRI Arcade Mode", (ncfg->Config & (NIN_CFG_ARCADE_MODE)) ? "On " : "Off");
 		ListLoopIndex++;
 
+		// Wiimote CC Rumble
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Wiimote CC Rumble", (ncfg->Config & (NIN_CFG_CC_RUMBLE)) ? "On " : "Off");
+		ListLoopIndex++;
+
+		// Load GameCube IPL
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Load IPL", (ncfg->Config & (NIN_CFG_IPL)) ? "On " : "Off");
+		ListLoopIndex++;
+
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {
 			u32 cursor_color = BLACK;
@@ -1477,7 +1501,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 5;
+			int line_num = 7;
 			do {
 				if (**desc != 0)
 				{

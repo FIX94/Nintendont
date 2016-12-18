@@ -31,7 +31,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dip.h"
 #include "global.h"
 #include "font.h"
-#include "Config.h"
 #include "FPad.h"
 #include "menu.h"
 #include "MemCard.h"
@@ -43,6 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ipl.h"
 #include "HID.h"
 #include "TRI.h"
+#include "Config.h"
 
 #include "ff_utf8.h"
 #include "diskio.h"
@@ -929,61 +929,64 @@ int main(int argc, char **argv)
 	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
 		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
-	if(IsTRIGame == 0)
+	if (ncfg->Config & (NIN_CFG_IPL))
 	{
-		// Attempt to load the GameCube IPL.
-		char iplchar[32];
-		iplchar[0] = 0;
-		switch (BI2region)
+		if(IsTRIGame == 0)
 		{
-			case BI2_REGION_USA:
-				snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
-				break;
-
-			case BI2_REGION_JAPAN:
-			case BI2_REGION_SOUTH_KOREA:
-			default:
-				snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
-				break;
-
-			case BI2_REGION_PAL:
-				// FIXME: PAL IPL is broken on Wii U.
-				if (!IsWiiU())
-					snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
-				break;
-		}
-
-		FIL f;
-		if (iplchar[0] != 0 &&
-		    f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
-		{
-			if (f.obj.objsize == GCN_IPL_SIZE)
+			// Attempt to load the GameCube IPL.
+			char iplchar[32];
+			iplchar[0] = 0;
+			switch (BI2region)
 			{
-				iplbuf = malloc(GCN_IPL_SIZE);
-				UINT read;
-				f_read(&f, iplbuf, GCN_IPL_SIZE, &read);
-				useipl = (read == GCN_IPL_SIZE);
+				case BI2_REGION_USA:
+					snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
+					break;
+
+				case BI2_REGION_JAPAN:
+				case BI2_REGION_SOUTH_KOREA:
+				default:
+					snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
+					break;
+
+				case BI2_REGION_PAL:
+					// FIXME: PAL IPL is broken on Wii U.
+					if (!IsWiiU())
+						snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
+					break;
 			}
-			f_close(&f);
-		}
-	}
-	else
-	{
-		// Attempt to load the Triforce IPL. (segaboot)
-		char iplchar[32];
-		snprintf(iplchar, sizeof(iplchar), "%s:/segaboot.bin", GetRootDevice());
-		FIL f;
-		if (f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
-		{
-			if (f.obj.objsize == TRI_IPL_SIZE)
+
+			FIL f;
+			if (iplchar[0] != 0 &&
+			    f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 			{
-				f_lseek(&f, 0x20);
-				void *iplbuf = (void*)0x92A80000;
-				UINT read;
-				f_read(&f, iplbuf, TRI_IPL_SIZE - 0x20, &read);
-				useipltri = (read == (TRI_IPL_SIZE - 0x20));
+				if (f.obj.objsize == GCN_IPL_SIZE)
+				{
+					iplbuf = malloc(GCN_IPL_SIZE);
+					UINT read;
+					f_read(&f, iplbuf, GCN_IPL_SIZE, &read);
+					useipl = (read == GCN_IPL_SIZE);
+				}
+				f_close(&f);
 			}
-			f_close(&f);
+		}
+		else
+		{
+			// Attempt to load the Triforce IPL. (segaboot)
+			char iplchar[32];
+			snprintf(iplchar, sizeof(iplchar), "%s:/segaboot.bin", GetRootDevice());
+			FIL f;
+			if (f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
+			{
+				if (f.obj.objsize == TRI_IPL_SIZE)
+				{
+					f_lseek(&f, 0x20);
+					void *iplbuf = (void*)0x92A80000;
+					UINT read;
+					f_read(&f, iplbuf, TRI_IPL_SIZE - 0x20, &read);
+					useipltri = (read == (TRI_IPL_SIZE - 0x20));
+				}
+				f_close(&f);
+			}
 		}
 	}
 
