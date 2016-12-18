@@ -428,6 +428,12 @@ void UpdateNinCFG()
 		ncfg->Config &= ~NIN_CFG_ARCADE_MODE;
 		ncfg->Version = 7;
 	}
+	if (ncfg->Version == 7)
+	{	//Wiimote CC Rumble, disabled by default; IPL setting
+		ncfg->Config &= ~NIN_CFG_CC_RUMBLE;
+		ncfg->Config &= ~NIN_CFG_IPL;
+		ncfg->Version = 8;
+	}
 }
 
 int CreateNewFile(const char *Path, u32 size)

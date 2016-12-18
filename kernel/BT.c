@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "lwbt/hci.h"
 #include "lwbt/l2cap.h"
 #include "lwbt/physbusif.h"
+#include "Config.h"
 
 extern int dbgprintf( const char *fmt, ...);
 
@@ -804,7 +805,7 @@ void BTUpdateRegisters(void)
 			}
 			BTPadConnected[i]->channel = CurChan;
 			BTPadConnected[i]->rumble = CurRumble;
-			if(BTPadConnected[i]->transfertype == 0x3D || BTPadConnected[i]->controller & (C_RUMBLE_WM | C_NUN))
+			if(BTPadConnected[i]->transfertype == 0x3D || BTPadConnected[i]->controller & (C_RUMBLE_WM | C_NUN) || ConfigGetConfig(NIN_CFG_CC_RUMBLE))
 				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan] | CurRumble);
 			else //classic controller doesnt have rumble, can be forced to wiimote if wanted
 				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan]);
