@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "menu.h"
 #include "../../common/include/CommonConfigStrings.h"
 #include "ff_utf8.h"
-#include "verify_md5.h"
+#include "ShowGameInfo.h"
 
 // Dark gray for grayed-out menu items.
 #define DARK_GRAY 0x666666FF
@@ -54,6 +54,19 @@ typedef enum {
 	DEV_NO_GAMES = 2,
 } DevState;
 static u8 devState = DEV_OK;
+
+// Disc format colors.
+const u32 DiscFormatColors[8] =
+{
+	BLACK,		// Full
+	0x551A00FF,	// Shrunken (dark brown)
+	0x00551AFF,	// Extracted FST
+	0x001A55FF,	// CISO
+	0x551A55FF,	// Multi-Game
+	GRAY,		// undefined
+	GRAY,		// undefined
+	GRAY,		// undefined
+};
 
 /**
  * Print information about the selected device.
@@ -96,9 +109,11 @@ int compare_names(const void *a, const void *b)
 	if (ret == 0)
 	{
 		// Names are equal. Check disc number.
-		if (da->DiscNumber < db->DiscNumber)
+		const uint8_t dnuma = (da->Flags & GIFLAG_DISCNUMBER_MASK);
+		const uint8_t dnumb = (db->Flags & GIFLAG_DISCNUMBER_MASK);
+		if (dnuma < dnumb)
 			ret = -1;
-		else if (da->DiscNumber > db->DiscNumber)
+		else if (dnuma > dnumb)
 			ret = 1;
 		else
 			ret = 0;
@@ -116,7 +131,8 @@ int compare_names(const void *a, const void *b)
 static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 {
 	// TODO: Handle FST format (sys/boot.bin).
-	u8 buf[0x100];		// Disc header.
+	u8 buf[0x100];			// Disc header.
+	u32 BI2region_addr = 0x458;	// BI2 region code address.
 
 	FIL in;
 	if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
@@ -129,8 +145,8 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	//gprintf("(%s) ok\n", filename );
 	bool ret = false;
 	UINT read;
-	f_read(&in, buf, 0x100, &read);
-	if (read != 0x100)
+	f_read(&in, buf, sizeof(buf), &read);
+	if (read != sizeof(buf))
 	{
 		// Error reading from the file.
 		f_close(&in);
@@ -155,6 +171,9 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 			return false;
 		}
 
+		// Adjust the BI2 region code address for CISO.
+		BI2region_addr = 0x8458;
+
 		gi->Flags = GIFLAG_FORMAT_CISO;
 	}
 	else
@@ -174,13 +193,27 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		}
 	}
 
-	// File is no longer needed.
-	f_close(&in);
-
 	if (IsGCGame(buf))	// Must be GC game
 	{
+		// Read the BI2 region code.
+		u32 BI2region;
+		f_lseek(&in, BI2region_addr);
+		f_read(&in, &BI2region, sizeof(BI2region), &read);
+		if (read != sizeof(BI2region)) {
+			// Error reading from the file.
+			f_close(&in);
+			return false;
+		}
+
+		// Save the region code for later.
+		gi->Flags |= ((BI2region & 3) << 3);
+
+		// Save the game ID.
 		memcpy(gi->ID, buf, 6); //ID for EXI
-		gi->DiscNumber = discNumber;
+		gi->Flags |= (discNumber & 3) << 5;
+
+		// Save the revision number.
+		gi->Revision = buf[0x07];
 
 		// Check if this is a multi-game image.
 		// Reference: https://gbatemp.net/threads/wit-wiimms-iso-tools-gamecube-disc-support.251630/#post-3088119
@@ -241,6 +274,7 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		ret = true;
 	}
 
+	f_close(&in);
 	return ret;
 }
 
@@ -270,8 +304,8 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
 		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
 		gi[0].Name = "Boot GC Disc in Drive";
+		gi[0].Revision = 0;
 		gi[0].Flags = 0;
-		gi[0].DiscNumber = 0;
 		gi[0].Path = strdup("di:di");
 		gamecount++;
 	}
@@ -380,33 +414,44 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			// check for FST format.
 			if (!found)
 			{
+				// Read the disc header from boot.bin.
 				memcpy(&filename[fnlen], "sys/boot.bin", 13);
-				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) == FR_OK)
-				{
-					//gprintf("(%s) ok\n", filename );
-					UINT read;
-					f_read(&in, buf, 0x100, &read);
-					f_close(&in);
+				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+					continue;
+				//gprintf("(%s) ok\n", filename );
+				UINT read;
+				f_read(&in, buf, 0x100, &read);
+				f_close(&in);
+				if (read != 0x100 || !IsGCGame(buf))
+					continue;
 
-					if (read == 0x100 && IsGCGame(buf))	// Must be GC game
-					{
-						// Terminate the filename at the game's base directory.
-						filename[fnlen] = 0;
+				// Read the BI2.bin region code.
+				memcpy(&filename[fnlen], "sys/bi2.bin", 12);
+				if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+					continue;
+				//gprintf("(%s) ok\n", filename );
+				u32 BI2region;
+				f_lseek(&in, 0x18);
+				f_read(&in, &BI2region, sizeof(BI2region), &read);
+				f_close(&in);
+				if (read != sizeof(BI2region))
+					continue;
 
-						// Make sure the title in the header is NULL terminated.
-						buf[0x20+65] = 0;
+				// Terminate the filename at the game's base directory.
+				filename[fnlen] = 0;
 
-						memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
-						gi[gamecount].DiscNumber = 0;
+				// Make sure the title in the header is NULL terminated.
+				buf[0x20+65] = 0;
 
-						// TODO: Check titles.txt?
-						gi[gamecount].Name = strdup((const char*)&buf[0x20]);
-						gi[gamecount].Flags = GIFLAG_NAME_ALLOC | GIFLAG_FORMAT_FST;
+				memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
+				gi[gamecount].Revision = 0;
 
-						gi[gamecount].Path = strdup(filename);
-						gamecount++;
-					}
-				}
+				// TODO: Check titles.txt?
+				gi[gamecount].Name = strdup((const char*)&buf[0x20]);
+				gi[gamecount].Flags = GIFLAG_NAME_ALLOC | GIFLAG_FORMAT_FST | ((BI2region & 3) << 3);
+
+				gi[gamecount].Path = strdup(filename);
+				gamecount++;
 			}
 		}
 		else
@@ -476,7 +521,7 @@ typedef struct _MenuCtx
 		const gameinfo *gi;	// Game information.
 		int gamecount;		// Game count.
 
-		bool canVerifyMD5;	// Selected game can be verified using MD5.
+		bool canShowInfo;	// Can show information for the selected game.
 	} games;
 
 	// Settings menu.
@@ -516,11 +561,12 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 
 	if(FPAD_X(0))
 	{
-		// Can we verify this game's MD5?
-		if (ctx->games.canVerifyMD5)
+		// Can we show information for the selected game?
+		if (ctx->games.canShowInfo)
 		{
-			VerifyMD5(&ctx->games.gi[ctx->games.posX + ctx->games.scrollX]);
-			ctx->redraw = 1;
+			// Show game information.
+			ShowGameInfo(&ctx->games.gi[ctx->games.posX + ctx->games.scrollX]);
+			ctx->redraw = true;
 		}
 	}
 
@@ -652,25 +698,12 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		// Redraw the game list.
 		// TODO: Only if menuMode or scrollX has changed?
 
-		// Color codes for the different formats.
-		static const u32 format_colors[8] =
-		{
-			BLACK,		// Full
-			0x551A00FF,	// Shrunken (dark brown)
-			0x00551AFF,	// Extracted FST
-			0x001A55FF,	// CISO
-			0x551A55FF,	// Multi-Game
-			GRAY,		// undefined
-			GRAY,		// undefined
-			GRAY,		// undefined
-		};
-
 		// Print the color codes.
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*3, "Colors  : 1:1");
-		PrintFormat(DEFAULT_SIZE, format_colors[1], MENU_POS_X+(14*10), MENU_POS_Y + 20*3, "Shrunk");
-		PrintFormat(DEFAULT_SIZE, format_colors[2], MENU_POS_X+(21*10), MENU_POS_Y + 20*3, "FST");
-		PrintFormat(DEFAULT_SIZE, format_colors[3], MENU_POS_X+(25*10), MENU_POS_Y + 20*3, "CISO");
-		PrintFormat(DEFAULT_SIZE, format_colors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
+		PrintFormat(DEFAULT_SIZE, DiscFormatColors[0], MENU_POS_X, MENU_POS_Y + 20*3, "Colors  : 1:1");
+		PrintFormat(DEFAULT_SIZE, DiscFormatColors[1], MENU_POS_X+(14*10), MENU_POS_Y + 20*3, "Shrunk");
+		PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X+(21*10), MENU_POS_Y + 20*3, "FST");
+		PrintFormat(DEFAULT_SIZE, DiscFormatColors[3], MENU_POS_X+(25*10), MENU_POS_Y + 20*3, "CISO");
+		PrintFormat(DEFAULT_SIZE, DiscFormatColors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
 
 		// Starting position.
 		int gamelist_y = MENU_POS_Y + 20*5;
@@ -687,23 +720,11 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 			// Currently truncated to 50.
 
 			// Determine color based on disc format.
-			const u32 color = format_colors[gi->Flags & GIFLAG_FORMAT_MASK];
-			// Check if the selected game is a 1:1 image.
-			// If it is, the MD5 can be verified.
-			if (i == ctx->games.posX)
-			{
-				// Shortcut, since we're only using black for
-				// 1:1 disc images.
-				ctx->games.canVerifyMD5 = (color == BLACK);
-				if (!IsWiiU() && (ctx->games.scrollX + i) == 0)
-				{
-					// "Real Disc" option.
-					// Don't allow verifying the MD5.
-					ctx->games.canVerifyMD5 = false;
-				}
-			}
+			// NOTE: On Wii, DISC01 is GIFLAG_FORMAT_FULL.
+			const u32 color = DiscFormatColors[gi->Flags & GIFLAG_FORMAT_MASK];
 
-			if (gi->DiscNumber == 0)
+			const u8 discNumber = ((gi->Flags & GIFLAG_DISCNUMBER_MASK) >> 5);
+			if (discNumber == 0)
 			{
 				// Disc 1.
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
@@ -716,9 +737,21 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 				// Disc 2 or higher.
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
 					    "%46.46s (%d) [%.6s]%s",
-					    gi->Name, gi->DiscNumber+1, gi->ID,
+					    gi->Name, discNumber+1, gi->ID,
 					    i == ctx->games.posX ? ARROW_LEFT : " ");
 			}
+		}
+
+		// Can we show information for the selected title?
+		if (!IsWiiU() && (ctx->games.scrollX + ctx->games.posX) == 0)
+		{
+			// Cannot show information for DISC01.
+			ctx->games.canShowInfo = false;
+		}
+		else
+		{
+			// Can show information for all other games.
+			ctx->games.canShowInfo = true;
 		}
 
 		// GRRLIB rendering is done by SelectGame().
@@ -928,6 +961,26 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 					NULL
 				};
 				return desc_native_si;
+			}
+
+			default:
+				break;
+		}
+	} else /*if (ctx->settings.settingPart == 1)*/ {
+		switch (ctx->settings.posX)
+		{
+			case 3: {
+				// Triforce Arcade Mode
+				static const char *desc_tri_arcade[] = {
+					"Arcade Mode re-enables the",
+					"coin slot functionality of",
+					"Triforce games.",
+					"",
+					"To insert a coin, move the",
+					"C stick in any direction.",
+					NULL
+				};
+				return desc_tri_arcade;
 			}
 
 			default:
@@ -1186,9 +1239,6 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					}
 					ncfg->VideoMode &= ~NIN_VID_MASK;
 					ncfg->VideoMode |= Video;
-					if ((Video & NIN_VID_FORCE) == 0) {
-						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(NIN_SETTINGS_VIDEOMODE), "%29s", "" );
-					}
 					break;
 				}
 
@@ -1238,19 +1288,23 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		else if (ctx->settings.settingPart == 1)
 		{
 			// Right column.
-			if (ctx->settings.posX == 2)
-			{
-				// PAL50 patch.
-				ctx->saveSettings = true;
-				ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
-				ctx->redraw = true;
-			}
-			else if (ctx->settings.posX == 3)
-			{
-				// Triforce Arcade Mode.
-				ctx->saveSettings = true;
-				ncfg->Config ^= (NIN_CFG_ARCADE_MODE);
-				ctx->redraw = true;
+			switch (ctx->settings.posX) {
+				case 2:
+					// PAL50 patch.
+					ctx->saveSettings = true;
+					ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
+					ctx->redraw = true;
+					break;
+
+				case 3:
+					// Triforce Arcade Mode.
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_ARCADE_MODE);
+					ctx->redraw = true;
+					break;
+
+				default:
+					break;
 			}
 		}
 	}
@@ -1571,10 +1625,9 @@ static int SelectGame(void)
 			{
 				// Game List menu.
 				PrintButtonActions("Go Back", "Select", "Settings", NULL);
-				// If the selected game is 1:1, allow MD5 verification.
-				// TODO: Better layout.
-				const u32 color = ((ctx.games.canVerifyMD5) ? BLACK : DARK_GRAY);
-				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Verify MD5");
+				// If the selected game is not DISC01, enable "Game Info".
+				const u32 color = ((ctx.games.canShowInfo) ? BLACK : DARK_GRAY);
+				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Game Info");
 			}
 			else
 			{
@@ -1759,7 +1812,7 @@ void PrintButtonActions(const char *btn_home, const char *btn_a, const char *btn
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "B   : %s", btn_b);
 	}
 	if (btn_x1) {
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*2, "X/1 : %s", btn_x1);
+		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : %s", btn_x1);
 	}
 }
 

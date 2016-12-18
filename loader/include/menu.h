@@ -36,6 +36,13 @@ typedef enum
 	GIFLAG_FORMAT_MULTI	= (4 << 0),	// Multi-game disc
 	GIFLAG_FORMAT_MASK	= (7 << 0),
 
+	// Game region. (from bi2.bin)
+	// BI2region_codes values, lshifted by 2.
+	GIFLAG_REGION_MASK	= (3 << 3),
+
+	// Disc number, lshifted by 5.
+	GIFLAG_DISCNUMBER_MASK	= (3 << 5),
+
 	// GameInfo.Name was allocated via strdup()
 	// and must be freed.
 	GIFLAG_NAME_ALLOC	= (1 << 7),
@@ -43,14 +50,20 @@ typedef enum
 
 typedef struct GameInfo 
 {
+	// NOTE: Disc number is stored in Flags.
+	// There aren't any games that take up more
+	// than 2 discs, so we're using two bits in
+	// Flags for the disc number now.
 	char ID[6];		// ID6 of the game.
-	uint8_t DiscNumber;	// Disc number.
+	uint8_t Revision;	// Disc revision.
 	uint8_t Flags;		// See GameInfoFlags.
-	// If non-zero, Name was allocated via strdup().
-	                        // Otherwise, it should NOT be free()'d!
+
 	char *Name;		// Game name. (If NameAlloc, strdup()'d.)
 	char *Path;		// File path.
 } gameinfo;
+
+// Disc format colors.
+extern const u32 DiscFormatColors[8];
 
 void HandleSTMEvent(u32 event);
 void HandleWiiMoteEvent(s32 chan);

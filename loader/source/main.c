@@ -250,7 +250,34 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 			return -2;
 		}
 
-		// NOTE: Not checking for CISO format here.
+		// Check for CISO magic with 2 MB block size.
+		// NOTE: CISO block size is little-endian.
+		static const uint8_t CISO_MAGIC[8] = {'C','I','S','O',0x00,0x00,0x20,0x00};
+		if (!memcmp(MultiHdr, CISO_MAGIC, sizeof(CISO_MAGIC)) && !IsGCGame(MultiHdr))
+		{
+			// CISO magic is present, and GCN magic isn't.
+			// This is most likely a CISO image.
+
+			// CISO+MultiGame is not supported, so read the
+			// BI2.bin region code if requested and then return.
+			int ret = 0;
+			if (ISOShift)
+				*ISOShift = 0;
+			if (BI2region)
+			{
+				f_lseek(&f, 0x8458);
+				f_read(&f, BI2region, sizeof(*BI2region), &read);
+				if (read != sizeof(*BI2region))
+				{
+					// Error reading from the file.
+					ret = -3;
+				}
+			}
+
+			f_close(&f);
+			free(MultiHdr);
+			return ret;
+		}
 	}
 	else
 	{
@@ -259,7 +286,10 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		if (ISOShift)
 			*ISOShift = 0;
 		if (!BI2region)
+		{
+			free(MultiHdr);
 			return 0;
+		}
 
 		// Get the bi2.bin region code.
 		snprintf(GamePath, sizeof(GamePath), "%s:%ssys/bi2.bin", GetRootDevice(), ncfg->GamePath);
@@ -268,7 +298,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		{
 			// Error opening bi2.bin.
 			free(MultiHdr);
-			return -3;
+			return -4;
 		}
 
 		// bi2.bin is normally 8 KB, but we only need
@@ -278,14 +308,14 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		if (read != 48)
 		{
 			// Could not read bi2.bin.
-			f_close(&f);
 			free(MultiHdr);
-			return -3;
+			return -5;
 		}
 
 		// BI2.bin is at 0x440.
 		// Region code is at 0x458. (0x18 within BI2.bin.)
 		*BI2region = *(u32*)(&MultiHdr[0x18]);
+		free(MultiHdr);
 		return 0;
 	}
 
@@ -369,7 +399,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 
 			// TODO: titles.txt support?
 			memcpy(gi[gamecount].ID, GameHdr, 6);
-			gi[gamecount].DiscNumber = 0;
+			gi[gamecount].Revision = GameHdr[0x07];
 			gi[gamecount].Flags = GIFLAG_NAME_ALLOC;
 			gi[gamecount].Name = strdup((char*)&GameHdr[0x20]);
 			gi[gamecount].Path = NULL;
