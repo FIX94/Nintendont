@@ -224,11 +224,9 @@ void DIinit( bool FirstTime )
 				}
 			}
 		}
-		else
-		{
-			write32( DIP_STATUS, 0x54 ); //mask and clear interrupts
-			write32( DIP_COVER, 4 ); //disable cover irq which DIP enabled
-		}
+		write32( DIP_STATUS, 0x54 ); //mask and clear interrupts
+		write32( DIP_COVER, 4 ); //disable cover irq which DIP enabled
+
 		sync_before_read((void*)0x13003000, 0x20);
 		ISOShift64 = (u64)(read32(0x1300300C)) << 2;
 
@@ -700,13 +698,14 @@ void DIUpdateRegisters( void )
 					if (DIChangeDisc( CDiscNumber ^ 1 ))
 						DiscChangeIRQ = 1;
 				}
-				else
+				else if (!Datel)
 				{	//we just always say disc got removed as error
 					write32(DI_IMM, 0x1023a00);
 					write32(DI_COVER, 1);
 					RealDiscError = 0;
 					WaitForRealDisc = 1;
 				}
+				ReadSpeed_Motor();
 				DIOK = 2;
 
 			} break;
@@ -728,7 +727,7 @@ void DIUpdateRegisters( void )
 					useipltri = 0; //happens after the "setup", read actual disc
 				}
 
-				//dbgprintf( "DIP:DVDReadA8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, Buffer|0x80000000 );
+				dbgprintf( "DIP:DVDReadA8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, Buffer|0x80000000 );
 
 				if( TRIGame && Offset >= 0x1F000000 )
 				{
@@ -763,7 +762,7 @@ void DIUpdateRegisters( void )
 				u32 Length	= read32(DI_CMD_2);
 				u32 Offset	= read32(DI_CMD_1) << 2;
 
-				//dbgprintf( "DIP:DVDReadF8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, Buffer|0x80000000 );
+				dbgprintf( "DIP:DVDReadF8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, Buffer|0x80000000 );
 
 				if( Buffer < 0x01800000 )
 				{

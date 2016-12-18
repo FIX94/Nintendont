@@ -1,7 +1,9 @@
 /*
-ReadSpeed.h for Nintendont (Kernel)
 
-Copyright (C) 2015 FIX94
+Nintendont (Loader) - Playing Gamecubes in Wii mode on a Wii U
+"Game Info" screen.
+
+Copyright (C) 2013  crediar
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -15,14 +17,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-*/
-#ifndef _READSPEED_H_
-#define _READSPEED_H_
 
-void ReadSpeed_Init();
-void ReadSpeed_Motor();
-void ReadSpeed_Start();
-void ReadSpeed_Setup(u32 Offset, int Length);
-u32 ReadSpeed_End();
+*/
+
+#ifndef __SHOW_GAME_INFO_H__
+#define __SHOW_GAME_INFO_H__
+
+#include "menu.h"
+
+/**
+ * Show a game's information.
+ * @param gameinfo Game to show.
+ */
+void ShowGameInfo(const gameinfo *gi);
 
 #endif

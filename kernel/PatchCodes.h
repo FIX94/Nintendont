@@ -23,6 +23,7 @@
 #include "asm/SIGetType.h"
 #include "asm/FakeInterrupt.h"
 #include "asm/FakeInterrupt_DBG.h"
+#include "asm/FakeInterrupt_Datel.h"
 #include "asm/__DVDInterruptHandler.h"
 #include "asm/TCIntrruptHandler.h"
 #include "asm/SIIntrruptHandler.h"
