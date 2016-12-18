@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define _READSPEED_H_
 
 void ReadSpeed_Init();
+void ReadSpeed_Motor();
 void ReadSpeed_Start();
 void ReadSpeed_Setup(u32 Offset, int Length);
 u32 ReadSpeed_End();

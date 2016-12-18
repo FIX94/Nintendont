@@ -1249,7 +1249,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			{
 				// Triforce Arcade Mode.
 				ctx->saveSettings = true;
-				ncfg->VideoMode ^= (NIN_CFG_ARCADE_MODE);
+				ncfg->Config ^= (NIN_CFG_ARCADE_MODE);
 				ctx->redraw = true;
 			}
 		}

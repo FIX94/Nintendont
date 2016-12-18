@@ -30,7 +30,8 @@ InvalidateRange:
 	bdnz	InvalidateRange
 
 end:
-	#original instruction
+	#original instructions
+	nop
 	lis		%r3,	DI_BASE@h
 
 	blr
