@@ -1227,21 +1227,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				// Standard boolean setting.
 				if (ctx->settings.posX == NIN_CFG_BIT_USB) {
 					// USB option is replaced with Wii U widescreen.
-					// NOTE: Only adjustable on Wii U.
-					if (IsWiiU()) {
-						ncfg->Config ^= NIN_CFG_WIIU_WIDE;
-					}
+					ncfg->Config ^= NIN_CFG_WIIU_WIDE;
 				} else {
-					if (IsWiiU() &&
-					    (ctx->settings.posX == NIN_CFG_BIT_DEBUGGER ||
-					     ctx->settings.posX == NIN_CFG_BIT_DEBUGWAIT ||
-					     ctx->settings.posX == NIN_CFG_BIT_LED))
-					{
-						// These options are only available on Wii.
-						// Don't do anything.
-					} else {
-						ncfg->Config ^= (1 << ctx->settings.posX);
-					}
+					ncfg->Config ^= (1 << ctx->settings.posX);
 				}
 			}
 			else switch (ctx->settings.posX)
@@ -1249,12 +1237,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				case NIN_SETTINGS_MAX_PADS:
 					// Maximum native controllers.
 					// Not available on Wii U.
-					// TODO: Disable on RVL-101?
-					if (IsWiiU()) {
-						ncfg->MaxPads++;
-						if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
-							ncfg->MaxPads = 0;
-						}
+					ncfg->MaxPads++;
+					if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
+						ncfg->MaxPads = 0;
 					}
 					break;
 
@@ -1313,11 +1298,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					break;
 
 				case NIN_SETTINGS_NATIVE_SI:
-					// NOTE: Not adjustable on Wii U.
-					// TODO: Also RVL-101?
-					if (!IsWiiU()) {
-						ncfg->Config ^= (NIN_CFG_NATIVE_SI);
-					}
+					ncfg->Config ^= (NIN_CFG_NATIVE_SI);
 					break;
 
 				default:
