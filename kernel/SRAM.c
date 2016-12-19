@@ -1,6 +1,7 @@
 // Nintendont: SRAM functions.
 #include "SRAM.h"
 #include "Config.h"
+#include "debug.h"
 
 // Initial SRAM values.
 GC_SRAM sram ALIGNED(32) =

@@ -2526,12 +2526,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							u32 off		= 0;
 							s32 reg		=-1;
 							u32 valueB	= 0;
+							u32 ChanLen 	= 0x38;
 
 							while(1)
 							{
 								off += 4;
 
 								u32 op = read32( (u32)FOffset + off );
+								// Look for rlwinm rX,rY,6 or invert logic and look for multi rX,rY,0x38 (0x1C000038)?
+								if ((op & 0xFC00FFFF) == 0x54003032) //rlwinm rX, rY, 6,0,25
+									ChanLen = 0x40;
 
 								if( reg == -1 )
 								{
@@ -2575,6 +2579,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							/* Insert CB value into patched EXIDMA */
 							W16(FOffset + 2, value);
 							W16(FOffset + 6, valueB);
+							dbgprintf("Patch:[EXIDMA] ChanLen:%08X\r\n", ChanLen);
+							W16(FOffset + 0x12, ChanLen);
 						} break;
 						case FCODE_EXIUnlock:
 						{

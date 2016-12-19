@@ -392,8 +392,6 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 			{
 				GCNCard_Read(slot, Data, Length);
 				IRQ_Cause[slot] = 8;	// TC IRQ
-				sync_before_read_align32((void*) 0xc0, 0x20 );
-				dbgprintf("EXI Interrupt0 0x%08X 0x%08X\r\n", read32(0xc4), read32(0xc8));
 				EXIOK = 2;
 			} break;
 		}
