@@ -480,3 +480,17 @@ void GCNCard_SetBlockOffset_Erase(int slot, u32 data)
 	BlockOff    |= (((u32)data>> 8)&0xFF)  << 9;
 	memCard[slot].BlockOff = BlockOff;
 }
+
+#ifdef DEBUG_EXI
+/**
+ * Get the current block offset. (decoded value, for debugging purposes)
+ * @param slot Slot number.
+ * @return Block offset, decoded.
+ */
+u32 GCNCard_GetBlockOffset(int slot)
+{
+	if (!GCNCard_IsEnabled(slot))
+		return 0;
+	return memCard[slot].BlockOff;
+}
+#endif

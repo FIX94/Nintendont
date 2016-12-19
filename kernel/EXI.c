@@ -295,7 +295,7 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 					{
 						GCNCard_SetBlockOffset_Erase(slot, (u32)Data);
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), ctx->BlockOff);
+						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
 #endif
 						// FIXME: ERASE command isn't implemented.
 						EXICommand[slot] = MEM_BLOCK_ERASE;
@@ -316,7 +316,7 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 					{
 						GCNCard_SetBlockOffset(slot, (u32)Data);
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), ctx->BlockOff);
+						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
 #endif
 						// FIXME: ERASE command isn't implemented.
 						EXICommand[slot] = MEM_BLOCK_ERASE;
@@ -328,7 +328,7 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 					{
 						GCNCard_SetBlockOffset(slot, (u32)Data);
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: Slot %c: CARDWritePage(%08X)\r\n", (slot+'A'), ctx->BlockOff);
+						dbgprintf("EXI: Slot %c: CARDWritePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
 #endif
 						EXICommand[slot] = MEM_BLOCK_WRITE;
 					} break;
@@ -336,7 +336,7 @@ static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 					{
 						GCNCard_SetBlockOffset(slot, (u32)Data);
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: Slot %c: CARDReadPage(%08X)\r\n", (slot+'A'), ctx->BlockOff);
+						dbgprintf("EXI: Slot %c: CARDReadPage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
 #endif
 
 						EXICommand[slot] = MEM_BLOCK_READ;

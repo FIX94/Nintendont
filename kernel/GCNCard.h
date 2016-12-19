@@ -84,4 +84,13 @@ u32 GCNCard_GetCode(int slot);
  */
 void GCNCard_SetBlockOffset_Erase(int slot, u32 data);
 
+#ifdef DEBUG_EXI
+/**
+ * Get the current block offset. (decoded value, for debugging purposes)
+ * @param slot Slot number.
+ * @return Block offset, decoded.
+ */
+u32 GCNCard_GetBlockOffset(int slot);
+#endif
+
 #endif /* __GCNCARD_H__ */
