@@ -176,7 +176,6 @@ void ExitToLoader(int ret) NORETURN;
 void ClearScreen();
 void CloseDevices();
 void hexdump(void *d, int len);
-void *memalign( u32 Align, u32 Size );
 void DrawBuffer(void);
 void UpdateScreen(void);
 void Screenshot(void);
