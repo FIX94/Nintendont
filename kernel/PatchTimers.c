@@ -1,7 +1,7 @@
 /*
 PatchTimers.c for Nintendont (Kernel)
 
-Copyright (C) 2014 FIX94
+Copyright (C) 2014-2017 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -65,6 +65,10 @@ static u32 CheckFor( u32 Buf, u32 Val )
 
 #define FLT_TIMER_CLOCK_SECS_GC		0x4c1a7ec8
 #define FLT_TIMER_CLOCK_SECS_WII	0x4c67be2c
+
+//Ticks per second divided by 60
+#define U32_TIMER_CLOCK_60HZ_GC		0x000a4cb8
+#define U32_TIMER_CLOCK_60HZ_WII	0x000f7314
 
 //1 divided by Ticks per second
 #define FLT_ONE_DIV_CLOCK_SECS_GC	0x32d418df
@@ -213,6 +217,29 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 			return true;
 		}
 	}
+	if( FirstVal == 0x3C00000A )
+	{
+		u32 NextP = CheckFor(Buffer, 0x60004CB8);
+		if(NextP > 0)
+		{
+			W16(Buffer + 2, U32_TIMER_CLOCK_60HZ_WII >> 16);
+			W16(NextP + 2, U32_TIMER_CLOCK_60HZ_WII & 0xFFFF);
+			dbgprintf("PatchTimers:[Timer Clock ori 60Hz] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+	}
+	if( FirstVal == 0x3C00000A )
+	{
+		u32 NextP = CheckFor(Buffer, 0x38004CB8);
+		if(NextP > 0)
+		{
+			//no ">>16) + 1" since its a positive 16bit value
+			W16(Buffer + 2, U32_TIMER_CLOCK_60HZ_WII >> 16);
+			W16(NextP + 2, U32_TIMER_CLOCK_60HZ_WII & 0xFFFF);
+			dbgprintf("PatchTimers:[Timer Clock addi 60Hz] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+	}
 	if( FirstVal == 0x38000000 )
 	{
 		u32 NextP = CheckFor(Buffer, 0x60009E34);
@@ -295,14 +322,6 @@ void PatchStaticTimers()
 	{
 		#ifdef DEBUG_PATCH
 		dbgprintf("PatchTimers:[Majoras Mask PAL] applied\r\n");
-		#endif
-	}
-	else if(read32(0x1E71AC) == 0x3CE0000A && read32(0x1E71B8) == 0x39074CB8)
-	{	/* one 60th of a second */
-		write32(0x1E71AC, 0x3CE0000F);
-		write32(0x1E71B8, 0x39077314);
-		#ifdef DEBUG_PATCH
-		dbgprintf("PatchTimers:[Killer7 PAL] applied\r\n");
 		#endif
 	}
 	else if(read32(0x55A0) == 0x3C60000A && read32(0x55A4) == 0x38036000 

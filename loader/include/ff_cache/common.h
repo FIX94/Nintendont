@@ -29,7 +29,7 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-#include <fat.h>
+//#include <fat.h>
 #include <stddef.h>
 #include <stdint.h>
 
