@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/param.h>
 
 extern char launch_dir[MAXPATHLEN];
 

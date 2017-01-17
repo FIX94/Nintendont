@@ -17,7 +17,7 @@ size_t strnlen(const char *, size_t);
 char *strchr(const char *s, int c);
 int memcmp(const void *s1, const void *s2, size_t n);
 void *memset(void *dst, int x, size_t n);
-extern void memcpy( void *dst, const void *src, u32 size);
+extern void *memcpy( void *dst, const void *src, size_t size);
 
 int _sprintf( char *buf, const char *fmt, ... );
 

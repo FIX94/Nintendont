@@ -39,8 +39,8 @@ static char *http_path;
 static u32 http_max_size;
 
 static http_res result;
-static u32 http_status;
-static u32 content_length;
+static unsigned int http_status;
+static unsigned int content_length;
 static u8 *http_data;
 
 
@@ -491,7 +491,7 @@ bool http_post (const char *url, const u32 max_size, const char *postData) {
 	return true;
 }
 
-bool http_get_result (u32 *_http_status, u8 **content, u32 *length) {
+bool http_get_result (unsigned int *_http_status, u8 **content, unsigned int *length) {
 	if (http_status) *_http_status = http_status;
 
 	if (result == HTTPR_OK) {

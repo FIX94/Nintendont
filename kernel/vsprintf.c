@@ -133,7 +133,7 @@ static char * number(char * str, long num, int base, int size, int precision
 	return str;
 }
 
-int vsprintf(char *buf, const char *fmt, va_list args)
+int _vsprintf(char *buf, const char *fmt, va_list args)
 {
 	int len;
 	unsigned long num;
@@ -308,7 +308,7 @@ int dbgprintf( const char *fmt, ...)
 	char buffer[0x100]; //get from stack
 
 	va_start(args, fmt);
-	vsprintf(buffer, fmt, args);
+	_vsprintf(buffer, fmt, args);
 	va_end(args);
 
 	u32 read;	

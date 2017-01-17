@@ -2176,7 +2176,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			if( (PatchCount & FPATCH_DSP_ROM) == 0 && ( BufHighAt0 == 0x29F || (BufAt4 >> 16) == 0x29F) )
 			{
-				u32 l;
+				vu32 l; //volatile so devkitARM r46 doesnt optimize it away
 				s32 Known = -1;
 
 				u32 UseLast = 0;

@@ -19,13 +19,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include <gccore.h>
+#include <sys/param.h>
 #include <ogc/lwp_watchdog.h>
 #include <ogc/lwp_threads.h>
 #include <wiiuse/wpad.h>
 #include <wupc/wupc.h>
 #include <di/di.h>
-
 #include <unistd.h>
+#include <locale.h>
 
 #include "exi.h"
 #include "dip.h"
@@ -58,11 +59,11 @@ extern u32 __SYS_UnlockSram(u32 write);
 extern u32 __SYS_SyncSram(void);
 
 #define STATUS			((void*)0x90004100)
-#define STATUS_LOADING	(*(vu32*)(0x90004100))
-#define STATUS_SECTOR	(*(vu32*)(0x90004100 + 8))
+#define STATUS_LOADING	(*(volatile unsigned int*)(0x90004100))
+#define STATUS_SECTOR	(*(volatile unsigned int*)(0x90004100 + 8))
 #define STATUS_DRIVE	(*(float*)(0x9000410C))
-#define STATUS_GB_MB	(*(vu32*)(0x90004100 + 16))
-#define STATUS_ERROR	(*(vu32*)(0x90004100 + 20))
+#define STATUS_GB_MB	(*(volatile unsigned int*)(0x90004100 + 16))
+#define STATUS_ERROR	(*(volatile unsigned int*)(0x90004100 + 20))
 
 #define HW_DIFLAGS		0xD800180
 #define MEM_PROT		0xD8B420A
@@ -514,6 +515,8 @@ int main(int argc, char **argv)
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
 
 	RAMInit();
+	//tell devkitPPC r29 that we use UTF-8
+	setlocale(LC_ALL,"C.UTF-8");
 
 	memset((void*)ncfg, 0, sizeof(NIN_CFG));
 	bool argsboot = false;
@@ -580,7 +583,7 @@ int main(int argc, char **argv)
 	}
 
 	void *kernel_bin = NULL;
-	u32 kernel_bin_size = 0;
+	unsigned int kernel_bin_size = 0;
 	unzip_data(kernel_zip, kernel_zip_size, &kernel_bin, &kernel_bin_size);
 	gprintf("Decompressed kernel.bin with %i bytes\r\n", kernel_bin_size);
 	InsertModule((char*)kernel_bin, kernel_bin_size);

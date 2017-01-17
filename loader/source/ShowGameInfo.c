@@ -215,8 +215,8 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 			// Show the data read so far.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13,
 				"MD5: Calculating... (%u of %u MiB processed)",
-				(u32)(md5->image_read / (1024*1024)),
-				(u32)(md5->image_size / (1024*1024)));
+				(unsigned int)(md5->image_read / (1024*1024)),
+				(unsigned int)(md5->image_size / (1024*1024)));
 		} else if (md5->gcm_read_error) {
 			// MD5 has not been calculated due to a read error.
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "MD5: ");

@@ -84,11 +84,11 @@ static char Entry[0x1C] ALIGNED(32);
 
 // IOS58 kernel memory base address.
 static char *const Kernel = (char*)0x90100000;
-static u32 KernelSize = 0;
+static unsigned int KernelSize = 0;
 
 void InsertModule( char *Module, u32 ModuleSize )
 {
-	u32 loadersize = *(vu32*)(Kernel) + *(vu32*)(Kernel+4);
+	unsigned int loadersize = *(vu32*)(Kernel) + *(vu32*)(Kernel+4);
 	u32 PatchCount = 0;
 	int i = 0, j = 0;
 
@@ -265,18 +265,18 @@ static const u64 TitleID_IOS58 = 0x000000010000003AULL;
 
 // Version number of the IOS we're using.
 // (Major/minor, not IOS slot.)
-vu32 FoundVersion = 0;
+volatile unsigned int FoundVersion = 0;
 
 /**
  * Load and patch IOS.
  * @return 0 on success; negative on error.
  */
-s32 LoadKernel(void)
+int LoadKernel(void)
 {
-	u32 TMDSize;
-	u32 i,u;
+	unsigned int TMDSize;
+	unsigned int i,u;
 
-	s32 r = ES_GetStoredTMDSize(TitleID_IOS58, &TMDSize);
+	int r = ES_GetStoredTMDSize(TitleID_IOS58, (u32*)&TMDSize);
 	if (r < 0)
 	{
 		// IOS58 not found.
@@ -317,7 +317,7 @@ s32 LoadKernel(void)
 	
 	gprintf("BootIndex:%u\r\n", i );
 
-	s32 cfd = IOS_Open("/shared1/content.map", 1);
+	int cfd = IOS_Open("/shared1/content.map", 1);
 	if (cfd < 0)
 	{
 		gprintf("IOS_Open(\"/shared1/content.map\") failed: %d\r\n", cfd);
@@ -359,7 +359,7 @@ s32 LoadKernel(void)
 	DCFlushRange(Path, 1024);
 
 	// Open the actual IOS58 kernel file.
-	s32 kfd = IOS_Open(Path, 1);
+	int kfd = IOS_Open(Path, 1);
 	if (kfd < 0)
 	{
 		gprintf("IOS_Open(\"%s\") failed: %d\r\n", Path, kfd);

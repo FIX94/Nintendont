@@ -4,7 +4,8 @@
 #include "Config.h"
 #include "debug.h"
 
-#include <ctype.h>
+//#include <ctype.h> //somehow broke in devkitARM r46
+extern int isprint(int in); //only used definition anyways
 
 void BootStatus(s32 Value, u32 secs, u32 scnt)
 {

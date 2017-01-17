@@ -134,7 +134,7 @@ typedef enum {
  * @param iosErr IOS loading error ID.
  * @param err Return value from the IOS function.
  */
-void PrintLoadKernelError(LoadKernelError_t iosErr, s32 err);
+void PrintLoadKernelError(LoadKernelError_t iosErr, int err);
 
 void ReconfigVideo( GXRModeObj *vidmode );
 #endif

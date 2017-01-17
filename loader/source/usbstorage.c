@@ -1000,7 +1000,7 @@ void USBStorageOGC_Deinitialize()
 	__inited = false;
 }
 
-int USBStorageOGC_ioctl(int request, ...)
+s32 USBStorageOGC_ioctl(int request, ...)
 {
 	int retval = 0;
 	va_list ap;

@@ -151,11 +151,11 @@ void RAMInit(void)
 	*(vu32*)0x8000315C = 0x81;
 }
 
-void unzip_data(const void *input, const u32 input_size, 
-	void **output, u32 *output_size)
+void unzip_data(const void *input, const unsigned int input_size, 
+	void **output, unsigned int *output_size)
 {
 	char filepath[20]; //statically linked zip file
-	snprintf(filepath,20,"%x+%x",(u32)input,input_size);
+	snprintf(filepath,20,"%x+%x",(unsigned int)input,input_size);
 	unzFile uf = unzOpen(filepath); //opens zip in memory
 	unzOpenCurrentFile(uf); //current file is the only file
 	unz_file_info file_info; //get file info for uncompressed size
@@ -168,7 +168,7 @@ void unzip_data(const void *input, const u32 input_size,
 }
 
 static void *font_ttf = NULL;
-static u32 font_ttf_size = 0;
+static unsigned int font_ttf_size = 0;
 
 /**
  * Initialize the loader.
@@ -436,7 +436,7 @@ void UpdateNinCFG()
 	}
 }
 
-int CreateNewFile(const char *Path, u32 size)
+int CreateNewFile(const char *Path, unsigned int size)
 {
 	FIL f;
 

@@ -154,8 +154,8 @@ static inline bool IsWiiU(void)
 const char* const GetRootDevice();
 void RAMInit(void);
 void Initialise(bool autoboot);
-void unzip_data(const void *input, const u32 input_size, 
-	void **output, u32 *output_size);
+void unzip_data(const void *input, const unsigned int input_size, 
+	void **output, unsigned int *output_size);
 
 /**
  * Load the configuration file from the root device.
@@ -165,7 +165,7 @@ bool LoadNinCFG(void);
 
 void UpdateNinCFG();
 bool IsGCGame(u8 *Buffer);
-int CreateNewFile(const char *Path, u32 size);
+int CreateNewFile(const char *Path, unsigned int size);
 
 /**
  * Exit Nintendont and return to the loader.

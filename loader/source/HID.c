@@ -14,8 +14,8 @@ void HIDUpdateRegisters()
 {
 	if(*(vu32*)HID_CHANGE == 0)
 		return;
-	u32 DeviceVID = *(vu32*)HID_CHANGE;
-	u32 DevicePID = *(vu32*)HID_CFG_SIZE;
+	unsigned int DeviceVID = *(vu32*)HID_CHANGE;
+	unsigned int DevicePID = *(vu32*)HID_CFG_SIZE;
 	gprintf("Trying to get VID%04x PID%04x\n", DeviceVID, DevicePID);
 
 	/* I hope this covers all possible ini files */

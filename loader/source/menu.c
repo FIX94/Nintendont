@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include <gccore.h>
+#include <sys/param.h>
 #include "font.h"
 #include "exi.h"
 #include "global.h"
@@ -1897,7 +1898,7 @@ void ReconfigVideo(GXRModeObj *vidmode)
  * @param iosErr IOS loading error ID.
  * @param err Return value from the IOS function.
  */
-void PrintLoadKernelError(LoadKernelError_t iosErr, s32 err)
+void PrintLoadKernelError(LoadKernelError_t iosErr, int err)
 {
 	ClearScreen();
 	PrintInfo();

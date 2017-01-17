@@ -963,7 +963,8 @@ err_t l2cap_close(struct l2cap_pcb *pcb)
 	struct l2cap_sig *tmpsig;
 
 	if(pcb->state == L2CAP_LISTEN) {
-		L2CAP_RMV((struct l2cap_pcb**)((void*)&(l2cap_listen_pcbs)), pcb);
+		struct l2cap_pcb *to_rm_listen_pcbs = (struct l2cap_pcb*)l2cap_listen_pcbs;
+		L2CAP_RMV(&(to_rm_listen_pcbs), pcb);
 		btmemb_free(&l2cap_listenpcbs, pcb);
 	} else {
 		L2CAP_RMV(&(l2cap_active_pcbs), pcb);

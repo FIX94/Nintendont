@@ -27,7 +27,7 @@ typedef enum {
 
 bool http_request (const char *url, const u32 max_size);
 bool http_post (const char *url, const u32 max_size, const char *postData);
-bool http_get_result (u32 *http_status, u8 **content, u32 *length);
+bool http_get_result (unsigned int *http_status, u8 **content, unsigned int *length);
 
 #endif
 

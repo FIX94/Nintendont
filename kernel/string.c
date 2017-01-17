@@ -7,6 +7,7 @@
 #include "string.h"
 #include "debug.h"
 
+#if 0
 size_t strnlen(const char *s, size_t count)
 {
 	const char *sc;
@@ -36,17 +37,6 @@ char *strncpy(char *dst, const char *src, size_t n)
 		*dst++ = 0;
 
 	return ret;
-}
-int _sprintf( char *buf, const char *fmt, ... )
-{
-	va_list args;
-	int i;
-
-	va_start(args, fmt);
-	i = vsprintf(buf, fmt, args);
-	va_end(args);
-
-	return i;
 }
 
 char * strstr ( const char *str1, const char *str2)
@@ -105,6 +95,18 @@ int strncmp(const char *p, const char *q, size_t n)
 	}
 	return 0;
 }
+
+char *strchr(const char *s, int c)
+{
+	do {
+		if(*s == c)
+			return (char *)s;
+	} while(*s++ != 0);
+	return NULL;
+}
+
+#endif
+
 int memcmp(const void *s1, const void *s2, size_t n)
 {
 	unsigned char *us1 = (unsigned char *) s1;
@@ -128,43 +130,47 @@ void *memset(void *dst, int x, size_t n)
 	return dst;
 }
 
-char *strchr(const char *s, int c)
+int _sprintf( char *buf, const char *fmt, ... )
 {
-	do {
-		if(*s == c)
-			return (char *)s;
-	} while(*s++ != 0);
-	return NULL;
+	va_list args;
+	int i;
+
+	va_start(args, fmt);
+	i = _vsprintf(buf, fmt, args);
+	va_end(args);
+
+	return i;
 }
+
 #ifdef DEBUG
 static char ascii(char s) {
-  if(s < 0x20) return '.';
-  if(s > 0x7E) return '.';
-  return s;
+	if(s < 0x20) return '.';
+	if(s > 0x7E) return '.';
+	return s;
 }
 
 void hexdump(void *d, int len)
 {
-  u8 *data;
-  int i, off;
-  data = (u8*)d;
-  char TempStr[80];
-  for (off=0; off<len; off += 16)
-  {
-    char* Cur = TempStr;
-    Cur += _sprintf(Cur, "%08x  ",off);
-    for(i=0; i<16; i++)
-      if((i+off)>=len)
-		  Cur += _sprintf(Cur, "   ");
-      else
-		  Cur += _sprintf(Cur, "%02x ", data[off + i]);
+	u8 *data;
+	int i, off;
+	data = (u8*)d;
+	char TempStr[80];
+	for (off=0; off<len; off += 16)
+	{
+		char* Cur = TempStr;
+		Cur += _sprintf(Cur, "%08x  ",off);
+		for(i=0; i<16; i++)
+		if((i+off)>=len)
+			Cur += _sprintf(Cur, "   ");
+		else
+			Cur += _sprintf(Cur, "%02x ", data[off + i]);
 
-    Cur += _sprintf(Cur, " ");
-    for(i=0; i<16; i++)
-	if ((i + off) >= len) Cur += _sprintf(Cur, " ");
-      else Cur += _sprintf(Cur, "%c",ascii(data[off+i]));
-    Cur += _sprintf(Cur, "\r\n");
-	dbgprintf(TempStr);
-  }
+		Cur += _sprintf(Cur, " ");
+		for(i=0; i<16; i++)
+			if ((i + off) >= len) Cur += _sprintf(Cur, " ");
+			else Cur += _sprintf(Cur, "%c",ascii(data[off+i]));
+		Cur += _sprintf(Cur, "\r\n");
+		dbgprintf(TempStr);
+	}
 }
 #endif

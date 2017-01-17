@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <network.h>
 #include <zlib.h>
 #include <ogc/lwp_watchdog.h>
+#include <sys/param.h>
 
 #include "exi.h"
 #include "FPad.h"
@@ -71,7 +72,7 @@ static const downloads_t Downloads[] = {
 extern void changeToDefaultDrive();
 static int UnzipFile(const char *dir, bool useDefaultDrive, DOWNLOADS download_number, const void *buf, size_t fSize) {
 	char filepath[20];
-	snprintf(filepath,20,"%x+%x",(u32)buf,(u32)fSize);
+	snprintf(filepath,20,"%x+%x",(unsigned int)buf,(unsigned int)fSize);
 	unzFile uf = unzOpen(filepath);
 	if (!uf) {
 		gprintf("Cannot open %s, aborting\r\n", Downloads[download_number].filename);
@@ -106,9 +107,9 @@ static int UnzipFile(const char *dir, bool useDefaultDrive, DOWNLOADS download_n
 }
 
 static inline bool LatestVersion(int *major, int *minor, int *current_line) {
-	u32 http_status = 0;
+	unsigned int http_status = 0;
 	u8* outbuf = NULL;
-	u32 filesize;
+	unsigned int filesize;
 	int line = *current_line;
 
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*line, Downloads[DOWNLOAD_VERSION].text);
@@ -168,9 +169,9 @@ static s32 Download(DOWNLOADS download_number)  {
 	int line = 5;
 	int ret, major = 0, minor = 0;
 	char errmsg[48];
-	u32 http_status = 0;
+	unsigned int http_status = 0;
 	u8* outbuf = NULL;
-	u32 filesize;
+	unsigned int filesize;
 	char filepath[MAXPATHLEN];
 
 	bool dir_argument_exists = (launch_dir[0] != 0);

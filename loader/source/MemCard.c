@@ -60,7 +60,7 @@ static void doChecksum(const u16 *buffer, u32 size, u16 *c1, u16 *c2)
  * @param written Bytes written.
  * @param total Total bytes to write.
  */
-static void showProgress(u32 written, u32 total)
+static void showProgress(unsigned int written, unsigned int total)
 {
 	ClearScreen();
 	PrintInfo();

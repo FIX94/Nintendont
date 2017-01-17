@@ -26,6 +26,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 
 void InsertModule(char *Module, u32 ModuleSize);
-s32 LoadKernel();
+int LoadKernel();
 
 #endif
