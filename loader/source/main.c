@@ -932,7 +932,7 @@ int main(int argc, char **argv)
 	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
 		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
-	if (ncfg->Config & (NIN_CFG_IPL))
+	if (!(ncfg->Config & (NIN_CFG_SKIP_IPL)))
 	{
 		if(IsTRIGame == 0)
 		{

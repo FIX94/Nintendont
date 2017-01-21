@@ -1304,19 +1304,19 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 
-        case 4:
-          // Wiimote CC Rumble
-          ctx->saveSettings = true;
-          ncfg->Config ^= (NIN_CFG_CC_RUMBLE);
-          ctx->redraw = true;
-          break;
- 
-        case 5:
-          // IPL
-          ctx->saveSettings = true;
-          ncfg->Config ^= (NIN_CFG_IPL);
-          ctx->redraw = true;
-          break;
+				case 4:
+					// Wiimote CC Rumble
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_CC_RUMBLE);
+					ctx->redraw = true;
+					break;
+
+				case 5:
+					// Skip IPL
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_SKIP_IPL);
+					ctx->redraw = true;
+					break;
 
 				default:
 					break;
@@ -1476,9 +1476,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Wiimote CC Rumble", (ncfg->Config & (NIN_CFG_CC_RUMBLE)) ? "On " : "Off");
 		ListLoopIndex++;
 
-		// Load GameCube IPL
+		// Skip GameCube IPL
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-			    "%-18s:%-4s", "Load IPL", (ncfg->Config & (NIN_CFG_IPL)) ? "On " : "Off");
+			    "%-18s:%-4s", "Skip IPL", (ncfg->Config & (NIN_CFG_SKIP_IPL)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
 		// Draw the cursor.

@@ -429,9 +429,10 @@ void UpdateNinCFG()
 		ncfg->Version = 7;
 	}
 	if (ncfg->Version == 7)
-	{	//Wiimote CC Rumble, disabled by default; IPL setting
+	{	// Wiimote CC Rumble, disabled by default;
+		// don't skip IPL by default.
 		ncfg->Config &= ~NIN_CFG_CC_RUMBLE;
-		ncfg->Config &= ~NIN_CFG_IPL;
+		ncfg->Config &= ~NIN_CFG_SKIP_IPL;
 		ncfg->Version = 8;
 	}
 }
