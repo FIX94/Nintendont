@@ -984,6 +984,29 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_tri_arcade;
 			}
 
+			case 4: {
+				// Wiimote CC Rumble
+				static const char *desc_cc_rumble[] = {
+					"Enable rumble on Wii Remotes",
+					"when using the Wii Classic",
+					"Controller or Wii Classic",
+					"Controller Pro.",
+					NULL
+				};
+				return desc_cc_rumble;
+			}
+
+			case 5: {
+				// Skip IPL
+				static const char *desc_skip_ipl[] = {
+					"Skip loading the GameCube",
+					"IPL, even if it's present",
+					"on the storage device.",
+					NULL
+				};
+				return desc_skip_ipl;
+			}
+
 			default:
 				break;
 		}
