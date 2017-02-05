@@ -993,6 +993,7 @@ static bool GameNeedsHook()
 			(TITLE_ID) == 0x47504C ||	// Piglet's Big Game
 			(TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 			(TITLE_ID) == 0x47534F ||	// Sonic Mega Collection
+			(GAME_ID) == 0x474F544A ||	// One Piece - Treasure Battle
 			(GAME_ID) == 0x4747504A ||	// SD Gundam Gashapon Wars
 			DemoNeedsHookPatch() );
 }
