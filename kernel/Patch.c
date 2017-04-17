@@ -83,6 +83,7 @@ vu32 TRI_BackupAvailable = 0;
 vu32 GameEntry = 0, FirstLine = 0;
 u32 AppLoaderSize = 0;
 u32 MAT2patched = 0;
+u32 NeedRelPatches = 0;
 
 static char cheatPath[255];
 extern u32 prs_decompress(void* source,void* dest);
@@ -1010,6 +1011,14 @@ static inline bool PADForceConnected()
 	return( (TITLE_ID) == 0x474C5A ); // 007 From Russia With Love
 }
 
+static inline bool GameRelTimerPatches()
+{
+	return( (TITLE_ID) == 0x474842 || // The Hobbit
+			(TITLE_ID) == 0x475536 || // Nicktoons Battle for Volcano Island
+			(TITLE_ID) == 0x474E4F || // Nicktoons Unite
+			(TITLE_ID) == 0x475941 ); // Nickelodeon Barnyard
+}
+
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
 {
 	u32 i;
@@ -1381,12 +1390,23 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			PatchBL(PatchCopy(SonicRidersCopy, SonicRidersCopy_size), SONICRIDERS_HOOK_PAL);
 			dbgprintf("Patch:Patched Sonic Riders _Main.rel PAL\r\n");
-		} /* Agressive Timer Patches for The Hobbit and Nintendo Puzzle Collection */
-		else if( ((TITLE_ID) == 0x474842 || (TITLE_ID) == 0x47505A) && useipl == 0 )
+		} /* Agressive Timer Patches for Nintendo Puzzle Collection */
+		else if( (GAME_ID) == 0x47505A4A && useipl == 0 )
 		{
 			u32 t;
 			for(t = 0; t < Length; t+=4) //make sure its patched at all times
 				PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t);
+		} /* Patch .rel file on boot */
+		else if(NeedRelPatches)
+		{
+			u32 t;
+			for(t = 0; t < Length; t+=4)
+			{
+				if(PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t))
+					NeedRelPatches = 0;
+			}
+			if(NeedRelPatches == 0)
+				dbgprintf("Patch:Patched .rel Timers\r\n");
 		}
 		/* Checked files, back to normal handling */
 		return;
@@ -3543,6 +3563,8 @@ void PatchGame()
 	sync_after_write((void*)0x1000, 0x2000); //low patches
 	write32( RESET_STATUS, GameEntry );
 	sync_after_write((void*)RESET_STATUS, 0x20);
+	// required for some games
+	NeedRelPatches = GameRelTimerPatches();
 	// in case we patched ipl remove status
 	useipl = 0;
 }
