@@ -293,7 +293,8 @@ void DIInterrupt()
 	/* Update DMA registers when needed */
 	if(read32(DI_CONTROL) & 2)
 	{
-		if(TITLE_ID == 0x47544B) //Turok Evolution
+		if( TITLE_ID == 0x47544B || //Turok Evolution
+			TITLE_ID == 0x47514C )  //Dora the Explorer
 		{	/* Manually invalidate data */
 			write32(DI_INV_ADR, read32(DI_DMA_ADR));
 			write32(DI_INV_LEN, read32(DI_DMA_LEN));

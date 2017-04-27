@@ -41,6 +41,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SDI.h"
 #include "ff_utf8.h"
 
+#define USE_OSREPORTDM 0
+
 //#undef DEBUG
 bool access_led = false;
 u32 USBReadTimer = 0;
@@ -228,10 +230,10 @@ int _main( int argc, char *argv[] )
 	BootStatus(0xdeadbeef, s_size, s_cnt);
 	mdelay(1000); //wait before hw flag changes
 	dbgprintf("Kernel Start\r\n");
-
-	//write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
-	//sync_after_write((void*)0x1860, 0x20);
-
+#ifdef USE_OSREPORTDM
+	write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
+	sync_after_write((void*)0x1860, 0x20);
+#endif
 	u32 Now = read32(HW_TIMER);
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
@@ -472,22 +474,24 @@ int _main( int argc, char *argv[] )
 			#endif
 			Shutdown();
 		}
-		//sync_before_read( (void*)0x1860, 0x20 );
-		//if( read32(0x1860) != 0xdeadbeef )
-		//{
-		//	if( read32(0x1860) != 0 )
-		//	{
-		//		dbgprintf(	(char*)(P2C(read32(0x1860))),
-		//					(char*)(P2C(read32(0x1864))),
-		//					(char*)(P2C(read32(0x1868))),
-		//					(char*)(P2C(read32(0x186C))),
-		//					(char*)(P2C(read32(0x1870))),
-		//					(char*)(P2C(read32(0x1874)))
-		//				);
-		//	}
-		//	write32(0x1860, 0xdeadbeef);
-		//	sync_after_write( (void*)0x1860, 0x20 );
-		//}
+		#ifdef USE_OSREPORTDM
+		sync_before_read( (void*)0x1860, 0x20 );
+		if( read32(0x1860) != 0xdeadbeef )
+		{
+			if( read32(0x1860) != 0 )
+			{
+				dbgprintf(	(char*)(P2C(read32(0x1860))),
+							(char*)(P2C(read32(0x1864))),
+							(char*)(P2C(read32(0x1868))),
+							(char*)(P2C(read32(0x186C))),
+							(char*)(P2C(read32(0x1870))),
+							(char*)(P2C(read32(0x1874)))
+						);
+			}
+			write32(0x1860, 0xdeadbeef);
+			sync_after_write( (void*)0x1860, 0x20 );
+		}
+		#endif
 		cc_ahbMemFlush(1);
 	}
 	//if( UseHID )
