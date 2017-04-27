@@ -1270,7 +1270,7 @@ int main(int argc, char **argv)
 			// is connected (or HDMI on Wii U), unless we're loading
 			// BMX XXX, since that game won't even boot on a real
 			// GameCube if a component cable is connected.
-			if ((ncfg->GameID >> 24) != 0x474233 &&
+			if ((ncfg->GameID >> 8) != 0x474233 &&
 			    (ncfg->VideoMode & NIN_VID_PROG))
 			{
 				sram->flags |= 0x80;
