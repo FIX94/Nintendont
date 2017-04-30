@@ -450,6 +450,18 @@ u32 _start(u32 calledByGame)
 			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
 			substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
 		}
+		else
+		if ((HID_CTRL->VID == 0x28DE) && (HID_CTRL->PID == 0x1102)) //steam controller - uses little-endian signed shorts. we will use the big end as a signed byte in this case for simplicity. Author: FirEmerald
+		{
+			stickX		= HID_Packet[HID_CTRL->StickX.Offset]+ 128;
+			stickY		= HID_Packet[HID_CTRL->StickY.Offset] + 128;
+			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] + 128;
+			substickY	= HID_Packet[HID_CTRL->CStickY.Offset] + 128;
+			if (stickX >= 256) sitckX = stickX - 256;
+			if (stickY >= 256) sitckY = stickY - 256;
+			if (substickX >= 256) substickX = substickX - 256;
+			if (substickY >= 256) substickY = substickY - 256;
+		}
 		else	//standard sticks
 		{
 			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
