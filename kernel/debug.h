@@ -19,6 +19,8 @@ or any header files.
 #define dbgprintf(...)
 #else
 extern int dbgprintf( const char *fmt, ...);
+//can track which function calls it via debug.h
+//#define dbgprintf(...) dbgprintf( __FUNCTION__ )
 #endif
 
 #endif

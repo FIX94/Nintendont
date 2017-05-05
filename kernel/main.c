@@ -41,7 +41,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SDI.h"
 #include "ff_utf8.h"
 
-#define USE_OSREPORTDM 0
+//#define USE_OSREPORTDM 1
 
 //#undef DEBUG
 bool access_led = false;
