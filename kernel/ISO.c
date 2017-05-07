@@ -246,7 +246,7 @@ bool ISOInit()
 	ISO_IsCISO = false;
 
 	/* Check for CISO format. */
-	CISO_t *tmp_ciso = (CISO_t*)CACHE_START;
+	CISO_t *tmp_ciso = (CISO_t*)malloca(0x8000, 0x20);
 	ISOReadDirect(tmp_ciso, 0x8000, 0);
 	if (tmp_ciso->magic == CISO_MAGIC)
 	{
@@ -290,6 +290,7 @@ bool ISOInit()
 			ISO_IsCISO = true;
 		}
 	}
+	free(tmp_ciso);
 
 	/* Set Low Mem */
 	ISOReadDirect((void*)0x0, 0x20, 0x0 + ISOShift64);
