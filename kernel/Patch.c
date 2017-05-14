@@ -974,7 +974,7 @@ static bool DemoNeedsHookPatch()
 static bool GameNeedsHook()
 {
 	if( (TITLE_ID) == 0x473258 )	// Sonic Gems Collection
-		return (DOLSize != 1440100 && DOLSize != 1439812); //Everything except Sonic Fighters
+		return (DOLSize != 1440644 && DOLSize != 1440100 && DOLSize != 1439812); //Everything except Sonic Fighters
 
 	return( (TITLE_ID) == 0x474234 ||	// Burnout 2
 			(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
