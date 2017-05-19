@@ -87,12 +87,18 @@ void SRAM_Init(void)
 		// Disable PAL60.
 		sram.BootMode &= 0x40;
 
+		// NTSC Prince of Persia Warrior Within set to Spanish
+		// actually has a bug that cant display the progressive
+		// screen question so dont set progressive flag in that
+		bool spPopWW = (ncfg->GameID == 0x47324F45 &&
+						ncfg->Language == NIN_LAN_SPANISH);
+
 		// Set the progressive scan flag if a component cable
 		// is connected (or HDMI on Wii U), unless we're loading
 		// BMX XXX, since that game won't even boot on a real
 		// GameCube if a component cable is connected.
-		if ((ncfg->GameID >> 8) != 0x474233 &&
-		    (ncfg->VideoMode & NIN_VID_PROG))
+		if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW &&
+			(ncfg->VideoMode & NIN_VID_PROG))
 		{
 			sram.Flags |= 0x80;
 		}
