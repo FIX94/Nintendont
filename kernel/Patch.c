@@ -994,6 +994,7 @@ static bool GameNeedsHook()
 			(TITLE_ID) == 0x47504C ||	// Piglet's Big Game
 			(TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 			(TITLE_ID) == 0x47534F ||	// Sonic Mega Collection
+			(TITLE_ID) == 0x474244 ||	// BloodRayne
 			(GAME_ID) == 0x474F544A ||	// One Piece - Treasure Battle
 			(GAME_ID) == 0x4747504A ||	// SD Gundam Gashapon Wars
 			DemoNeedsHookPatch() );
@@ -3260,6 +3261,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	{
 		memcpy((void*)0x2A65CC, OSReportDM, sizeof(OSReportDM));
 		sync_after_write((void*)0x2A65CC, sizeof(OSReportDM));
+	}
+	if(GAME_ID == 0x47435345) // Street Racing Syndicate
+	{
+		//UnkReport
+		memcpy((void*)0x16884, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x16884, sizeof(OSReportDM));
+		//debug switch
+		write32(0x330E68, 0);
+		//OSReport
+		memcpy((void*)0x235A4, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x235A4, sizeof(OSReportDM));
+		dbgprintf("Patch:Patched Street Racing Syndicate NTSC-U\r\n");
 	}*/
 	if(useipl == 1)
 	{

@@ -47,18 +47,23 @@ typedef struct {
 } SpecialTitles_t;
 
 static const SpecialTitles_t TriforceTitles[] = {
+	{"GFZE8P", "F-Zero AX"},
+	{"GFZP8P", "F-Zero AX"},
+	{"GFZJ8P", "F-Zero AX"},
 	{"GGPE01", "Mario Kart Arcade GP"},
 	{"GGPJ01", "Mario Kart Arcade GP"},
 	{"GGPP01", "Mario Kart Arcade GP"},
 	{"GGPE02", "Mario Kart Arcade GP 2"},
 	{"GGPJ02", "Mario Kart Arcade GP 2"},
 	{"GGPP02", "Mario Kart Arcade GP 2"},
-	{"GFZE8P", "F-Zero AX"},
-	{"GFZP8P", "F-Zero AX"},
-	{"GFZJ8P", "F-Zero AX"},
-	{"GVSJ9P", "Virtua Striker 4 Ver.2006"},
-	{"GVS46J", "Virtua Striker 4 Ver.2006"},
-	{"GVS46E", "Virtua Striker 4 Ver.2006"}
+	{"GPBJ8P", "Gekitou Pro Yakyuu"},
+	{"GVS32J", "Virtua Striker 3 Ver. 2002"},
+	{"GVS32E", "Virtua Striker 3 Ver. 2002"},
+	{"GVS45J", "Virtua Striker 4"},
+	{"GVS45E", "Virtua Striker 4"},
+	{"GVSJ9P", "Virtua Striker 4 Ver. 2006"},
+	{"GVS46J", "Virtua Striker 4 Ver. 2006"},
+	{"GVS46E", "Virtua Striker 4 Ver. 2006"}
 };
 
 
