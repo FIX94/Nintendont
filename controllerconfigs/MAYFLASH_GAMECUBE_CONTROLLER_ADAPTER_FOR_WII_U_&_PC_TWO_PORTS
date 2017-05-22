@@ -1,0 +1,23 @@
+[MayFlash GameCube Controller Adapter For WiiU and PC shameless plug youtube.com/frenchpet - PC052]
+VID=057E
+PID=0337
+Polltype=1
+DPAD=2
+A=2,01
+B=2,02
+X=2,04
+Y=2,08
+Z=3,02
+L=8
+R=9
+S=3,01
+Left=2,10
+Down=2,40
+Right=2,20
+Up=2,80
+StickX=4
+StickY=5
+CStickX=6
+CStickY=7
+LAnalog=8,1D,EA
+RAnalog=9,1D,EA
