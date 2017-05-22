@@ -16,7 +16,7 @@ AS	:= $(PREFIX)as
 LD	:= $(PREFIX)gcc
 STRIP	:= $(PREFIX)strip
 
-ifeq ($(windows), 1)
+ifeq ($(OS),Windows_NT)
 	ZIP = zip/zip.exe
 else
 	ZIP = zip
@@ -29,7 +29,7 @@ CFLAGS	:= -mbig-endian -O3 -std=gnu89 -g -I. -Wall \
 CPPFLAGS := -I. -I../fatfs -I../codehandler
 
 ASFLAGS	:= -mbig-endian -mcpu=arm926ej-s
-LDFLAGS	:= -nostartfiles -nodefaultlibs -mbig-endian -Wl,--gc-sections,-T,kernel.ld,-Map,kernel.map -n
+LDFLAGS	:= -nostartfiles -mbig-endian -Wl,--gc-sections,-T,kernel.ld,-Map,kernel.map -n
 
 TARGET	:= kernel.elf
 OBJECTS	:= start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o RealDI.o \
@@ -37,7 +37,7 @@ OBJECTS	:= start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Rea
 	   EXI.o SRAM.o SI.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o \
 	   main.o syscalls.o ReadSpeed.o vsprintf.o string.o prs.o \
 	   SDI.o usb.o usbstorage.o
-LIBS	:= ../fatfs/libfatfs-arm.a be/libc.a be/libgcc.a
+LIBS	:= ../fatfs/libfatfs-arm.a
 ZIPFILE	:= ../loader/data/kernel.zip
 
 # Bluetooth stack
