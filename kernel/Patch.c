@@ -1859,14 +1859,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			if( (PatchCount & FPATCH_getTiming) == 0 )
 			{
-				if( BufAt0 == 0x386500BE && BufAt4 == 0x4E800020 && read32((u32)Buffer+i+8) == 0x386500E4 &&
-					read32((u32)Buffer+i+12) == 0x4E800020 && read32((u32)Buffer+i+16) == 0x38600000 &&
-					read32((u32)Buffer+i+20) == 0x4E800020 )
+				if( BufAt0 == 0x386500BE && BufAt4 == 0x4E800020 && 
+					read32((u32)Buffer+i+8) == 0x386500E4 && read32((u32)Buffer+i+0xC) == 0x4E800020 )
 				{
-					printpatchfound("getTiming", NULL, (u32)Buffer + i + 16);
-					write32( (u32)Buffer + i + 16, 0x7CA32B78 ); //mr r5, r3
-					PatchCount |= FPATCH_getTiming;
-					i += 20;
+					u32 PatchOffset = 0x10;
+					while ((read32((u32)Buffer+i+PatchOffset) != 0x38600000) && (PatchOffset < 0x30)) // MaxSearch=0x20
+						PatchOffset += 4;
+					if(read32((u32)Buffer+i+PatchOffset) == 0x38600000 &&
+						read32((u32)Buffer+i+PatchOffset+4) == 0x4E800020)
+					{
+						printpatchfound("getTiming", NULL, (u32)Buffer+i+PatchOffset);
+						write32( (u32)Buffer+i+PatchOffset, 0x7CA32B78 ); //mr r5, r3
+						PatchCount |= FPATCH_getTiming;
+						i += PatchOffset+4;
+					}
 					continue;
 				}
 			}
@@ -3272,6 +3278,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//OSReport
 		memcpy((void*)0x235A4, OSReportDM, sizeof(OSReportDM));
 		sync_after_write((void*)0x235A4, sizeof(OSReportDM));
+		//failed expermiments, someday I'll figure it out...
+		//write32(0xF4B4,0x38600000);
+		write32(0x1F6434,0x38600000);
+		write32(0x1F6454,0x60000000);
+		write32(0x1F6464,0x60000000);
+		write32(0x1F646C,0x38800000);
+		write32(0x2583E8,0x38600000);
+		write32(0x2583EC,0x4E800020);
 		dbgprintf("Patch:Patched Street Racing Syndicate NTSC-U\r\n");
 	}*/
 	if(useipl == 1)
@@ -3479,6 +3493,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			else if(write32A(0x367C64, 0x38A00280, 0xA0A7000E, 0))
 			{
 				dbgprintf("Patch:Patched Super Smash Bros Melee v1.02\r\n");
+			}
+		}
+		else if( TITLE_ID == 0x475747 ) // Swingerz Golf
+		{
+			//while getTiming supports all video modes
+			//the NTSC-U game code itself does not, so patch it
+			if(read32(0x1E148) == 0x3C60801F)
+			{
+				PatchB(0x1E128, 0x1E148);
+				dbgprintf("Patch:Patched Swingerz Golf NTSC-U\r\n");
 			}
 		}
 	}

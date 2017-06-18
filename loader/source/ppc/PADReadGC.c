@@ -224,6 +224,9 @@ u32 _start(u32 calledByGame)
 		{
 			HID_Packet = (u8*)0x930050F0; // reset back to default offset
 			memInvalidate = (u32)HID_Packet; // prepare memory
+			asm volatile("dcbi 0,%0" : : "b"(memInvalidate) : "memory");
+			//invalidate cache block for controllers using more than 0x10 bytes
+			memInvalidate = (u32)HID_Packet+0x10; // prepare memory
 			asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 			HIDMemPrep = memInvalidate;
 		}
