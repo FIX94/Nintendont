@@ -1151,7 +1151,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	// PSO 1&2 / III
 	u32 isPSO = 0;
-	if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
+	if (((TITLE_ID) == 0x44504F) || ((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
 	{
 		isPSO = 1;
 		if((PSOHack & PSO_STATE_SWITCH) && DiscOffset > 0)
@@ -1159,19 +1159,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			dbgprintf("PSO:psov3.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_NOENTRY;
 		}
-		if(Length == 0x318E0 && read32((u32)Buffer+0x318B0) == 0x4CBEBC20)
+		if( (Length == 0x318E0 && read32((u32)Buffer+0x318B0) == 0x4CBEBC20) || //PSO PAL/NTSC
+			(Length == 0x31B60 && read32((u32)Buffer+0x31B28) == 0x4CBEBC20) || //PSO JAP
+			(Length == 0x339A0 && read32((u32)Buffer+0x33960) == 0x4CBEBC20) || //PSO Plus JAP v1.05
+			(Length == 0x33FC0 && read32((u32)Buffer+0x33F78) == 0x4CBEBC20) || //PSO 3 JAP
+			(Length == 0x34B60 && read32((u32)Buffer+0x34B28) == 0x4CBEBC20))   //PSO Demo JAP
 		{
 			dbgprintf("PSO:switcher.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_SWITCH;
 		}
-		else if(Length == 0x1B8A0 && read32((u32)Buffer+0x12E0C) == 0x7FA4E378)
+		else if(Length == 0x1B8A0 && read32((u32)Buffer+0x12E0C) == 0x7FA4E378) //All PSO Versions?
 		{
 			dbgprintf("PSO:switcherD.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_SWITCH;
 		}
-		else if((Length == 0x19580 && read32((u32)Buffer+0x19560) == 0xC8BFAF78) || //PSO Plus
+		else if((Length == 0x19580 && read32((u32)Buffer+0x19560) == 0xC8BFAF78) || //PSO Plus NTSC v1.00
 				(Length == 0x19EA0 && read32((u32)Buffer+0x19E80) == 0x24C7E996) || //PSO 3 PAL
-				(Length == 0x1A2C0 && read32((u32)Buffer+0x1A2A0) == 0xE2BEE1FF))   //PSO 3 NTSC
+				(Length == 0x1A2C0 && read32((u32)Buffer+0x1A2A0) == 0xE2BEE1FF) || //PSO 3 NTSC
+				(Length == 0x1A5C0 && read32((u32)Buffer+0x1A5A0) == 0x4CA7BEBC) || //PSO Plus JAP v1.05
+				(Length == 0x1A960 && read32((u32)Buffer+0x1A940) == 0x09F8FF13))   //PSO 3 JAP
 		{
 			dbgprintf("PSO:switcher.prs\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_PSR | PSO_STATE_SWITCH;
@@ -2995,17 +3001,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								printpatchfound("SwitcherPrs", NULL, OrigAddr);
 								PatchBL(PatchCopy(SwitcherPrs, SwitcherPrs_size), OrigAddr);
 							}
+							else
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_PsoDolEntryMod:
+						{
+							// HACK: PSO patch To Fake Entry
+							u32 OrigAddr = FOffset + ((CurPatterns[j].Length == 0xC0) ? 0xAC : 0x23C);
+							if ((read32(OrigAddr - 8) == 0x4C00012C) && (read32(OrigAddr) == 0x4E800021))  // isync and blrl
+							{
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, OrigAddr);
+								PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
+							}
+							else
+								CurPatterns[j].Found = 0;
 						} break;
 						case FCODE_DolEntryMod:
 						{
-							// HACK: PSO patch To Fake Entry
-							u32 OrigAddr = FOffset + 0xAC;
-							if ((read32(OrigAddr - 8) == 0x4C00012C) && (read32(OrigAddr) == 0x4E800021))  // isync and blrl
-							{
-								printpatchfound("PSO", "FakeEntry", OrigAddr);
-								PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
-							}
-							else if (read32(FOffset + 0x38) == 0x4E800421) // bctrl
+							if (read32(FOffset + 0x38) == 0x4E800421) // bctrl
 							{
 								// HACK: Datel patch To Fake Entry
 								PatchBL(PATCH_OFFSET_ENTRY, FOffset + 0x38);
@@ -3022,6 +3035,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								printpatchfound("Datel", "FakeEntry", FOffset + 0xC8);
 								PatchBL(PATCH_OFFSET_ENTRY, FOffset + 0xC8);
 							}
+							else
+								CurPatterns[j].Found = 0;
 						} break;
 						default:
 						{
@@ -3451,6 +3466,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			write32(0x6A28, 0x38600000);
 			write32(0x6AF8, 0x38000000);
 			dbgprintf("Patch:Patched Nintendo Puzzle Collection NTSC-J\r\n");
+		}
+	}
+	else if( TITLE_ID == 0x44504F ) //PSO Demo JAP
+	{
+		//skip modem detection error to let demo boot up
+		if(write32A(0x194F40, 0x4182002C, 0x4082002C, 0))
+		{
+			dbgprintf("Patch:Patched Phantasy Star Online Demo JAP\r\n");
 		}
 	}
 	if(videoPatches)
