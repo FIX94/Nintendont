@@ -142,9 +142,19 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			PatchWideMulti(0x28C800, 1);
 			return true;
 		case TRI_GP2:
-			dbgprintf("PatchWidescreen:[Mario Kart GP2] applied\r\n");
-			PatchWideMulti(0x2C80D4, 1);
-			return true;
+			if(read32(0x2C80D4) == 0xC03F0034)
+			{
+				dbgprintf("PatchWidescreen:[Mario Kart GP2 US] applied\r\n");
+				PatchWideMulti(0x2C80D4, 1);
+				return true;
+			}
+			else if(read32(0x2C86EC) == 0xC03F0034)
+			{
+				dbgprintf("PatchWidescreen:[Mario Kart GP2 JP] applied\r\n");
+				PatchWideMulti(0x2C86EC, 1);
+				return true;
+			}
+			return false;
 		case TRI_VS4:
 			if (read32(0x5E418) == 0xEC020024)
 			{
