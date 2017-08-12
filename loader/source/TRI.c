@@ -102,10 +102,17 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP1);
 		CreateNewFile(SaveFile, 0x45);
 	}
+	else if(DOLRead32(0x25C664, DOLOffset, fp, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Mario Kart Arcade GP 2 (JPN Feb 6 2007 20:29:25)\r\n");
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2);
+		CreateNewFile(SaveFile, 0x45);
+	}
 	else if(DOLRead32(0x25C0AC, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Mario Kart Arcade GP 2 (Feb 7 2007 02:47:24)\r\n");
+		gprintf("TRI:Mario Kart Arcade GP 2 (ENG Feb 7 2007 02:47:24)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2);
 		CreateNewFile(SaveFile, 0x45);
 	}
@@ -150,17 +157,31 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4JAP);
 		CreateNewFile(SaveFile, 0x2B);
 	}
+	else if(DOLRead32(0x1C51E4, DOLOffset, fp, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Virtua Striker 4 (Export) (GDT-0014)\r\n");
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4EXP);
+		CreateNewFile(SaveFile, 0x2B);
+	}
 	else if(DOLRead32(0x1C5514, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Virtua Striker 4 (Export)\r\n");
+		gprintf("TRI:Virtua Striker 4 (Export) (GDT-0015)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4EXP);
 		CreateNewFile(SaveFile, 0x2B);
+	}
+	else if(DOLRead32(0x24A4C8, DOLOffset, fp, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Virtua Striker 4 Ver 2006 (Japan) (Rev B)\r\n");
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4V06JAP);
+		CreateNewFile(SaveFile, 0x2E);
 	}
 	else if(DOLRead32(0x24B248, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Virtua Striker 4 Ver 2006 (Japan)\r\n");
+		gprintf("TRI:Virtua Striker 4 Ver 2006 (Japan) (Rev D)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4V06JAP);
 		CreateNewFile(SaveFile, 0x2E);
 	}

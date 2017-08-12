@@ -683,9 +683,40 @@ void TRISetupGames()
 		//PAD Hook for control updates
 		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3C230 );
 	}
+	else if( read32( 0x01C8584 ) == 0x386000A8 )
+	{
+		dbgprintf("TRI:Virtua Striker 4 (Export GDT-0014)\r\n");
+		TRIGame = TRI_VS4;
+		SystemRegion = REGION_USA;
+		TRISettingsName = SETTINGS_VS4EXP;
+		TRISettingsLoc = 0x05C5CA0-0x2CA8; //NOTE:logic turned around!
+		TRISettingsSize = 0x2B;
+
+		if(!arcadeMode)
+		{
+			//Set menu timer to about 51 days
+			write32( 0x00C14E0, 0x3C800FFF );
+		}
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3B3E8 );
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings();
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchB(PatchCopy(RestoreSettingsVS4EXP, RestoreSettingsVS4EXP_size), 0x12454);
+
+		//Modify to regular GX pattern to patch later
+		write32( 0x21D468, 0x00 ); //NTSC Interlaced
+
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3C174 );
+	}
 	else if( read32( 0x01C88B4 ) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Virtua Striker 4 (Export)\r\n");
+		dbgprintf("TRI:Virtua Striker 4 (Export GDT-0015)\r\n");
 		TRIGame = TRI_VS4;
 		SystemRegion = REGION_USA;
 		TRISettingsName = SETTINGS_VS4EXP;
@@ -714,9 +745,47 @@ void TRISetupGames()
 		//PAD Hook for control updates
 		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3C174 );
 	}
+	else if( read32( 0x024DB08 ) == 0x386000A8 )
+	{
+		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (Japan) (Rev B)\r\n");
+		TRIGame = TRI_VS4;
+		SystemRegion = REGION_JAPAN;
+		TRISettingsName = SETTINGS_VS4V06JAP;
+		TRISettingsLoc = 0x06D4C80-0xC38;
+		TRISettingsSize = 0x2E;
+		DISetDIMMVersion(0xA3A479);
+
+		//DIMM memory format skip (saves 2 minutes bootup time)
+		write32( 0x0013950, 0x60000000 );
+
+		//dont wait for other cabinets to link up
+		write32( 0x0056114, 0x38600001 );
+
+		if(!arcadeMode)
+		{
+			//Set menu timer to about 51 days
+			write32( 0x00D6BC8, 0x3C800FFF );
+		}
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3ECD8 );
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings();
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchB(PatchCopy(RestoreSettingsVS4V06JAP, RestoreSettingsVS4V06JAP_size), 0x13C10);
+
+		//Modify to regular GX pattern to patch later
+		write32( 0x2BC7D8, 0x00 ); //NTSC Interlaced
+
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3F9C8 );
+	}
 	else if( read32( 0x024E888 ) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (Japan)\r\n");
+		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (Japan) (Rev D)\r\n");
 		TRIGame = TRI_VS4;
 		SystemRegion = REGION_JAPAN;
 		TRISettingsName = SETTINGS_VS4V06JAP;
