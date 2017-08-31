@@ -1878,8 +1878,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						write32( (u32)Buffer+i+PatchOffset, 0x7CA32B78 ); //mr r5, r3
 						PatchCount |= FPATCH_getTiming;
 						i += PatchOffset+4;
+						continue;
 					}
-					continue;
 				}
 			}
 			if( (PatchCount & FPATCH_GXInit) == 0 )
