@@ -84,6 +84,7 @@ vu32 GameEntry = 0, FirstLine = 0;
 u32 AppLoaderSize = 0;
 u32 MAT2patched = 0;
 u32 NeedRelPatches = 0;
+u32 NeedConstantRelPatches = 0;
 
 static char cheatPath[255];
 extern u32 prs_decompress(void* source,void* dest);
@@ -1017,7 +1018,13 @@ static inline bool GameRelTimerPatches()
 	return( (TITLE_ID) == 0x474842 || // The Hobbit
 			(TITLE_ID) == 0x475536 || // Nicktoons Battle for Volcano Island
 			(TITLE_ID) == 0x474E4F || // Nicktoons Unite
-			(TITLE_ID) == 0x475941 ); // Nickelodeon Barnyard
+			(TITLE_ID) == 0x475941 || // Nickelodeon Barnyard
+			(TITLE_ID) == 0x474F32 ); // Blood Omen 2
+}
+
+static inline bool GameRelConstantTimerPatches()
+{
+	return( (TITLE_ID) == 0x474F32 ); // Blood Omen 2
 }
 
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
@@ -1402,15 +1409,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			u32 t;
 			for(t = 0; t < Length; t+=4) //make sure its patched at all times
-				PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t);
+				PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t, true);
 		} /* Patch .rel file on boot */
 		else if(NeedRelPatches)
 		{
 			u32 t;
 			for(t = 0; t < Length; t+=4)
 			{
-				if(PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t))
-					NeedRelPatches = 0;
+				//only look for .rel code to patch, no floats
+				if(PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t, false))
+				{
+					//some games constantly reload .rel files
+					if(!NeedConstantRelPatches)
+						NeedRelPatches = 0;
+				}
 			}
 			if(NeedRelPatches == 0)
 				dbgprintf("Patch:Patched .rel Timers\r\n");
@@ -1666,7 +1678,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		u32 BufAt0 = read32((u32)Buffer+i);
 		if( BufAt0 != 0x4E800020 )
 		{
-			if(PatchProcessorInterface(BufAt0, (u32)Buffer + i) || PatchTimers(BufAt0, (u32)Buffer + i))
+			if(PatchProcessorInterface(BufAt0, (u32)Buffer + i) || PatchTimers(BufAt0, (u32)Buffer + i, true))
 			{
 				i += 4;
 				continue;
@@ -3623,8 +3635,10 @@ void PatchGame()
 	sync_after_write((void*)0x1000, 0x2000); //low patches
 	write32( RESET_STATUS, GameEntry );
 	sync_after_write((void*)RESET_STATUS, 0x20);
-	// required for some games
+	// single rel patch required for some games
 	NeedRelPatches = GameRelTimerPatches();
+	// constant patching required in even fewer cases
+	NeedConstantRelPatches = GameRelConstantTimerPatches();
 	// in case we patched ipl remove status
 	useipl = 0;
 }

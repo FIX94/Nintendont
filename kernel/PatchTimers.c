@@ -97,50 +97,53 @@ static u32 CheckFor( u32 Buf, u32 Val )
 #define DBL_1_1574		0x3ff284b5dcc63f14ull
 #define DBL_0_7716		0x3fe8b0f27bb2fec5ull
 
-bool PatchTimers(u32 FirstVal, u32 Buffer)
+bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 {
 	/* The floats in the data sections */
-	if( FirstVal == FLT_TIMER_CLOCK_BUS_GC )
+	if(checkFloats)
 	{
-		write32(Buffer, FLT_TIMER_CLOCK_BUS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float Bus] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_TIMER_CLOCK_CPU_GC )
-	{
-		write32(Buffer, FLT_TIMER_CLOCK_CPU_WII);
-		dbgprintf("PatchTimers:[Timer Clock float CPU] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_TIMER_CLOCK_SECS_GC )
-	{
-		write32(Buffer, FLT_TIMER_CLOCK_SECS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float s] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_TIMER_CLOCK_MSECS_GC )
-	{
-		write32(Buffer, FLT_TIMER_CLOCK_MSECS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float ms] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_ONE_DIV_CLOCK_SECS_GC )
-	{
-		write32(Buffer, FLT_ONE_DIV_CLOCK_SECS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float 1/s] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_ONE_DIV_CLOCK_MSECS_GC )
-	{
-		write32(Buffer, FLT_ONE_DIV_CLOCK_MSECS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_ONE_DIV_CLOCK_1200_GC )
-	{
-		write32(Buffer, FLT_ONE_DIV_CLOCK_1200_WII);
-		dbgprintf("PatchTimers:[Timer Clock float 1/1200] applied (0x%08X)\r\n", Buffer );
-		return true;
+		if( FirstVal == FLT_TIMER_CLOCK_BUS_GC )
+		{
+			write32(Buffer, FLT_TIMER_CLOCK_BUS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float Bus] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_TIMER_CLOCK_CPU_GC )
+		{
+			write32(Buffer, FLT_TIMER_CLOCK_CPU_WII);
+			dbgprintf("PatchTimers:[Timer Clock float CPU] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_TIMER_CLOCK_SECS_GC )
+		{
+			write32(Buffer, FLT_TIMER_CLOCK_SECS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float s] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_TIMER_CLOCK_MSECS_GC )
+		{
+			write32(Buffer, FLT_TIMER_CLOCK_MSECS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float ms] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_ONE_DIV_CLOCK_SECS_GC )
+		{
+			write32(Buffer, FLT_ONE_DIV_CLOCK_SECS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float 1/s] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_ONE_DIV_CLOCK_MSECS_GC )
+		{
+			write32(Buffer, FLT_ONE_DIV_CLOCK_MSECS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_ONE_DIV_CLOCK_1200_GC )
+		{
+			write32(Buffer, FLT_ONE_DIV_CLOCK_1200_WII);
+			dbgprintf("PatchTimers:[Timer Clock float 1/1200] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
 	}
 	/* For Nintendo Puzzle Collection */
 	if( FirstVal == 0x38C00BB8 && (u32)Buffer == 0x770528 )
