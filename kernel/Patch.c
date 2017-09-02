@@ -1467,25 +1467,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			|| IsPokemonDemo() )
 		{
 			dbgprintf("Patch:[Pokemon memset] applied\r\n");
-			// patch out initial memset(0x1800, 0, 0x1800)
-			if( (read32(0) & 0xFF) == 0x4A )	// JAP
-				write32( 0x560C, 0x60000000 );
-			else								// EUR/USA
-				write32( 0x5614, 0x60000000 );
 
 			// patch memset to jump to test function
-			write32(0x00005498, 0x4BFFABF0);
+			write32(0x00005420, 0x4BFFAC68);
 
 			// patch in test < 0x3000 function
-			write32(0x00000088, 0x3D008000);
-			write32(0x0000008C, 0x61083000);
-			write32(0x00000090, 0x7C044000);
-			write32(0x00000094, 0x4180542C);
-			write32(0x00000098, 0x90E40004);
-			write32(0x0000009C, 0x48005400);
-
-			// skips __start init of debugger mem
-			write32(0x00003194, 0x48000028);
+			write32(0x00000088, 0x3CC08000);
+			write32(0x0000008C, 0x60C63000);
+			write32(0x00000090, 0x7C033000);
+			write32(0x00000094, 0x41800008);
+			write32(0x00000098, 0x480053A5);
+			write32(0x0000009C, 0x48005388);
 		}
 		else if( TITLE_ID == 0x47465A && read32(0x5608) == 0x3C804C00 )
 		{
@@ -3365,23 +3357,71 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if(write32A(0x000B0D88, 0x38600001, 0x4801C0B1, 0))
 			{
-				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-J\r\n");
+				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-J MemCard Emu\r\n");
 			}
 			else if(write32A(0x000B30DC, 0x38600001, 0x4801C2ED, 0))
 			{
-				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-U\r\n");
+				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-U MemCard Emu\r\n");
 			}
 			else if(write32A(0x000B66DC, 0x38600001, 0x4801C2ED, 0))
 			{
-				dbgprintf("Patch:Patched Pokemon Colosseum PAL\r\n");
+				dbgprintf("Patch:Patched Pokemon Colosseum PAL MemCard Emu\r\n");
 			}
+		}
+		// Controller Invert Bug
+		if(read32(0x000F6030) == 0x7C0000D0 && read32(0x000F603C) == 0x7C0000D0)
+		{
+			write32(0x000F6030, 0x7C0000F8); //neg->not
+			write32(0x000F603C, 0x7C0000F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon Colosseum NTSC-J Controller Bug\r\n");
+		}
+		else if(read32(0x000F8368) == 0x7C0000D0 && read32(0x000F8374) == 0x7C0000D0)
+		{
+			write32(0x000F8368, 0x7C0000F8); //neg->not
+			write32(0x000F8374, 0x7C0000F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon Colosseum NTSC-U Controller Bug\r\n");
+		}
+		else if(read32(0x000FB9F8) == 0x7C0000D0 && read32(0x000FBA04) == 0x7C0000D0)
+		{
+			write32(0x000FB9F8, 0x7C0000F8); //neg->not
+			write32(0x000FBA04, 0x7C0000F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon Colosseum PAL Controller Bug\r\n");
 		}
 	}
 	else if( GAME_ID == 0x5043534A ) // Colosseum Bonus
 	{
 		// Memory Card inserted hack
 		if( DisableEXIPatch == 0 && write32A(0x000B0474, 0x38600001, 0x4801C0B5, 0) )
-			dbgprintf("Patch:Patched Pokemon Colosseum Bonus NTSC-J\r\n");
+			dbgprintf("Patch:Patched Pokemon Colosseum Bonus NTSC-J MemCard Emu\r\n");
+		// Controller Invert Bug
+		if(read32(0x000F5784) == 0x7C0000D0 && read32(0x000F5790) == 0x7C0000D0)
+		{
+			write32(0x000F5784, 0x7C0000F8); //neg->not
+			write32(0x000F5790, 0x7C0000F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon Colosseum Bonus NTSC-J Controller Bug\r\n");
+		}
+	}
+	else if( TITLE_ID == 0x475858 )	// Pokemon XD
+	{
+		// Controller Invert Bug
+		if(read32(0x00100DA0) == 0x7CC000D0 && read32(0x00100DAC) == 0x7CC000D0)
+		{
+			write32(0x00100DA0, 0x7C0600F8); //neg->not
+			write32(0x00100DAC, 0x7C0600F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon XD NTSC-J Controller Bug\r\n");
+		}
+		else if(read32(0x00104A1C) == 0x7CC000D0 && read32(0x00104A28) == 0x7CC000D0)
+		{
+			write32(0x00104A1C, 0x7C0600F8); //neg->not
+			write32(0x00104A28, 0x7C0600F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon XD NTSC-U Controller Bug\r\n");
+		}
+		else if(read32(0x0010607C) == 0x7CC000D0 && read32(0x00106088) == 0x7CC000D0)
+		{
+			write32(0x0010607C, 0x7C0600F8); //neg->not
+			write32(0x00106088, 0x7C0600F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon XD PAL Controller Bug\r\n");
+		}
 	}
 	else if( TITLE_ID == 0x475A4C )	// GZL=Wind Waker
 	{
