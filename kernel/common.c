@@ -139,6 +139,7 @@ void mdelay(int ms)
 	udelay(ms * 1000);
 }
 
+extern bool isWiiVC;
 void Shutdown( void )
 {
 	dbgprintf("Got Shutdown button call\n");
@@ -165,16 +166,18 @@ void Shutdown( void )
 #endif
 
 #endif
-	if( IsWiiU() )
+	if(!isWiiVC)
 	{
-		write32( 0x0D8005E0, 0xFFFFFFFE );
+		if( IsWiiU() )
+		{
+			write32( 0x0D8005E0, 0xFFFFFFFE );
 
-	} else {		
-		set32( HW_GPIO_ENABLE, GPIO_SHUTDOWN );
-		set32( HW_GPIO_OUT, GPIO_SHUTDOWN );
+		} else {		
+			set32( HW_GPIO_ENABLE, GPIO_SHUTDOWN );
+			set32( HW_GPIO_OUT, GPIO_SHUTDOWN );
+		}
 	}
-
-	while(1);
+	while(1) mdelay(100);
 }
 
 /**

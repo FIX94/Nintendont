@@ -38,7 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
 extern vu32 useipl;
-
+static bool exi_inited = false;
 static u32 Device = 0;
 static u32 SRAMWriteCount = 0;
 static u32 EXICommand = 0;
@@ -150,6 +150,8 @@ void EXIInit( void )
 
 	// Initialize SRAM.
 	SRAM_Init();
+
+	exi_inited = true;
 }
 
 extern vu32 TRIGame;
@@ -240,7 +242,7 @@ void EXISaveCard(void)
 
 void EXIShutdown( void )
 {
-	if(TRIGame)
+	if(TRIGame || !exi_inited)
 		return;
 
 	u32 wrote;
@@ -262,7 +264,9 @@ void EXIShutdown( void )
 //#ifdef DEBUG_EXI
 	dbgprintf("Done!\r\n");
 //#endif
+	exi_inited = false;
 }
+
 u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 {
 	u32 EXIOK = 1;

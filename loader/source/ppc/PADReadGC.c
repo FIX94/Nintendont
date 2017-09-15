@@ -2,30 +2,33 @@
 #include "global.h"
 #include "HID.h"
 #include "hidmem.h"
+#include "wiidrc.h"
 #define PAD_CHAN0_BIT				0x80000000
 
 static u32 stubsize = 0x1800;
-static vu32 *stubdest = (u32*)0x80004000;
-static vu32 *stubsrc = (u32*)0x93011810;
-static vu16* const _memReg = (u16*)0xCC004000;
-static vu16* const _dspReg = (u16*)0xCC005000;
-static vu32* const _siReg = (u32*)0xCD006400;
-static vu32* const MotorCommand = (u32*)0x93003010;
-static vu32* RESET_STATUS = (u32*)0xD3003420;
-static vu32* HID_STATUS = (u32*)0xD3003440;
-static vu32* HIDMotor = (u32*)0x93002700;
-static vu32* PadUsed = (u32*)0x93002704;
+static vu32 *stubdest = (vu32*)0x80004000;
+static vu32 *stubsrc = (vu32*)0x93011810;
+static vu16* const _memReg = (vu16*)0xCC004000;
+static vu16* const _dspReg = (vu16*)0xCC005000;
+static vu32* const _siReg = (vu32*)0xCD006400;
+static vu32* const MotorCommand = (vu32*)0x93003010;
+static vu32* RESET_STATUS = (vu32*)0xD3003420;
+static vu32* HID_STATUS = (vu32*)0xD3003440;
+static vu32* HIDMotor = (vu32*)0x93002700;
+static vu32* PadUsed = (vu32*)0x93002704;
 
-static vu32* PADIsBarrel = (u32*)0xD3002830;
-static vu32* PADBarrelEnabled = (u32*)0xD3002840;
-static vu32* PADBarrelPress = (u32*)0xD3002850;
+static vu32* PADIsBarrel = (vu32*)0xD3002830;
+static vu32* PADBarrelEnabled = (vu32*)0xD3002840;
+static vu32* PADBarrelPress = (vu32*)0xD3002850;
 
-struct BTPadCont *BTPad = (struct BTPadCont*)0x932F0000;
-static vu32* BTMotor = (u32*)0x93002720;
-static vu32* BTPadFree = (u32*)0x93002730;
-static vu32* SIInited = (u32*)0x93002740;
-static vu32* PADSwitchRequired = (u32*)0x93002744;
-static vu32* PADForceConnected = (u32*)0x93002748;
+static volatile struct BTPadCont *BTPad = (volatile struct BTPadCont*)0x932F0000;
+static vu32* BTMotor = (vu32*)0x93002720;
+static vu32* BTPadFree = (vu32*)0x93002730;
+static vu32* SIInited = (vu32*)0x93002740;
+static vu32* PADSwitchRequired = (vu32*)0x93002744;
+static vu32* PADForceConnected = (vu32*)0x93002748;
+static vu32* drcAddress = (vu32*)0x9300274C;
+static vu32* drcAddressAligned = (vu32*)0x93002750;
 
 static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
@@ -112,7 +115,7 @@ u32 _start(u32 calledByGame)
 		{
 			PADBarrelEnabled[chan] = 1; //if wavebird disconnects it cant reconnect
 			u32 psize = sizeof(PADStatus)-1; //dont set error twice
-			u8 *CurPad = (u8*)(&Pad[chan]);
+			vu8 *CurPad = (vu8*)(&Pad[chan]);
 			while(psize--) *CurPad++ = 0;
 			if(HIDPad == HID_PAD_NOT_SET)
 			{
@@ -222,7 +225,7 @@ u32 _start(u32 calledByGame)
 	{
 		if(HIDMemPrep == 0) // first run
 		{
-			HID_Packet = (u8*)0x930050F0; // reset back to default offset
+			HID_Packet = (vu8*)0x930050F0; // reset back to default offset
 			memInvalidate = (u32)HID_Packet; // prepare memory
 			asm volatile("dcbi 0,%0" : : "b"(memInvalidate) : "memory");
 			//invalidate cache block for controllers using more than 0x10 bytes
@@ -244,7 +247,7 @@ u32 _start(u32 calledByGame)
 
 		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
 		{
-			HID_Packet = (u8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
+			HID_Packet = (vu8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
 			u32 HID_CacheEndBlock = ALIGN32(((u32)HID_Packet) + HID_CTRL->MultiInValue); //calculate upper cache block used
 			if(HID_CacheEndBlock > HIDMemPrep) //new cache block, prepare memory
 			{
@@ -1258,6 +1261,92 @@ u32 _start(u32 calledByGame)
 	}
 	memInvalidate = (u32)SIInited;
 	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+
+	/* For Wii VC */
+	if(calledByGame && *drcAddress)
+	{
+		used |= (1<<0); //always use channel 0
+		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
+		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+		vu8 *i2cdata = (vu8*)(*drcAddress);
+		//Start out mapping buttons first
+		u16 button = 0;
+		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
+		if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
+		if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
+		if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_X;
+		if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_Y;
+		if(drcbutton & WIIDRC_BUTTON_LEFT) button |= PAD_BUTTON_LEFT;
+		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
+		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
+		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
+		//also sets left analog trigger
+		if(drcbutton & WIIDRC_BUTTON_ZL)
+		{
+			//Check half-press by holding L
+			if(drcbutton & WIIDRC_BUTTON_L)
+				Pad[0].triggerLeft = 0x7F;
+			else
+			{
+				button |= PAD_TRIGGER_L;
+				Pad[0].triggerLeft = 0xFF;
+			}
+		}
+		else
+			Pad[0].triggerLeft = 0;
+		//also sets right analog trigger
+		if(drcbutton & WIIDRC_BUTTON_ZR)
+		{
+			//Check half-press by holding L
+			if(drcbutton & WIIDRC_BUTTON_L)
+				Pad[0].triggerRight = 0x7F;
+			else
+			{
+				button |= PAD_TRIGGER_R;
+				Pad[0].triggerRight = 0xFF;
+			}
+		}
+		else
+			Pad[0].triggerRight = 0;
+		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
+		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
+		if(drcbutton & WIIDRC_BUTTON_HOME) goto Shutdown;
+		//write in mapped out buttons
+		Pad[0].button = button;
+		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
+		{
+			/* reset status 3 */
+			*RESET_STATUS = 0x3DEA;
+		}
+		else /* for held status */
+			*RESET_STATUS = 0;
+		//scale sticks next
+		s16 leftX = (((s8)(i2cdata[4]-0x80))*13)>>3;
+		s16 leftY = (((s8)(i2cdata[5]-0x80))*13)>>3;
+		s16 rightX = (((s8)(i2cdata[6]-0x80))*13)>>3;
+		s16 rightY = (((s8)(i2cdata[7]-0x80))*13)>>3;
+		s8 tmp_stick;
+		//clamp left X
+		if(leftX > 0x7F) tmp_stick = 0x7F;
+		else if(leftX < -0x80) tmp_stick = -0x80;
+		else tmp_stick = leftX;
+		Pad[0].stickX = tmp_stick;
+		//clamp left Y
+		if(leftY > 0x7F) tmp_stick = 0x7F;
+		else if(leftY < -0x80) tmp_stick = -0x80;
+		else tmp_stick = leftY;
+		Pad[0].stickY = tmp_stick;
+		//clamp right X
+		if(rightX > 0x7F) tmp_stick = 0x7F;
+		else if(rightX < -0x80) tmp_stick = -0x80;
+		else tmp_stick = rightX;
+		Pad[0].substickX = tmp_stick;
+		//clamp right Y
+		if(rightY > 0x7F) tmp_stick = 0x7F;
+		else if(rightY < -0x80) tmp_stick = -0x80;
+		else tmp_stick = rightY;
+		Pad[0].substickY = tmp_stick;
+	}
 
 	/* Some games always need the controllers "used" */
 	if(*PADForceConnected)

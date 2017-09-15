@@ -108,17 +108,17 @@ void HIDInit( void )
 	hidreadheap = (u8*)malloca(32,32);
 	hidreadqueue = mqueue_create(hidreadheap, 1);
 	hidreadmsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
-	HIDRead_Thread = thread_create(HIDReadAlarm, NULL, ((u32*)&__hid_read_stack_addr), ((u32)(&__hid_read_stack_size)) / sizeof(u32), 0x78, 1);
+	HIDRead_Thread = do_thread_create(HIDReadAlarm, ((u32*)&__hid_read_stack_addr), ((u32)(&__hid_read_stack_size)), 0x78);
 	thread_continue(HIDRead_Thread);
 
 	hidchangeheap = (u8*)malloca(32,32);
 	hidchangequeue = mqueue_create(hidchangeheap, 1);
 	hidchangemsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
-	HIDChange_Thread = thread_create(HIDChangeAlarm, NULL, ((u32*)&__hid_change_stack_addr), ((u32)(&__hid_change_stack_size)) / sizeof(u32), 0x78, 1);
+	HIDChange_Thread = do_thread_create(HIDChangeAlarm, ((u32*)&__hid_change_stack_addr), ((u32)(&__hid_change_stack_size)), 0x78);
 	thread_continue(HIDChange_Thread);
 
 	memset32(AttachedDevices, 0, sizeof(usb_device_entry)*32);
-	IOS_IoctlAsync(HIDHandle, GetDeviceChange, NULL, 0, VirtualToPhysical(AttachedDevices), 0x180, hidchangequeue, hidchangemsg);
+	IOS_IoctlAsync(HIDHandle, GetDeviceChange, NULL, 0, AttachedDevices, 0x180, hidchangequeue, hidchangemsg);
 
 	memset32((void*)HID_STATUS, 0, 0x20);
 	sync_after_write((void*)HID_STATUS, 0x20);
@@ -591,7 +591,7 @@ static s32 HIDControlMessage(u8 *Data, u32 Length, u32 RequestType, u32 Request,
 {
 	u8 request_dir = !!(RequestType & USB_CTRLTYPE_DIR_DEVICE2HOST);
 
-	struct _usb_msg *msg = VirtualToPhysical(request_dir ? &readreq : &writereq);
+	struct _usb_msg *msg = request_dir ? &readreq : &writereq;
 	msg->fd = DeviceID;
 
 	msg->ctrl.bmRequestType = RequestType;
@@ -615,7 +615,7 @@ static s32 HIDInterruptMessage(u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueu
 {
 	u8 endpoint_dir = !!(Endpoint & USB_ENDPOINT_IN);
 
-	struct _usb_msg *msg = VirtualToPhysical(endpoint_dir ? &readreq : &writereq);
+	struct _usb_msg *msg = endpoint_dir ? &readreq : &writereq;
 	msg->hid_intr_dir = !endpoint_dir;
 	msg->fd = DeviceID;
 
@@ -924,7 +924,7 @@ void HIDUpdateRegisters(u32 LoaderRequest)
 		HIDOpen(LoaderRequest);
 		hidchange = 0;
 		memset32(AttachedDevices, 0, sizeof(usb_device_entry)*32);
-		IOS_IoctlAsync(HIDHandle, GetDeviceChange, NULL, 0, VirtualToPhysical(AttachedDevices), 0x180, hidchangequeue, hidchangemsg);
+		IOS_IoctlAsync(HIDHandle, GetDeviceChange, NULL, 0, AttachedDevices, 0x180, hidchangequeue, hidchangemsg);
 	}
 	if(hidread == 1)
 	{

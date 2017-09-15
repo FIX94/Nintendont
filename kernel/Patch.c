@@ -100,6 +100,8 @@ extern int dbgprintf( const char *fmt, ...);
 
 extern u32 UseReadLimit;
 extern u32 RealDiscCMD;
+extern u32 drcAddress;
+extern u32 drcAddressAligned;
 u32 IsN64Emu = 0;
 
 // SHA-1 hashes of known DSP modules.
@@ -3656,6 +3658,8 @@ void PatchGame()
 	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
 	write32(0x13002744, PADSwitchRequired() && (useipl == 0));
 	write32(0x13002748, PADForceConnected() && (useipl == 0));
+	write32(0x1300274C, drcAddress); //Set on kernel boot
+	write32(0x13002750, drcAddressAligned); //Set on kernel boot
 	sync_after_write((void*)0x13002740, 0x20);
 	/* Clear very actively used areas */
 	memset32((void*)0x13026500, 0, 0x100);

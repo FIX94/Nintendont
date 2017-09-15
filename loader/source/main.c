@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/lwp_watchdog.h>
 #include <ogc/lwp_threads.h>
 #include <wiiuse/wpad.h>
+#include <wiidrc/wiidrc.h>
 #include <wupc/wupc.h>
 #include <di/di.h>
 #include <unistd.h>
@@ -37,6 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "MemCard.h"
 #include "Patches.h"
 #include "kernel_zip.h"
+#include "kernelboot_bin.h"
 #include "multidol_ldr_bin.h"
 #include "stub_bin.h"
 #include "titles.h"
@@ -77,14 +79,14 @@ static const unsigned char Boot2Patch[] =
     0x48, 0x03, 0x49, 0x04, 0x47, 0x78, 0x46, 0xC0, 0xE6, 0x00, 0x08, 0x70, 0xE1, 0x2F, 0xFF, 0x1E, 
     0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x25,
 };
-/*static const unsigned char AHBAccessPattern[] =
+static const unsigned char AHBAccessPattern[] =
 {
 	0x68, 0x5B, 0x22, 0xEC, 0x00, 0x52, 0x18, 0x9B, 0x68, 0x1B, 0x46, 0x98, 0x07, 0xDB,
 };
 static const unsigned char AHBAccessPatch[] =
 {
 	0x68, 0x5B, 0x22, 0xEC, 0x00, 0x52, 0x18, 0x9B, 0x23, 0x01, 0x46, 0x98, 0x07, 0xDB,
-};*/
+};
 static const unsigned char FSAccessPattern[] =
 {
     0x9B, 0x05, 0x40, 0x03, 0x99, 0x05, 0x42, 0x8B, 
@@ -112,7 +114,6 @@ s32 __IOS_LoadStartupIOS(void)
 // 0 == SD, 1 == USB
 extern FATFS *devices[2];
 
-extern vu32 FoundVersion;
 vu32 KernelLoaded = 0;
 u32 entrypoint = 0;
 char launch_dir[MAXPATHLEN] = {0};
@@ -505,6 +506,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	return 0;
 }
 
+bool isWiiVC = false;
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -513,7 +515,6 @@ int main(int argc, char **argv)
 	CheckForGecko();
 	DCInvalidateRange(loader_stub, 0x1800);
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
-
 	RAMInit();
 	//tell devkitPPC r29 that we use UTF-8
 	setlocale(LC_ALL,"C.UTF-8");
@@ -539,24 +540,9 @@ int main(int argc, char **argv)
 
 	Initialise(argsboot);
 
-	// Initializing IOS58...
+	// Initializing Nintendont...
 	if(argsboot == false)
-		ShowMessageScreen("Initializing IOS58...");
-
-	u32 u;
-	//Disables MEMPROT for patches
-	write16(MEM_PROT, 0);
-	//Patches FS access
-	for( u = 0x93A00000; u < 0x94000000; u+=2 )
-	{
-		if( memcmp( (void*)(u), FSAccessPattern, sizeof(FSAccessPattern) ) == 0 )
-		{
-		//	gprintf("FSAccessPatch:%08X\r\n", u );
-			memcpy( (void*)u, FSAccessPatch, sizeof(FSAccessPatch) );
-			DCFlushRange((void*)u, sizeof(FSAccessPatch));
-			break;
-		}
-	}
+		ShowMessageScreen("Initializing Nintendont...");
 
 	//for BT.c
 	CONF_GetPadDevices((conf_pads*)0x932C0000);
@@ -565,54 +551,118 @@ int main(int argc, char **argv)
 	*(vu32*)0x932C0494 = CONF_GetSensorBarPosition();
 	DCFlushRange((void*)0x932C0490, 8);
 
-	// Load and patch IOS58.
-	if (LoadKernel() < 0)
+	WiiDRC_Init();
+	isWiiVC = WiiDRC_Inited();
+	if(isWiiVC)
 	{
-		// NOTE: Attempting to initialize controllers here causes a crash.
-		// Hence, we can't wait for the user to press the HOME button, so
-		// we'll just wait for a timeout instead.
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*20, "Returning to loader in 10 seconds.");
-		UpdateScreen();
-		VIDEO_WaitVSync();
+		//Clear out stubs to make it (hopefully) reboot properly
+		memset(loader_stub, 0, 0x1800);
+		memset((void*)0x80001800, 0, 0x1800);
+		DCStoreRange((void*)0x80001800, 0x1800);
+	}
 
-		// Wait 10 seconds...
-		usleep(10000000);
+	s32 fd;
 
-		// Return to the loader.
-		ExitToLoader(1);
+	/* Wii VC fw.img is pre-patched but Wii/vWii isnt, so we
+		still have to reload IOS on those with a patched kernel */
+	if(!isWiiVC)
+	{
+		u32 u;
+		//Disables MEMPROT for patches
+		write16(MEM_PROT, 0);
+		//Patches FS access
+		for( u = 0x93A00000; u < 0x94000000; u+=2 )
+		{
+			if( memcmp( (void*)(u), FSAccessPattern, sizeof(FSAccessPattern) ) == 0 )
+			{
+				//gprintf("FSAccessPatch:%08X\r\n", u );
+				memcpy( (void*)u, FSAccessPatch, sizeof(FSAccessPatch) );
+				DCFlushRange((void*)u, sizeof(FSAccessPatch));
+				break;
+			}
+		}
+		//Patches AHB access
+		for( u = 0x93800000; u < 0x94000000; u+=2 )
+		{
+			if( memcmp( (void*)(u), AHBAccessPattern, sizeof(AHBAccessPattern) ) == 0 )
+			{
+				//gprintf("AHBAccessPatch:%08X\r\n", u );
+				memcpy( (void*)u, AHBAccessPatch, sizeof(AHBAccessPatch) );
+				DCFlushRange((void*)u, sizeof(AHBAccessPatch));
+				break;
+			}
+		}
+
+		// Load and patch IOS58.
+		if (LoadKernel() < 0)
+		{
+			// NOTE: Attempting to initialize controllers here causes a crash.
+			// Hence, we can't wait for the user to press the HOME button, so
+			// we'll just wait for a timeout instead.
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*20, "Returning to loader in 10 seconds.");
+			UpdateScreen();
+			VIDEO_WaitVSync();
+
+			// Wait 10 seconds...
+			usleep(10000000);
+
+			// Return to the loader.
+			ExitToLoader(1);
+		}
+		PatchKernel();
+
+		DCInvalidateRange( (void*)0x939F02F0, 0x20 );
+
+		memcpy( (void*)0x939F02F0, Boot2Patch, sizeof(Boot2Patch) );
+
+		DCFlushRange( (void*)0x939F02F0, 0x20 );
+
+		//libogc still has that, lets close it
+		__ES_Close();
+		fd = IOS_Open( "/dev/es", 0 );
+
+		raw_irq_handler_t irq_handler = BeforeIOSReload();
+		IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
+		AfterIOSReload( irq_handler, 0xD25 );
+		//Disables MEMPROT after reload again for patches
+		write16(MEM_PROT, 0);
 	}
 
 	void *kernel_bin = NULL;
 	unsigned int kernel_bin_size = 0;
 	unzip_data(kernel_zip, kernel_zip_size, &kernel_bin, &kernel_bin_size);
 	gprintf("Decompressed kernel.bin with %i bytes\r\n", kernel_bin_size);
-	InsertModule((char*)kernel_bin, kernel_bin_size);
-	free(kernel_bin);
 
-	memset( (void*)0x92f00000, 0, 0x100000 );
-	DCFlushRange( (void*)0x92f00000, 0x100000 );
-
-	DCInvalidateRange( (void*)0x939F02F0, 0x20 );
-
-	memcpy( (void*)0x939F02F0, Boot2Patch, sizeof(Boot2Patch) );
-
-	DCFlushRange( (void*)0x939F02F0, 0x20 );
-
-	//libogc still has that, lets close it
+	//inject nintendont thread
+	memcpy((void*)0x92F00000,kernel_bin,kernel_bin_size);
+	DCFlushRange((void*)0x92F00000,kernel_bin_size);
+	memcpy((void*)0x92FFFE00,kernelboot_bin,kernelboot_bin_size);
+	DCFlushRange((void*)0x92FFFE00,kernelboot_bin_size);
+	//close in case this is wii vc
 	__ES_Close();
-	s32 fd = IOS_Open( "/dev/es", 0 );
-
-	memset( STATUS, 0xFFFFFFFF, 0x20  );
+	memset( STATUS, 0, 0x20 );
 	DCFlushRange( STATUS, 0x20 );
-
-	memset( (void*)0x91000000, 0xFFFFFFFF, 0x20  );
-	DCFlushRange( (void*)0x91000000, 0x20 );
-
-	*(vu32*)0xD3003420 = 0; //make sure kernel doesnt reload
-
-	raw_irq_handler_t irq_handler = BeforeIOSReload();
-	IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
-	AfterIOSReload( irq_handler, FoundVersion );
+	//make sure kernel doesnt reload
+	*(vu32*)0x93003420 = 0;
+	DCFlushRange((void*)0x93003420,0x20);
+	//dont immediately exit while loop
+	*(vu32*)0x92FFFFE0 = 0;
+	DCFlushRange((void*)0x92FFFFE0,0x20);
+	fd = IOS_Open( "/dev/es", 0 );
+	IOS_IoctlvAsync(fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL);
+	while(1)
+	{
+		DCInvalidateRange((void*)0x92FFFFE0,0x20);
+		if(*(vu32*)0x92FFFFE0 != 0)
+		{
+			*(vu32*)0x92FFFFE0 = 0;
+			DCFlushRange((void*)0x92FFFFE0,0x20);
+			break;
+		}
+		usleep(20000);
+	}
+	IOS_Close(fd);
+	free(kernel_bin);
 
 	while(1)
 	{

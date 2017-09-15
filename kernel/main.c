@@ -61,6 +61,11 @@ extern u32 DI_MessageQueue;
 extern vu32 DisableSIPatch;
 extern char __bss_start, __bss_end;
 extern char __di_stack_addr, __di_stack_size;
+
+u32 virtentry = 0;
+u32 drcAddress = 0;
+u32 drcAddressAligned = 0;
+bool isWiiVC = false;
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
@@ -68,6 +73,15 @@ int _main( int argc, char *argv[] )
 	memset32(&__bss_start, 0, &__bss_end - &__bss_start);
 	sync_after_write(&__bss_start, &__bss_end - &__bss_start);
 
+	if(*(volatile unsigned int*)0x20109740 == 0xE59F1004)
+		virtentry = 0x20109740; //abused 0x1F function pointer in IOS58 
+	else if(*(volatile unsigned int*)0x2010999C == 0xE59F1004)
+	{
+		virtentry = 0x2010999C; //(in wiiu fw.img r590 at 2010999C)
+		drcAddress = 0x938BA004; //used in PADReadGC.c
+		drcAddressAligned = ALIGN_BACKWARD(drcAddress,0x20);
+		isWiiVC = true;
+	}
 	s32 ret = 0;
 	u32 DI_Thread = 0;
 
@@ -75,21 +89,16 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(0, 0, 0);
 
-	thread_set_priority( 0, 0x79 );	// do not remove this, this waits for FS to be ready!
-	thread_set_priority( 0, 0x50 );
-	thread_set_priority( 0, 0x79 );
-
-//Disable AHBPROT
-	EnableAHBProt(-1);
-
-//Load IOS Modules
-	ES_Init( MessageHeap );
+//Load IOS Modules (if IOS reloaded)
+	if(!isWiiVC)
+		ES_Init( MessageHeap );
 
 //Early HID for loader
 	HIDInit();
 
 //Enable DVD Access
-	write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
+	if(!isWiiVC)
+		write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
 
 	dbgprintf("Sending signal to loader\r\n");
 	BootStatus(1, 0, 0);
@@ -98,6 +107,7 @@ int _main( int argc, char *argv[] )
 //Loader running, selects games
 	while(1)
 	{
+		_ahbMemFlush(1);
 		sync_before_read((void*)RESET_STATUS, 0x20);
 		vu32 reset_status = read32(RESET_STATUS);
 		if(reset_status != 0)
@@ -105,12 +115,13 @@ int _main( int argc, char *argv[] )
 			if(reset_status == 0x0DEA)
 				break; //game selected
 			else if(reset_status == 0x1DEA)
-				goto DoIOSBoot; //exit
+				goto WaitForExit;
 			write32(RESET_STATUS, 0);
 			sync_after_write((void*)RESET_STATUS, 0x20);
 		}
 		HIDUpdateRegisters(1);
 		udelay(20);
+		cc_ahbMemFlush(1);
 	}
 	//get time from loader
 	InitCurrentTime();
@@ -207,7 +218,7 @@ int _main( int argc, char *argv[] )
 	BootStatus(9, s_size, s_cnt);
 
 	DIRegister();
-	DI_Thread = thread_create(DIReadThread, NULL, ((u32*)&__di_stack_addr), ((u32)(&__di_stack_size)) / sizeof(u32), 0x78, 1);
+	DI_Thread = do_thread_create(DIReadThread, ((u32*)&__di_stack_addr), ((u32)(&__di_stack_size)), 0x78);
 	thread_continue(DI_Thread);
 
 	DIinit(true);
@@ -420,8 +431,6 @@ int _main( int argc, char *argv[] )
 		if (reset_status == 0x1DEA)
 		{
 			dbgprintf("Game Exit\r\n");
-			write32(RESET_STATUS, 0);
-			sync_after_write((void*)RESET_STATUS, 0x20);
 			DIFinishAsync();
 			break;
 		}
@@ -494,20 +503,10 @@ int _main( int argc, char *argv[] )
 		#endif
 		cc_ahbMemFlush(1);
 	}
-	//if( UseHID )
-		HIDClose();
+	HIDClose();
 	IOS_Close(DI_Handle); //close game
 	thread_cancel(DI_Thread, 0);
 	DIUnregister();
-
-	/* reset time */
-	while(1)
-	{
-		sync_before_read( (void*)RESET_STATUS, 0x20 );
-		if(read32(RESET_STATUS) == 0x2DEA)
-			break;
-		wait_for_ppc(1);
-	}
 
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
@@ -540,8 +539,11 @@ int _main( int argc, char *argv[] )
 		write32(0xd8006a0, ori_widesetting);
 		mask32(0xd8006a8, 0, 2);
 	}
-DoIOSBoot:
-	sync_before_read((void*)0x13003000, 0x420);
-	IOSBoot((char*)0x13003020, 0, read32(0x13003000));
+WaitForExit:
+	dbgprintf("Kernel done, waiting for IOS Reload\n");
+	write32(RESET_STATUS, 0);
+	sync_after_write((void*)RESET_STATUS, 0x20);
+	while(1)
+		mdelay(100);
 	return 0;
 }

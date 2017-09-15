@@ -219,14 +219,14 @@ u32 __issue_intrread()
 		*intrpEndP = __usbdev.hci_evt;
 		*intrpLength = intrdata->txsize;
 		//ret = USB_ReadIntrMsgAsync(__usbdev.fd,__usbdev.hci_evt,buf->txsize,buf->rpData,__readintrdataCB,buf);
-		intrvec[0].data = VirtualToPhysical(intrpEndP);
+		intrvec[0].data = intrpEndP;
 		intrvec[0].len = sizeof(u8);
-		intrvec[1].data = VirtualToPhysical(intrpLength);
+		intrvec[1].data = intrpLength;
 		intrvec[1].len = sizeof(u16);
 		intrvec[2].data = intrdata->rpData;
 		intrvec[2].len = intrdata->txsize;
 		//dbgprintf("IOS_IoctlvAsync Bulk %08x %08x %08x\n", intrpEndP, intrpLength, intrdata->rpData);
-		IOS_IoctlvAsync(__usbdev.fd,USB_IOCTL_INTRMSG,2,1,VirtualToPhysical(intrvec),intrqueue,VirtualToPhysical(&intrmsg));
+		IOS_IoctlvAsync(__usbdev.fd,USB_IOCTL_INTRMSG,2,1,intrvec,intrqueue,&intrmsg);
 	}
 
 	return 0;
@@ -278,14 +278,14 @@ u32 __issue_bulkread()
 		*bulkpEndP = __usbdev.acl_in;
 		*bulkpLength = bulkdata->txsize;
 		//ret = USB_ReadBlkMsgAsync(__usbdev.fd,__usbdev.acl_in,buf->txsize,buf->rpData,__readbulkdataCB,buf);
-		bulkvec[0].data = VirtualToPhysical(bulkpEndP);
+		bulkvec[0].data = bulkpEndP;
 		bulkvec[0].len = sizeof(u8);
-		bulkvec[1].data = VirtualToPhysical(bulkpLength);
+		bulkvec[1].data = bulkpLength;
 		bulkvec[1].len = sizeof(u16);
 		bulkvec[2].data = bulkdata->rpData;
 		bulkvec[2].len = bulkdata->txsize;
 		//dbgprintf("IOS_IoctlvAsync Bulk %08x %08x %08x\n", bulkpEndP, bulkpLength, bulkdata->rpData);
-		IOS_IoctlvAsync(__usbdev.fd,USB_IOCTL_BLKMSG,2,1,VirtualToPhysical(bulkvec),bulkqueue,VirtualToPhysical(&bulkmsg));
+		IOS_IoctlvAsync(__usbdev.fd,USB_IOCTL_BLKMSG,2,1,bulkvec,bulkqueue,&bulkmsg);
 	}
 
 	return 0;
@@ -361,12 +361,12 @@ static s32 __usb_open(pbcallback cb)
 	bulkheap = (u8*)malloca(32,32);
 	bulkqueue = mqueue_create(bulkheap, 1);
 
-	Interruptread_Thread = thread_create(intrreadAlarm, NULL, ((u32*)&__intr_stack_addr), ((u32)(&__intr_stack_size)) / sizeof(u32), 0x78, 1);
+	Interruptread_Thread = do_thread_create(intrreadAlarm, ((u32*)&__intr_stack_addr), ((u32)(&__intr_stack_size)), 0x78);
 	thread_continue(Interruptread_Thread);
 	mdelay(100);
 	//dbgprintf("Started intrreadAlarm thread\n");
 
-	Bulkread_Thread = thread_create(bulkreadAlarm, NULL, ((u32*)&__blk_stack_addr), ((u32)(&__blk_stack_size)) / sizeof(u32), 0x78, 1);
+	Bulkread_Thread = do_thread_create(bulkreadAlarm, ((u32*)&__blk_stack_addr), ((u32)(&__blk_stack_size)), 0x78);
 	thread_continue(Bulkread_Thread);
 	mdelay(100);
 	//dbgprintf("Started bulkreadAlarm thread\n");

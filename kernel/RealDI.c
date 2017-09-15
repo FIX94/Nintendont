@@ -78,7 +78,7 @@ void RealDI_Init()
 	realdiheap = (u8*)malloca(32,32);
 	realdiqueue = mqueue_create(realdiheap, 1);
 
-	RealDI_Thread_P = thread_create(RealDI_Thread, NULL, ((u32*)&__realdi_stack_addr), ((u32)(&__realdi_stack_size)) / sizeof(u32), 0x50, 1);
+	RealDI_Thread_P = do_thread_create(RealDI_Thread, ((u32*)&__realdi_stack_addr), ((u32)(&__realdi_stack_size)), 0x50);
 	thread_continue(RealDI_Thread_P);
 	mdelay(100);
 	RealDI_Identify(true);
@@ -141,7 +141,7 @@ bool RealDI_NewDisc()
 	{
 		realdi_msgrecv = 0;
 		switch_stat++;
-		IOS_IoctlAsync(di_fd, 0x8A, VirtualToPhysical(spinup), 0x20, VirtualToPhysical(outbuf), 0x20, realdiqueue, VirtualToPhysical(&realdimsg));
+		IOS_IoctlAsync(di_fd, 0x8A, spinup, 0x20, outbuf, 0x20, realdiqueue, &realdimsg);
 	}
 	if(realdi_msgrecv == 1)
 	{
@@ -149,12 +149,12 @@ bool RealDI_NewDisc()
 		if(switch_stat == 1)
 		{
 			switch_stat++;
-			IOS_IoctlAsync(di_fd, 0x12, VirtualToPhysical(identify), 0x20, VirtualToPhysical(outbuf), 0x20, realdiqueue, VirtualToPhysical(&realdimsg));
+			IOS_IoctlAsync(di_fd, 0x12, identify, 0x20, outbuf, 0x20, realdiqueue, &realdimsg);
 		}
 		else if(switch_stat == 2)
 		{
 			switch_stat++;
-			IOS_IoctlAsync(di_fd, 0x70, VirtualToPhysical(readdiscid), 0x20, VirtualToPhysical(outbuf), 0x20, realdiqueue, VirtualToPhysical(&realdimsg));
+			IOS_IoctlAsync(di_fd, 0x70, readdiscid, 0x20, outbuf, 0x20, realdiqueue, &realdimsg);
 		}
 		else if(switch_stat == 3)
 		{

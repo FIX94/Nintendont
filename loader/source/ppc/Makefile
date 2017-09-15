@@ -9,7 +9,7 @@ TARGET	:= PADReadGC
 BUILD	:= ../../data
 OUTPUT	:= $(BUILD)/$(TARGET).bin
 #---------------------------------------------------------------------------------
-CFLAGS	:= -O1 -Wall -s -nostartfiles -mhard-float -T openstub.ld
+CFLAGS	:= -Os -Wall -s -nostartfiles -mhard-float -T openstub.ld
 OCFLAGS	:= -S -O binary
 #---------------------------------------------------------------------------------
 .PHONY: all clean

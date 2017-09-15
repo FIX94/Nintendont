@@ -266,9 +266,10 @@ void AfterIOSReload(raw_irq_handler_t handle, u32 rev)
  * Exit Nintendont and return to the loader.
  * @param ret Exit code.
  */
+#define SYSTEM_MENU			0x0000000100000002ULL
 void ExitToLoader(int ret)
 {
-	extern vu32 KernelLoaded, FoundVersion;
+	extern vu32 KernelLoaded;
 
 	UpdateScreen();
 	UpdateScreen(); // Triple render to ensure it gets seen
@@ -282,21 +283,23 @@ void ExitToLoader(int ret)
 	CloseDevices();
 	if(KernelLoaded)
 	{
-		raw_irq_handler_t irq_handler = BeforeIOSReload();
 		*(vu32*)0xD3003420 = 0x1DEA; //Kernel Reset
-		AfterIOSReload(irq_handler, FoundVersion);
+		while(*(vu32*)0xD3003420 != 0) usleep(20000);
 	}
-	memset( (void*)0x92f00000, 0, 0x100000 );
-	DCFlushRange( (void*)0x92f00000, 0x100000 );
+	gprintf("Loader Exit\n");
+	VIDEO_SetBlack(TRUE);
+	VIDEO_Flush();
+	VIDEO_WaitVSync();
+	//This whole exit routine is basically equal to the game exit stub
 	if(*(vu32*)0x80001804 == 0x53545542 && *(vu32*)0x80001808 == 0x48415858) //stubhaxx
-	{
-		VIDEO_SetBlack(TRUE);
-		VIDEO_Flush();
-		VIDEO_WaitVSync();
 		__lwp_thread_stopmultitasking(stub);
-	}
-	SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
-	exit(ret);
+	__ES_Init(); //make sure this is back open
+	u32 numviews;
+	STACK_ALIGN(tikview,views,4,32);
+	ES_GetNumTicketViews(SYSTEM_MENU, &numviews);
+	ES_GetTicketViews(SYSTEM_MENU, views, numviews);
+	ES_LaunchTitle(SYSTEM_MENU, &views[0]);
+	while(1) usleep(20000);
 }
 
 /**

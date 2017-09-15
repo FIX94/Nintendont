@@ -350,4 +350,12 @@ static inline bool IsWiiU(void)
 	return ((*(vu32*)(0x0d8005A0) >> 16) == 0xCAFE);
 }
 
+extern u32 virtentry;
+static inline u32 do_thread_create(void *entry, u32 *stackaddr, u32 stacksize, u32 prio)
+{
+	*(vu32*)0x12FFFFE0 = (u32)entry; //physical entry
+	sync_after_write((void*)0x12FFFFE0, 0x20);
+	return thread_create((u32(*)(void*))virtentry, NULL, stackaddr, stacksize / sizeof(u32), prio, 1);
+}
+
 #endif

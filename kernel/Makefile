@@ -14,7 +14,7 @@ PREFIX	:= $(DEVKITARM)/bin/arm-none-eabi-
 CC	:= $(PREFIX)gcc
 AS	:= $(PREFIX)as
 LD	:= $(PREFIX)gcc
-STRIP	:= $(PREFIX)strip
+OBJCOPY	:= $(PREFIX)objcopy
 
 ifeq ($(windows), 1)
 	ZIP = zip/zip.exe
@@ -52,7 +52,7 @@ all: $(TARGET)
 $(TARGET): kernel.ld $(OBJECTS)
 	@echo  "LD	$@"
 	@$(LD) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $@
-	@$(STRIP) -s -g kernel.elf -o kernel.bin
+	@$(OBJCOPY) -S -O binary kernel.elf kernel.bin
 	@echo  "ZIP	$(ZIPFILE)"
 	@$(ZIP) -JXjq9 $(ZIPFILE) kernel.bin
 
