@@ -540,10 +540,6 @@ int main(int argc, char **argv)
 
 	Initialise(argsboot);
 
-	// Initializing Nintendont...
-	if(argsboot == false)
-		ShowMessageScreen("Initializing Nintendont...");
-
 	//for BT.c
 	CONF_GetPadDevices((conf_pads*)0x932C0000);
 	DCFlushRange((void*)0x932C0000, sizeof(conf_pads));
@@ -567,6 +563,10 @@ int main(int argc, char **argv)
 		still have to reload IOS on those with a patched kernel */
 	if(!isWiiVC)
 	{
+		// Initializing IOS58...
+		if(argsboot == false)
+			ShowMessageScreen("Initializing IOS58...");
+
 		u32 u;
 		//Disables MEMPROT for patches
 		write16(MEM_PROT, 0);
@@ -627,6 +627,10 @@ int main(int argc, char **argv)
 		//Disables MEMPROT after reload again for patches
 		write16(MEM_PROT, 0);
 	}
+
+	// Initializing Nintendont...
+	if(argsboot == false)
+		ShowMessageScreen("Initializing Nintendont...");
 
 	void *kernel_bin = NULL;
 	unsigned int kernel_bin_size = 0;

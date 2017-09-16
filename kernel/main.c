@@ -479,7 +479,8 @@ int _main( int argc, char *argv[] )
 		{
 			DIFinishAsync();
 			#ifdef PATCHALL
-			BTE_Shutdown();
+			if(!isWiiVC) //Freezes Wii VC
+				BTE_Shutdown();
 			#endif
 			Shutdown();
 		}
@@ -515,7 +516,8 @@ int _main( int argc, char *argv[] )
 		closeLog();
 
 #ifdef PATCHALL
-	BTE_Shutdown();
+	if(!isWiiVC) //Freezes Wii VC
+		BTE_Shutdown();
 #endif
 
 	//unmount FAT device
@@ -540,10 +542,18 @@ int _main( int argc, char *argv[] )
 		mask32(0xd8006a8, 0, 2);
 	}
 WaitForExit:
-	dbgprintf("Kernel done, waiting for IOS Reload\n");
-	write32(RESET_STATUS, 0);
-	sync_after_write((void*)RESET_STATUS, 0x20);
-	while(1)
-		mdelay(100);
+	/* Wii VC is unable to cleanly use ES */
+	if(isWiiVC)
+	{
+		dbgprintf("Force reboot into WiiU Menu\n");
+		WiiUResetToMenu();
+	}
+	else
+	{
+		dbgprintf("Kernel done, waiting for IOS Reload\n");
+		write32(RESET_STATUS, 0);
+		sync_after_write((void*)RESET_STATUS, 0x20);
+	}
+	while(1) mdelay(100);
 	return 0;
 }

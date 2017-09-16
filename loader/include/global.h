@@ -145,9 +145,10 @@ typedef struct
  * Is this system a Wii U?
  * @return True if this is Wii U; false if not.
  */
+extern bool isWiiVC;
 static inline bool IsWiiU(void)
 {
-	return ((*(vu32*)(0xCd8005A0) >> 16) == 0xCAFE);
+	return (((*(vu32*)(0xCd8005A0) >> 16) == 0xCAFE) || isWiiVC);
 }
 
 // FIXME: This return type isn't quite correct...

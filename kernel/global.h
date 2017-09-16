@@ -345,9 +345,16 @@ static inline void sync_after_write_align32(void *Buf, u32 Len)
  * Is this system a Wii U?
  * @return True if this is Wii U; false if not.
  */
+extern bool isWiiVC;
 static inline bool IsWiiU(void)
 {
-	return ((*(vu32*)(0x0d8005A0) >> 16) == 0xCAFE);
+	return (((*(vu32*)(0x0d8005A0) >> 16) == 0xCAFE) || isWiiVC);
+}
+
+/* Writing to this reboots the WiiU */
+static inline void WiiUResetToMenu(void)
+{
+	write32( 0x0D8005E0, 0xFFFFFFFE );
 }
 
 extern u32 virtentry;
