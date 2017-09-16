@@ -707,9 +707,12 @@ int main(int argc, char **argv)
 		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found!");
 		ExitToLoader(1);
 	}
-
-	char* first_slash = strrchr(argv[0], '/');
-	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
+	// Seems like some programs start without any args
+	if(argc > 0 && argv != NULL && argv[0] != NULL)
+	{
+		char* first_slash = strrchr(argv[0], '/');
+		if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
+	}
 	gprintf("launch_dir = %s\r\n", launch_dir);
 
 	// Initialize controllers.
