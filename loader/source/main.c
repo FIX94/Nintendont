@@ -79,14 +79,14 @@ static const unsigned char Boot2Patch[] =
     0x48, 0x03, 0x49, 0x04, 0x47, 0x78, 0x46, 0xC0, 0xE6, 0x00, 0x08, 0x70, 0xE1, 0x2F, 0xFF, 0x1E, 
     0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x25,
 };
-static const unsigned char AHBAccessPattern[] =
+/*static const unsigned char AHBAccessPattern[] =
 {
 	0x68, 0x5B, 0x22, 0xEC, 0x00, 0x52, 0x18, 0x9B, 0x68, 0x1B, 0x46, 0x98, 0x07, 0xDB,
 };
 static const unsigned char AHBAccessPatch[] =
 {
 	0x68, 0x5B, 0x22, 0xEC, 0x00, 0x52, 0x18, 0x9B, 0x23, 0x01, 0x46, 0x98, 0x07, 0xDB,
-};
+};*/
 static const unsigned char FSAccessPattern[] =
 {
     0x9B, 0x05, 0x40, 0x03, 0x99, 0x05, 0x42, 0x8B, 
@@ -581,17 +581,6 @@ int main(int argc, char **argv)
 				break;
 			}
 		}
-		//Patches AHB access
-		for( u = 0x93800000; u < 0x94000000; u+=2 )
-		{
-			if( memcmp( (void*)(u), AHBAccessPattern, sizeof(AHBAccessPattern) ) == 0 )
-			{
-				//gprintf("AHBAccessPatch:%08X\r\n", u );
-				memcpy( (void*)u, AHBAccessPatch, sizeof(AHBAccessPatch) );
-				DCFlushRange((void*)u, sizeof(AHBAccessPatch));
-				break;
-			}
-		}
 
 		// Load and patch IOS58.
 		if (LoadKernel() < 0)
@@ -624,8 +613,6 @@ int main(int argc, char **argv)
 		raw_irq_handler_t irq_handler = BeforeIOSReload();
 		IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
 		AfterIOSReload( irq_handler, 0xD25 );
-		//Disables MEMPROT after reload again for patches
-		write16(MEM_PROT, 0);
 	}
 
 	// Initializing Nintendont...
@@ -649,6 +636,10 @@ int main(int argc, char **argv)
 	//make sure kernel doesnt reload
 	*(vu32*)0x93003420 = 0;
 	DCFlushRange((void*)0x93003420,0x20);
+	//Set some important kernel regs
+	*(vu32*)0x92FFFFC0 = isWiiVC; //cant be detected in IOS
+	*(vu32*)0x92FFFFC4 = (u32)WiiDRC_GetRawI2CAddr();
+	DCFlushRange((void*)0x92FFFFC0,0x20);
 	//dont immediately exit while loop
 	*(vu32*)0x92FFFFE0 = 0;
 	DCFlushRange((void*)0x92FFFFE0,0x20);

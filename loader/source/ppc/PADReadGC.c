@@ -553,6 +553,95 @@ u32 _start(u32 calledByGame)
 		}
 	}
 
+	memInvalidate = (u32)SIInited;
+	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+
+	/* For Wii VC */
+	if(calledByGame && *drcAddress)
+	{
+		used |= (1<<0); //always use channel 0
+		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
+		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+		vu8 *i2cdata = (vu8*)(*drcAddress);
+		//Start out mapping buttons first
+		u16 button = 0;
+		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
+		if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
+		if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
+		if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_X;
+		if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_Y;
+		if(drcbutton & WIIDRC_BUTTON_LEFT) button |= PAD_BUTTON_LEFT;
+		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
+		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
+		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
+		//also sets left analog trigger
+		if(drcbutton & WIIDRC_BUTTON_ZL)
+		{
+			//Check half-press by holding L
+			if(drcbutton & WIIDRC_BUTTON_L)
+				Pad[0].triggerLeft = 0x7F;
+			else
+			{
+				button |= PAD_TRIGGER_L;
+				Pad[0].triggerLeft = 0xFF;
+			}
+		}
+		else
+			Pad[0].triggerLeft = 0;
+		//also sets right analog trigger
+		if(drcbutton & WIIDRC_BUTTON_ZR)
+		{
+			//Check half-press by holding L
+			if(drcbutton & WIIDRC_BUTTON_L)
+				Pad[0].triggerRight = 0x7F;
+			else
+			{
+				button |= PAD_TRIGGER_R;
+				Pad[0].triggerRight = 0xFF;
+			}
+		}
+		else
+			Pad[0].triggerRight = 0;
+		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
+		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
+		if(drcbutton & WIIDRC_BUTTON_HOME) goto Shutdown;
+		//write in mapped out buttons
+		Pad[0].button = button;
+		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
+		{
+			/* reset status 3 */
+			*RESET_STATUS = 0x3DEA;
+		}
+		else /* for held status */
+			*RESET_STATUS = 0;
+		//scale sticks next
+		s16 leftX = (((s8)(i2cdata[4]-0x80))*13)>>3;
+		s16 leftY = (((s8)(i2cdata[5]-0x80))*13)>>3;
+		s16 rightX = (((s8)(i2cdata[6]-0x80))*13)>>3;
+		s16 rightY = (((s8)(i2cdata[7]-0x80))*13)>>3;
+		s8 tmp_stick;
+		//clamp left X
+		if(leftX > 0x7F) tmp_stick = 0x7F;
+		else if(leftX < -0x80) tmp_stick = -0x80;
+		else tmp_stick = leftX;
+		Pad[0].stickX = tmp_stick;
+		//clamp left Y
+		if(leftY > 0x7F) tmp_stick = 0x7F;
+		else if(leftY < -0x80) tmp_stick = -0x80;
+		else tmp_stick = leftY;
+		Pad[0].stickY = tmp_stick;
+		//clamp right X
+		if(rightX > 0x7F) tmp_stick = 0x7F;
+		else if(rightX < -0x80) tmp_stick = -0x80;
+		else tmp_stick = rightX;
+		Pad[0].substickX = tmp_stick;
+		//clamp right Y
+		if(rightY > 0x7F) tmp_stick = 0x7F;
+		else if(rightY < -0x80) tmp_stick = -0x80;
+		else tmp_stick = rightY;
+		Pad[0].substickY = tmp_stick;
+	}
+
 	if(MaxPads == 0) //wiiu
 		MaxPads = 4;
 
@@ -1258,94 +1347,6 @@ u32 _start(u32 calledByGame)
 		}
 		else // for held status
 			*RESET_STATUS = 0;
-	}
-	memInvalidate = (u32)SIInited;
-	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
-
-	/* For Wii VC */
-	if(calledByGame && *drcAddress)
-	{
-		used |= (1<<0); //always use channel 0
-		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
-		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
-		vu8 *i2cdata = (vu8*)(*drcAddress);
-		//Start out mapping buttons first
-		u16 button = 0;
-		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
-		if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
-		if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
-		if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_X;
-		if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_Y;
-		if(drcbutton & WIIDRC_BUTTON_LEFT) button |= PAD_BUTTON_LEFT;
-		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
-		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
-		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
-		//also sets left analog trigger
-		if(drcbutton & WIIDRC_BUTTON_ZL)
-		{
-			//Check half-press by holding L
-			if(drcbutton & WIIDRC_BUTTON_L)
-				Pad[0].triggerLeft = 0x7F;
-			else
-			{
-				button |= PAD_TRIGGER_L;
-				Pad[0].triggerLeft = 0xFF;
-			}
-		}
-		else
-			Pad[0].triggerLeft = 0;
-		//also sets right analog trigger
-		if(drcbutton & WIIDRC_BUTTON_ZR)
-		{
-			//Check half-press by holding L
-			if(drcbutton & WIIDRC_BUTTON_L)
-				Pad[0].triggerRight = 0x7F;
-			else
-			{
-				button |= PAD_TRIGGER_R;
-				Pad[0].triggerRight = 0xFF;
-			}
-		}
-		else
-			Pad[0].triggerRight = 0;
-		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
-		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
-		if(drcbutton & WIIDRC_BUTTON_HOME) goto Shutdown;
-		//write in mapped out buttons
-		Pad[0].button = button;
-		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
-		{
-			/* reset status 3 */
-			*RESET_STATUS = 0x3DEA;
-		}
-		else /* for held status */
-			*RESET_STATUS = 0;
-		//scale sticks next
-		s16 leftX = (((s8)(i2cdata[4]-0x80))*13)>>3;
-		s16 leftY = (((s8)(i2cdata[5]-0x80))*13)>>3;
-		s16 rightX = (((s8)(i2cdata[6]-0x80))*13)>>3;
-		s16 rightY = (((s8)(i2cdata[7]-0x80))*13)>>3;
-		s8 tmp_stick;
-		//clamp left X
-		if(leftX > 0x7F) tmp_stick = 0x7F;
-		else if(leftX < -0x80) tmp_stick = -0x80;
-		else tmp_stick = leftX;
-		Pad[0].stickX = tmp_stick;
-		//clamp left Y
-		if(leftY > 0x7F) tmp_stick = 0x7F;
-		else if(leftY < -0x80) tmp_stick = -0x80;
-		else tmp_stick = leftY;
-		Pad[0].stickY = tmp_stick;
-		//clamp right X
-		if(rightX > 0x7F) tmp_stick = 0x7F;
-		else if(rightX < -0x80) tmp_stick = -0x80;
-		else tmp_stick = rightX;
-		Pad[0].substickX = tmp_stick;
-		//clamp right Y
-		if(rightY > 0x7F) tmp_stick = 0x7F;
-		else if(rightY < -0x80) tmp_stick = -0x80;
-		else tmp_stick = rightY;
-		Pad[0].substickY = tmp_stick;
 	}
 
 	/* Some games always need the controllers "used" */

@@ -31,7 +31,6 @@ static char *path	= (char*)NULL;
 static u32 *size	= (u32*)NULL;
 static u64 *iTitleID	= (u64*)NULL;
 
-static u64 TitleID ALIGNED(32);
 static u32 KernelVersion ALIGNED(32);
 
 static u8  *DITicket;
@@ -53,7 +52,7 @@ static u8 *iTIK		= (u8 *)NULL;			//used for information during title import
 
 // General ES functions
 
-u32 ES_Init( u8 *MessageHeap )
+void ES_Init()
 {
 //Used in Ioctlvs
 	path		= (char*)malloca(		0x40,  32 );
@@ -75,22 +74,7 @@ u32 ES_Init( u8 *MessageHeap )
 	TOCountDirty	= 0;
 	TOCountDirty	= 1;
 
-	u32 MessageQueue = mqueue_create( MessageHeap, 1 );
-
-	device_register( "/dev/es", MessageQueue );
-
-	u32 pid = GetPID();
-	SetUID( pid, 0 );
-	SetGID( pid, 0 );
-#ifdef DEBUG_ES
-	u32 version = KernelGetVersion();
-	dbgprintf("ES:KernelVersion:%08X, %d\r\n", version, (version<<8)>>0x18 );
-#endif
 	ES_BootSystem();
-
-	dbgprintf("ES:TitleID:%08x-%08x\r\n", (u32)((TitleID)>>32), (u32)(TitleID) );
-
-	return MessageQueue;
 }
 
 s32 ES_BootSystem( void )
@@ -129,7 +113,7 @@ s32 ES_BootSystem( void )
 	{
 		Shutdown();
 	}
-	mdelay( 300 ); //give modules time
+	mdelay( 2000 ); //give modules time
 
 	free( path );
 	free( size );
@@ -153,17 +137,14 @@ s32 LoadModules( u32 IOSVersion )
 	TitleMetaData *TMD = (TitleMetaData*)NANDLoadFile( path, size );
 	if( TMD == NULL )
 	{
-		free( path );
-		return *size;
+		dbgprintf("No TMD\r\n");
+		Shutdown();
 	}
 
 	if( TMD->ContentCount == 3 )	// STUB detected!
 	{
-		dbgprintf("ES:STUB IOS detected, falling back to IOS35\r\n");
-		free( path );
-		free( KeyID );
-		free( size );
-		return LoadModules( 35 );
+		dbgprintf("IOS58 reported stub\r\n");
+		Shutdown();
 	}
 	
 	dbgprintf("ES:ContentCount:%d\r\n", TMD->ContentCount );
@@ -210,15 +191,9 @@ s32 LoadModules( u32 IOSVersion )
 	free( TMD );
 	free( path );
 
-	thread_set_priority( 0, 0x7F );
-	mdelay(1000); //devices finish init
-	thread_set_priority( 0, 0x50 );
 	return ES_SUCCESS;
 }
-u64 GetTitleID( void )
-{
-	return TitleID;
-}
+
 void iCleanUpTikTMD( void )
 {
 	if( iTMD != NULL )

@@ -126,7 +126,7 @@ typedef struct
 
 } __attribute__((packed)) UIDSYS;
 
-u32 ES_Init( u8 *MessageHeap );
+void ES_Init();
 
 s32 LaunchTitle( u64 TitleID );
 s32 ES_BootSystem( void );
@@ -134,7 +134,6 @@ s32 LoadModules( u32 IOSVersion );
 
 s32 GetSharedContentID( void *ContentHash );
 s32 GetUID( u64 *TitleID, u16 *UID );
-u64 GetTitleID( void );
 void iCleanUpTikTMD( void );
 
 void GetTicketView( u8 *Ticket, u8 *oTicketView );

@@ -136,6 +136,7 @@ void PatchKernel()
 				gprintf("Found Unused SWI at %08X\r\n", i );
 #endif
 				memcpy( buf+i, EXISendBuffer, sizeof( EXISendBuffer ) );
+				DCStoreRange( buf+i, sizeof( EXISendBuffer ) );
 				PatchCount |= 1;
 			}
 
@@ -145,6 +146,7 @@ void PatchKernel()
 				gprintf("Found SWI at %08X\r\n", i );
 #endif
 				memcpy( buf+i, swipatch_v80, sizeof( swipatch_v80 ) );
+				DCStoreRange( buf+i, sizeof( swipatch_v80 ) );
 				PatchCount |= 2;
 			}
 		}
@@ -155,7 +157,7 @@ void PatchKernel()
 			gprintf("Found HWAccess_ES at %08X\r\n", i );
 #endif
 			memcpy( buf+i, HWAccess_ESPatch, sizeof( HWAccess_ESPatch ) );
-
+			DCStoreRange( buf+i, sizeof( HWAccess_ESPatch ) );
 			PatchCount |= 4;
 		}
 
@@ -165,7 +167,7 @@ void PatchKernel()
 			gprintf("Found ES Ioctl 0x1F at %08X\r\n", i );
 #endif
 			memcpy( buf+i, ES_Ioctl_1F_Patch, sizeof( ES_Ioctl_1F_Patch ) );
-
+			DCStoreRange( buf+i, sizeof( ES_Ioctl_1F_Patch ) );
 			PatchCount |= 8;
 		}
 
@@ -175,7 +177,7 @@ void PatchKernel()
 			gprintf("Found ES Ioctl 0x1F Function at %08X\r\n", i );
 #endif
 			memcpy( buf+i, ES_Ioctl_1F_Function_Patch, sizeof( ES_Ioctl_1F_Function_Patch ) );
-
+			DCStoreRange( buf+i, sizeof( ES_Ioctl_1F_Function_Patch ) );
 			PatchCount |= 0x10;
 		}
 
@@ -188,7 +190,6 @@ void PatchKernel()
 				break;
 		}
 	}
-	DCFlushRange(Kernel, KernelSize);
 }
 
 // Title ID for IOS58.

@@ -73,38 +73,43 @@ int _main( int argc, char *argv[] )
 	memset32(&__bss_start, 0, &__bss_end - &__bss_start);
 	sync_after_write(&__bss_start, &__bss_end - &__bss_start);
 
-	if(*(volatile unsigned int*)0x20109740 == 0xE59F1004)
-		virtentry = 0x20109740; //abused 0x1F function pointer in IOS58 
-	else if(*(volatile unsigned int*)0x2010999C == 0xE59F1004)
+	//Important to do this as early as possible
+	if(read32(0x20109740) == 0xE59F1004)
+		virtentry = 0x20109740; //Address on Wii 
+	else if(read32(0x2010999C) == 0xE59F1004)
+		virtentry = 0x2010999C; //Address on WiiU
+
+	//Use libwiidrc values to detect Wii VC
+	sync_before_read((void*)0x12FFFFC0, 0x20);
+	isWiiVC = read32(0x12FFFFC0);
+	if(isWiiVC)
 	{
-		virtentry = 0x2010999C; //(in wiiu fw.img r590 at 2010999C)
-		drcAddress = 0x938BA004; //used in PADReadGC.c
+		drcAddress = read32(0x12FFFFC4); //used in PADReadGC.c
 		drcAddressAligned = ALIGN_BACKWARD(drcAddress,0x20);
-		isWiiVC = true;
 	}
+
 	s32 ret = 0;
 	u32 DI_Thread = 0;
 
-	u8 MessageHeap[0x10];
-
 	BootStatus(0, 0, 0);
 
-//Load IOS Modules (if IOS reloaded)
 	if(!isWiiVC)
-		ES_Init( MessageHeap );
+	{
+		//Load IOS Modules
+		ES_Init();
 
-//Early HID for loader
-	HIDInit();
-
-//Enable DVD Access
-	if(!isWiiVC)
+		//Enable DVD Access
 		write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
+	}
+
+	//Early HID for loader
+	HIDInit();
 
 	dbgprintf("Sending signal to loader\r\n");
 	BootStatus(1, 0, 0);
 	mdelay(10);
 
-//Loader running, selects games
+	//Loader running, selects games
 	while(1)
 	{
 		_ahbMemFlush(1);
@@ -479,8 +484,8 @@ int _main( int argc, char *argv[] )
 		{
 			DIFinishAsync();
 			#ifdef PATCHALL
-			if(!isWiiVC) //Freezes Wii VC
-				BTE_Shutdown();
+			//freezes a lot
+			//BTE_Shutdown();
 			#endif
 			Shutdown();
 		}
@@ -516,8 +521,8 @@ int _main( int argc, char *argv[] )
 		closeLog();
 
 #ifdef PATCHALL
-	if(!isWiiVC) //Freezes Wii VC
-		BTE_Shutdown();
+	//freezes a lot
+	//BTE_Shutdown();
 #endif
 
 	//unmount FAT device
