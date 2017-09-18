@@ -658,7 +658,10 @@ int main(int argc, char **argv)
 	DCFlushRange((void*)0x93003420,0x20);
 	//Set some important kernel regs
 	*(vu32*)0x92FFFFC0 = isWiiVC; //cant be detected in IOS
-	*(vu32*)0x92FFFFC4 = (u32)WiiDRC_GetRawI2CAddr();
+	if(WiiDRC_Connected()) //used in PADReadGC.c
+		*(vu32*)0x92FFFFC4 = (u32)WiiDRC_GetRawI2CAddr();
+	else //will disable gamepad spot for player 1
+		*(vu32*)0x92FFFFC4 = 0;
 	DCFlushRange((void*)0x92FFFFC0,0x20);
 	fd = IOS_Open( dev_es, 0 );
 	IOS_IoctlvAsync(fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL);
@@ -1095,7 +1098,6 @@ int main(int argc, char **argv)
 	{
 		WDVD_FST_Close();
 		WDVD_FST_Unmount();
-		WDVD_ClosePartition();
 		WDVD_Close();
 	}
 

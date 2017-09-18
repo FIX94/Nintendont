@@ -44,6 +44,7 @@ bool WiiDRC_Init();
 bool WiiDRC_Inited();
 bool WiiDRC_Recalibrate();
 bool WiiDRC_ScanPads();
+bool WiiDRC_Connected();
 const u8 *WiiDRC_GetRawI2CAddr();
 const struct WiiDRCData *WiiDRC_Data();
 u32 WiiDRC_ButtonsUp();

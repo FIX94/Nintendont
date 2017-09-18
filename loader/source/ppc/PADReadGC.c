@@ -29,6 +29,8 @@ static vu32* PADSwitchRequired = (vu32*)0x93002744;
 static vu32* PADForceConnected = (vu32*)0x93002748;
 static vu32* drcAddress = (vu32*)0x9300274C;
 static vu32* drcAddressAligned = (vu32*)0x93002750;
+//fw.img r590 pointer to state TODO make dynamic
+static vu32* drcState = (vu32*)0x938BD770;
 
 static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
@@ -105,7 +107,7 @@ u32 _start(u32 calledByGame)
 	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
 	/* For Wii VC */
-	if(calledByGame && *drcAddress)
+	if(calledByGame && *drcAddress && *drcState)
 	{
 		used |= (1<<0); //always use channel 0
 		if(HIDPad == HID_PAD_NOT_SET)

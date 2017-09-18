@@ -311,12 +311,9 @@ bool WDVD_FST_Unmount()
 static u32 inbuf[ 8 ]  ALIGNED( 32 );
 static u32 outbuf[ 8 ] ALIGNED( 32 );
 static u32 tmpbuf[ 8 ] ALIGNED( 32 );
-static u32 partBuf[0x1400] ALIGNED( 32 );
 
 static const char di_fs[] ALIGNED( 32 ) = "/dev/di";
 static s32 di_fd = -1;
-
-bool partitionOpen = false;
 
 s32 WDVD_Init(void) {
 	if (di_fd < 0) {
@@ -375,55 +372,6 @@ s32 WDVD_ReadDiskId(void *id) {
 	}
 
 	return -ret;
-}
-
-s32 WDVD_OpenPartition(u64 offset) {
-	u8 *vector = NULL;
-
-	s32 ret;
-
-	vector = (u8 *)partBuf;
-
-	memset(partBuf, 0, 0x5000);
-
-	partBuf[0] = (u32)(partBuf + 0x10);
-	partBuf[1] = 0x20;
-	partBuf[3] = 0x024A;
-	partBuf[6] = (u32)(partBuf + 0x380);
-	partBuf[7] = 0x49E4;
-	partBuf[8] = (u32)(partBuf + 0x360);
-	partBuf[9] = 0x20;
-
-	partBuf[(0x40 >> 2)]     = IOCTL_DI_OPENPART << 24;
-	partBuf[(0x40 >> 2) + 1] = offset >> 2;
-
-	sync_after_write(partBuf, 0x5000);
-
-	ret = IOS_Ioctlv(di_fd, IOCTL_DI_OPENPART, 3, 2, (ioctlv *)vector);
-
-	if (ret < 0)
-		return ret;
-
-	return (ret == 1) ? 0 : -ret;
-}
-
-s32 WDVD_ClosePartition(void) {
-	s32 ret;
-
-	partitionOpen = false;
-
-	memset(inbuf, 0, sizeof(inbuf));
-
-	inbuf[0] = IOCTL_DI_CLOSEPART << 24;
-
-	ret = IOS_Ioctl(di_fd, IOCTL_DI_CLOSEPART, inbuf, sizeof(inbuf), NULL, 0);
-	if (ret < 0)
-	{
-		BootStatusError(-2, -18);
-		mdelay(5000);
-		return ret;
-	}
-	return (ret == 1) ? 0 : -ret;
 }
 
 s32 WDVD_UnencryptedRead(void *buf, u32 len, u64 offset) {
@@ -493,126 +441,4 @@ s32 WDVD_GetCoverStatus(u32 *status) {
 	}
 
 	return -ret;
-}
-
-s32 WDVD_FindPartition(u64 *outbuf)
-{
-	u64 offset = 0, table_offset = 0;
-
-	u32 cnt, nb_partitions;
-	s32 ret;
-
-	sync_before_read(tmpbuf, 0x20);
-	ret = WDVD_UnencryptedRead(tmpbuf, 0x20, PTABLE_OFFSET);
-	if (ret < 0)
-	{
-		BootStatusError(-2, -14);
-		mdelay(5000);
-		return ret;
-	}
-
-	nb_partitions = tmpbuf[0];
-	table_offset  = tmpbuf[1] << 2;
-
-	sync_before_read(tmpbuf, 0x20);
-	ret = WDVD_UnencryptedRead(tmpbuf, 0x20, table_offset);
-	if (ret < 0)
-	{
-		BootStatusError(-2, -15);
-		mdelay(5000);
-		return ret;
-	}
-
-	for (cnt = 0; cnt < nb_partitions; cnt++) {
-		u32 type = tmpbuf[cnt * 2 + 1];
-
-		if (!type)
-		{
-			offset = tmpbuf[cnt * 2] << 2;
-			break;
-		}
-	}
-
-	if (!offset)
-	{
-		BootStatusError(-2, -16);
-		mdelay(5000);
-		return -1;
-	}
-	*outbuf = offset;
-
-	return 0;
-}
-
-s32 WDVD_OpenDataPartition()
-{
-	u64 dataPartitionOffset;
-	u32 status = 0;
-
-	s32 ret = WDVD_GetCoverStatus( &status );
-	if( ret < 0 )
-	{
-		BootStatusError(-2, -1);
-		mdelay(5000);
-		//gprintf("WDVD_GetCoverStatus(): %d\n", ret );
-		return ret;
-	}
-	if( status != 2 )
-	{
-		BootStatusError(-2, -2);
-		mdelay(5000);
-		//gprintf("discstatus: %d\n", status );
-		return -1;
-	}
-
-	ret = WDVD_ClosePartition();
-	if( ret < 0 )
-	{
-		BootStatusError(-2, -3);
-		mdelay(5000);
-		//gprintf("WDVD_ClosePartition(): %d\n", ret );
-		return ret;
-	}
-
-	ret = WDVD_Reset();
-	if( ret < 0 )
-	{
-		BootStatusError(-2, -4);
-		mdelay(5000);
-		//gprintf("WDVD_Reset(): %d\n", ret );
-		return ret;
-	}
-
-	ret = WDVD_ReadDiskId( tmpbuf );
-	if( ret < 0 )
-	{
-		BootStatusError(-2, -5);
-		mdelay(5000);
-		//gprintf("WDVD_ReadDiskId(): %d\n", ret );
-		return ret;
-	}
-
-	ret = WDVD_FindPartition( &dataPartitionOffset );
-	if( ret < 0 )
-	{
-		BootStatusError(-2, -6);
-		mdelay(5000);
-		//gprintf("WDVD_FindPartition(): %d\n", ret );
-		return ret;
-	}
-
-	ret = WDVD_OpenPartition( dataPartitionOffset );
-	if( ret < 0 )
-	{
-		BootStatusError(-2, -7);
-		mdelay(5000);
-		//gprintf("WDVD_OpenPartition( %016llx ): %d\n", dataPartitionOffset, ret );
-		return ret;
-	}
-
-	partitionOpen = true;
-
-	//gprintf("opened partition @ %016llx\n", dataPartitionOffset );
-
-	return 0;
 }

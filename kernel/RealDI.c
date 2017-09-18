@@ -65,8 +65,6 @@ void RealDI_Init()
 	{
 		if(WDVD_Init() != 0)
 			Shutdown();
-		if(WDVD_OpenDataPartition() != 0)
-			Shutdown();
 		if(!WDVD_FST_Mount())
 			Shutdown();
 		if(WDVD_FST_Open("game.iso") != 0)
