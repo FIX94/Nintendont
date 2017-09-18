@@ -100,122 +100,220 @@ u32 _start(u32 calledByGame)
 
 	u32 HIDPad = (*HID_STATUS == 0) ? HID_PAD_NONE : HID_PAD_NOT_SET;
 	u32 chan;
-	for (chan = 0; (chan < MaxPads); ++chan)
+
+	memInvalidate = (u32)SIInited;
+	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+
+	/* For Wii VC */
+	if(calledByGame && *drcAddress)
 	{
-		/* transfer the actual data */
-		u32 x, PADButtonsStick, PADTriggerCStick;
-		u32 addr = 0xCD006400 + (0x0c * chan);
-		asm volatile("lwz %0,0(%1) ; sync" : "=r"(x) : "b"(addr));
-		//we just needed the first read to clear the status
-		asm volatile("lwz %0,4(%1) ; sync" : "=r"(PADButtonsStick) : "b"(addr));
-		asm volatile("lwz %0,8(%1) ; sync" : "=r"(PADTriggerCStick) : "b"(addr));
-		/* convert data to PADStatus */
-		Pad[chan].button = ((PADButtonsStick>>16)&0xFFFF);
-		if(Pad[chan].button & 0x8000) /* controller not enabled */
+		used |= (1<<0); //always use channel 0
+		if(HIDPad == HID_PAD_NOT_SET)
 		{
-			PADBarrelEnabled[chan] = 1; //if wavebird disconnects it cant reconnect
-			u32 psize = sizeof(PADStatus)-1; //dont set error twice
-			vu8 *CurPad = (vu8*)(&Pad[chan]);
-			while(psize--) *CurPad++ = 0;
-			if(HIDPad == HID_PAD_NOT_SET)
-			{
-				*HIDMotor = (MotorCommand[chan]&0x3);
-				HIDPad = chan;
-			}
-			continue;
+			//Force HID to player 2
+			*HIDMotor = (MotorCommand[1]&0x3);
+			HIDPad = 1;
 		}
-		used |= (1<<chan);
-
-		/* save IsBarrel status */
-		PADIsBarrel[chan] = ((Pad[chan].button & 0x80) == 0) && PADBarrelEnabled[chan];
-		if(PADIsBarrel[chan])
+		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
+		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+		vu8 *i2cdata = (vu8*)(*drcAddress);
+		//Start out mapping buttons first
+		u16 button = 0;
+		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
+		if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
+		if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
+		if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_X;
+		if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_Y;
+		if(drcbutton & WIIDRC_BUTTON_LEFT) button |= PAD_BUTTON_LEFT;
+		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
+		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
+		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
+		//also sets left analog trigger
+		if(drcbutton & WIIDRC_BUTTON_ZL)
 		{
-			u8 curchan = chan*4;
-			if(Pad[chan].button & (PAD_BUTTON_Y | PAD_BUTTON_B)) //left
-			{
-				if(PADBarrelPress[0+curchan] == 5)
-					Pad[chan].button &= ~(PAD_BUTTON_Y | PAD_BUTTON_B);
-				else
-					PADBarrelPress[0+curchan]++;
-			}
-			else
-				PADBarrelPress[0+curchan] = 0;
-
-			if(Pad[chan].button & (PAD_BUTTON_X | PAD_BUTTON_A)) //right
-			{
-				if(PADBarrelPress[1+curchan] == 5)
-					Pad[chan].button &= ~(PAD_BUTTON_X | PAD_BUTTON_A);
-				else
-					PADBarrelPress[1+curchan]++;
-			}
-			else
-				PADBarrelPress[1+curchan] = 0;
-
-			if(Pad[chan].button & PAD_BUTTON_START) //start
-			{
-				if(PADBarrelPress[2+curchan] == 5)
-					Pad[chan].button &= ~PAD_BUTTON_START;
-				else
-					PADBarrelPress[2+curchan]++;
-			}
-			else
-				PADBarrelPress[2+curchan] = 0;
-
-			//signal lengthener
-			if(PADBarrelPress[3+curchan] == 0)
-			{
-				u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
-				if(tmp_triggerR > 0x30) // need to do this manually
-					PADBarrelPress[3+curchan] = 3;
-			}
+			//Check half-press by holding L
+			if(drcbutton & WIIDRC_BUTTON_L)
+				Pad[0].triggerLeft = 0x7F;
 			else
 			{
-				Pad[chan].button |= PAD_TRIGGER_R;
-				PADBarrelPress[3+curchan]--;
+				button |= PAD_TRIGGER_L;
+				Pad[0].triggerLeft = 0xFF;
 			}
 		}
 		else
+			Pad[0].triggerLeft = 0;
+		//also sets right analog trigger
+		if(drcbutton & WIIDRC_BUTTON_ZR)
 		{
-			if(Pad[chan].button & 0x80)
-				Rumble |= ((1<<31)>>chan);
-			Pad[chan].stickX = ((PADButtonsStick>>8)&0xFF)-128;
-			Pad[chan].stickY = ((PADButtonsStick>>0)&0xFF)-128;
-			Pad[chan].substickX = ((PADTriggerCStick>>24)&0xFF)-128;
-			Pad[chan].substickY = ((PADTriggerCStick>>16)&0xFF)-128;
-
-			/* Calculate left trigger with deadzone */
-			u8 tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
-			if(tmp_triggerL > DEADZONE)
-				Pad[chan].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+			//Check half-press by holding L
+			if(drcbutton & WIIDRC_BUTTON_L)
+				Pad[0].triggerRight = 0x7F;
 			else
-				Pad[chan].triggerLeft = 0;
-			/* Calculate right trigger with deadzone */
-			u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
-			if(tmp_triggerR > DEADZONE)
-				Pad[chan].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
-			else
-				Pad[chan].triggerRight = 0;
+			{
+				button |= PAD_TRIGGER_R;
+				Pad[0].triggerRight = 0xFF;
+			}
 		}
-
-		/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
-		if((Pad[chan].button&0x234) == 0x234)
-		{
-			goto Shutdown;
-		}
-		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+		else
+			Pad[0].triggerRight = 0;
+		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
+		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
+		if(drcbutton & WIIDRC_BUTTON_HOME) goto Shutdown;
+		//write in mapped out buttons
+		Pad[0].button = button;
+		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
 		{
 			/* reset status 3 */
 			*RESET_STATUS = 0x3DEA;
 		}
 		else /* for held status */
 			*RESET_STATUS = 0;
-		/* clear unneeded button attributes */
-		Pad[chan].button &= 0x9F7F;
-		/* set current command */
-		_siReg[chan*3] = (MotorCommand[chan]&0x3) | 0x00400300;
-		/* transfer command */
-		_siReg[14] |= (1<<31);
-		while(_siReg[14] & (1<<31));
+		//scale sticks next
+		s16 leftX = (((s8)(i2cdata[4]-0x80))*13)>>3;
+		s16 leftY = (((s8)(i2cdata[5]-0x80))*13)>>3;
+		s16 rightX = (((s8)(i2cdata[6]-0x80))*13)>>3;
+		s16 rightY = (((s8)(i2cdata[7]-0x80))*13)>>3;
+		s8 tmp_stick;
+		//clamp left X
+		if(leftX > 0x7F) tmp_stick = 0x7F;
+		else if(leftX < -0x80) tmp_stick = -0x80;
+		else tmp_stick = leftX;
+		Pad[0].stickX = tmp_stick;
+		//clamp left Y
+		if(leftY > 0x7F) tmp_stick = 0x7F;
+		else if(leftY < -0x80) tmp_stick = -0x80;
+		else tmp_stick = leftY;
+		Pad[0].stickY = tmp_stick;
+		//clamp right X
+		if(rightX > 0x7F) tmp_stick = 0x7F;
+		else if(rightX < -0x80) tmp_stick = -0x80;
+		else tmp_stick = rightX;
+		Pad[0].substickX = tmp_stick;
+		//clamp right Y
+		if(rightY > 0x7F) tmp_stick = 0x7F;
+		else if(rightY < -0x80) tmp_stick = -0x80;
+		else tmp_stick = rightY;
+		Pad[0].substickY = tmp_stick;
+	}
+	else
+	{
+		for (chan = 0; (chan < MaxPads); ++chan)
+		{
+			/* transfer the actual data */
+			u32 x, PADButtonsStick, PADTriggerCStick;
+			u32 addr = 0xCD006400 + (0x0c * chan);
+			asm volatile("lwz %0,0(%1) ; sync" : "=r"(x) : "b"(addr));
+			//we just needed the first read to clear the status
+			asm volatile("lwz %0,4(%1) ; sync" : "=r"(PADButtonsStick) : "b"(addr));
+			asm volatile("lwz %0,8(%1) ; sync" : "=r"(PADTriggerCStick) : "b"(addr));
+			/* convert data to PADStatus */
+			Pad[chan].button = ((PADButtonsStick>>16)&0xFFFF);
+			if(Pad[chan].button & 0x8000) /* controller not enabled */
+			{
+				PADBarrelEnabled[chan] = 1; //if wavebird disconnects it cant reconnect
+				u32 psize = sizeof(PADStatus)-1; //dont set error twice
+				vu8 *CurPad = (vu8*)(&Pad[chan]);
+				while(psize--) *CurPad++ = 0;
+				if(HIDPad == HID_PAD_NOT_SET)
+				{
+					*HIDMotor = (MotorCommand[chan]&0x3);
+					HIDPad = chan;
+				}
+				continue;
+			}
+			used |= (1<<chan);
+
+			/* save IsBarrel status */
+			PADIsBarrel[chan] = ((Pad[chan].button & 0x80) == 0) && PADBarrelEnabled[chan];
+			if(PADIsBarrel[chan])
+			{
+				u8 curchan = chan*4;
+				if(Pad[chan].button & (PAD_BUTTON_Y | PAD_BUTTON_B)) //left
+				{
+					if(PADBarrelPress[0+curchan] == 5)
+						Pad[chan].button &= ~(PAD_BUTTON_Y | PAD_BUTTON_B);
+					else
+						PADBarrelPress[0+curchan]++;
+				}
+				else
+					PADBarrelPress[0+curchan] = 0;
+
+				if(Pad[chan].button & (PAD_BUTTON_X | PAD_BUTTON_A)) //right
+				{
+					if(PADBarrelPress[1+curchan] == 5)
+						Pad[chan].button &= ~(PAD_BUTTON_X | PAD_BUTTON_A);
+					else
+						PADBarrelPress[1+curchan]++;
+				}
+				else
+					PADBarrelPress[1+curchan] = 0;
+
+				if(Pad[chan].button & PAD_BUTTON_START) //start
+				{
+					if(PADBarrelPress[2+curchan] == 5)
+						Pad[chan].button &= ~PAD_BUTTON_START;
+					else
+						PADBarrelPress[2+curchan]++;
+				}
+				else
+					PADBarrelPress[2+curchan] = 0;
+
+				//signal lengthener
+				if(PADBarrelPress[3+curchan] == 0)
+				{
+					u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
+					if(tmp_triggerR > 0x30) // need to do this manually
+						PADBarrelPress[3+curchan] = 3;
+				}
+				else
+				{
+					Pad[chan].button |= PAD_TRIGGER_R;
+					PADBarrelPress[3+curchan]--;
+				}
+			}
+			else
+			{
+				if(Pad[chan].button & 0x80)
+					Rumble |= ((1<<31)>>chan);
+				Pad[chan].stickX = ((PADButtonsStick>>8)&0xFF)-128;
+				Pad[chan].stickY = ((PADButtonsStick>>0)&0xFF)-128;
+				Pad[chan].substickX = ((PADTriggerCStick>>24)&0xFF)-128;
+				Pad[chan].substickY = ((PADTriggerCStick>>16)&0xFF)-128;
+
+				/* Calculate left trigger with deadzone */
+				u8 tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
+				if(tmp_triggerL > DEADZONE)
+					Pad[chan].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+				else
+					Pad[chan].triggerLeft = 0;
+				/* Calculate right trigger with deadzone */
+				u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
+				if(tmp_triggerR > DEADZONE)
+					Pad[chan].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
+				else
+					Pad[chan].triggerRight = 0;
+			}
+
+			/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
+			if((Pad[chan].button&0x234) == 0x234)
+			{
+				goto Shutdown;
+			}
+			if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+			{
+				/* reset status 3 */
+				*RESET_STATUS = 0x3DEA;
+			}
+			else /* for held status */
+				*RESET_STATUS = 0;
+			/* clear unneeded button attributes */
+			Pad[chan].button &= 0x9F7F;
+			/* set current command */
+			_siReg[chan*3] = (MotorCommand[chan]&0x3) | 0x00400300;
+			/* transfer command */
+			_siReg[14] |= (1<<31);
+			while(_siReg[14] & (1<<31));
+		}
 	}
 	u32 HIDMemPrep = 0;
 	if (HIDPad == HID_PAD_NOT_SET)
@@ -551,95 +649,6 @@ u32 _start(u32 calledByGame)
 			else
 				Pad[chan].triggerRight = 0;
 		}
-	}
-
-	memInvalidate = (u32)SIInited;
-	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
-
-	/* For Wii VC */
-	if(calledByGame && *drcAddress)
-	{
-		used |= (1<<0); //always use channel 0
-		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
-		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
-		vu8 *i2cdata = (vu8*)(*drcAddress);
-		//Start out mapping buttons first
-		u16 button = 0;
-		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
-		if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
-		if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
-		if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_X;
-		if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_Y;
-		if(drcbutton & WIIDRC_BUTTON_LEFT) button |= PAD_BUTTON_LEFT;
-		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
-		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
-		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
-		//also sets left analog trigger
-		if(drcbutton & WIIDRC_BUTTON_ZL)
-		{
-			//Check half-press by holding L
-			if(drcbutton & WIIDRC_BUTTON_L)
-				Pad[0].triggerLeft = 0x7F;
-			else
-			{
-				button |= PAD_TRIGGER_L;
-				Pad[0].triggerLeft = 0xFF;
-			}
-		}
-		else
-			Pad[0].triggerLeft = 0;
-		//also sets right analog trigger
-		if(drcbutton & WIIDRC_BUTTON_ZR)
-		{
-			//Check half-press by holding L
-			if(drcbutton & WIIDRC_BUTTON_L)
-				Pad[0].triggerRight = 0x7F;
-			else
-			{
-				button |= PAD_TRIGGER_R;
-				Pad[0].triggerRight = 0xFF;
-			}
-		}
-		else
-			Pad[0].triggerRight = 0;
-		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
-		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
-		if(drcbutton & WIIDRC_BUTTON_HOME) goto Shutdown;
-		//write in mapped out buttons
-		Pad[0].button = button;
-		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
-		{
-			/* reset status 3 */
-			*RESET_STATUS = 0x3DEA;
-		}
-		else /* for held status */
-			*RESET_STATUS = 0;
-		//scale sticks next
-		s16 leftX = (((s8)(i2cdata[4]-0x80))*13)>>3;
-		s16 leftY = (((s8)(i2cdata[5]-0x80))*13)>>3;
-		s16 rightX = (((s8)(i2cdata[6]-0x80))*13)>>3;
-		s16 rightY = (((s8)(i2cdata[7]-0x80))*13)>>3;
-		s8 tmp_stick;
-		//clamp left X
-		if(leftX > 0x7F) tmp_stick = 0x7F;
-		else if(leftX < -0x80) tmp_stick = -0x80;
-		else tmp_stick = leftX;
-		Pad[0].stickX = tmp_stick;
-		//clamp left Y
-		if(leftY > 0x7F) tmp_stick = 0x7F;
-		else if(leftY < -0x80) tmp_stick = -0x80;
-		else tmp_stick = leftY;
-		Pad[0].stickY = tmp_stick;
-		//clamp right X
-		if(rightX > 0x7F) tmp_stick = 0x7F;
-		else if(rightX < -0x80) tmp_stick = -0x80;
-		else tmp_stick = rightX;
-		Pad[0].substickX = tmp_stick;
-		//clamp right Y
-		if(rightY > 0x7F) tmp_stick = 0x7F;
-		else if(rightY < -0x80) tmp_stick = -0x80;
-		else tmp_stick = rightY;
-		Pad[0].substickY = tmp_stick;
 	}
 
 	if(MaxPads == 0) //wiiu

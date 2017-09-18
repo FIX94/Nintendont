@@ -46,6 +46,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "HID.h"
 #include "TRI.h"
 #include "Config.h"
+#include "wdvd.h"
 
 #include "ff_utf8.h"
 #include "diskio.h"
@@ -74,7 +75,7 @@ extern u32 __SYS_SyncSram(void);
 
 static GXRModeObj *vmode = NULL;
 
-static const unsigned char Boot2Patch[] =
+static unsigned char ESBootPatch[] =
 {
     0x48, 0x03, 0x49, 0x04, 0x47, 0x78, 0x46, 0xC0, 0xE6, 0x00, 0x08, 0x70, 0xE1, 0x2F, 0xFF, 0x1E, 
     0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x25,
@@ -230,7 +231,10 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 
 	if(CurDICMD)
 	{
-		ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
+		if(CurDICMD == DIP_CMD_WIIVC)
+			WDVD_FST_Read(MultiHdr, 0, 0x800);
+		else
+			ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
 	}
 	else if (IsSupportedFileExt(ncfg->GamePath))
 	{
@@ -384,7 +388,10 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 
 			if(CurDICMD)
 			{
-				ReadRealDisc(GameHdr, RealOffset, 0x800, CurDICMD);
+				if(CurDICMD == DIP_CMD_WIIVC)
+					WDVD_FST_Read(GameHdr, RealOffset, 0x800);
+				else
+					ReadRealDisc(GameHdr, RealOffset, 0x800, CurDICMD);
 			}
 			else
 			{
@@ -505,8 +512,10 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	memcpy(&ncfg->GameID, gi[PosX].ID, 4);
 	return 0;
 }
+static char dev_es[] ATTRIBUTE_ALIGN(32) = "/dev/es";
 
 bool isWiiVC = false;
+extern vu32 FoundVersion;
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -563,9 +572,9 @@ int main(int argc, char **argv)
 		still have to reload IOS on those with a patched kernel */
 	if(!isWiiVC)
 	{
-		// Initializing IOS58...
+		// Preparing IOS58 Kernel...
 		if(argsboot == false)
-			ShowMessageScreen("Initializing IOS58...");
+			ShowMessageScreen("Preparing IOS58 Kernel...");
 
 		u32 u;
 		//Disables MEMPROT for patches
@@ -599,36 +608,47 @@ int main(int argc, char **argv)
 			ExitToLoader(1);
 		}
 		PatchKernel();
+		u32 v = FoundVersion;
+		//this ensures all IOS modules get loaded in ES on reload
+		memcpy( ESBootPatch+0x14, &v, 4 );
+		DCInvalidateRange( (void*)0x939F0348, sizeof(ESBootPatch) );
+		memcpy( (void*)0x939F0348, ESBootPatch, sizeof(ESBootPatch) );
+		DCFlushRange( (void*)0x939F0348, sizeof(ESBootPatch) );
 
-		DCInvalidateRange( (void*)0x939F02F0, 0x20 );
-
-		memcpy( (void*)0x939F02F0, Boot2Patch, sizeof(Boot2Patch) );
-
-		DCFlushRange( (void*)0x939F02F0, 0x20 );
+		// Loading IOS58 Kernel...
+		if(argsboot == false)
+			ShowMessageScreen("Loading IOS58 Kernel...");
 
 		//libogc still has that, lets close it
 		__ES_Close();
-		fd = IOS_Open( "/dev/es", 0 );
+		fd = IOS_Open( dev_es, 0 );
 
 		raw_irq_handler_t irq_handler = BeforeIOSReload();
-		IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
-		AfterIOSReload( irq_handler, 0xD25 );
+		IOS_IoctlvAsync( fd, 0x25, 0, 0, &IOCTL_Buf, NULL, NULL );
+		sleep(1); //wait this time at least
+		AfterIOSReload( irq_handler, v );
+		//Disables MEMPROT for patches
+		write16(MEM_PROT, 0);
 	}
 
-	// Initializing Nintendont...
+	// Preparing Nintendont Kernel...
 	if(argsboot == false)
-		ShowMessageScreen("Initializing Nintendont...");
+		ShowMessageScreen("Preparing Nintendont Kernel...");
 
+	//inject nintendont thread
 	void *kernel_bin = NULL;
 	unsigned int kernel_bin_size = 0;
 	unzip_data(kernel_zip, kernel_zip_size, &kernel_bin, &kernel_bin_size);
 	gprintf("Decompressed kernel.bin with %i bytes\r\n", kernel_bin_size);
-
-	//inject nintendont thread
 	memcpy((void*)0x92F00000,kernel_bin,kernel_bin_size);
 	DCFlushRange((void*)0x92F00000,kernel_bin_size);
+	free(kernel_bin);
+	//inject kernelboot
 	memcpy((void*)0x92FFFE00,kernelboot_bin,kernelboot_bin_size);
 	DCFlushRange((void*)0x92FFFE00,kernelboot_bin_size);
+	//Loading Nintendont Kernel...
+	if(argsboot == false)
+		ShowMessageScreen("Loading Nintendont Kernel...");
 	//close in case this is wii vc
 	__ES_Close();
 	memset( STATUS, 0, 0x20 );
@@ -640,25 +660,11 @@ int main(int argc, char **argv)
 	*(vu32*)0x92FFFFC0 = isWiiVC; //cant be detected in IOS
 	*(vu32*)0x92FFFFC4 = (u32)WiiDRC_GetRawI2CAddr();
 	DCFlushRange((void*)0x92FFFFC0,0x20);
-	//dont immediately exit while loop
-	*(vu32*)0x92FFFFE0 = 0;
-	DCFlushRange((void*)0x92FFFFE0,0x20);
-	fd = IOS_Open( "/dev/es", 0 );
+	fd = IOS_Open( dev_es, 0 );
 	IOS_IoctlvAsync(fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL);
-	while(1)
-	{
-		DCInvalidateRange((void*)0x92FFFFE0,0x20);
-		if(*(vu32*)0x92FFFFE0 != 0)
-		{
-			*(vu32*)0x92FFFFE0 = 0;
-			DCFlushRange((void*)0x92FFFFE0,0x20);
-			break;
-		}
-		usleep(20000);
-	}
-	IOS_Close(fd);
-	free(kernel_bin);
-
+	//Waiting for Nintendont...
+	if(argsboot == false)
+		ShowMessageScreen("Waiting for Nintendont...");
 	while(1)
 	{
 		DCInvalidateRange( STATUS, 0x20 );
@@ -668,6 +674,8 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+	//Async Ioctlv done by now
+	IOS_Close(fd);
 
 	gprintf("Nintendont at your service!\r\n%s\r\n", NIN_BUILD_STRING);
 	KernelLoaded = 1;
@@ -683,6 +691,10 @@ int main(int argc, char **argv)
 	int i;
 	for (i = DEV_SD; i <= DEV_USB; i++)
 	{
+		//only check SD on Wii VC
+		if(i == DEV_USB && isWiiVC)
+			break;
+		//check SD and USB on Wii and WiiU
 		const WCHAR *devNameFF = MountDevice(i);
 		if (devNameFF && !foundOneDevice)
 		{
@@ -795,37 +807,64 @@ int main(int argc, char **argv)
 	{
 		if(argsboot == false)
 			ShowLoadingScreen();
-
-		DI_UseCache(false);
-		DI_Init();
-		DI_Mount();
-		while (DI_GetStatus() & DVD_INIT)
-			usleep(20000);
-		if(!(DI_GetStatus() & DVD_READY))
+		if(isWiiVC)
 		{
-			ShowMessageScreenAndExit("The Disc Drive could not be initialized!", 1);
-		}
-		DI_Close();
-
-		u8 *DIBuf = memalign(32,0x800);
-		memset(DIBuf, 0, 0x20);
-		DCFlushRange(DIBuf, 0x20);
-		CurDICMD = DIP_CMD_NORMAL;
-		ReadRealDisc(DIBuf, 0, 0x20, CurDICMD);
-		if( IsGCGame(DIBuf) == false )
-		{
-			memset(DIBuf, 0, 0x800);
-			DCFlushRange(DIBuf, 0x800);
-			CurDICMD = DIP_CMD_DVDR;
-			ReadRealDisc(DIBuf, 0, 0x800, CurDICMD);
+			if(WDVD_Init() != 0)
+				ShowMessageScreenAndExit("The Wii VC Disc could not be initialized!", 1);
+			if(WDVD_OpenDataPartition() != 0)
+				ShowMessageScreenAndExit("Found no Partition on Wii VC Disc!", 1);
+			if(!WDVD_FST_Mount())
+				ShowMessageScreenAndExit("Unable to open Partition on Wii VC Disc!", 1);
+			if(WDVD_FST_Open("game.iso") != 0)
+				ShowMessageScreenAndExit("No game.iso on Wii VC Disc!", 1);
+			u8 *DIBuf = memalign(32,0x800);
+			if(WDVD_FST_Read(DIBuf, 0, 0x800) != 0x800)
+			{
+				free(DIBuf);
+				ShowMessageScreenAndExit("Cant read game.iso start!", 1);
+			}
 			if( IsGCGame(DIBuf) == false )
 			{
 				free(DIBuf);
-				ShowMessageScreenAndExit("The Disc in the Drive is not a GC Disc!", 1);
+				ShowMessageScreenAndExit("game.iso is not a GC Disc!", 1);
 			}
+			memcpy(&(ncfg->GameID), DIBuf, 4);
+			free(DIBuf);
+			CurDICMD = DIP_CMD_WIIVC;
 		}
-		memcpy(&(ncfg->GameID), DIBuf, 4);
-		free(DIBuf);
+		else
+		{
+			DI_UseCache(false);
+			DI_Init();
+			DI_Mount();
+			while (DI_GetStatus() & DVD_INIT)
+				usleep(20000);
+			if(!(DI_GetStatus() & DVD_READY))
+			{
+				ShowMessageScreenAndExit("The Disc Drive could not be initialized!", 1);
+			}
+			DI_Close();
+
+			u8 *DIBuf = memalign(32,0x800);
+			memset(DIBuf, 0, 0x20);
+			DCFlushRange(DIBuf, 0x20);
+			CurDICMD = DIP_CMD_NORMAL;
+			ReadRealDisc(DIBuf, 0, 0x20, CurDICMD);
+			if( IsGCGame(DIBuf) == false )
+			{
+				memset(DIBuf, 0, 0x800);
+				DCFlushRange(DIBuf, 0x800);
+				CurDICMD = DIP_CMD_DVDR;
+				ReadRealDisc(DIBuf, 0, 0x800, CurDICMD);
+				if( IsGCGame(DIBuf) == false )
+				{
+					free(DIBuf);
+					ShowMessageScreenAndExit("The Disc in the Drive is not a GC Disc!", 1);
+				}
+			}
+			memcpy(&(ncfg->GameID), DIBuf, 4);
+			free(DIBuf);
+		}
 	}
 
 	if(SaveSettings)
@@ -1051,6 +1090,14 @@ int main(int argc, char **argv)
 
 	WUPC_Shutdown();
 	WPAD_Shutdown();
+
+	if(CurDICMD == DIP_CMD_WIIVC)
+	{
+		WDVD_FST_Close();
+		WDVD_FST_Unmount();
+		WDVD_ClosePartition();
+		WDVD_Close();
+	}
 
 	//before flushing do game specific patches
 	if(ncfg->Config & NIN_CFG_FORCE_PROG &&

@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "TRI.h"
 #include "ff_utf8.h"
+#include "wdvd.h"
 
 static const char CARD_NAME_GP1[] = "/saves/GP1.bin";
 static const char CARD_NAME_GP2[] = "/saves/GP2.bin";
@@ -51,7 +52,10 @@ static u32 DOLRead32(u32 loc, u32 DOLOffset, FIL *f, u32 CurDICMD)
 	}
 	else if(CurDICMD)
 	{
-		ReadRealDisc((u8*)&BufAtOffset, DOLOffset+loc, 4, CurDICMD);
+		if(CurDICMD == DIP_CMD_WIIVC)
+			WDVD_FST_Read((u8*)&BufAtOffset, DOLOffset+loc, 4);
+		else
+			ReadRealDisc((u8*)&BufAtOffset, DOLOffset+loc, 4, CurDICMD);
 	}
 	return BufAtOffset;
 }
@@ -67,7 +71,10 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 
 	if(CurDICMD)
 	{
-		ReadRealDisc((u8*)&DOLOffset, 0x420+ISOShift, 4, CurDICMD);
+		if(CurDICMD == DIP_CMD_WIIVC)
+			WDVD_FST_Read((u8*)&DOLOffset, 0x420+ISOShift, 4);
+		else
+			ReadRealDisc((u8*)&DOLOffset, 0x420+ISOShift, 4, CurDICMD);
 		DOLOffset+=ISOShift;
 	}
 	else

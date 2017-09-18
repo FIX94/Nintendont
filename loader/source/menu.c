@@ -299,7 +299,18 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	u8 buf[0x100];			// Disc header.
 	int gamecount = 0;		// Current game count.
 
-	if( !IsWiiU() )
+	if( isWiiVC )
+	{
+		// Pseudo game for booting a GameCube disc on Wii VC.
+		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
+		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
+		gi[0].Name = "Boot included GC Disc";
+		gi[0].Revision = 0;
+		gi[0].Flags = 0;
+		gi[0].Path = strdup("di:di");
+		gamecount++;
+	}
+	else if( !IsWiiU() )
 	{
 		// Pseudo game for booting a GameCube disc on Wii.
 		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
@@ -485,7 +496,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	// Sort the list alphabetically.
 	// On Wii, the pseudo-entry for GameCube discs is always
 	// kept at the top.
-	if( IsWiiU() )
+	if( IsWiiU() && !isWiiVC )
 		qsort(gi, gamecount, sizeof(gameinfo), compare_names);
 	else if( gamecount > 1 )
 		qsort(&gi[1], gamecount-1, sizeof(gameinfo), compare_names);
@@ -744,17 +755,24 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		}
 
 		// Can we show information for the selected title?
-		if (!IsWiiU() && (ctx->games.scrollX + ctx->games.posX) == 0)
+		if(IsWiiU() && !isWiiVC)
 		{
-			// Cannot show information for DISC01.
-			ctx->games.canShowInfo = false;
+			// Can show information for all games on WiiU
+			ctx->games.canShowInfo = true;
 		}
 		else
 		{
-			// Can show information for all other games.
-			ctx->games.canShowInfo = true;
+			if ((ctx->games.scrollX + ctx->games.posX) == 0)
+			{
+				// Cannot show information for DISC01 on Wii and Wii VC.
+				ctx->games.canShowInfo = false;
+			}
+			else
+			{
+				// Can show information for all other games.
+				ctx->games.canShowInfo = true;
+			}
 		}
-
 		// GRRLIB rendering is done by SelectGame().
 	}
 
@@ -1827,10 +1845,10 @@ void PrintInfo(void)
 #ifdef NIN_SPECIAL_VERSION
 	// "Special" version with customizations. (Not mainline!)
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u" NIN_SPECIAL_VERSION " (%s)",
-		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
+		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, isWiiVC ? "Wii VC" : (IsWiiU() ? "Wii U" : "Wii"));
 #else
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u (%s)",
-		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
+		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, isWiiVC ? "Wii VC" : (IsWiiU() ? "Wii U" : "Wii"));
 #endif
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %u.%u.%u",

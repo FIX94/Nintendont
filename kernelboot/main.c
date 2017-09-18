@@ -21,11 +21,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //called on ES Ioctl 0x1F
 void _main()
 {
-	*(volatile unsigned int*)0x12FFFFE0 = 1;
-	sync_after_write((void*)0x12FFFFE0, 0x20);
-	do
-	{	sync_before_read((void*)0x12FFFFE0, 0x20);
-	} while(*(volatile unsigned int*)0x12FFFFE0 != 0);
 	//Just a jump at this location to our set entry
 	void *threadVirt = 0;
 	if(*(volatile unsigned int*)0x20109740 == 0xE59F1004)

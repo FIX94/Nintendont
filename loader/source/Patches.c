@@ -103,12 +103,14 @@ static const unsigned char ES_Ioctl_1F_Function_Patch[] = {
 static char Entry[0x1C] ALIGNED(32);
 
 // IOS58 kernel memory base address.
-static char *const Kernel = (char*)0x90100000;
+static char *const KernelDst = (char*)0x90100000;
+// kernel address we first read into
+static char *const KernelReadBuf = (char*)0x91000000;
 static unsigned int KernelSize = 0;
 
 void PatchKernel()
 {
-	unsigned int loadersize = *(vu32*)(Kernel) + *(vu32*)(Kernel+4);
+	unsigned int loadersize = *(vu32*)(KernelReadBuf) + *(vu32*)(KernelReadBuf+4);
 	u32 PatchCount = 0;
 	int i = 0;
 
@@ -124,7 +126,7 @@ void PatchKernel()
 
 	unsigned int size = KernelSize;
 
-	char *buf = Kernel;
+	char *buf = KernelReadBuf;
 
 	for( i=0; i < size; i+=4 )
 	{
@@ -136,7 +138,6 @@ void PatchKernel()
 				gprintf("Found Unused SWI at %08X\r\n", i );
 #endif
 				memcpy( buf+i, EXISendBuffer, sizeof( EXISendBuffer ) );
-				DCStoreRange( buf+i, sizeof( EXISendBuffer ) );
 				PatchCount |= 1;
 			}
 
@@ -146,7 +147,6 @@ void PatchKernel()
 				gprintf("Found SWI at %08X\r\n", i );
 #endif
 				memcpy( buf+i, swipatch_v80, sizeof( swipatch_v80 ) );
-				DCStoreRange( buf+i, sizeof( swipatch_v80 ) );
 				PatchCount |= 2;
 			}
 		}
@@ -157,7 +157,6 @@ void PatchKernel()
 			gprintf("Found HWAccess_ES at %08X\r\n", i );
 #endif
 			memcpy( buf+i, HWAccess_ESPatch, sizeof( HWAccess_ESPatch ) );
-			DCStoreRange( buf+i, sizeof( HWAccess_ESPatch ) );
 			PatchCount |= 4;
 		}
 
@@ -167,7 +166,6 @@ void PatchKernel()
 			gprintf("Found ES Ioctl 0x1F at %08X\r\n", i );
 #endif
 			memcpy( buf+i, ES_Ioctl_1F_Patch, sizeof( ES_Ioctl_1F_Patch ) );
-			DCStoreRange( buf+i, sizeof( ES_Ioctl_1F_Patch ) );
 			PatchCount |= 8;
 		}
 
@@ -177,7 +175,6 @@ void PatchKernel()
 			gprintf("Found ES Ioctl 0x1F Function at %08X\r\n", i );
 #endif
 			memcpy( buf+i, ES_Ioctl_1F_Function_Patch, sizeof( ES_Ioctl_1F_Function_Patch ) );
-			DCStoreRange( buf+i, sizeof( ES_Ioctl_1F_Function_Patch ) );
 			PatchCount |= 0x10;
 		}
 
@@ -190,6 +187,9 @@ void PatchKernel()
 				break;
 		}
 	}
+	//copy into place AFTER patching
+	memcpy(KernelDst, KernelReadBuf, KernelSize);
+	DCFlushRange(KernelDst, KernelSize);
 }
 
 // Title ID for IOS58.
@@ -303,8 +303,8 @@ int LoadKernel(void)
 	IOS_Seek( kfd, 0, 0);
 
 	gprintf("KernelSize:%u\r\n", KernelSize );
-
-	if (IOS_Read(kfd, Kernel, KernelSize) != KernelSize)
+	DCInvalidateRange(KernelReadBuf, KernelSize);
+	if (IOS_Read(kfd, KernelReadBuf, KernelSize) != KernelSize)
 	{
 		gprintf("IOS_Read() failed\r\n");
 		PrintLoadKernelError(LKERR_IOS_Read_IOS58_kernel, kfd);

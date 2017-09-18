@@ -95,12 +95,11 @@ int _main( int argc, char *argv[] )
 
 	if(!isWiiVC)
 	{
-		//Load IOS Modules
-		ES_Init();
-
 		//Enable DVD Access
 		write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
 	}
+
+	thread_set_priority( 0, 0x50 );
 
 	//Early HID for loader
 	HIDInit();
@@ -484,8 +483,7 @@ int _main( int argc, char *argv[] )
 		{
 			DIFinishAsync();
 			#ifdef PATCHALL
-			//freezes a lot
-			//BTE_Shutdown();
+			BTE_Shutdown();
 			#endif
 			Shutdown();
 		}
@@ -521,8 +519,7 @@ int _main( int argc, char *argv[] )
 		closeLog();
 
 #ifdef PATCHALL
-	//freezes a lot
-	//BTE_Shutdown();
+	BTE_Shutdown();
 #endif
 
 	//unmount FAT device
