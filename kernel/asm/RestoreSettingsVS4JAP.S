@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set VS4_BACKUP,	0xD3002780
+.set VS4_BACKUP,	0xD3003500
 
 RestoreSettingsVS:
 	lis		%r3,	VS4_BACKUP@h

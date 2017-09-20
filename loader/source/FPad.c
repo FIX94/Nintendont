@@ -53,11 +53,13 @@ static u32 (*const PADRead)(u32) = (void*)0x93000000;
 #define C_NOT_SET	(0<<0)
 void FPAD_Init( void )
 {
-	DCInvalidateRange((void*)0x93000000, 0x2900);
+	DCInvalidateRange((void*)0x93000000, 0x3000);
 	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
-	memset((void*)0x93002700, 0, 0x200); //clears alot of pad stuff
-	DCFlushRange((void*)0x93000000, 0x2900);
-	ICInvalidateRange((void*)0x93000000, 0x2700);
+	DCFlushRange((void*)0x93000000, 0x3000);
+	ICInvalidateRange((void*)0x93000000, 0x3000);
+	DCInvalidateRange((void*)0x93003010, 0x190);
+	memset((void*)0x93003010, 0, 0x190); //clears alot of pad stuff
+	DCFlushRange((void*)0x93003010, 0x190);
 	struct BTPadCont *BTPad = (struct BTPadCont*)0x932F0000;
 	u32 i;
 	for(i = 0; i < WPAD_MAX_WIIMOTES; ++i)
@@ -116,7 +118,7 @@ void FPAD_Update( void )
 	/* HID */
 	HIDUpdateRegisters();
 	PADRead(0);
-	PADStatus *Pad = (PADStatus*)(0x93002800);
+	PADStatus *Pad = (PADStatus*)(0x93003100);
 	for(i = 0; i < PAD_CHANMAX; ++i)
 	{
 		PAD_Pressed |= Pad[i].button;

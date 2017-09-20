@@ -23,8 +23,8 @@ vu32 AXTimerOffset = 0;
 static const char TRI_SegaChar[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
 static const char TRI_NamcoChar[] = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
 
-static const PADStatus *PadBuff = (PADStatus*)0x13002800;
-static const vu32 *IN_TESTMENU = (vu32*)0x13002760;
+static const PADStatus *PadBuff = (PADStatus*)0x13003100;
+static const vu32 *IN_TESTMENU = (vu32*)0x13003080;
 static u32 TestMenuTimer = 0, TestMenuTimerRunning = 0;
 static u32 CoinAddTimer = 0;
 

@@ -3655,12 +3655,12 @@ void PatchGame()
 	// Didn't look for why PMW2 requires this.  ToDo
 	if ((TITLE_ID) == 0x475032 || TRIGame) // PacMan World 2 and Triforce hack
 		SiInitSet = 1;
-	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
-	write32(0x13002744, PADSwitchRequired() && (useipl == 0));
-	write32(0x13002748, PADForceConnected() && (useipl == 0));
-	write32(0x1300274C, drcAddress); //Set on kernel boot
-	write32(0x13002750, drcAddressAligned); //Set on kernel boot
-	sync_after_write((void*)0x13002740, 0x20);
+	write32(0x13003060, SiInitSet); //Clear SI Inited == 0
+	write32(0x13003064, PADSwitchRequired() && (useipl == 0));
+	write32(0x13003068, PADForceConnected() && (useipl == 0));
+	write32(0x1300306C, drcAddress); //Set on kernel boot
+	write32(0x13003070, drcAddressAligned); //Set on kernel boot
+	sync_after_write((void*)0x13003060, 0x20);
 	/* Clear very actively used areas */
 	memset32((void*)0x13026500, 0, 0x100);
 	sync_after_write((void*)0x13026500, 0x100);

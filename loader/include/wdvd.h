@@ -23,9 +23,14 @@ bool WDVD_IsPartitionOpen();
 bool WDVD_FST_IsMounted();
 bool WDVD_FST_Mount();
 int WDVD_FST_Open(const char *path);
-int WDVD_FST_Read(u8 *ptr, off_t pos, size_t len);
+int WDVD_FST_OpenDisc(u32 discNum);
+u32 WDVD_FST_LSeek(u32 pos);
+int WDVD_FST_Read(u8 *ptr, s32 len);
 int WDVD_FST_Close();
 bool WDVD_FST_Unmount();
+
+//aligned for smaller reads under 0x20
+extern u8 wdvdTmpBuf[];
 
 #ifdef __cplusplus
 }

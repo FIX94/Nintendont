@@ -3,7 +3,7 @@
 .set	AR_DMA_SAVE,		0x931C0040
 
 .set	OSReport,			0xC0001860
-.set	AR_DBG,				0x930028A0
+.set	AR_DBG,				0x930031A0
 
 #in
 #	r29	u32 type

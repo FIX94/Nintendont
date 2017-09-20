@@ -66,6 +66,7 @@ u32 virtentry = 0;
 u32 drcAddress = 0;
 u32 drcAddressAligned = 0;
 bool isWiiVC = false;
+bool wiiVCInternal = false;
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
@@ -156,8 +157,12 @@ int _main( int argc, char *argv[] )
 
 	//Verification if we can read from disc
 	if(memcmp(ConfigGetGamePath(), "di", 3) == 0)
-		RealDI_Init(); //will shutdown on fail
-
+	{
+		if(isWiiVC) //will be inited later
+			wiiVCInternal = true;
+		else //will shutdown on fail
+			RealDI_Init();
+	}
 	BootStatus(3, 0, 0);
 	fatfs = (FATFS*)malloca( sizeof(FATFS), 32 );
 
@@ -211,8 +216,8 @@ int _main( int argc, char *argv[] )
 	memset32((void*)RESET_STATUS, 0, 0x20);
 	sync_after_write((void*)RESET_STATUS, 0x20);
 
-	memset32((void*)0x13002800, 0, 0x30);
-	sync_after_write((void*)0x13002800, 0x30);
+	memset32((void*)0x13003100, 0, 0x30);
+	sync_after_write((void*)0x13003100, 0x30);
 	memset32((void*)0x13160000, 0, 0x20);
 	sync_after_write((void*)0x13160000, 0x20);
 

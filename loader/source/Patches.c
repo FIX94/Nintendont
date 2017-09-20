@@ -282,13 +282,10 @@ int LoadKernel(void)
 	gprintf("IOS Version: 0x%08X\n", FoundVersion);
 	DCFlushRange(IOSVersion, 0x20);
 
-	//char Path[32];
-	char *const Path = (char*)0x93003020;
-	DCInvalidateRange(Path, 1024);
-	memset(Path, 0, 1024);
-	snprintf(Path, 1024, "/shared1/%.8s.app", Entry);
+	char Path[32];
+	snprintf(Path, 32, "/shared1/%.8s.app", Entry);
 	gprintf("Kernel:\"%s\"\r\n", Path );
-	DCFlushRange(Path, 1024);
+	DCFlushRange(Path, 32);
 
 	// Open the actual IOS58 kernel file.
 	int kfd = IOS_Open(Path, 1);

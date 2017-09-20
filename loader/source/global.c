@@ -54,7 +54,7 @@ static int bg_xPos = 0;
 
 u32 POffset;
 
-NIN_CFG* ncfg = (NIN_CFG*)0x93002900;
+NIN_CFG* ncfg = (NIN_CFG*)0x93004000;
 bool UseSD;
 
 const char* const GetRootDevice()

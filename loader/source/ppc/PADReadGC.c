@@ -14,23 +14,21 @@ static vu32* const _siReg = (vu32*)0xCD006400;
 static vu32* const MotorCommand = (vu32*)0x93003010;
 static vu32* RESET_STATUS = (vu32*)0xD3003420;
 static vu32* HID_STATUS = (vu32*)0xD3003440;
-static vu32* HIDMotor = (vu32*)0x93002700;
-static vu32* PadUsed = (vu32*)0x93002704;
+static vu32* HIDMotor = (vu32*)0x93003020;
+static vu32* PadUsed = (vu32*)0x93003024;
 
-static vu32* PADIsBarrel = (vu32*)0xD3002830;
-static vu32* PADBarrelEnabled = (vu32*)0xD3002840;
-static vu32* PADBarrelPress = (vu32*)0xD3002850;
+static vu32* PADIsBarrel = (vu32*)0xD3003130;
+static vu32* PADBarrelEnabled = (vu32*)0xD3003140;
+static vu32* PADBarrelPress = (vu32*)0xD3003150;
 
 static volatile struct BTPadCont *BTPad = (volatile struct BTPadCont*)0x932F0000;
-static vu32* BTMotor = (vu32*)0x93002720;
-static vu32* BTPadFree = (vu32*)0x93002730;
-static vu32* SIInited = (vu32*)0x93002740;
-static vu32* PADSwitchRequired = (vu32*)0x93002744;
-static vu32* PADForceConnected = (vu32*)0x93002748;
-static vu32* drcAddress = (vu32*)0x9300274C;
-static vu32* drcAddressAligned = (vu32*)0x93002750;
-//fw.img r590 pointer to state TODO make dynamic
-static vu32* drcState = (vu32*)0x938BD770;
+static vu32* BTMotor = (vu32*)0x93003040;
+static vu32* BTPadFree = (vu32*)0x93003050;
+static vu32* SIInited = (vu32*)0x93003060;
+static vu32* PADSwitchRequired = (vu32*)0x93003064;
+static vu32* PADForceConnected = (vu32*)0x93003068;
+static vu32* drcAddress = (vu32*)0x9300306C;
+static vu32* drcAddressAligned = (vu32*)0x93003070;
 
 static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
@@ -38,6 +36,7 @@ static u32 PrevAdapterChannel3 = 0;
 static u32 PrevAdapterChannel4 = 0;
 
 const s8 DEADZONE = 0x1A;
+
 #define HID_PAD_NONE	4
 #define HID_PAD_NOT_SET	0xFF
 
@@ -81,6 +80,16 @@ const s8 DEADZONE = 0x1A;
 	); \
   }
 
+#define DRC_DEADZONE 10
+#define _DRC_BUILD_TMPSTICK(inval) \
+	tmp_stick16 = (((s8)(inval-0x80))*13)>>3; \
+	if(tmp_stick16 > DRC_DEADZONE) tmp_stick16 = (tmp_stick16-DRC_DEADZONE)*1.08f; \
+	else if(tmp_stick16 < -DRC_DEADZONE) tmp_stick16 = (tmp_stick16+DRC_DEADZONE)*1.08f; \
+	else tmp_stick16 = 0; \
+	if(tmp_stick16 > 0x7F) tmp_stick8 = 0x7F; \
+	else if(tmp_stick16 < -0x80) tmp_stick8 = -0x80; \
+	else tmp_stick8 = (s8)tmp_stick16;
+
 u32 _start(u32 calledByGame)
 {
 	// Registers r1,r13-r31 automatically restored if used.
@@ -89,11 +98,11 @@ u32 _start(u32 calledByGame)
 	u32 Rumble = 0, memInvalidate, memFlush;
 	u32 used = 0;
 
-	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
+	PADStatus *Pad = (PADStatus*)(0x93003100); //PadBuff
 	u32 MaxPads;
 	if(calledByGame)
 	{
-		MaxPads = ((NIN_CFG*)0x93002900)->MaxPads;
+		MaxPads = ((NIN_CFG*)0x93004000)->MaxPads;
 		if (MaxPads > NIN_CFG_MAXPAD)
 			MaxPads = NIN_CFG_MAXPAD;
 	}
@@ -107,7 +116,7 @@ u32 _start(u32 calledByGame)
 	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
 	/* For Wii VC */
-	if(calledByGame && *drcAddress && *drcState)
+	if(calledByGame && *drcAddress)
 	{
 		used |= (1<<0); //always use channel 0
 		if(HIDPad == HID_PAD_NOT_SET)
@@ -170,32 +179,16 @@ u32 _start(u32 calledByGame)
 		}
 		else /* for held status */
 			*RESET_STATUS = 0;
-		//scale sticks next
-		s16 leftX = (((s8)(i2cdata[4]-0x80))*13)>>3;
-		s16 leftY = (((s8)(i2cdata[5]-0x80))*13)>>3;
-		s16 rightX = (((s8)(i2cdata[6]-0x80))*13)>>3;
-		s16 rightY = (((s8)(i2cdata[7]-0x80))*13)>>3;
-		s8 tmp_stick;
-		//clamp left X
-		if(leftX > 0x7F) tmp_stick = 0x7F;
-		else if(leftX < -0x80) tmp_stick = -0x80;
-		else tmp_stick = leftX;
-		Pad[0].stickX = tmp_stick;
-		//clamp left Y
-		if(leftY > 0x7F) tmp_stick = 0x7F;
-		else if(leftY < -0x80) tmp_stick = -0x80;
-		else tmp_stick = leftY;
-		Pad[0].stickY = tmp_stick;
-		//clamp right X
-		if(rightX > 0x7F) tmp_stick = 0x7F;
-		else if(rightX < -0x80) tmp_stick = -0x80;
-		else tmp_stick = rightX;
-		Pad[0].substickX = tmp_stick;
-		//clamp right Y
-		if(rightY > 0x7F) tmp_stick = 0x7F;
-		else if(rightY < -0x80) tmp_stick = -0x80;
-		else tmp_stick = rightY;
-		Pad[0].substickY = tmp_stick;
+		//do scale, deadzone and clamp
+		s8 tmp_stick8; s16 tmp_stick16;
+		_DRC_BUILD_TMPSTICK(i2cdata[4]);
+		Pad[0].stickX = tmp_stick8;
+		_DRC_BUILD_TMPSTICK(i2cdata[5]);
+		Pad[0].stickY = tmp_stick8;
+		_DRC_BUILD_TMPSTICK(i2cdata[6]);
+		Pad[0].substickX = tmp_stick8;
+		_DRC_BUILD_TMPSTICK(i2cdata[7]);
+		Pad[0].substickY = tmp_stick8;
 	}
 	else
 	{

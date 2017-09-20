@@ -124,6 +124,9 @@ static ioctlv IOCTL_Buf ALIGNED(32);
 static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
 static const char NIN_BUILD_STRING[] ALIGNED(32) = NIN_VERSION_STRING; // Version detection string used by nintendont launchers "$$Version:x.xxx"
 
+bool isWiiVC = false;
+bool wiiVCInternal = false;
+
 /**
  * Update meta.xml.
  */
@@ -230,28 +233,40 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	FRESULT fres = FR_DISK_ERR;
 
 	if(CurDICMD)
+		ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
+	else if (IsSupportedFileExt(ncfg->GamePath) || wiiVCInternal)
 	{
-		if(CurDICMD == DIP_CMD_WIIVC)
-			WDVD_FST_Read(MultiHdr, 0, 0x800);
-		else
-			ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
-	}
-	else if (IsSupportedFileExt(ncfg->GamePath))
-	{
-		snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
-		fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
-		if (fres != FR_OK)
+		if(wiiVCInternal)
 		{
-			// Error opening the file.
-			free(MultiHdr);
-			return -1;
+			if(WDVD_FST_OpenDisc(0) != 0)
+			{
+				// Error opening the file.
+				free(MultiHdr);
+				return -1;
+			}
 		}
-
-		f_read(&f, MultiHdr, 0x800, &read);
+		else
+		{
+			snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
+			fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
+			if (fres != FR_OK)
+			{
+				// Error opening the file.
+				free(MultiHdr);
+				return -1;
+			}
+		}
+		if(wiiVCInternal)
+			read = WDVD_FST_Read(MultiHdr, 0x800);
+		else
+			f_read(&f, MultiHdr, 0x800, &read);
 		if (read != 0x800)
 		{
 			// Error reading from the file.
-			f_close(&f);
+			if(wiiVCInternal)
+				WDVD_FST_Close();
+			else
+				f_close(&f);
 			free(MultiHdr);
 			return -2;
 		}
@@ -271,16 +286,27 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 				*ISOShift = 0;
 			if (BI2region)
 			{
-				f_lseek(&f, 0x8458);
-				f_read(&f, BI2region, sizeof(*BI2region), &read);
+				if(wiiVCInternal)
+				{
+					WDVD_FST_LSeek(0x8458);
+					read = WDVD_FST_Read(wdvdTmpBuf, sizeof(*BI2region));
+					memcpy(&BI2region, wdvdTmpBuf, sizeof(*BI2region));
+				}
+				else
+				{
+					f_lseek(&f, 0x8458);
+					f_read(&f, BI2region, sizeof(*BI2region), &read);
+				}
 				if (read != sizeof(*BI2region))
 				{
 					// Error reading from the file.
 					ret = -3;
 				}
 			}
-
-			f_close(&f);
+			if(wiiVCInternal)
+				WDVD_FST_Close();
+			else
+				f_close(&f);
 			free(MultiHdr);
 			return ret;
 		}
@@ -331,7 +357,10 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		if (!CurDICMD)
 		{
 			// Close the disc image file.
-			f_close(&f);
+			if(wiiVCInternal)
+				WDVD_FST_Close();
+			else
+				f_close(&f);
 		}
 
 		if (BI2region)
@@ -387,16 +416,19 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 			}
 
 			if(CurDICMD)
-			{
-				if(CurDICMD == DIP_CMD_WIIVC)
-					WDVD_FST_Read(GameHdr, RealOffset, 0x800);
-				else
-					ReadRealDisc(GameHdr, RealOffset, 0x800, CurDICMD);
-			}
+				ReadRealDisc(GameHdr, RealOffset, 0x800, CurDICMD);
 			else
 			{
-				f_lseek(&f, RealOffset);
-				f_read(&f, GameHdr, 0x800, &read);
+				if(wiiVCInternal)
+				{
+					WDVD_FST_LSeek(RealOffset);
+					read = WDVD_FST_Read(GameHdr, 0x800);
+				}
+				else
+				{
+					f_lseek(&f, RealOffset);
+					f_read(&f, GameHdr, 0x800, &read);
+				}
 			}
 
 			// Make sure the title in the header is NULL terminated.
@@ -420,7 +452,10 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	free(MultiHdr);
 	if (!CurDICMD)
 	{
-		f_close(&f);
+		if(wiiVCInternal)
+			WDVD_FST_Close();
+		else
+			f_close(&f);
 	}
 
 	// TODO: Share code with menu.c.
@@ -512,9 +547,9 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	memcpy(&ncfg->GameID, gi[PosX].ID, 4);
 	return 0;
 }
+
 static char dev_es[] ATTRIBUTE_ALIGN(32) = "/dev/es";
 
-bool isWiiVC = false;
 extern vu32 FoundVersion;
 int main(int argc, char **argv)
 {
@@ -818,22 +853,28 @@ int main(int argc, char **argv)
 				ShowMessageScreenAndExit("Found no Partition on Wii VC Disc!", 1);
 			if(!WDVD_FST_Mount())
 				ShowMessageScreenAndExit("Unable to open Partition on Wii VC Disc!", 1);
-			if(WDVD_FST_Open("game.iso") != 0)
+			if(WDVD_FST_OpenDisc(0) != 0)
 				ShowMessageScreenAndExit("No game.iso on Wii VC Disc!", 1);
 			u8 *DIBuf = memalign(32,0x800);
-			if(WDVD_FST_Read(DIBuf, 0, 0x800) != 0x800)
+			if(WDVD_FST_Read(DIBuf, 0x800) != 0x800)
 			{
 				free(DIBuf);
 				ShowMessageScreenAndExit("Cant read game.iso start!", 1);
 			}
 			if( IsGCGame(DIBuf) == false )
 			{
-				free(DIBuf);
-				ShowMessageScreenAndExit("game.iso is not a GC Disc!", 1);
+				WDVD_FST_LSeek(0x8000);
+				WDVD_FST_Read(DIBuf, 0x800);
+				if( IsGCGame(DIBuf) == false )
+				{
+					free(DIBuf);
+					ShowMessageScreenAndExit("game.iso is not a GC Disc!", 1);
+				}
 			}
 			memcpy(&(ncfg->GameID), DIBuf, 4);
 			free(DIBuf);
-			CurDICMD = DIP_CMD_WIIVC;
+			WDVD_FST_Close();
+			wiiVCInternal = true;
 		}
 		else
 		{
@@ -1094,9 +1135,8 @@ int main(int argc, char **argv)
 	WUPC_Shutdown();
 	WPAD_Shutdown();
 
-	if(CurDICMD == DIP_CMD_WIIVC)
+	if(wiiVCInternal)
 	{
-		WDVD_FST_Close();
 		WDVD_FST_Unmount();
 		WDVD_Close();
 	}
@@ -1418,10 +1458,6 @@ int main(int argc, char **argv)
 		VIDEO_WaitVSync();
 	GX_AbortFrame();
 
-	DCInvalidateRange((void*)0x93000000, 0x3000);
-	memset((void*)0x93002700, 0, 0x200); //clears alot of pad stuff
-	memset((void*)0x93002C00, 0, 0x400); //clears alot of multidol stuff
-	strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
 	DCFlushRange((void*)0x93000000, 0x3000);
 
 	DCInvalidateRange((void*)0x93010010, 0x10000);
@@ -1433,12 +1469,14 @@ int main(int argc, char **argv)
 	memset((void*)0x93020000, 0, 0x10000);
 	DCFlushRange((void*)0x93020000, 0x10000);
 
-	DCInvalidateRange((void*)0x93003000, 0x20);
+	DCInvalidateRange((void*)0x93003000, 0x200);
 	//*(vu32*)0x93003000 = currev; //set kernel rev (now in LoadKernel)
 	*(vu32*)0x93003008 = 0x80000004; //just some address for SIGetType
 	//0x9300300C is already used for multi-iso
-	memset((void*)0x93003010, 0, 0x10); //disable rumble on bootup
-	DCFlushRange((void*)0x93003000, 0x20);
+	memset((void*)0x93003010, 0, 0x190); //clears alot of pad stuff
+	strcpy((char*)0x930031A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
+	memset((void*)0x930031E0, 0, 0x20); //clears tgc stuff
+	DCFlushRange((void*)0x93003000, 0x200);
 
 	//lets prevent weird events
 	__STM_Close();

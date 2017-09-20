@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set AX_BACKUP,		0xD3002780
+.set AX_BACKUP,		0xD3003500
 .set AX_DEST,		0x803CF6F0
 
 RestoreSettingsAX:

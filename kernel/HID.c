@@ -675,7 +675,7 @@ void HIDPS3SetRumble( u8 duration_right, u8 power_right, u8 duration_left, u8 po
 }
 
 vu32 HIDRumbleCurrent = 0, HIDRumbleLast = 0;
-vu32 MotorCommand = 0x13002700;
+vu32 MotorCommand = 0x13003020;
 void HIDPS3Read()
 {
 	if( !PS3LedSet && Packet[4] )

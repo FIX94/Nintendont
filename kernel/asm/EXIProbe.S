@@ -1,6 +1,6 @@
 #include <asm.h>
 
-.set		NinCfg,			0xD3002900
+.set		NinCfg,			0xD3004000
 .set		NinCfgConfig,	NinCfg + 0x8
 
 #in

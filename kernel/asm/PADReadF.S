@@ -1,7 +1,7 @@
 #include <asm.h>
 
 .set		PadStub,	0x93000000
-.set		PadBuff,	0x93002800
+.set		PadBuff,	0x93003100
 
 PADReadF:
 	#only update player 1

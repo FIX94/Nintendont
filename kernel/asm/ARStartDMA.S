@@ -3,7 +3,7 @@
 .set	AR_DMA_CNT,			0xCC005028
 
 .set	OSReport,			0xC0001860
-.set	AR_DBG,				0x930028A0
+.set	AR_DBG,				0x930031A0
 
 .set	AR_MRAM_TO_ARAM,	0
 .set	AR_ARAM_TO_MRAM,	1

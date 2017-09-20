@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "DI.h"
 #include "RealDI.h"
+#include "wdvd.h"
 #include "string.h"
 #include "common.h"
 #include "alloc.h"
@@ -66,7 +67,9 @@ extern const u8 *DiskDriveInfo;
 extern u32 FSTMode;
 extern u32 RealDiscCMD;
 extern u32 RealDiscError;
+extern bool wiiVCInternal;
 u32 WaitForRealDisc = 0;
+u32 DiscRequested = 0;
 
 u8 *const DI_READ_BUFFER = (u8*)0x12E80000;
 const u32 DI_READ_BUFFER_LENGTH = 0x80000;
@@ -161,7 +164,14 @@ void DIinit( bool FirstTime )
 
 	if (FirstTime)
 	{
-		if(RealDiscCMD == 0)
+		if(wiiVCInternal)
+		{
+			if(WDVD_Init() != 0)
+				Shutdown();
+			if(!WDVD_FST_Mount())
+				Shutdown();
+		}
+		else if(RealDiscCMD == 0)
 		{
 			// Check if this is a 2-disc game.
 			u32 i, slash_pos;
@@ -260,27 +270,36 @@ void DISetDIMMVersion( u32 Version )
 }
 bool DIChangeDisc( u32 DiscNumber )
 {
-	// Don't do anything if multi-disc mode isn't enabled.
-	if (!DI_2disc_filenames[0] ||
-	    !DI_2disc_filenames[1] ||
-	    DiscNumber > 1)
+	if(wiiVCInternal)
 	{
-		return false;
+		if(DiscNumber > 1)
+			return false;
+		DiscRequested = DiscNumber;
 	}
-
-	u32 slash_pos;
-	char* DiscName = ConfigGetGamePath();
-
-	//search the string backwards for '/'
-	for (slash_pos = strlen(DiscName); slash_pos > 0; --slash_pos)
+	else
 	{
-		if (DiscName[slash_pos] == '/')
-			break;
-	}
-	slash_pos++;
+		// Don't do anything if multi-disc mode isn't enabled.
+		if (!DI_2disc_filenames[0] ||
+			!DI_2disc_filenames[1] ||
+			DiscNumber > 1)
+		{
+			return false;
+		}
 
-	_sprintf(DiscName+slash_pos, DI_2disc_filenames[DiscNumber]);
-	dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
+		u32 slash_pos;
+		char* DiscName = ConfigGetGamePath();
+
+		//search the string backwards for '/'
+		for (slash_pos = strlen(DiscName); slash_pos > 0; --slash_pos)
+		{
+			if (DiscName[slash_pos] == '/')
+				break;
+		}
+		slash_pos++;
+
+		_sprintf(DiscName+slash_pos, DI_2disc_filenames[DiscNumber]);
+		dbgprintf("New Gamepath:\"%s\"\r\n", DiscName );
+	}
 	DIinit(false);
 	return true;
 }
@@ -901,7 +920,7 @@ void DIFinishAsync()
 		BTUpdateRegisters();
 	}
 }
-
+/*
 struct _TGCInfo
 {
 	u32 tgcoffset;
@@ -912,7 +931,7 @@ struct _TGCInfo
 	u32 fstupdate;
 	u32 isTGC;
 };
-static struct _TGCInfo *const TGCInfo = (struct _TGCInfo*)0x13002FE0;
+static struct _TGCInfo *const TGCInfo = (struct _TGCInfo*)0x130031E0;
 
 #define PATCH_STATE_PATCH 2
 extern u32 PatchState, DOLSize, DOLMinOff, DOLMaxOff;
@@ -955,3 +974,4 @@ bool DICheckTGC(u32 Buffer, u32 Length)
 		dbgprintf("Game is loading another DOL\n");
 	return false;
 }
+*/

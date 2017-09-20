@@ -93,7 +93,7 @@ void SIUpdateRegisters()
 		//cur_control &= ~(1 << 29); //we normally always have some communication error?
 		u32 chan = (cur_control >> 1) & 0x3;
 		u32 ChanBuff = PAD_BUFF + (chan * 0xC);
-		bool PadGood = !!(read32(0x13002704) & (1<<chan));
+		bool PadGood = !!(read32(0x13003024) & (1<<chan));
 		if (chan >= ConfigGetMaxPads())
 			PadGood = false;
 		switch ((read32(SI_IO_BUF) >> 24) & 0xFF)

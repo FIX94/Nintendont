@@ -61,7 +61,7 @@ static const char SETTINGS_VS4V06EXP[] = "/saves/VS4V06EXPsettings.bin";
 static const char *TRISettingsName = (char*)0;
 static u32 TRISettingsLoc = 0, TRISettingsSize = 0;
 
-static void *OUR_SETTINGS_LOC = (void*)0x13002780;
+static void *OUR_SETTINGS_LOC = (void*)0x13003500;
 
 #ifndef DEBUG_PATCH
 #define dbgprintf(...)

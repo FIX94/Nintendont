@@ -13,6 +13,9 @@
 
 #define SECTOR_SIZE 0x800
 
+//aligned for smaller reads under 0x20
+u8 wdvdTmpBuf[0x20] ATTRIBUTE_ALIGN(32);
+
 typedef struct {
 	u32 dol_offset;
 	u32 fst_offset;
@@ -150,32 +153,32 @@ int WDVD_FST_Close()
 	return 0;
 }
 
-static off_t _WDVD_FST_Seek( off_t pos )
+static char *discName[2] = { "game.iso", "disc2.iso" };
+int WDVD_FST_OpenDisc(u32 discNum)
 {
-	//gprintf("_FST_seek_r()\n" );
+	if(discNum > 1) return -1;
+	return WDVD_FST_Open(discName[discNum]);
+}
 
-	if( pos < 0 || pos > fst[ openFile.entry ].filelen )
+u32 WDVD_FST_LSeek( u32 pos )
+{
+	if( pos > fst[ openFile.entry ].filelen )
 	{
 		//gprintf("seek: shit\n");
-		return -1;
+		pos = fst[ openFile.entry ].filelen;
 	}
 	openFile.offset = pos;
 
 	return pos;
 }
 
-int WDVD_FST_Read(u8 *ptr, off_t pos, size_t len)
+int WDVD_FST_Read(u8 *ptr, s32 len)
 {
 	//gprintf("read( %d )\n", fd );
 	if( !openFile.inUse )
 	{
 		//gprintf("read: !openFile.inUse\n");
 		return -1;
-	}
-	if( _WDVD_FST_Seek(pos) < 0)
-	{
-		//gprintf("read: _FST_Seek < 0\n");
-		return 0;
 	}
 	if( openFile.offset >= fst[ openFile.entry ].filelen )
 	{
@@ -201,7 +204,6 @@ int WDVD_FST_Read(u8 *ptr, off_t pos, size_t len)
 	openFile.offset += len;
 
 	return len;
-
 }
 
 static bool read_disc() {

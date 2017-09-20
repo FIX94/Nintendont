@@ -47,7 +47,7 @@ void ConfigInit( void );
 extern u32 BI2region;
 
 // Nintendont configuration.
-static NIN_CFG *const ncfg = (NIN_CFG*)0x13002900;
+static NIN_CFG *const ncfg = (NIN_CFG*)0x13004000;
 
 // NOTE: DIChangeDisc() modifies this path.
 static inline char *ConfigGetGamePath(void)

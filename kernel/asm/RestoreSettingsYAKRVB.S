@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
 
-.set YAK_BACKUP,	(0xD3002780+0xE8)
+.set YAK_BACKUP,	(0xD3003500+0xE8)
 .set YAK_DEST,		(0x803D3D0C+0xE8)
 
 RestoreSettingsYAKRVB:

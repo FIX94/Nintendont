@@ -41,22 +41,25 @@ static const char SETTINGS_VS4EXP[] = "/saves/VS4EXPsettings.bin";
 static const char SETTINGS_VS4V06JAP[] = "/saves/VS4V06JAPsettings.bin";
 static const char SETTINGS_VS4V06EXP[] = "/saves/VS4V06EXPsettings.bin";
 
+extern bool wiiVCInternal;
+
 static u32 DOLRead32(u32 loc, u32 DOLOffset, FIL *f, u32 CurDICMD)
 {
 	u32 BufAtOffset = 0;
-	if(f != NULL)
+	if(wiiVCInternal)
+	{
+		WDVD_FST_LSeek(DOLOffset+loc);
+		WDVD_FST_Read(wdvdTmpBuf, 4);
+		memcpy(&BufAtOffset, wdvdTmpBuf, 4);
+	}
+	else if(f != NULL)
 	{
 		UINT read;
 		f_lseek(f, DOLOffset+loc);
 		f_read(f, &BufAtOffset, 4, &read);
 	}
 	else if(CurDICMD)
-	{
-		if(CurDICMD == DIP_CMD_WIIVC)
-			WDVD_FST_Read((u8*)&BufAtOffset, DOLOffset+loc, 4);
-		else
-			ReadRealDisc((u8*)&BufAtOffset, DOLOffset+loc, 4, CurDICMD);
-	}
+		ReadRealDisc((u8*)&BufAtOffset, DOLOffset+loc, 4, CurDICMD);
 	return BufAtOffset;
 }
 
@@ -71,10 +74,15 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 
 	if(CurDICMD)
 	{
-		if(CurDICMD == DIP_CMD_WIIVC)
-			WDVD_FST_Read((u8*)&DOLOffset, 0x420+ISOShift, 4);
-		else
-			ReadRealDisc((u8*)&DOLOffset, 0x420+ISOShift, 4, CurDICMD);
+		ReadRealDisc((u8*)&DOLOffset, 0x420+ISOShift, 4, CurDICMD);
+		DOLOffset+=ISOShift;
+	}
+	else if(wiiVCInternal)
+	{
+		WDVD_FST_OpenDisc(0);
+		WDVD_FST_LSeek(0x420+ISOShift);
+		WDVD_FST_Read(wdvdTmpBuf, 4);
+		memcpy(&DOLOffset, wdvdTmpBuf, 4);
 		DOLOffset+=ISOShift;
 	}
 	else
@@ -214,7 +222,9 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		CreateNewFile(SaveFile, 0x100);
 	}
 
-	if (fres == FR_OK)
+	if(wiiVCInternal)
+		WDVD_FST_Close();
+	else if (fres == FR_OK)
 		f_close(&f);
 	return res;
 }
