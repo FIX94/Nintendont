@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ogcsys.h>
-#include <fat.h>
 #include <unistd.h>
 
 #ifdef __cplusplus
