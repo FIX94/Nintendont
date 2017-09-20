@@ -166,6 +166,8 @@ void Shutdown( void )
 #endif
 
 #endif
+	/* Allow all IOS IRQs again */
+	write32(HW_IPC_ARMCTRL, 0x36);
 	if( IsWiiU() )
 	{
 		WiiUResetToMenu(); 

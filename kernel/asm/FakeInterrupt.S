@@ -14,7 +14,7 @@ FakeInterrupt:
 	beq		end		#if bit 14=0 then no need to check
 
 	lis		%r3,	0xCD80
-	li		%r0,	0x34
+	li		%r0,	0x22
 	stw		%r0,	4(%r3)
 	lis		%r0,	0x4000
 	stw		%r0,	0x30(%r3)

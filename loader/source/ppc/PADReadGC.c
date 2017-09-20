@@ -1407,6 +1407,8 @@ Shutdown:
 	do {
 		*stubdest++ = *stubsrc++;
 	} while((stubsize-=4) > 0);
+	/* Allow all IOS IRQs again */
+	*(vu32*)0xCD800004 = 0x36;
 	/* jump to it */
 	asm volatile(
 		"lis %r3, 0x8000\n"

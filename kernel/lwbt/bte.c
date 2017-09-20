@@ -127,7 +127,10 @@ static inline s32 __bte_waitcmdfinish(struct bt_state *state)
 	if(!state) return ERR_VAL;
 
 	while(!state->hci_cmddone)
+	{
 		BTUpdateRegisters();
+		udelay(100);
+	}
 	ret = state->last_err;
 
 	return ret;
@@ -154,6 +157,7 @@ static inline s32 __bte_waitrequest(struct ctrl_req_t *req)
 		&& req->state!=STATE_FAILED)
 	{
 		BTUpdateRegisters();
+		udelay(100);
 	}
 	err = req->err;
 

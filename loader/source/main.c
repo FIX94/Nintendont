@@ -1499,7 +1499,8 @@ int main(int argc, char **argv)
 	DCFlushRange((void*)0x90000000, 0x1000000);
 
 	gprintf("Game Start\n");
-
+	//alow interrupts on Y2
+	write32(0x0d000004,0x22);
 	if(useipl)
 	{
 		load_ipl(iplbuf);

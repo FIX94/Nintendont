@@ -193,7 +193,7 @@ void EXIInterrupt(void)
 	sync_after_write( (void*)0, 0x20 );
 	write32( EXI_INT, 0x10 ); // EXI IRQ
 	sync_after_write( (void*)EXI_INT, 0x20 );
-	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+	write32( HW_IPC_ARMCTRL, 8 ); //throw irq
 	//dbgprintf("EXI Interrupt\r\n");
 	EXI_IRQ = false;
 	IRQ_Timer = 0;

@@ -331,7 +331,7 @@ void DIInterrupt()
 		{
 			write32( DI_INT, 0x4 ); // DI IRQ
 			sync_after_write( (void*)DI_INT, 0x20 );
-			write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+			write32( HW_IPC_ARMCTRL, 8 ); //throw irq
 			//dbgprintf("Disc Interrupt\r\n");
 		}
 	}
@@ -343,7 +343,7 @@ void DIInterrupt()
 		{
 			write32( DI_INT, 0x4 ); // DI IRQ
 			sync_after_write( (void*)DI_INT, 0x20 );
-			write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+			write32( HW_IPC_ARMCTRL, 8 ); //throw irq
 			//dbgprintf("Disc Interrupt\r\n");
 		}
 	}

@@ -281,7 +281,7 @@ int _main( int argc, char *argv[] )
 	clear32(HW_GPIO_OWNER, GPIO_SENSOR_BAR);
 	set32(HW_GPIO_OUT, GPIO_SENSOR_BAR);	//turn on sensor bar
 
-	write32( HW_PPCIRQMASK, (1<<30) );
+	write32( HW_PPCIRQMASK, (1<<30) ); //only allow IPC IRQ
 	write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );
 
 	//This bit seems to be different on japanese consoles
@@ -332,7 +332,7 @@ int _main( int argc, char *argv[] )
 			sync_before_read((void*)INT_BASE, 0x80);
 			if((read32(RSW_INT) & 2) || (read32(DI_INT) & 4) || 
 				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10))
-				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+				write32(HW_IPC_ARMCTRL, 8); //throw irq
 			InterruptTimer = read32(HW_TIMER);
 		}
 		#ifdef PATCHALL
@@ -450,7 +450,7 @@ int _main( int argc, char *argv[] )
 				dbgprintf("Fake Reset IRQ\r\n");
 				write32( RSW_INT, 0x2 ); // Reset irq
 				sync_after_write( (void*)RSW_INT, 0x20 );
-				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+				write32(HW_IPC_ARMCTRL, 8); //throw irq
 				Reset = 1;
 			}
 		}
@@ -549,6 +549,8 @@ int _main( int argc, char *argv[] )
 		mask32(0xd8006a8, 0, 2);
 	}
 WaitForExit:
+	/* Allow all IOS IRQs again */
+	write32(HW_IPC_ARMCTRL, 0x36);
 	/* Wii VC is unable to cleanly use ES */
 	if(isWiiVC)
 	{
