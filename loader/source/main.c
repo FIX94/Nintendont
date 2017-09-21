@@ -242,7 +242,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 			{
 				// Error opening the file.
 				free(MultiHdr);
-				return -1;
+				return 1;
 			}
 		}
 		else
@@ -253,7 +253,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 			{
 				// Error opening the file.
 				free(MultiHdr);
-				return -1;
+				return 1;
 			}
 		}
 		if(wiiVCInternal)
@@ -268,7 +268,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 			else
 				f_close(&f);
 			free(MultiHdr);
-			return -2;
+			return 2;
 		}
 
 		// Check for CISO magic with 2 MB block size.
@@ -300,7 +300,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 				if (read != sizeof(*BI2region))
 				{
 					// Error reading from the file.
-					ret = -3;
+					ret = 3;
 				}
 			}
 			if(wiiVCInternal)
@@ -330,7 +330,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		{
 			// Error opening bi2.bin.
 			free(MultiHdr);
-			return -4;
+			return 4;
 		}
 
 		// bi2.bin is normally 8 KB, but we only need
@@ -341,7 +341,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		{
 			// Could not read bi2.bin.
 			free(MultiHdr);
-			return -5;
+			return 5;
 		}
 
 		// BI2.bin is at 0x440.
@@ -953,10 +953,65 @@ int main(int argc, char **argv)
 	// Get multi-game and region code information.
 	u32 ISOShift = 0;	// NOTE: This is a 34-bit shifted offset.
 	u32 BI2region = 0;	// bi2.bin region code [TODO: Validate?]
-	if (CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region) != 0)
-	{
-		ShowMessageScreenAndExit("CheckForMultiGameAndRegion() failed.", 1);
+	int ret = CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region);
+	if (ret != 0) {
+		ClearScreen();
+		PrintInfo();
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4, "CheckForMultiGameAndRegion() failed: %d", ret);
+		switch (ret) {
+			case 1:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to open the %s.",
+					CurDICMD == 0 ? "disc image file" : "disc drive");
+				break;
+			case 2:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to read the disc header.");
+				break;
+			case 3:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to read the CISO bi2.bin area.");
+				break;
+			case 4:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to open the extracted FST bi2.bin file.");
+				break;
+			case 5:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to read the extracted FST bi2.bin file.");
+				break;
+			default:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unknown error code.");
+				break;
+		}
+
+		if (CurDICMD) {
+			char unkdev[32];
+			const char *device;
+			switch (CurDICMD) {
+				case DIP_CMD_NORMAL:
+					device = "GameCube disc";
+					break;
+				case DIP_CMD_DVDR:
+					device = "DVD-R";
+					break;
+				default:
+					snprintf(unkdev, sizeof(unkdev), "Unknown (CMD: 0x%02lX)", CurDICMD);
+					device = unkdev;
+					break;
+			}
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "Device: %s", device);
+		} else {
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "Filename: %s:%s", GetRootDevice(), ncfg->GamePath);
+		}
+
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*20, "Returning to loader in 10 seconds.");
+		UpdateScreen();
+		VIDEO_WaitVSync();
+
+		// Wait 10 seconds...
+		usleep(10000000);
+
+		// Return to the loader.
+		ExitToLoader(1);
 	}
+
+	// Save the ISO shift value for multi-game discs.
 	*(vu32*)0xD300300C = ISOShift;
 
 //Set Language

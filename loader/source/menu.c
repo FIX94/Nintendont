@@ -718,7 +718,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
 
 		// Starting position.
-		int gamelist_y = MENU_POS_Y + 20*5;
+		int gamelist_y = MENU_POS_Y + 20*5 + 10;
 
 		const gameinfo *gi = &ctx->games.gi[ctx->games.scrollX];
 		int gamesToPrint = ctx->games.gamecount - ctx->games.scrollX;
@@ -755,24 +755,29 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		}
 
 		// Can we show information for the selected title?
-		if(IsWiiU() && !isWiiVC)
-		{
+		if (IsWiiU() && !isWiiVC) {
 			// Can show information for all games on WiiU
 			ctx->games.canShowInfo = true;
-		}
-		else
-		{
-			if ((ctx->games.scrollX + ctx->games.posX) == 0)
-			{
+		} else {
+			if ((ctx->games.scrollX + ctx->games.posX) == 0) {
 				// Cannot show information for DISC01 on Wii and Wii VC.
 				ctx->games.canShowInfo = false;
-			}
-			else
-			{
+			} else {
 				// Can show information for all other games.
 				ctx->games.canShowInfo = true;
 			}
 		}
+
+		if (ctx->games.canShowInfo) {
+			// Print the selected game's filename.
+			const gameinfo *const gi = &ctx->games.gi[ctx->games.scrollX + ctx->games.posX];
+			const int len = strlen(gi->Path);
+			const int x = (640 - (len*10)) / 2;
+
+			const u32 color = DiscFormatColors[gi->Flags & GIFLAG_FORMAT_MASK];
+			PrintFormat(DEFAULT_SIZE, color, x, MENU_POS_Y + 20*4+5, "%s", gi->Path);
+		}
+
 		// GRRLIB rendering is done by SelectGame().
 	}
 
