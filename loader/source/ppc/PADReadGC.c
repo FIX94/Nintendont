@@ -1394,15 +1394,15 @@ Shutdown:
 	asm volatile("mfmsr 3 ; rlwinm 3,3,0,17,15 ; mtmsr 3");
 	/* stop audio dma */
 	_dspReg[27] = (_dspReg[27]&~0x8000);
+	/* reset status 1 */
+	*RESET_STATUS = 0x1DEA;
+	while(*RESET_STATUS == 0x1DEA) ;
 	/* disable dcache and icache */
 	asm volatile("sync ; isync ; mfspr 3,1008 ; rlwinm 3,3,0,18,15 ; mtspr 1008,3");
 	/* disable memory protection */
 	_memReg[15] = 0xF;
 	_memReg[16] = 0;
 	_memReg[8] = 0xFF;
-	/* reset status 1 */
-	*RESET_STATUS = 0x1DEA;
-	while(*RESET_STATUS == 0x1DEA) ;
 	/* load in stub */
 	do {
 		*stubdest++ = *stubsrc++;
