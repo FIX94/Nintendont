@@ -34,6 +34,9 @@ static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
 static u32 PrevAdapterChannel3 = 0;
 static u32 PrevAdapterChannel4 = 0;
+static u32 PrevDRCButton = 0;
+
+#define DRC_SWAP (1<<16)
 
 const s8 DEADZONE = 0x1A;
 
@@ -131,10 +134,24 @@ u32 _start(u32 calledByGame)
 		//Start out mapping buttons first
 		u16 button = 0;
 		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
-		if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
-		if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
-		if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_X;
-		if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_Y;
+		//swap abxy when minus is pressed
+		if((!(PrevDRCButton & WIIDRC_BUTTON_MINUS)) && drcbutton & WIIDRC_BUTTON_MINUS)
+			PrevDRCButton ^= DRC_SWAP;
+		PrevDRCButton = (PrevDRCButton & DRC_SWAP) | drcbutton;
+		if(PrevDRCButton & DRC_SWAP)
+		{	/* turn buttons quarter clockwise */
+			if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_A;
+			if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_B;
+			if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_X;
+			if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_Y;
+		}
+		else
+		{
+			if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
+			if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
+			if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_X;
+			if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_Y;
+		}
 		if(drcbutton & WIIDRC_BUTTON_LEFT) button |= PAD_BUTTON_LEFT;
 		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
 		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
