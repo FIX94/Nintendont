@@ -1,11 +1,12 @@
 #include <asm.h>
+.include "constants.inc"
 
 PADControlMotorGP:
 	#original instruction
 	lbz		%r4,	0x2F(%r31)
 	#load control motor base into r3
-	lis		%r3,	0x9300
-	ori		%r3,	%r3,	0x3010
+	lis		%r3,	PadRumble@h
+	ori		%r3,	%r3,	PadRumble@l
 	#start by checking if rumble was active
 	lbz		%r5,	0(%r3)
 	cmpwi	%r5,	0

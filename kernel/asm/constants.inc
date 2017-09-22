@@ -44,15 +44,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /** Audio streaming **/
 
-.set	STREAM_BASE,	0xD3026520
-.set	STREAM_UPDATE,	0xD3026524
 .set	REAL_STREAMING,	0xCD80682E
-.set	FAKE_STREAMING,	0xD3026540
-.set	STREAM_LENGTH,	0xD3026544
-.set	STREAM_START,	0xD3026548
-.set	STREAM_CURRENT,	0xD302654C
-.set	REALSTREAM_END,	0xD3026550
-.set	LOOP_ENABLED,	0xD3026580
+
+.set	STREAM_BASE,	0xD3026520
+.set	STREAM_UPDATE,	STREAM_BASE+0x04
+.set	FAKE_STREAMING,	STREAM_BASE+0x20
+.set	STREAM_LENGTH,	STREAM_BASE+0x24
+.set	STREAM_START,	STREAM_BASE+0x28
+.set	STREAM_CURRENT,	STREAM_BASE+0x2C
+.set	REALSTREAM_END,	STREAM_BASE+0x30
+.set	LOOP_ENABLED,	STREAM_BASE+0x60
 
 /** Disc Interface **/
 
@@ -68,5 +69,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 .set	PadStub,	0x93000000
 .set	PadBuff,	0x93003100
+
+.set	PadRumble,	0x93003010
+.set	PadRumble_0,	PadRumble+0x00
+.set	PadRumble_1,	PadRumble+0x04
+.set	PadRumble_2,	PadRumble+0x08
+.set	PadRumble_3,	PadRumble+0x0C
 
 #endif /* __NINTENDONT_KERNEL_ASM_CONSTANTS_H__ */
