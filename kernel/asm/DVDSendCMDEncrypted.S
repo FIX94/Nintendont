@@ -17,8 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
-
-.set DI_BASE, 0xD3026000 #Kernel DI.h
+.include "constants.inc"
 
 DVDSendCMDEncrypted:
 	lis %r6, DI_BASE@h

@@ -1,7 +1,5 @@
 #include <asm.h>
-
-.set	INT_BASE,	0xD3026500
-.set	RSW_INT,	INT_BASE+0x00
+.include "constants.inc"
 
 OSGetResetButtonState:
 	lis		%r5,	INT_BASE@h

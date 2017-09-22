@@ -8,8 +8,7 @@
 #out
 #	r3	res
 
-.set	EXI_CMD_0,	0xD3026800
-.set	EXI_CMD_1,	0xD3026804
+.include "constants.inc"
 
 EXISelect:
 	lis		%r7,	0xD302

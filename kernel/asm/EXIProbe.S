@@ -5,11 +5,7 @@
 # - r3: 1 if a device is present; 0 if no device is present.
 
 #include <asm.h>
-
-.set		NinCfg,		0xD3004000
-.set		NinCfgConfig,	NinCfg + 0x8
-
-.set		SLOTB_EN,	0x80000000
+.include "constants.inc"
 
 EXIProbe:
 	lis	%r4,	NinCfgConfig@h
@@ -25,7 +21,7 @@ EXIProbe:
 
 	lis	%r4,	NinCfgConfig@h
 	lwz	%r4,	NinCfgConfig@l(%r4)
-	andis.	%r4,	%r4,	SLOTB_EN@h	# Check if a Slot B image was loaded.
+	andis.	%r4,	%r4,	NIN_CFG_MC_SLOTB@h	# Check if a Slot B image was loaded.
 	bne	True
 
 False:

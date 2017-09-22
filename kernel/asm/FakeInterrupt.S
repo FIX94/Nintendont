@@ -1,11 +1,5 @@
 #include <asm.h>
-
-#all in different cache blocks
-.set	INT_BASE,	0xD3026500
-.set	RSW_INT,	INT_BASE+0x00
-.set	DI_INT,		INT_BASE+0x20
-.set	SI_INT,		INT_BASE+0x40
-.set	EXI_INT,	INT_BASE+0x60
+.include "constants.inc"
 
 FakeInterrupt:
 	lwz		%r31,	0x3000(%r3)
