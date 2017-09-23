@@ -505,7 +505,7 @@ static const devInitInfo_t devInitInfo[2] =
  */
 const WCHAR *MountDevice(BYTE pdrv)
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB)
 		return NULL;
 
 	// Attempt to initialize this device
@@ -553,7 +553,7 @@ const WCHAR *MountDevice(BYTE pdrv)
  */
 int UnmountDevice(BYTE pdrv)
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB)
 		return -1;
 
 	// FIXME: Close the log file if it's on this device?
