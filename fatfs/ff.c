@@ -3125,7 +3125,9 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	if (disk_ioctl(fs->drv, GET_SECTOR_SIZE, &SS(fs)) != RES_OK) return FR_DISK_ERR;
 	if (SS(fs) > _MAX_SS || SS(fs) < _MIN_SS || (SS(fs) & (SS(fs) - 1))) return FR_DISK_ERR;
 #endif
+
 	/* Find an FAT partition on the drive. Supports only generic partitioning, FDISK and SFD. */
+	mem_set(br, 0, sizeof(br));
 	bsect = 0;
 	fmt = check_fs(fs, bsect);			/* Load sector 0 and check if it is an FAT-VBR as SFD */
 	if (fmt == 2 || (fmt < 2 && LD2PT(vol))) {	/* Not an FAT-VBR or forced partition number */
