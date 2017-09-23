@@ -341,9 +341,6 @@ bool LoadNinCFG(void)
 	if (ncfg->MaxPads > NIN_CFG_MAXPAD)
 		ConfigLoaded = false;
 
-	if (ncfg->MaxPads < 0)
-		ConfigLoaded = false;
-
 	return ConfigLoaded;
 }
 
