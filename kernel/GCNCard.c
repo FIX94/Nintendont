@@ -53,7 +53,7 @@ static void GCNCard_InitCtx(GCNCard_ctx *ctx)
  */
 inline u32 GCNCard_IsEnabled(int slot)
 {
-	if (slot < 0 || slot > ARRAY_SIZE(memCard))
+	if (slot < 0 || slot >= ARRAY_SIZE(memCard))
 		return 0;
 
 	// Card is enabled if it's larger than 0 bytes.
