@@ -35,12 +35,12 @@ static inline bool char_to_wchar(const char *str)
 
 	// Convert from UTF-32 to UTF-16.
 	// NOTE: Characters >U+FFFF are not supported.
-	for (i = 0; i < len; ++i) {
+	for (i = 0; i < len && tmpwchar.u32[i] != 0; ++i) {
 		tmpwchar.u16[i] = (WCHAR)(tmpwchar.u32[i] & 0xFFFF);
        }
 
 	// NULL-terminate the string.
-	tmpwchar.u16[len] = 0;
+	tmpwchar.u16[i] = 0;
 	return true;
 }
 

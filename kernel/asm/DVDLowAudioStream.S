@@ -17,16 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
-
-.set	STREAM_BASE,	0xD3026520
-.set	STREAM_UPDATE,	0xD3026524
-.set	REAL_STREAMING,	0xCD80682E
-.set	FAKE_STREAMING,	0xD3026540
-.set	STREAM_LENGTH,	0xD3026544
-.set	STREAM_START,	0xD3026548
-.set	STREAM_CURRENT,	0xD302654C
-.set	REALSTREAM_END,	0xD3026550
-.set	LOOP_ENABLED,	0xD3026580
+.include "constants.inc"
 
 DVDLowAudioStream:
 	mtctr	%r6

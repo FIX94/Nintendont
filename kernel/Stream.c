@@ -105,6 +105,7 @@ void StreamUpdate()
 	for(i = 0; i < cur_chunksize; i += ONE_BLOCK_SIZE)
 	{
 		//outl and outr needed to be swapped here to be correct
+		// coverity[swapped_arguments]
 		ADPdecodebuffer(StreamBuffer+i,outr,outl,&hist[0],&hist[1],&hist[2],&hist[3]);
 		CurrentWriter();
 	}

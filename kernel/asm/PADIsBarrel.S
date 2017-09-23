@@ -1,4 +1,5 @@
 #include <asm.h>
+.include "constants.inc"
 
 PADIsBarrel:
 	cmpwi	%r3,	0

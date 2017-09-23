@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Stream.h"
 #include "HID.h"
 #include "EXI.h"
+#include "GCNCard.h"
 #include "debug.h"
 #include "GCAM.h"
 #include "TRI.h"
@@ -181,22 +182,23 @@ int _main( int argc, char *argv[] )
 
 	FIL fp;
 	s32 fres = f_open_char(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
-	switch(fres)
+	switch (fres)
 	{
 		case FR_OK:
 			f_close(&fp);
+			break;
+
 		case FR_NO_PATH:
 		case FR_NO_FILE:
-		{
 			fres = FR_OK;
-		} break;
+			break;
+
 		default:
 		case FR_DISK_ERR:
-		{
 			BootStatusError(-5, fres);
 			mdelay(4000);
 			Shutdown();
-		} break;
+			break;
 	}
 
 	if(!UseUSB) //Use FAT values for SD
@@ -361,7 +363,7 @@ int _main( int argc, char *argv[] )
 		{
 			if(TimerDiffSeconds(Now) > 2) /* after 3 second earliest */
 			{
-				EXISaveCard();
+				GCNCard_Save();
 				SaveCard = false;
 			}
 		}
@@ -430,7 +432,7 @@ int _main( int argc, char *argv[] )
 		#endif
 		StreamUpdateRegisters();
 		CheckOSReport();
-		if(EXICheckCard())
+		if(GCNCard_CheckChanges())
 		{
 			Now = read32(HW_TIMER);
 			SaveCard = true;
