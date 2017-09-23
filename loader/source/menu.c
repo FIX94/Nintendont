@@ -1710,6 +1710,7 @@ static int SelectGame(void)
 		StartChar++;
 	}
 	strncpy(ncfg->GamePath, StartChar, sizeof(ncfg->GamePath));
+	ncfg->GamePath[sizeof(ncfg->GamePath)-1] = 0;
 	memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
 	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 
