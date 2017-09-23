@@ -182,22 +182,23 @@ int _main( int argc, char *argv[] )
 
 	FIL fp;
 	s32 fres = f_open_char(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
-	switch(fres)
+	switch (fres)
 	{
 		case FR_OK:
 			f_close(&fp);
+			break;
+
 		case FR_NO_PATH:
 		case FR_NO_FILE:
-		{
 			fres = FR_OK;
-		} break;
+			break;
+
 		default:
 		case FR_DISK_ERR:
-		{
 			BootStatusError(-5, fres);
 			mdelay(4000);
 			Shutdown();
-		} break;
+			break;
 	}
 
 	if(!UseUSB) //Use FAT values for SD
