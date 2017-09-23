@@ -91,16 +91,19 @@ static int UnzipFile(const char *dir, bool useDefaultDrive, DOWNLOADS download_n
 	f_mkdir_char(dir); // attempt to make dir
 	if (f_chdir_char(dir) != FR_OK) {
 		gprintf("Error changing into %s, aborting\r\n", dir);
+		unzClose(uf);
 		return -2;
 	}
 
-	if (extractZip(uf, 0, 1, 0)) {
+	int ret = extractZip(uf, 0, 1, 0);
+	unzCloseCurrentFile(uf);
+	unzClose(uf);
+
+	if (ret != 0) {
 		gprintf("Failed to extract %s\r\n", filepath);
 		return -3;
 	}
 
-	unzCloseCurrentFile(uf);
-	unzClose(uf);
 	remove(Downloads[download_number].filename);
 	changeToDefaultDrive();
 	return 1;
