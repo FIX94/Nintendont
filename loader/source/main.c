@@ -387,6 +387,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	// Games must be aligned to 4-byte boundaries, since
 	// we're using 34-bit rsh2 (Wii) offsets.
 	u8 gameIsUnaligned[15];
+	memset(gameIsUnaligned, 0, sizeof(gameIsUnaligned));
 
 	u8 *GameHdr = memalign(32, 0x800);
 	// GCOPDV(D9) uses Wii-style 34-bit shifted addresses.
