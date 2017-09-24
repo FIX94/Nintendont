@@ -139,6 +139,10 @@ void mdelay(int ms)
 	udelay(ms * 1000);
 }
 
+static const char stm_imm[] ALIGNED(32) = "/dev/stm/immediate";
+static u8 stm_in[0x20] ALIGNED(32);
+static u8 stm_out[0x20] ALIGNED(32);
+
 extern bool isWiiVC;
 void Shutdown( void )
 {
@@ -168,13 +172,9 @@ void Shutdown( void )
 #endif
 	/* Allow all IOS IRQs again */
 	write32(HW_IPC_ARMCTRL, 0x36);
-	if( IsWiiU() )
-	{
-		WiiUResetToMenu(); 
-	} else {
-		set32( HW_GPIO_ENABLE, GPIO_SHUTDOWN );
-		set32( HW_GPIO_OUT, GPIO_SHUTDOWN );
-	}
+	/* Send STM Shutdown Ioctl (works on Wii, vWii and Wii VC) */
+	s32 stm_fd = IOS_Open(stm_imm, 0);
+	IOS_Ioctl(stm_fd,0x2003,stm_in,0x20,stm_out,0x20);
 	while(1) mdelay(100);
 }
 

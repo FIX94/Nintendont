@@ -486,7 +486,7 @@ int _main( int argc, char *argv[] )
 			write32(RESET_STATUS, 0);
 			sync_after_write((void*)RESET_STATUS, 0x20);
 		}
-		if(read32(HW_GPIO_IN) & GPIO_POWER)
+		if(reset_status == 0x7DEA || (read32(HW_GPIO_IN) & GPIO_POWER))
 		{
 			DIFinishAsync();
 			#ifdef PATCHALL

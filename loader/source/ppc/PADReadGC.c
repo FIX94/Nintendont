@@ -131,6 +131,8 @@ u32 _start(u32 calledByGame)
 		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
 		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 		vu8 *i2cdata = (vu8*)(*drcAddress);
+		//check for console shutdown request
+		if(i2cdata[1] & 0x80) goto DoShutdown;
 		//Start out mapping buttons first
 		u16 button = 0;
 		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
@@ -186,7 +188,7 @@ u32 _start(u32 calledByGame)
 			Pad[0].triggerRight = 0;
 		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
 		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
-		if(drcbutton & WIIDRC_BUTTON_HOME) goto Shutdown;
+		if(drcbutton & WIIDRC_BUTTON_HOME) goto DoExit;
 		//write in mapped out buttons
 		Pad[0].button = button;
 		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
@@ -306,10 +308,10 @@ u32 _start(u32 calledByGame)
 					Pad[chan].triggerRight = 0;
 			}
 
-			/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
+			/* exit by pressing B,Z,R,PAD_BUTTON_DOWN */
 			if((Pad[chan].button&0x234) == 0x234)
 			{
-				goto Shutdown;
+				goto DoExit;
 			}
 			if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 			{
@@ -396,10 +398,10 @@ u32 _start(u32 calledByGame)
 			}
 		}
 
-		if(calledByGame && HID_CTRL->Power.Mask &&	//shutdown if power configured and all power buttons pressed
+		if(calledByGame && HID_CTRL->Power.Mask &&	//exit if power configured and all power buttons pressed
 		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
 		{
-			goto Shutdown;
+			goto DoExit;
 		}
 		used |= (1<<chan);
 
@@ -1297,7 +1299,7 @@ u32 _start(u32 calledByGame)
 			if(BTPad[chan].button & WM_BUTTON_ONE)
 				button |= PAD_BUTTON_START;	
 			if(BTPad[chan].button & WM_BUTTON_HOME)
-				goto Shutdown;
+				goto DoExit;
 		}	//end nunchuck configs
 
 		if(BTPad[chan].used & (C_CC | C_CCP))
@@ -1337,7 +1339,7 @@ u32 _start(u32 calledByGame)
 				button |= PAD_BUTTON_UP;
 			
 			if(BTPad[chan].button & BT_BUTTON_HOME)
-				goto Shutdown;
+				goto DoExit;
 		}	
 		
 		Pad[chan].button = button;
@@ -1356,10 +1358,10 @@ u32 _start(u32 calledByGame)
 			Pad[chan].stickY = Pad[chan].triggerLeft;
 		#endif
 
-		//shutdown by pressing B,Z,R,PAD_BUTTON_DOWN 
+		//exit by pressing B,Z,R,PAD_BUTTON_DOWN 
 		if((Pad[chan].button&0x234) == 0x234)
 		{
-			goto Shutdown;
+			goto DoExit;
 		}
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
@@ -1406,12 +1408,12 @@ u32 _start(u32 calledByGame)
 	}
 	return Rumble;
 
-Shutdown:
+DoExit:
 	/* disable interrupts */
 	asm volatile("mfmsr 3 ; rlwinm 3,3,0,17,15 ; mtmsr 3");
 	/* stop audio dma */
 	_dspReg[27] = (_dspReg[27]&~0x8000);
-	/* reset status 1 */
+	/* reset status 1 (DoExit) */
 	*RESET_STATUS = 0x1DEA;
 	while(*RESET_STATUS == 0x1DEA) ;
 	/* disable dcache and icache */
@@ -1434,4 +1436,12 @@ Shutdown:
 		"blr\n"
 	);
 	return 0;
+DoShutdown:
+	/* disable interrupts */
+	asm volatile("mfmsr 3 ; rlwinm 3,3,0,17,15 ; mtmsr 3");
+	/* stop audio dma */
+	_dspReg[27] = (_dspReg[27]&~0x8000);
+	/* reset status 7 (DoShutdown) */
+	*RESET_STATUS = 0x7DEA;
+	while(1) ;
 }
