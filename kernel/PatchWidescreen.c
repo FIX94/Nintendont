@@ -568,6 +568,13 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			// Return 'true' so Nintendont doesn't attempt
 			// to apply any dynamic patches.
 			// Reference: https://en.wikipedia.org/wiki/List_of_GameCube_games_with_alternate_display_modes
+		case 0x425A: // Resident Evil Zero
+		case 0x4249: // Resident Evil Remake
+		case 0x4841: // Resident Evil 2
+		case 0x4C45: // Resident Evil 3: Nemesis
+			// These four Resident Evil games utilize preredered backgrounds in 4:3
+			// This causes the 3D objects/models to have an odd side effect
+			// with the background images. 
 			return true;
 
 		default:
