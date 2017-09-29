@@ -302,6 +302,21 @@ void ExitToLoader(int ret)
 	while(1) usleep(20000);
 }
 
+void LoaderShutdown()
+{
+	GRRLIB_FreeTexture(background);
+	GRRLIB_FreeTexture(screen_buffer);
+	GRRLIB_FreeTTF(myFont);
+	GRRLIB_Exit();
+	CloseDevices();
+	gprintf("Loader Shutdown\n");
+	VIDEO_SetBlack(TRUE);
+	VIDEO_Flush();
+	VIDEO_WaitVSync();
+	SYS_ResetSystem(SYS_POWEROFF_STANDBY, 0, 0);
+	while(1) usleep(20000);
+}
+
 /**
  * Load the configuration file from the root device.
  * @return True if loaded successfully; false if not.

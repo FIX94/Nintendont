@@ -110,6 +110,11 @@ int _main( int argc, char *argv[] )
 	BootStatus(1, 0, 0);
 	mdelay(10);
 
+	//give power button to loader
+	set32(HW_GPIO_ENABLE, GPIO_POWER);
+	clear32(HW_GPIO_DIR, GPIO_POWER);
+	set32(HW_GPIO_OWNER, GPIO_POWER);
+
 	//Loader running, selects games
 	while(1)
 	{
@@ -282,6 +287,8 @@ int _main( int argc, char *argv[] )
 	clear32(HW_GPIO_DIR, GPIO_SENSOR_BAR);
 	clear32(HW_GPIO_OWNER, GPIO_SENSOR_BAR);
 	set32(HW_GPIO_OUT, GPIO_SENSOR_BAR);	//turn on sensor bar
+
+	clear32(HW_GPIO_OWNER, GPIO_POWER); //take back power button
 
 	write32( HW_PPCIRQMASK, (1<<30) ); //only allow IPC IRQ
 	write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );

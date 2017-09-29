@@ -85,7 +85,7 @@ const s8 DEADZONE = 0x1A;
 
 #define DRC_DEADZONE 10
 #define _DRC_BUILD_TMPSTICK(inval) \
-	tmp_stick16 = (((s8)(inval-0x80))*13)>>3; \
+	tmp_stick16 = (((s8)(inval-0x80))*14)>>3; \
 	if(tmp_stick16 > DRC_DEADZONE) tmp_stick16 = (tmp_stick16-DRC_DEADZONE)*1.08f; \
 	else if(tmp_stick16 < -DRC_DEADZONE) tmp_stick16 = (tmp_stick16+DRC_DEADZONE)*1.08f; \
 	else tmp_stick16 = 0; \

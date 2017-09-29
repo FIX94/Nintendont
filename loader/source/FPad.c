@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <unistd.h>
 #include <wiidrc/wiidrc.h>
 #include <wupc/wupc.h>
+#include "menu.h"
 #include "PADReadGC_bin.h"
 #include "HID.h"
 
@@ -68,6 +69,7 @@ void FPAD_Init( void )
 	PAD_Init();
 	WUPC_Init();
 	WPAD_Init();
+	WPAD_SetPowerButtonCallback(HandleWiiMoteEvent);
 
 	WPAD_Pressed = 0;
 	WiiDRC_Pressed = 0;
@@ -109,10 +111,13 @@ void FPAD_Update( void )
 	}
 
 	/* DRC */
-	if(WiiDRC_ScanPads())
+	if(WiiDRC_Inited() && WiiDRC_Connected())
 	{
+		WiiDRC_ScanPads();
 		const struct WiiDRCData *drcstat = WiiDRC_Data();
 		WiiDRC_Pressed |= drcstat->button;
+		if(WiiDRC_ShutdownRequested())
+			SetShutdown();
 	}
 
 	/* HID */
@@ -150,6 +155,9 @@ void FPAD_Update( void )
 				SLock = false;
 		}
 	}
+	//Power Button
+	if((*(vu32*)0xCD8000C8) & 1)
+		SetShutdown();
 }
 bool FPAD_Up( bool ILock )
 {

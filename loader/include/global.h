@@ -176,6 +176,7 @@ int CreateNewFile(const char *Path, unsigned int size);
  * @param ret Exit code.
  */
 void ExitToLoader(int ret) NORETURN;
+void LoaderShutdown() NORETURN;
 
 void ClearScreen();
 void CloseDevices();

@@ -83,9 +83,13 @@ inline u32 SettingY(u32 row)
 {
 	return 127 + 16 * row;
 }
-void HandleWiiMoteEvent(s32 chan)
+void SetShutdown(void)
 {
 	Shutdown = 1;
+}
+void HandleWiiMoteEvent(s32 chan)
+{
+	SetShutdown();
 }
 void HandleSTMEvent(u32 event)
 {
@@ -97,7 +101,7 @@ void HandleSTMEvent(u32 event)
 		case STM_EVENT_RESET:
 			break;
 		case STM_EVENT_POWER:
-			Shutdown = 1;
+			SetShutdown();
 			break;
 	}
 }
@@ -1630,6 +1634,8 @@ static int SelectGame(void)
 	{
 		VIDEO_WaitVSync();
 		FPAD_Update();
+		if(Shutdown)
+			LoaderShutdown();
 
 		if( FPAD_Start(0) )
 		{
@@ -1746,6 +1752,8 @@ bool SelectDevAndGame(void)
 	{
 		VIDEO_WaitVSync();
 		FPAD_Update();
+		if(Shutdown)
+			LoaderShutdown();
 
 		if (redraw)
 		{

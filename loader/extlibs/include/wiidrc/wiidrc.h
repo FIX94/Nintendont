@@ -17,6 +17,7 @@ struct WiiDRCData {
 	s16 yAxisL;
 	s16 yAxisR;
 	u16 button;
+	u8 battery;
 	u8 extra;
 };
 
@@ -35,16 +36,20 @@ struct WiiDRCData {
 #define WIIDRC_BUTTON_PLUS		0x0008
 #define WIIDRC_BUTTON_MINUS		0x0004
 #define WIIDRC_BUTTON_HOME		0x0002
+#define WIIDRC_BUTTON_SYNC		0x0001
 
-#define WIIDRC_EXTRA_BUTTON_L3	0x80
-#define WIIDRC_EXTRA_BUTTON_R3	0x40
-#define WIIDRC_EXTRA_BUTTON_TV	0x30
+#define WIIDRC_EXTRA_BUTTON_L3		0x80
+#define WIIDRC_EXTRA_BUTTON_R3		0x40
+#define WIIDRC_EXTRA_BUTTON_TV		0x20
+#define WIIDRC_EXTRA_OVERLAY_TV		0x10
+#define WIIDRC_EXTRA_OVERLAY_POWER	0x01
 
 bool WiiDRC_Init();
 bool WiiDRC_Inited();
 bool WiiDRC_Recalibrate();
 bool WiiDRC_ScanPads();
 bool WiiDRC_Connected();
+bool WiiDRC_ShutdownRequested();
 const u8 *WiiDRC_GetRawI2CAddr();
 const struct WiiDRCData *WiiDRC_Data();
 u32 WiiDRC_ButtonsUp();
