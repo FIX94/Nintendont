@@ -148,9 +148,12 @@ typedef struct
 extern bool isWiiVC;
 static inline bool IsWiiU(void)
 {
-	return (((*(vu32*)(0xCd8005A0) >> 16) == 0xCAFE) || isWiiVC);
+	return ((*(vu16*)0xCD8005A0 == 0xCAFE) || isWiiVC);
 }
-
+static inline bool IsWiiUFastCPU(void)
+{
+	return ((*(vu16*)0xCD8005A0 == 0xCAFE) && ((*(vu32*)0xCD8005B0 & 0x20) == 0));
+}
 // FIXME: This return type isn't quite correct...
 const char* const GetRootDevice();
 void RAMInit(void);

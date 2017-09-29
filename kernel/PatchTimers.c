@@ -55,9 +55,13 @@ static u32 CheckFor( u32 Buf, u32 Val )
 //Processor speed
 #define U32_TIMER_CLOCK_CPU_GC		0x1cf7c580
 #define U32_TIMER_CLOCK_CPU_WII		0x2b73a840
+//WiiU with 5x CPU Multi
+#define U32_TIMER_CLOCK_CPU_FAST	0x486b6dc0
 
 #define FLT_TIMER_CLOCK_CPU_GC		0x4de7be2c
 #define FLT_TIMER_CLOCK_CPU_WII		0x4e2dcea1
+//WiiU with 5x CPU Multi
+#define FLT_TIMER_CLOCK_CPU_FAST	0x4e90d6dc
 
 //Ticks per second
 #define U32_TIMER_CLOCK_SECS_GC		0x0269fb20
@@ -110,7 +114,10 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		}
 		if( FirstVal == FLT_TIMER_CLOCK_CPU_GC )
 		{
-			write32(Buffer, FLT_TIMER_CLOCK_CPU_WII);
+			if(IsWiiUFastCPU())
+				write32(Buffer, FLT_TIMER_CLOCK_CPU_FAST);
+			else
+				write32(Buffer, FLT_TIMER_CLOCK_CPU_WII);
 			dbgprintf("PatchTimers:[Timer Clock float CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -181,8 +188,16 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x6000C580);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, U32_TIMER_CLOCK_CPU_WII >> 16);
-			W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+			if(IsWiiUFastCPU())
+			{
+				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_FAST >> 16);
+				W16(NextP + 2, U32_TIMER_CLOCK_CPU_FAST & 0xFFFF);
+			}
+			else
+			{
+				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_WII >> 16);
+				W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+			}
 			dbgprintf("PatchTimers:[Timer Clock ori CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -192,8 +207,16 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x3800C580);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, (U32_TIMER_CLOCK_CPU_WII >> 16) + 1);
-			W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+			if(IsWiiUFastCPU())
+			{	//no ">>16) + 1" since its a positive 16bit value
+				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_FAST >> 16);
+				W16(NextP + 2, U32_TIMER_CLOCK_CPU_FAST & 0xFFFF);
+			}
+			else
+			{
+				W16(Buffer + 2, (U32_TIMER_CLOCK_CPU_WII >> 16) + 1);
+				W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+			}
 			dbgprintf("PatchTimers:[Timer Clock addi CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -307,7 +330,10 @@ void PatchStaticTimers()
 {
 	sync_before_read((void*)0xE0, 0x20);
 	write32(0xF8, U32_TIMER_CLOCK_BUS_WII);
-	write32(0xFC, U32_TIMER_CLOCK_CPU_WII);
+	if(IsWiiUFastCPU())
+		write32(0xFC, U32_TIMER_CLOCK_CPU_FAST);
+	else
+		write32(0xFC, U32_TIMER_CLOCK_CPU_WII);
 	sync_after_write((void*)0xE0, 0x20);
 	if(write64A(0x001463E0, DBL_0_7716, DBL_1_1574))
 	{

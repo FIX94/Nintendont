@@ -348,7 +348,11 @@ static inline void sync_after_write_align32(void *Buf, u32 Len)
 extern bool isWiiVC;
 static inline bool IsWiiU(void)
 {
-	return (((*(vu32*)(0x0d8005A0) >> 16) == 0xCAFE) || isWiiVC);
+	return ((read16(0xD8005A0) == 0xCAFE) || isWiiVC);
+}
+static inline bool IsWiiUFastCPU(void)
+{
+	return ((read16(0xD8005A0) == 0xCAFE) && ((read32(0xD8005B0) & 0x20) == 0));
 }
 
 /* Writing to this reboots the WiiU */
