@@ -666,12 +666,13 @@ int main(int argc, char **argv)
 		//Disables MEMPROT for patches
 		write16(MEM_PROT, 0);
 	}
-	else if(*(vu16*)0xCD8005A0 != 0xCAFE)
-	{
+	//else if(*(vu16*)0xCD8005A0 != 0xCAFE)
+	//{
 		/* WiiVC seems to have some bug that without any fake IOS
-		   reload makes it impossible to read HW regs on PPC */
-		IOS_ReloadIOS(58);
-	}
+		   reload makes it impossible to read HW regs on PPC 
+		   and it seems to break some consoles to reload IOS */
+	//	IOS_ReloadIOS(58);
+	//}
 
 	// Preparing Nintendont Kernel...
 	if(argsboot == false)
