@@ -426,6 +426,10 @@ void TRISetupGames()
 		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
 		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
 
+		//Make sure GX modes get set on force PAL60 as well
+		PatchB(0x8FFF0, 0x90110);
+		PatchB(0x1FB92C, 0x1FB96C);
+
 		//PAD Hook for control updates
 		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4004 );
 	}
@@ -507,6 +511,10 @@ void TRISetupGames()
 		NTSC480ProgTri = 0x302AC0;
 		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
 		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		//Make sure GX modes get set on force PAL60 as well
+		PatchB(0x900F8, 0x90218);
+		PatchB(0x1FBDE8, 0x1FBE28);
 
 		//PAD Hook for control updates
 		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4368 );
@@ -594,6 +602,10 @@ void TRISetupGames()
 		NTSC480ProgTri = 0x303040;
 		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
 		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		//Make sure GX modes get set on force PAL60 as well
+		PatchB(0x90140, 0x90260);
+		PatchB(0x1FC258, 0x1FC298);
 
 		//PAD Hook for control updates
 		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4900 );
