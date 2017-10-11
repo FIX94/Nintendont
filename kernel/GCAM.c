@@ -84,6 +84,7 @@ void GCAMInit( void )
 
 static const char *CARD_NAME_GP1 = "/saves/GP1.bin";
 static const char *CARD_NAME_GP2 = "/saves/GP2.bin";
+static const char *CARD_NAME_GP2J = "/saves/GP2J.bin";
 static const char *CARD_NAME_AX = "/saves/AX.bin";
 static const char *CARD_NAME_VS4 = "/saves/VS4.bin";
 static const char *CARD_NAME_DEF = "csave.bin";
@@ -97,7 +98,7 @@ const char *GCAMGetCARDName()
 			name = CARD_NAME_GP1;
 			break;
 		case TRI_GP2:
-			name = CARD_NAME_GP2;
+			name = (SystemRegion == REGION_JAPAN) ? CARD_NAME_GP2J : CARD_NAME_GP2;
 			break;
 		case TRI_AX:
 			name = CARD_NAME_AX;

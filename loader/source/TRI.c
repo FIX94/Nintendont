@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 static const char CARD_NAME_GP1[] = "/saves/GP1.bin";
 static const char CARD_NAME_GP2[] = "/saves/GP2.bin";
+static const char CARD_NAME_GP2J[] = "/saves/GP2J.bin";
 static const char CARD_NAME_AX[] = "/saves/AX.bin";
 
 static const char SETTINGS_AX_RVC[] = "/saves/AX_RVCsettings.bin";
@@ -113,15 +114,8 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 	if(DOLRead32(0x210320, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Mario Kart Arcade GP (Feb 14 2006 13:09:48)\r\n");
+		gprintf("TRI:Mario Kart Arcade GP (ENG Feb 14 2006 13:09:48)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP1);
-		CreateNewFile(SaveFile, 0x45);
-	}
-	else if(DOLRead32(0x25C664, DOLOffset, fp, CurDICMD) == 0x386000A8)
-	{
-		res = 1;
-		gprintf("TRI:Mario Kart Arcade GP 2 (JPN Feb 6 2007 20:29:25)\r\n");
-		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2);
 		CreateNewFile(SaveFile, 0x45);
 	}
 	else if(DOLRead32(0x25C0AC, DOLOffset, fp, CurDICMD) == 0x386000A8)
@@ -129,6 +123,13 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		res = 1;
 		gprintf("TRI:Mario Kart Arcade GP 2 (ENG Feb 7 2007 02:47:24)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2);
+		CreateNewFile(SaveFile, 0x45);
+	}
+	else if(DOLRead32(0x25C664, DOLOffset, fp, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Mario Kart Arcade GP 2 (JPN Feb 6 2007 20:29:25)\r\n");
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2J);
 		CreateNewFile(SaveFile, 0x45);
 	}
 	else if(DOLRead32(0x181E60, DOLOffset, fp, CurDICMD) == 0x386000A8)

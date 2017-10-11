@@ -150,9 +150,9 @@ void TRISetupGames()
 {
 	if( read32(0x023D240) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Mario Kart Arcade GP (Feb 14 2006 13:09:48)\r\n");
+		dbgprintf("TRI:Mario Kart Arcade GP (ENG Feb 14 2006 13:09:48)\r\n");
 		TRIGame = TRI_GP1;
-		SystemRegion = REGION_JAPAN;
+		SystemRegion = REGION_EXPORT;
 
 		//Unlimited CARD uses
 		write32( 0x01F5C44, 0x60000000 );
@@ -221,72 +221,11 @@ void TRISetupGames()
 		//memcpy( (void*)0x020CBCC, OSReportDM, sizeof(OSReportDM) );	// UNkReport
 		//memcpy( (void*)0x02281B8, OSReportDM, sizeof(OSReportDM) );	// UNkReport4
 	}
-	else if( read32(0x0285D04) == 0x386000A8 )
-	{
-		dbgprintf("TRI:Mario Kart Arcade GP 2 (JPN Feb 6 2007 20:29:25)\r\n");
-		TRIGame = TRI_GP2;
-		SystemRegion = REGION_JAPAN;
-
-		//Unlimited CARD uses
-		write32( 0x00A0910, 0x60000000 );
-
-		//Allow test menu if requested
-		PatchBL( PatchCopy(CheckTestMenuGP, CheckTestMenuGP_size), 0x2E398 );
-
-		//dont wait for other cabinets to link up
-		write32( 0x002F0B4, 0x38600000 );
-
-		//Disable cam
-		write32( 0x00741F0, 0x98C50025 );
-
-		//Disable red item button
-		write32( 0x00742B0, 0x98BF0045 );
-
-		//VS wait patch 
-		write32( 0x00855DC, 0x4800000C );
-		write32( 0x0085618, 0x60000000 );
-
-		if(!arcadeMode)
-		{
-			//Remove some menu timers (thanks conanac)
-			write32( 0x001C1664, 0x60000000 ); //card check
-			write32( 0x001C0764, 0x60000000 ); //want to make a card
-			write32( 0x00232E20, 0x60000000 ); //card view
-			write32( 0x001C1FF8, 0x60000000 ); //select game mode
-			write32( 0x001C3970, 0x60000000 ); //select character
-			write32( 0x001D7B84, 0x60000000 ); //select kart
-			write32( 0x001C806C, 0x60000000 ); //select cup
-			write32( 0x001CA4C8, 0x60000000 ); //select round
-			write32( 0x00238144, 0x60000000 ); //select item (card)
-			write32( 0x0024D964, 0x60000000 ); //continue
-			write32( 0x0015F90C, 0x60000000 ); //rewrite rank
-			write32( 0x001CFBCC, 0x60000000 ); //select course (time attack)
-			write32( 0x001BE838, 0x60000000 ); //enter name (time attack, card)
-			write32( 0x0021E5F8, 0x60000000 ); //save record (time attack on card)
-
-			//Make some menu timers invisible
-			write32( 0x001B831C, 0x60000000 );
-			write32( 0x002322A8, 0x60000000 );
-
-			//Make coin count (layer 7) invisible
-			write32( 0x001B8D98, 0x60000000 );
-			write32( 0x00248070, 0x60000000 );
-		}
-
-		//Modify to regular GX pattern to patch later
-		write32( 0x3F25F0, 0x00 ); //NTSC Interlaced
-
-		//PAD Hook for control updates
-		PatchBL( PatchCopy(PADReadGP, PADReadGP_size), 0x3904C );
-
-		// Game specific rumble hook
-		PatchBL( PatchCopy(PADControlMotorGP, PADControlMotorGP_size), 0x37794 );
-	}
 	else if( read32(0x02856EC) == 0x386000A8 )
 	{
 		dbgprintf("TRI:Mario Kart Arcade GP 2 (ENG Feb 7 2007 02:47:24)\r\n");
 		TRIGame = TRI_GP2;
-		SystemRegion = REGION_JAPAN;
+		SystemRegion = REGION_EXPORT;
 
 		//Unlimited CARD uses
 		write32( 0x00A02F8, 0x60000000 );
@@ -349,6 +288,67 @@ void TRISetupGames()
 		//memcpy( (void*)0x002CE3C, OSReportDM, sizeof(OSReportDM) );
 		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
 		//write32( 0x002CEF8, 0x60000000 );
+	}
+	else if( read32(0x0285D04) == 0x386000A8 )
+	{
+		dbgprintf("TRI:Mario Kart Arcade GP 2 (JPN Feb 6 2007 20:29:25)\r\n");
+		TRIGame = TRI_GP2;
+		SystemRegion = REGION_JAPAN;
+
+		//Unlimited CARD uses
+		write32( 0x00A0910, 0x60000000 );
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuGP, CheckTestMenuGP_size), 0x2E398 );
+
+		//dont wait for other cabinets to link up
+		write32( 0x002F0B4, 0x38600000 );
+
+		//Disable cam
+		write32( 0x00741F0, 0x98C50025 );
+
+		//Disable red item button
+		write32( 0x00742B0, 0x98BF0045 );
+
+		//VS wait patch 
+		write32( 0x00855DC, 0x4800000C );
+		write32( 0x0085618, 0x60000000 );
+
+		if(!arcadeMode)
+		{
+			//Remove some menu timers (thanks conanac)
+			write32( 0x001C1664, 0x60000000 ); //card check
+			write32( 0x001C0764, 0x60000000 ); //want to make a card
+			write32( 0x00232E20, 0x60000000 ); //card view
+			write32( 0x001C1FF8, 0x60000000 ); //select game mode
+			write32( 0x001C3970, 0x60000000 ); //select character
+			write32( 0x001D7B84, 0x60000000 ); //select kart
+			write32( 0x001C806C, 0x60000000 ); //select cup
+			write32( 0x001CA4C8, 0x60000000 ); //select round
+			write32( 0x00238144, 0x60000000 ); //select item (card)
+			write32( 0x0024D964, 0x60000000 ); //continue
+			write32( 0x0015F90C, 0x60000000 ); //rewrite rank
+			write32( 0x001CFBCC, 0x60000000 ); //select course (time attack)
+			write32( 0x001BE838, 0x60000000 ); //enter name (time attack, card)
+			write32( 0x0021E5F8, 0x60000000 ); //save record (time attack on card)
+
+			//Make some menu timers invisible
+			write32( 0x001B831C, 0x60000000 );
+			write32( 0x002322A8, 0x60000000 );
+
+			//Make coin count (layer 7) invisible
+			write32( 0x001B8D98, 0x60000000 );
+			write32( 0x00248070, 0x60000000 );
+		}
+
+		//Modify to regular GX pattern to patch later
+		write32( 0x3F25F0, 0x00 ); //NTSC Interlaced
+
+		//PAD Hook for control updates
+		PatchBL( PatchCopy(PADReadGP, PADReadGP_size), 0x3904C );
+
+		// Game specific rumble hook
+		PatchBL( PatchCopy(PADControlMotorGP, PADControlMotorGP_size), 0x37794 );
 	}
 	else if( read32(0x0184E60) == 0x386000A8 )
 	{
