@@ -3349,6 +3349,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			write32(0x1373618, 0x38600000);
 			dbgprintf("Patch:Patched Gamecube PAL IPL v1.2\r\n");
 		}
+		else if(read32(0x13692F4) == 0x38600001)
+		{
+			write32(0x13692F4, 0x38600000);
+			dbgprintf("Patch:Patched Gamecube MPAL IPL v1.1\r\n");
+		}
 	}
 	else if( TITLE_ID == 0x474256 )	// Batman Vengeance
 	{
