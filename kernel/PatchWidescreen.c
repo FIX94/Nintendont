@@ -493,6 +493,18 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 
 			return true;
 
+		case 0x4B44: // Doshin the Giant
+			if (Region == REGION_ID_EUR)
+			{
+				write32(0x17AABC, 0x3FE38E39);
+				write32(0x17B0B8, 0xBF2AAAAB);
+				write32(0x17B0BC, 0x3F2AAAAB);
+				write32(0x17BBFC, 0xBF2AAAAB);
+				write32(0x17BC00, 0x3F2AAAAB);
+				return true;
+			}
+			return false;
+
 		case 0x494E: // Batman Begins
 		case 0x3857: // Battalion Wars
 		case 0x4351: // Buffy the Vampire Slayer: Chaos Bleeds

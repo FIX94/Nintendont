@@ -3547,6 +3547,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	if(videoPatches)
 	{
+		bool video60hzPatch = false;
+		if( ConfigGetConfig(NIN_CFG_FORCE_PROG) )
+			video60hzPatch = true; //480p 60hz
+		else if( ConfigGetVideoMode() & NIN_VID_FORCE )
+		{
+			u8 NinForceMode = ConfigGetVideoMode() & NIN_VID_FORCE_MASK;
+			if(NinForceMode == NIN_VID_FORCE_PAL60 || NinForceMode == NIN_VID_FORCE_NTSC 
+					|| NinForceMode == NIN_VID_FORCE_MPAL)
+				video60hzPatch = true; //480i 60hz
+		}
 		if( TITLE_ID == 0x47454F ) // Capcom vs. SNK 2 EO
 		{
 			//fix for force progressive
@@ -3595,6 +3605,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				PatchB(0x1E128, 0x1E148);
 				dbgprintf("Patch:Patched Swingerz Golf NTSC-U\r\n");
+			}
+		}
+		else if( GAME_ID == 0x474C4D50 ) // Luigis Mansion PAL
+		{
+			if(video60hzPatch && read32(0x7A44) == 0x880D00CC)
+			{
+				//start in PAL60
+				write32(0x7A44, 0x38000001);
+				dbgprintf("Patch:Patched Luigis Mansion PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x474B4450 ) // Doshin the Giant PAL
+		{
+			if(video60hzPatch && read32(0x15D04) == 0x38C00010 && read32(0x97F8C) == 0x7FE3FB78)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x15D04, 0x38C00000);
+				write32(0x97F8C, 0x38600005);
+				dbgprintf("Patch:Patched Doshin the Giant PAL\r\n");
 			}
 		}
 	}
