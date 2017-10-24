@@ -2433,7 +2433,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE___OSReadROM:	//	__OSReadROM
 						{
-							if(read32(FOffset+0x80) == 0x38A00004)
+							if(read32(FOffset+0x80) == 0x38A00004 ||
+								read32(FOffset+0xA8) == 0x38A00004)
 							{
 								memcpy((void*)FOffset, ReadROM, ReadROM_size);
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
@@ -2620,7 +2621,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_ReadROM:
 						{
-							if(read32(FOffset+0x3C) == 0x3BE00100 || 
+							if(read32(FOffset+0x30) == 0x3BE00100 || 
+								read32(FOffset+0x3C) == 0x3BE00100 || 
 								read32(FOffset+0x44) == 0x38800100)
 							{
 								memcpy((void*)FOffset, ReadROM, ReadROM_size);
@@ -2987,6 +2989,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								if(DSPHandlerNeeded)
 								{
 									PatchBL( PatchCopy(__DSPHandler, __DSPHandler_size), (FOffset + 0xF8) );
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								}
+								else
+								{
+									dbgprintf("Patch:[__DSPHandler] skipped (0x%08X)\r\n", FOffset);
+								}
+							}
+							else
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE___DSPHandler_DBG:
+						{
+							if(useipl == 1) break;
+							if(read32(FOffset + 0x14C) == 0x2C000000)
+							{
+								if(DSPHandlerNeeded)
+								{
+									PatchBL( PatchCopy(__DSPHandler, __DSPHandler_size), (FOffset + 0x14C) );
 									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 								}
 								else
@@ -3542,7 +3562,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		//skip modem detection error to let demo boot up
 		if(write32A(0x194F40, 0x4182002C, 0x4082002C, 0))
 		{
-			dbgprintf("Patch:Patched Phantasy Star Online Demo JAP\r\n");
+			dbgprintf("Patch:Patched Phantasy Star Online Demo NTSC-J\r\n");
+		}
+	}
+	else if( GAME_ID == 0x33303145 )
+	{
+		if(read32(0x110F898) == 0x3C630C00 && read32(0x110F8A0) == 0x6403C000)
+		{
+			//UnkReport
+			//memcpy((void*)0x110F100, OSReportDM, sizeof(OSReportDM));
+			//sync_after_write((void*)0x110F100, sizeof(OSReportDM));
+			//UnkReport2
+			//write32(0x110F1C8, 0x7C832378); // mr  r3,r4
+			//write32(0x110F1CC, 0x7CA42B78); // mr  r4,r5
+			//memcpy((void*)0x110F1D0, OSReportDM, sizeof(OSReportDM));
+			//sync_after_write((void*)0x110F1D0, sizeof(OSReportDM));
+			//DI Regs get set up weirdly so PatchFuncInterface misses this
+			write32(0x110F898, 0x60000000); // nop this line out, not needed
+			write32(0x110F8A0, 0x6403D302); // Patch to: oris r3, r0, 0xD302
+			dbgprintf("Patch:Patched GameCube Service Disc NTSC-U\r\n");
 		}
 	}
 	if(videoPatches)

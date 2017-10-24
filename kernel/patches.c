@@ -112,6 +112,7 @@ enum
 	FCODE_OSExceptionInit,
 	FCODE_OSExceptionInit_DBG,
 	FCODE___DSPHandler,
+	FCODE___DSPHandler_DBG,
 	FCODE_PatchPatchBuffer,
 	FCODE_PrsLoad,
 	FCODE_PsoDolEntryMod,
@@ -154,6 +155,8 @@ enum
 	FGROUP___OSInitAudioSystem,
 	FGROUP_OSExceptionInit,
 	FGROUP_ReadROM,
+	FGROUP___OSReadROM,
+	FGROUP___DSPHandler,
 	FGROUP_PsoDolEntryMod,
 } FPatternGroups;
 
@@ -217,7 +220,8 @@ static FuncPattern NormalFPatterns[] =
 	{  0x28C,   70,    8,    8,   10,    4,	NULL,				FCODE___OSInitAudioSystem_A,"__OSInitAudioSystem",	"DBG A",	FGROUP___OSInitAudioSystem,	0 },
 	{  0x2B8,   77,    8,   12,   10,    4,	NULL,				FCODE___OSInitAudioSystem_B,"__OSInitAudioSystem",	"DBG B",	FGROUP___OSInitAudioSystem,	0 },
 #ifdef AUDIOSTREAM
-	{  0x420,  103,   23,   34,   32,    9,	NULL,				FCODE___DSPHandler,			"__DSPHandler",			NULL,		FGROUP_NONE,				0 },
+	{  0x420,  103,   23,   34,   32,    9,	NULL,				FCODE___DSPHandler,			"__DSPHandler",			NULL,		FGROUP___DSPHandler,		0 },
+	{  0x508,  150,   23,   36,   33,    9,	NULL,				FCODE___DSPHandler_DBG,		"__DSPHandler",			"DBG",		FGROUP___DSPHandler,		0 },
 #else
 	{   0x94,   18,   10,    2,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"A",		FGROUP_DVDLowAudioStream,	0 },
 	{   0x8C,   16,   12,    1,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"B",		FGROUP_DVDLowAudioStream,	0 },
@@ -370,8 +374,10 @@ static FuncPattern EXIFPatterns[] =
 
 	{   0x88,    9,    6,    1,    3,    2,	NULL,				FCODE_ReadROM,				"ReadROM",				"A",		FGROUP_ReadROM,				0 },
 	{   0x80,    8,    6,    1,    4,    6,	NULL,				FCODE_ReadROM,				"ReadROM",				"B",		FGROUP_ReadROM,				0 },
+	{   0x70,    5,    2,    1,    3,    2,	NULL,				FCODE_ReadROM,				"ReadROM",				"DBG",		FGROUP_ReadROM,				0 },
 
-	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",			NULL,		FGROUP_NONE,				0 },
+	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",			NULL,		FGROUP___OSReadROM,			0 },
+	{  0x144,   32,    4,   11,    3,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",			"DBG",		FGROUP___OSReadROM,			0 },
 };
 
 static FuncPattern DatelFPatterns[] =
