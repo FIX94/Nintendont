@@ -999,6 +999,7 @@ static bool GameNeedsHook()
 			(TITLE_ID) == 0x47534F ||	// Sonic Mega Collection
 			(TITLE_ID) == 0x474244 ||	// BloodRayne
 			(TITLE_ID) == 0x475438 ||	// Big Mutha Truckers
+			(TITLE_ID) == 0x475153 ||	// Tales of Symphonia
 			(GAME_ID) == 0x474F544A ||	// One Piece - Treasure Battle
 			(GAME_ID) == 0x4747504A ||	// SD Gundam Gashapon Wars
 			DemoNeedsHookPatch() );
@@ -3708,8 +3709,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	UseReadLimit = 1;
 	// Datel discs require read speed. (Related to Stop motor/Read Header?) 
+	// Fire Emblem, Triforce titles, and the N64 Emu work better without read speed
 	if((RealDiscCMD != 0 && !Datel) || TRIGame != TRI_NONE || IsN64Emu 
-			|| ConfigGetConfig(NIN_CFG_REMLIMIT))
+			|| (TITLE_ID == 0x474645) || ConfigGetConfig(NIN_CFG_REMLIMIT))
 		UseReadLimit = 0;
 }
 
