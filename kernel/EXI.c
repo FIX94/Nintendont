@@ -155,9 +155,9 @@ extern vu32 TRIGame;
  */
 void EXISetTimings(u32 TitleID, u32 Region)
 {
-	//GC BIOS, Trifoce Game, X-Men Legends 2, Rainbow Six 3 or Starfox Assault (NTSC-U)
+	//GC BIOS, Trifoce Game, X-Men Legends 2, Rainbow Six 3, SRS or Starfox Assault (NTSC-U)
 	if(useipl || TRIGame != TRI_NONE || TitleID == 0x475832 || TitleID == 0x473633 ||
-		(TitleID == 0x474637 && Region == REGION_ID_USA))
+		TitleID == 0x474353 || (TitleID == 0x474637 && Region == REGION_ID_USA))
 	{
 		CurrentTiming = EXI_IRQ_INSTANT;
 	}
