@@ -998,6 +998,7 @@ static bool GameNeedsHook()
 			(TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 			(TITLE_ID) == 0x47534F ||	// Sonic Mega Collection
 			(TITLE_ID) == 0x474244 ||	// BloodRayne
+			(TITLE_ID) == 0x475438 ||	// Big Mutha Truckers
 			(GAME_ID) == 0x474F544A ||	// One Piece - Treasure Battle
 			(GAME_ID) == 0x4747504A ||	// SD Gundam Gashapon Wars
 			DemoNeedsHookPatch() );
@@ -3662,6 +3663,42 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				write32(0x15D04, 0x38C00000);
 				write32(0x97F8C, 0x38600005);
 				dbgprintf("Patch:Patched Doshin the Giant PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x474D5050 ) // Mario Party 4 PAL
+		{
+			if(video60hzPatch && read32(0x57F0) == 0x3863AE34)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x57F0, 0x3863AE70);
+				dbgprintf("Patch:Patched Mario Party 4 PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x47503550 ) // Mario Party 5 PAL
+		{
+			if(video60hzPatch && read32(0x58E4) == 0x3863FEB4)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x58E4, 0x3863FEF0);
+				dbgprintf("Patch:Patched Mario Party 5 PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x47503650 ) // Mario Party 6 PAL
+		{
+			if(video60hzPatch && read32(0x5964) == 0x3863C4C4)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x5964, 0x3863C500);
+				dbgprintf("Patch:Patched Mario Party 6 PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x47503750 ) // Mario Party 7 PAL
+		{
+			if(video60hzPatch && read32(0x5964) == 0x3863BFC4)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x5964, 0x3863C000);
+				dbgprintf("Patch:Patched Mario Party 7 PAL\r\n");
 			}
 		}
 	}
