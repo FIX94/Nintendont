@@ -1001,6 +1001,7 @@ static bool GameNeedsHook()
 			(TITLE_ID) == 0x475438 ||	// Big Mutha Truckers
 			(TITLE_ID) == 0x475153 ||	// Tales of Symphonia
 			(TITLE_ID) == 0x474645 ||	// Fire Emblem
+			(TITLE_ID) == 0x47414C ||	// Super Smash Bros. Melee
 			(GAME_ID) == 0x474F544A ||	// One Piece - Treasure Battle
 			(GAME_ID) == 0x4747504A ||	// SD Gundam Gashapon Wars
 			DemoNeedsHookPatch() );
