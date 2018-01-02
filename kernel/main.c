@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "debug.h"
 #include "GCAM.h"
 #include "Patch.h"
-
+#include "sock.h"
 #include "diskio.h"
 #include "usbstorage.h"
 #include "SDI.h"
@@ -51,7 +51,7 @@ static FATFS *fatfs = NULL;
 static const WCHAR fatDevName[2] = { 0x002F, 0x0000 };
 
 extern u32 SI_IRQ;
-extern bool DI_IRQ, EXI_IRQ;
+extern bool DI_IRQ, EXI_IRQ, SO_IRQ;
 extern u32 WaitForRealDisc;
 extern struct ipcmessage DI_CallbackMsg;
 extern u32 DI_MessageQueue;
@@ -204,7 +204,7 @@ int _main( int argc, char *argv[] )
 	BootStatus(9, s_size, s_cnt);
 
 	DIRegister();
-	DI_Thread = thread_create(DIReadThread, NULL, ((u32*)&__di_stack_addr), ((u32)(&__di_stack_size)) / sizeof(u32), 0x78, 1);
+	DI_Thread = thread_create(DIReadThread, NULL, ((u32*)&__di_stack_addr), ((u32)(&__di_stack_size)) / sizeof(u32), 0x50, 1);
 	thread_continue(DI_Thread);
 
 	DIinit(true);
@@ -221,6 +221,8 @@ int _main( int argc, char *argv[] )
 	StreamInit();
 
 	PatchInit();
+
+	SOCKInit();
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);
@@ -290,12 +292,14 @@ int _main( int argc, char *argv[] )
 		}
 #endif
 		//Does interrupts again if needed
+		sync_before_read((void*)INT_BASE, 0x80);
 		if(TimerDiffTicks(InterruptTimer) > 15820) //about 120 times a second
 		{
-			sync_before_read((void*)INT_BASE, 0x80);
 			if((read32(RSW_INT) & 2) || (read32(DI_INT) & 4) || 
-				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10))
+				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x2010)) {
 				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+				dbgprintf("repeat\r\n");
+			}
 			InterruptTimer = read32(HW_TIMER);
 		}
 		#ifdef PATCHALL
@@ -303,6 +307,11 @@ int _main( int argc, char *argv[] )
 		{
 			if(EXICheckTimer())
 				EXIInterrupt();
+		}
+		if (SO_IRQ == true)
+		{
+			if(SOCKCheckTimer())
+				SOCKInterrupt();
 		}
 		#endif
 		if (SI_IRQ != 0)
@@ -339,7 +348,7 @@ int _main( int argc, char *argv[] )
 		}
 		else /* No device I/O so make sure this stays updated */
 			GetCurrentTime();
-		udelay(20); //wait for other threads
+		udelay(200); //wait for other threads
 
 		if( WaitForRealDisc == 1 )
 		{
@@ -390,6 +399,7 @@ int _main( int argc, char *argv[] )
 		BTUpdateRegisters();
 		HIDUpdateRegisters(0);
 		if(DisableSIPatch == 0) SIUpdateRegisters();
+		SOCKUpdateRegisters();
 		#endif
 		StreamUpdateRegisters();
 		CheckOSReport();
@@ -455,6 +465,7 @@ int _main( int argc, char *argv[] )
 			#ifdef PATCHALL
 			BTE_Shutdown();
 			#endif
+			SOCKShutdown();
 			Shutdown();
 		}
 		//sync_before_read( (void*)0x1860, 0x20 );
@@ -509,6 +520,8 @@ int _main( int argc, char *argv[] )
 		USBStorage_Shutdown();
 	else
 		SDHCShutdown();
+
+	SOCKShutdown();
 
 //make sure drive led is off before quitting
 	if( access_led ) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);

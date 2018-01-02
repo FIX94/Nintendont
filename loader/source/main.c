@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "kernel_zip.h"
 #include "multidol_ldr_bin.h"
 #include "stub_bin.h"
+#include "IOSInterface_bin.h"
 #include "titles.h"
 #include "ipl.h"
 #include "HID.h"
@@ -200,7 +201,7 @@ void changeToDefaultDrive()
 	f_chdrive(primaryDevice);
 	f_chdir_char("/");
 }
-
+static s32 kdData[8] ALIGNED(32);
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -1073,6 +1074,11 @@ int main(int argc, char **argv)
 	strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
 	DCFlushRange((void*)0x93000000, 0x3000);
 
+	DCInvalidateRange((void*)0x93006000, 0x4000);
+	memcpy((void*)0x93006000, IOSInterface_bin, IOSInterface_bin_size);
+	*(vs32*)0x93006000 = IOS_Open("/dev/net/ip/top", 0);
+	DCFlushRange((void*)0x93006000, 0x4000);
+
 	DCInvalidateRange((void*)0x93010010, 0x10000);
 	memcpy((void*)0x93010010, loader_stub, 0x1800);
 	memcpy((void*)0x93011810, stub_bin, stub_bin_size);
@@ -1097,7 +1103,25 @@ int main(int argc, char **argv)
 	u32 out = 0;
 	fd = IOS_Open("/dev/net/kd/request", 0);
 	IOS_Ioctl(fd, IOCTL_ExecSuspendScheduler, NULL, 0, &out, 4);
+	kdData[0] = -1;
+	do {
+		IOS_Ioctl(fd, 6, NULL, 0, kdData, 0x20);
+	} while(kdData[0] < 0);
 	IOS_Close(fd);
+
+	fd = IOS_Open("/dev/net/ip/top", 0);
+	u32 ip = 0;
+	do {
+		ip = IOS_Ioctl(fd, 0x10, 0, 0, 0, 0);
+		usleep(500000);
+	} while(ip == 0);
+	gprintf("%08x\n",ip);
+	IOS_Close(fd);
+	DCInvalidateRange((void*)0x93026900, 0x200);
+	memset((void*)0x93026900, 0, 0x200);
+	*(vu32*)0x930269A4 = ip;
+	DCFlushRange((void*)0x93026900, 0x200);
+	
 
 	write16(0xD8B420A, 0); //disable MEMPROT again after reload
 	//u32 level = IRQ_Disable();
@@ -1106,7 +1130,7 @@ int main(int argc, char **argv)
 
 	DVDStartCache(); //waits for kernel start
 	DCInvalidateRange((void*)0x90000000, 0x1000000);
-	memset((void*)(void*)0x90000000, 0, 0x1000000); //clear ARAM
+	memset((void*)0x90000000, 0, 0x1000000); //clear ARAM
 	DCFlushRange((void*)0x90000000, 0x1000000);
 
 	gprintf("Game Start\n");

@@ -53,6 +53,7 @@ u32 CARDWriteCount = 0;
 u32 IPLReadOffset;
 FIL MemCard;
 bool EXI_IRQ = false;
+extern bool SO_IRQ;
 static u32 IRQ_Timer = 0;
 static u32 IRQ_Cause = 0;
 static u32 IRQ_Cause2= 0;
@@ -73,8 +74,8 @@ void EXIInit( void )
 	ambbBackupMem = malloca(0x10000, 0x40);
 	memset32(ambbBackupMem, 0xFF, 0x10000);
 
-	memset32((void*)EXI_BASE, 0, 0x20);
-	sync_after_write((void*)EXI_BASE, 0x20);
+	memset32((void*)EXI_BASE, 0, 0x100);
+	sync_after_write((void*)EXI_BASE, 0x100);
 
 	const u32 GameID = ConfigGetGameID();
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
@@ -167,13 +168,17 @@ bool EXICheckTimer(void)
 }
 void EXIInterrupt(void)
 {
-	write32( 0x10, IRQ_Cause );
-	write32( 0x18, IRQ_Cause2 );
-	sync_after_write( (void*)0, 0x20 );
-	write32( EXI_INT, 0x10 ); // EXI IRQ
+	write32( EXI_CAUSE_0, IRQ_Cause );
+	sync_after_write( (void*)EXI_CAUSE_0, 0x20 );
+	if(TRIGame != TRI_NONE)
+	{
+		write32( EXI_CAUSE_2, IRQ_Cause2 );
+		sync_after_write( (void*)EXI_CAUSE_2, 0x20 );
+	}
+	write32(EXI_INT, 0x10); // EXI IRQ
 	sync_after_write( (void*)EXI_INT, 0x20 );
 	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-	//dbgprintf("EXI Interrupt\r\n");
+	dbgprintf("EXI Interrupt\r\n");
 	EXI_IRQ = false;
 	IRQ_Timer = 0;
 	IRQ_Cause = 0;
@@ -728,10 +733,211 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 	}
 	return 0;
 }
+u32 EXIDeviceETH( u8 *Data, u32 Length, u32 Mode )
+{
+#ifdef DEBUG_EXI
+	dbgprintf("EXIDeviceETH\r\n");
+#endif
+	u32 EXIOK = 1;
+	//u32 read, wrote;
 
+	if( Mode == 1 )		// Write
+	{
+		switch( Length )
+		{
+			case 1:
+			{
+				if( EXICommand == MEM_BLOCK_READ || EXICommand == MEM_BLOCK_WRITE )
+					break;
+
+				switch( (u32)Data >> 24 )
+				{
+					case 0x00:
+					{
+						EXICommand = MEM_READ_ID_NINTENDO;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: ETHGetDeviceIDNintendo()\r\n");
+#endif
+					} break;
+#ifdef DEBUG_EXI					
+					case 0x89:
+					{
+						dbgprintf("EXI: ETHClearStatus()\r\n");
+					} break;
+#endif
+				}
+			} break;
+			case 2:
+			{
+				switch( (u32)Data >> 16 )
+				{
+					case 0x0000:
+					{
+						EXICommand = MEM_READ_ID;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: ETHGetDeviceID()\r\n");
+#endif
+					} break;
+					case 0x8300:	//
+					{
+						EXICommand = MEM_READ_STATUS;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: ETHReadStatus()\r\n");
+#endif
+					} break;
+#ifdef DEBUG_EXI
+					case 0x8101:
+					{
+						dbgprintf("EXI: ETHIRQEnable()\r\n");
+					} break;
+					case 0x8100:
+					{
+						dbgprintf("EXI: ETHIRQDisable()\r\n");
+					} break;
+#endif
+				}
+			} break;
+			case 3:
+			{
+				switch( (u32)Data >> 24 )
+				{
+					case 0xF1:
+					{
+						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
+						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: ETHErasePage(%08X)\r\n", BlockOff );
+#endif
+						EXICommand = MEM_BLOCK_ERASE;
+						CARDWriteCount = 0;
+						IRQ_Cause = 2;			// EXI IRQ
+						EXIOK = 2;
+					} break;
+				}
+			} break;
+			case 4:
+			{
+				if( EXICommand == MEM_BLOCK_READ || EXICommand == MEM_BLOCK_WRITE )
+					break;
+
+				switch( (u32)Data >> 24 )
+				{
+					case 0xF1:
+					{
+						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
+						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: ETHErasePage(%08X)\r\n", BlockOff );
+#endif
+						EXICommand = MEM_BLOCK_ERASE;
+						CARDWriteCount = 0;
+						IRQ_Cause = 2;			// EXI IRQ
+						EXIOK = 2;
+					} break;
+					case 0xF2:
+					{
+						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
+						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: ETHWritePage(%08X)\r\n", BlockOff );
+#endif
+						EXICommand = MEM_BLOCK_WRITE;
+					} break;
+					case 0x52:
+					{
+						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
+						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: ETHReadPage(%08X)\r\n", BlockOff );
+#endif
+
+						EXICommand = MEM_BLOCK_READ;
+					} break;
+#ifdef DEBUG_EXI
+					default:
+					{
+						dbgprintf("EXI: Unknown:%08x Line:%u\r\n", (u32)Data, __LINE__ );
+					//	Shutdown();
+					} break;
+#endif
+				}			
+			} break;
+			default:
+			{
+				switch( EXICommand )
+				{
+					case MEM_BLOCK_WRITE:
+					{
+						if(BlockOff < BlockOffLow)
+							BlockOffLow = BlockOff;
+						if(BlockOff + Length > BlockOffHigh)
+							BlockOffHigh = BlockOff + Length;
+						changed = true;
+						sync_before_read( Data, Length );
+
+						memcpy( MCard+BlockOff, Data, Length );
+
+						sync_after_write( MCard+BlockOff, Length );	
+
+						IRQ_Cause = 10;	// TC(8) & EXI(2) IRQ
+						EXIOK = 2;
+					} break;
+				}
+			} break;
+		}
+
+	} else {			// Read
+
+		switch( EXICommand )
+		{
+			case MEM_READ_ID_NINTENDO:
+			case MEM_READ_ID:
+			{
+				write32( EXI_CMD_1, EXI_DEVTYPE_ETHER );
+#ifdef DEBUG_EXI
+				dbgprintf("EXI: ETHReadID(%X)\r\n", read32(EXI_CMD_1) );
+#endif
+			} break;
+			case MEM_READ_STATUS:
+			{
+				write32( EXI_CMD_1, 0x41 );	// Unlocked(0x40) and Ready(0x01)
+#ifdef DEBUG_EXI
+				dbgprintf("EXI: ETHReadStatus(%X)\r\n", read32(EXI_CMD_1) );
+#endif
+			} break;
+			case MEM_BLOCK_READ:
+			{
+			//	f_lseek( &MemCard, BlockOff );
+			//	f_read( &MemCard, Data, Length, &read );
+				sync_before_read( MCard+BlockOff, Length );
+
+				memcpy( Data, MCard+BlockOff, Length );
+
+				sync_after_write( Data, Length );
+
+				IRQ_Cause = 8;		// TC IRQ
+
+				EXIOK = 2;
+			} break;
+		}
+	}
+	//dbgprintf("%08x %08x %08x %08x\r\n", (u32)Data >> 16, Mode, Length, EXICommand);
+	write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
+	sync_after_write( (void*)EXI_BASE, 0x20 );
+
+	if( EXIOK == 2 )
+	{
+		EXI_IRQ = true;
+		IRQ_Timer = read32(HW_TIMER);
+	}
+	return 1;
+}
 void EXIUpdateRegistersNEW( void )
 {
-	if( EXI_IRQ == true ) //still working
+	if( EXI_IRQ == true || SO_IRQ == true || (read32(EXI_INT) & 0x2010) ) //still working
 		return;
 
 	//u32 chn, dev, frq, ret, data, len, mode;
@@ -769,7 +975,10 @@ void EXIUpdateRegistersNEW( void )
 							} break;
 							case 2:
 							{
-								Device = EXI_DEV_SP1;
+								if(TRIGame != TRI_NONE)
+									Device = EXI_DEV_SP1;
+								else
+									Device = EXI_DEV_ETH;
 							} break;
 						}
 					} break;
@@ -817,6 +1026,10 @@ void EXIUpdateRegistersNEW( void )
 					{
 						EXIDeviceSP1( (u8*)data, len, mode );
 					} break;
+					case EXI_DEV_ETH:
+					{
+						EXIDeviceETH( (u8*)data, len, mode );
+					} break;
 					default:
 					{
 #ifdef DEBUG_SRAM
@@ -850,6 +1063,10 @@ void EXIUpdateRegistersNEW( void )
 						hexdump( ptr, len );
 #endif
 						EXIDeviceSP1( ptr, len, mode );
+					} break;
+					case EXI_DEV_ETH:
+					{
+						EXIDeviceETH( ptr, len, mode );
 					} break;
 					default:
 					{

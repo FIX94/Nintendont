@@ -116,6 +116,15 @@ enum
 	FCODE_PrsLoad,
 	FCODE_DolEntryMod,
 	FCODE_AppLoad,
+	FCODE_SOInit,
+	FCODE_SOStartup,
+	FCODE_IFInit,
+	FCODE_IPGetAddr,
+	FCODE_IPGetLinkState,
+	FCODE_IPGetConfigError,
+	FCODE_EXTIntrruptHandler,
+	FCODE_ETHGetMACAddr,
+	FCODE_ETHGetLinkStateAsync,
 } FPatternCodes;
 
 enum
@@ -389,6 +398,28 @@ FuncPattern PSOFPatterns[] =
 	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			NULL,		FGROUP_NONE,			    0 },
 };
 
+FuncPattern IPPatterns[] =
+{
+	{   0x7C,   11,   4,    5,    2,    2,	NULL,				FCODE_SOInit,				"SOInit",				NULL,		FGROUP_NONE,				0 },
+	{   0x4F8, 118,  32,   30,   41,   24,  NULL,				FCODE_SOStartup,			"SOStartup",			NULL,		FGROUP_NONE,				0 },
+	{   0x668, 133,  17,   45,   50,   16,  SOSocket,			SOSocket_size,				"SOSocket",				NULL,		FGROUP_NONE,				0 },
+	{   0x120,  15,   4,    5,   25,    5,	SOBind,				SOBind_size,				"SOBind",				NULL,		FGROUP_NONE,				0 },
+	{   0x2BC,  44,  15,   18,   29,    6,	SOAccept,			SOAccept_size,				"SOAccept",				NULL,		FGROUP_NONE,				0 },
+	{   0x140,  16,  15,    3,   17,    3,	SOFcntl,			SOFcntl_size,				"SOFcntl",				NULL,		FGROUP_NONE,				0 },
+	{   0x128,  15,   6,    4,   21,    3,	SOListen,			SOListen_size,				"SOListen",				NULL,		FGROUP_NONE,				0 },
+	{   0x2E4,  38,   2,   13,   36,   19,	SOPoll,				SOPoll_size,				"SOPoll",				NULL,		FGROUP_NONE,				0 },
+	{   0x234,  33,   2,   14,   32,    8,	SORecvFrom,			SORecvFrom_size,			"SORecvFrom",			NULL,		FGROUP_NONE,				0 },
+	{   0x284,  34,   2,   14,   47,   10,	SOSendTo,			SOSendTo_size,				"SOSendTo",				NULL,		FGROUP_NONE,				0 },
+	{   0x454,  82,  23,   26,   28,   23,	__SOClose,			__SOClose_size,				"__SOClose",			NULL,		FGROUP_NONE,				0 },
+	{   0x6AC, 135,  14,   45,   66,   26,	__SOSetSockOpt,		__SOSetSockOpt_size,		"__SOSetSockOpt",		NULL,		FGROUP_NONE,				0 },
+	//{   0x20C,  52,  24,   16,   16,    3,  NULL,				FCODE_IFInit,				"IFInit",				NULL,		FGROUP_NONE,				0 },
+	{   0x6C,    9,   5,    3,    2,    3,	NULL,				FCODE_IPGetAddr,			"IPGetAddr",			NULL,		FGROUP_NONE,				0 },
+	{   0x54,    6,   5,    2,    2,    3,  NULL,				FCODE_IPGetLinkState,		"IPGetLinkState",		NULL,		FGROUP_NONE,				0 },
+	{   0x18,    3,   0,    0,    2,    0,	NULL,				FCODE_IPGetConfigError,		"IPGetConfigError",		NULL,		FGROUP_NONE,				0 },
+	//{   0x24,    4,   2,    1,    0,    2,  NULL,				FCODE_ETHGetMACAddr,		"ETHGetMACAddr",		NULL,		FGROUP_NONE,				0 },
+	//{   0x80,   13,   4,    3,    4,    2,  NULL,				FCODE_ETHGetLinkStateAsync, "ETHGetLinkStateAsync", NULL,		FGROUP_NONE,				0 },
+};
+
 enum
 {
 	PCODE_NORMAL = 0,
@@ -398,6 +429,7 @@ enum
 	PCODE_EXI,
 	PCODE_DATEL,
 	PCODE_PSO,
+	PCODE_IP,
 	PCODE_MAX,
 } AllPGroups;
 
@@ -410,4 +442,5 @@ FuncPatterns AllFPatterns[] =
 	{ EXIFPatterns, sizeof(EXIFPatterns) / sizeof(FuncPattern), PCODE_EXI },
 	{ DatelFPatterns, sizeof(DatelFPatterns) / sizeof(FuncPattern), PCODE_DATEL },
 	{ PSOFPatterns, sizeof(PSOFPatterns) / sizeof(FuncPattern), PCODE_PSO },
+	{ IPPatterns, sizeof(IPPatterns) / sizeof(FuncPattern), PCODE_IP },
 };

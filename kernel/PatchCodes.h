@@ -42,9 +42,6 @@
 #include "asm/OSReportDM.h"
 #include "asm/OSExceptionInit.h"
 #include "asm/__DSPHandler.h"
-#include "asm/DVDLowAudioStream.h"
-#include "asm/DVDLowRequestAudioStatus.h"
-#include "asm/DVDLowAudioBufferConfig.h"
 #include "asm/__GXSetVAT.h"
 #include "asm/GXInitTlutObj.h"
 #include "asm/GXLoadTlut.h"
@@ -56,6 +53,25 @@
 #include "asm/MajoraSaveRegs.h"
 
 #include "asm/codehandler_stub.h"
+
+#include "asm/SOInit.h"
+#include "asm/SOStartup.h"
+#include "asm/SOSocket.h"
+#include "asm/SOBind.h"
+#include "asm/SOFcntl.h"
+#include "asm/SOListen.h"
+#include "asm/SOAccept.h"
+#include "asm/SOPoll.h"
+#include "asm/SORecvFrom.h"
+#include "asm/SOSendTo.h"
+#include "asm/__SOClose.h"
+#include "asm/__SOSetSockOpt.h"
+#include "asm/IPGetLinkState.h"
+#include "asm/IPGetAddr.h"
+#include "asm/IPGetConfigError.h"
+#include "asm/ETHGetMACAddr.h"
+#include "asm/printRetAddr.h"
+#include "asm/HSPIntrruptHandler.h"
 
 //this is the data from my wii disk drive
 const u8 DiskDriveInfo[32] = {

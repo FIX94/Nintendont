@@ -32,6 +32,9 @@ FakeInterrupt:
 	lwz		%r0,	EXI_INT@l(%r3)
 	rlwimi	%r31,	%r0,	0, 27, 27	#0x10
 
+	#SO Fake HSP Interrupt
+	rlwimi	%r31,	%r0,	0, 18, 18	#0x2000
+
 end:
 	lis		%r3,	0xCC00
 	blr

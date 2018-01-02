@@ -43,13 +43,19 @@ echo " "
 make clean
 make
 
-cd ../loader/source/ppc
+cd ../loader/source/ppc/IOSInterface
+echo " "
+echo "Building Nintendont IOS Interface"
+echo " "
+sh ./build.sh
+
+cd ../PADRead
 echo " "
 echo "Building Nintendont HID"
 echo " "
 sh ./build.sh
 
-cd ../../../loader
+cd ../../../../loader
 echo " "
 echo "Building Nintendont Loader"
 echo " "

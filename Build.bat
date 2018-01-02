@@ -43,13 +43,19 @@ echo.
 make windows=1 clean
 make windows=1
 
-cd ..\loader\source\ppc
+cd ..\loader\source\ppc\IOSInterface
+echo.
+echo Building Nintendont IOS Interface
+echo.
+call build.bat
+
+cd ..\PADRead
 echo.
 echo Building Nintendont HID
 echo.
 call build.bat
 
-cd ..\..\..\loader
+cd ..\..\..\..\loader
 echo.
 echo Building Nintendont Loader
 echo.

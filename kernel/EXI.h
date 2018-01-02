@@ -78,6 +78,12 @@ enum EXICommands {
 #define		EXI_CMD_0	(EXI_BASE+0x00)
 #define		EXI_CMD_1	(EXI_BASE+0x04)
 
+#define		CAUSE_BASE	0x00000BA0
+
+#define		EXI_CAUSE_0	(CAUSE_BASE+0x00)
+#define		EXI_CAUSE_1	(CAUSE_BASE+0x20)
+#define		EXI_CAUSE_2	(CAUSE_BASE+0x40)
+
 #define EXI_READ			0
 #define EXI_WRITE			1
 #define EXI_READWRITE	2 
