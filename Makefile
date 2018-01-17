@@ -13,7 +13,7 @@ endif
 
 SUBPROJECTS := multidol kernel/asm resetstub \
 	fatfs/libfat-arm.a fatfs/libfat-ppc.a \
-	codehandler kernel \
+	codehandler kernel kernelboot \
 	loader/source/ppc loader
 .PHONY: all forced clean $(SUBPROJECTS)
 
@@ -68,7 +68,13 @@ loader/source/ppc:
 	@echo " "
 	$(MAKE) -C loader/source/ppc
 
-loader: multidol resetstub fatfs/libfat-ppc.a kernel loader/source/ppc
+kernelboot:
+	@echo " "
+	@echo "Building Nintendont kernelboot"
+	@echo " "
+	$(MAKE) -C kernelboot
+
+loader: multidol resetstub fatfs/libfat-ppc.a kernel kernelboot loader/source/ppc
 	@echo " "
 	@echo "Building Nintendont loader"
 	@echo " "
@@ -85,5 +91,6 @@ clean:
 	$(MAKE) -C fatfs -f Makefile.ppc clean
 	$(MAKE) -C codehandler clean
 	$(MAKE) -C kernel clean
+	$(MAKE) -C kernelboot clean
 	$(MAKE) -C loader/source/ppc clean
 	$(MAKE) -C loader clean

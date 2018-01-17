@@ -1,6 +1,7 @@
 // Nintendont: SRAM functions.
 #include "SRAM.h"
 #include "Config.h"
+#include "debug.h"
 
 // Initial SRAM values.
 GC_SRAM sram ALIGNED(32) =
@@ -26,7 +27,7 @@ GC_SRAM sram ALIGNED(32) =
 
 	0xFE,		// Last DVD error
 	0x00,		// Reserved
-	{0xC8, 0xC8},	// Flash ID checksums
+	{0xC8, 0xA2},	// Flash ID checksums
 
 	// Unused
 	0x01055728
@@ -66,6 +67,7 @@ void SRAM_Init(void)
 	// Clear the Flash IDs.
 	memset(sram.FlashID, 0, sizeof(sram.FlashID));
 	sram.FlashIDChecksum[0] = 0xFF;
+	sram.FlashIDChecksum[1] = 0xFF;
 
 	sram.BootMode &= ~0x40;	// Clear PAL60
 	sram.Flags    &= ~0x80;	// Clear Progmode
@@ -87,12 +89,18 @@ void SRAM_Init(void)
 		// Disable PAL60.
 		sram.BootMode &= 0x40;
 
+		// NTSC Prince of Persia Warrior Within set to Spanish
+		// actually has a bug that cant display the progressive
+		// screen question so dont set progressive flag in that
+		bool spPopWW = (ncfg->GameID == 0x47324F45 &&
+						ncfg->Language == NIN_LAN_SPANISH);
+
 		// Set the progressive scan flag if a component cable
 		// is connected (or HDMI on Wii U), unless we're loading
 		// BMX XXX, since that game won't even boot on a real
 		// GameCube if a component cable is connected.
-		if ((ncfg->GameID >> 8) != 0x474233 &&
-		    (ncfg->VideoMode & NIN_VID_PROG))
+		if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW &&
+			(ncfg->VideoMode & NIN_VID_PROG))
 		{
 			sram.Flags |= 0x80;
 		}

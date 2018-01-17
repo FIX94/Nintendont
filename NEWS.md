@@ -1,5 +1,29 @@
 # Nintendont Changes
 
+## v5.460
+
+Changes since v5.460:
+
+### Major Changes ###
+
+* Skip USB drives that don't have a valid MBR or UStealth MBR signature.
+  This usually happens on Wii U setups where the user has both a Wii U drive
+  and a FAT32 drive for Wii and GameCube. This allows the user to keep both
+  drives connected when running Nintendont.
+* Support for injected Wii VC on Wii U. This allows use of the Wii U GamePad
+  as Player 1 in addition to storing GameCube disc images on Wii U storage.
+* New option to skip the GameCube IPL.
+* Support for Wii Remote rumble when using Classic Controller.
+* New "Game Info" screen that shows information about the selected disc image.
+
+### Other Changes ###
+
+* More patches for various games, including timing and video mode fixes.
+* Fix BMX XXX 480p mode, again. (Broken since v4.428, commit e6e1c6a)
+* Datel AGP fixes.
+* The Game List now shows the filename of the selected game. This is useful
+  for distinguishing between e.g. different revisions of the same game.
+
 ## v4.430
 
 Changes since v4.406:

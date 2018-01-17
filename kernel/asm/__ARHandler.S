@@ -10,8 +10,6 @@
 __ARHandler:
 	lis		%r3,	AR_DMA_MODE@h
 	lwz		%r6,	AR_DMA_LEN@l(%r3)
-	cmplwi	%r6,	0
-	beq		end
 	li		%r7,	0
 	stw		%r7,	AR_DMA_LEN@l(%r3)
 
@@ -20,12 +18,19 @@ __ARHandler:
 	rlwinm	%r5,	%r5,	0,		6,		26 # 0x03ffffe0
 	oris	%r5,	%r5,	0x9000
 
+	#add length onto ARAM address to see max
 	add		%r0,	%r5,	%r6
 	#ARAM Max Address to ensure no overwriting 
 	lis		%r7,	0x9100
 	cmplw	%r0,	%r7
-	#Out of Memory Bounds, dont do anything
-	bgt		end
+	#Fine as is, continue
+	ble		checkLength
+	#Use in-bounds area as new length
+	subf	%r6,	%r5,	%r7
+checkLength:
+	#make sure there is any input length
+	cmpwi	%r6,	0
+	ble		end
 
 	#adjust MEM1 address for safety
 	lwz		%r4,	AR_DMA_MEM1@l(%r3)

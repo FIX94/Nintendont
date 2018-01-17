@@ -84,6 +84,7 @@ vu32 GameEntry = 0, FirstLine = 0;
 u32 AppLoaderSize = 0;
 u32 MAT2patched = 0;
 u32 NeedRelPatches = 0;
+u32 NeedConstantRelPatches = 0;
 
 static char cheatPath[255];
 extern u32 prs_decompress(void* source,void* dest);
@@ -99,6 +100,8 @@ extern int dbgprintf( const char *fmt, ...);
 
 extern u32 UseReadLimit;
 extern u32 RealDiscCMD;
+extern u32 drcAddress;
+extern u32 drcAddressAligned;
 u32 IsN64Emu = 0;
 
 // SHA-1 hashes of known DSP modules.
@@ -974,7 +977,7 @@ static bool DemoNeedsHookPatch()
 static bool GameNeedsHook()
 {
 	if( (TITLE_ID) == 0x473258 )	// Sonic Gems Collection
-		return (DOLSize != 1440100 && DOLSize != 1439812); //Everything except Sonic Fighters
+		return (DOLSize != 1440644 && DOLSize != 1440100 && DOLSize != 1439812); //Everything except Sonic Fighters
 
 	return( (TITLE_ID) == 0x474234 ||	// Burnout 2
 			(TITLE_ID) == 0x47564A ||	// Viewtiful Joe
@@ -994,6 +997,11 @@ static bool GameNeedsHook()
 			(TITLE_ID) == 0x47504C ||	// Piglet's Big Game
 			(TITLE_ID) == 0x475951 ||	// Mario Superstar Baseball
 			(TITLE_ID) == 0x47534F ||	// Sonic Mega Collection
+			(TITLE_ID) == 0x474244 ||	// BloodRayne
+			(TITLE_ID) == 0x475438 ||	// Big Mutha Truckers
+			(TITLE_ID) == 0x475153 ||	// Tales of Symphonia
+			(TITLE_ID) == 0x474645 ||	// Fire Emblem
+			(TITLE_ID) == 0x47414C ||	// Super Smash Bros. Melee
 			(GAME_ID) == 0x474F544A ||	// One Piece - Treasure Battle
 			(GAME_ID) == 0x4747504A ||	// SD Gundam Gashapon Wars
 			DemoNeedsHookPatch() );
@@ -1016,7 +1024,13 @@ static inline bool GameRelTimerPatches()
 	return( (TITLE_ID) == 0x474842 || // The Hobbit
 			(TITLE_ID) == 0x475536 || // Nicktoons Battle for Volcano Island
 			(TITLE_ID) == 0x474E4F || // Nicktoons Unite
-			(TITLE_ID) == 0x475941 ); // Nickelodeon Barnyard
+			(TITLE_ID) == 0x475941 || // Nickelodeon Barnyard
+			(TITLE_ID) == 0x474F32 ); // Blood Omen 2
+}
+
+static inline bool GameRelConstantTimerPatches()
+{
+	return( (TITLE_ID) == 0x474F32 ); // Blood Omen 2
 }
 
 void MPattern(u8 *Data, u32 Length, FuncPattern *FunctionPattern)
@@ -1150,7 +1164,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	// PSO 1&2 / III
 	u32 isPSO = 0;
-	if (((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
+	if (((TITLE_ID) == 0x44504F) || ((TITLE_ID) == 0x47504F) || ((TITLE_ID) == 0x475053))
 	{
 		isPSO = 1;
 		if((PSOHack & PSO_STATE_SWITCH) && DiscOffset > 0)
@@ -1158,19 +1172,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			dbgprintf("PSO:psov3.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_NOENTRY;
 		}
-		if(Length == 0x318E0 && read32((u32)Buffer+0x318B0) == 0x4CBEBC20)
+		if( (Length == 0x318E0 && read32((u32)Buffer+0x318B0) == 0x4CBEBC20) || //PSO PAL/NTSC
+			(Length == 0x31B60 && read32((u32)Buffer+0x31B28) == 0x4CBEBC20) || //PSO JAP
+			(Length == 0x339A0 && read32((u32)Buffer+0x33960) == 0x4CBEBC20) || //PSO Plus JAP v1.05
+			(Length == 0x33FC0 && read32((u32)Buffer+0x33F78) == 0x4CBEBC20) || //PSO 3 JAP
+			(Length == 0x34B60 && read32((u32)Buffer+0x34B28) == 0x4CBEBC20))   //PSO Demo JAP
 		{
 			dbgprintf("PSO:switcher.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_SWITCH;
 		}
-		else if(Length == 0x1B8A0 && read32((u32)Buffer+0x12E0C) == 0x7FA4E378)
+		else if(Length == 0x1B8A0 && read32((u32)Buffer+0x12E0C) == 0x7FA4E378) //All PSO Versions?
 		{
 			dbgprintf("PSO:switcherD.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_SWITCH;
 		}
-		else if((Length == 0x19580 && read32((u32)Buffer+0x19560) == 0xC8BFAF78) || //PSO Plus
+		else if((Length == 0x19580 && read32((u32)Buffer+0x19560) == 0xC8BFAF78) || //PSO Plus NTSC v1.00
 				(Length == 0x19EA0 && read32((u32)Buffer+0x19E80) == 0x24C7E996) || //PSO 3 PAL
-				(Length == 0x1A2C0 && read32((u32)Buffer+0x1A2A0) == 0xE2BEE1FF))   //PSO 3 NTSC
+				(Length == 0x1A2C0 && read32((u32)Buffer+0x1A2A0) == 0xE2BEE1FF) || //PSO 3 NTSC
+				(Length == 0x1A5C0 && read32((u32)Buffer+0x1A5A0) == 0x4CA7BEBC) || //PSO Plus JAP v1.05
+				(Length == 0x1A960 && read32((u32)Buffer+0x1A940) == 0x09F8FF13))   //PSO 3 JAP
 		{
 			dbgprintf("PSO:switcher.prs\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_PSR | PSO_STATE_SWITCH;
@@ -1395,15 +1415,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			u32 t;
 			for(t = 0; t < Length; t+=4) //make sure its patched at all times
-				PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t);
+				PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t, true);
 		} /* Patch .rel file on boot */
 		else if(NeedRelPatches)
 		{
 			u32 t;
 			for(t = 0; t < Length; t+=4)
 			{
-				if(PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t))
-					NeedRelPatches = 0;
+				//only look for .rel code to patch, no floats
+				if(PatchTimers(read32((u32)Buffer+t), (u32)Buffer+t, false))
+				{
+					//some games constantly reload .rel files
+					if(!NeedConstantRelPatches)
+						NeedRelPatches = 0;
+				}
 			}
 			if(NeedRelPatches == 0)
 				dbgprintf("Patch:Patched .rel Timers\r\n");
@@ -1448,25 +1473,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			|| IsPokemonDemo() )
 		{
 			dbgprintf("Patch:[Pokemon memset] applied\r\n");
-			// patch out initial memset(0x1800, 0, 0x1800)
-			if( (read32(0) & 0xFF) == 0x4A )	// JAP
-				write32( 0x560C, 0x60000000 );
-			else								// EUR/USA
-				write32( 0x5614, 0x60000000 );
 
 			// patch memset to jump to test function
-			write32(0x00005498, 0x4BFFABF0);
+			write32(0x00005420, 0x4BFFAC68);
 
 			// patch in test < 0x3000 function
-			write32(0x00000088, 0x3D008000);
-			write32(0x0000008C, 0x61083000);
-			write32(0x00000090, 0x7C044000);
-			write32(0x00000094, 0x4180542C);
-			write32(0x00000098, 0x90E40004);
-			write32(0x0000009C, 0x48005400);
-
-			// skips __start init of debugger mem
-			write32(0x00003194, 0x48000028);
+			write32(0x00000088, 0x3CC08000);
+			write32(0x0000008C, 0x60C63000);
+			write32(0x00000090, 0x7C033000);
+			write32(0x00000094, 0x41800008);
+			write32(0x00000098, 0x480053A5);
+			write32(0x0000009C, 0x48005388);
 		}
 		else if( TITLE_ID == 0x47465A && read32(0x5608) == 0x3C804C00 )
 		{
@@ -1659,7 +1676,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		u32 BufAt0 = read32((u32)Buffer+i);
 		if( BufAt0 != 0x4E800020 )
 		{
-			if(PatchProcessorInterface(BufAt0, (u32)Buffer + i) || PatchTimers(BufAt0, (u32)Buffer + i))
+			if(PatchProcessorInterface(BufAt0, (u32)Buffer + i) || PatchTimers(BufAt0, (u32)Buffer + i, true))
 			{
 				i += 4;
 				continue;
@@ -1724,6 +1741,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						// EXI Device 0 Control Register
 						write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
 						write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
+						// EXI Device 1 Control Register
+						write32A( (u32)Buffer+i+0x14C, 0x3C60C000, 0x3C60CC00, 1 );
+						write32A( (u32)Buffer+i+0x150, 0x38630014, 0x38636800, 1 );
+						write32A( (u32)Buffer+i+0x154, 0x80830000, 0x80830014, 1 );
 						if(TRIGame)
 						{
 							// EXI Device 2 Control Register (Trifroce)
@@ -1858,15 +1879,21 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			}
 			if( (PatchCount & FPATCH_getTiming) == 0 )
 			{
-				if( BufAt0 == 0x386500BE && BufAt4 == 0x4E800020 && read32((u32)Buffer+i+8) == 0x386500E4 &&
-					read32((u32)Buffer+i+12) == 0x4E800020 && read32((u32)Buffer+i+16) == 0x38600000 &&
-					read32((u32)Buffer+i+20) == 0x4E800020 )
+				if( BufAt0 == 0x386500BE && BufAt4 == 0x4E800020 && 
+					read32((u32)Buffer+i+8) == 0x386500E4 && read32((u32)Buffer+i+0xC) == 0x4E800020 )
 				{
-					printpatchfound("getTiming", NULL, (u32)Buffer + i + 16);
-					write32( (u32)Buffer + i + 16, 0x7CA32B78 ); //mr r5, r3
-					PatchCount |= FPATCH_getTiming;
-					i += 20;
-					continue;
+					u32 PatchOffset = 0x10;
+					while ((read32((u32)Buffer+i+PatchOffset) != 0x38600000) && (PatchOffset < 0x30)) // MaxSearch=0x20
+						PatchOffset += 4;
+					if(read32((u32)Buffer+i+PatchOffset) == 0x38600000 &&
+						read32((u32)Buffer+i+PatchOffset+4) == 0x4E800020)
+					{
+						printpatchfound("getTiming", NULL, (u32)Buffer+i+PatchOffset);
+						write32( (u32)Buffer+i+PatchOffset, 0x7CA32B78 ); //mr r5, r3
+						PatchCount |= FPATCH_getTiming;
+						i += PatchOffset+4;
+						continue;
+					}
 				}
 			}
 			if( (PatchCount & FPATCH_GXInit) == 0 )
@@ -2410,7 +2437,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE___OSReadROM:	//	__OSReadROM
 						{
-							if(read32(FOffset+0x80) == 0x38A00004)
+							if(read32(FOffset+0x80) == 0x38A00004 ||
+								read32(FOffset+0xA8) == 0x38A00004)
 							{
 								memcpy((void*)FOffset, ReadROM, ReadROM_size);
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
@@ -2503,12 +2531,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							u32 off		= 0;
 							s32 reg		=-1;
 							u32 valueB	= 0;
+							u32 ChanLen 	= 0x38;
 
 							while(1)
 							{
 								off += 4;
 
 								u32 op = read32( (u32)FOffset + off );
+								// Look for rlwinm rX,rY,6 or invert logic and look for multi rX,rY,0x38 (0x1C000038)?
+								if ((op & 0xFC00FFFF) == 0x54003032) //rlwinm rX, rY, 6,0,25
+									ChanLen = 0x40;
 
 								if( reg == -1 )
 								{
@@ -2551,7 +2583,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							memcpy( (void*)(FOffset), EXIDMA, sizeof(EXIDMA) );
 							/* Insert CB value into patched EXIDMA */
 							W16(FOffset + 2, value);
-							W16(FOffset + 6, valueB + 4);
+							W16(FOffset + 6, valueB);
+							dbgprintf("Patch:[EXIDMA] ChanLen:%08X\r\n", ChanLen);
+							W16(FOffset + 0x12, ChanLen);
 						} break;
 						case FCODE_EXIUnlock:
 						{
@@ -2591,7 +2625,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_ReadROM:
 						{
-							if(read32(FOffset+0x3C) == 0x3BE00100 || 
+							if(read32(FOffset+0x30) == 0x3BE00100 || 
+								read32(FOffset+0x3C) == 0x3BE00100 || 
 								read32(FOffset+0x44) == 0x38800100)
 							{
 								memcpy((void*)FOffset, ReadROM, ReadROM_size);
@@ -2968,6 +3003,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							else
 								CurPatterns[j].Found = 0;
 						} break;
+						case FCODE___DSPHandler_DBG:
+						{
+							if(useipl == 1) break;
+							if(read32(FOffset + 0x14C) == 0x2C000000)
+							{
+								if(DSPHandlerNeeded)
+								{
+									PatchBL( PatchCopy(__DSPHandler, __DSPHandler_size), (FOffset + 0x14C) );
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								}
+								else
+								{
+									dbgprintf("Patch:[__DSPHandler] skipped (0x%08X)\r\n", FOffset);
+								}
+							}
+							else
+								CurPatterns[j].Found = 0;
+						} break;
 						case FCODE_PatchPatchBuffer:
 						{
 							PatchPatchBuffer( (char*)FOffset );
@@ -2988,17 +3041,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								printpatchfound("SwitcherPrs", NULL, OrigAddr);
 								PatchBL(PatchCopy(SwitcherPrs, SwitcherPrs_size), OrigAddr);
 							}
+							else
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_PsoDolEntryMod:
+						{
+							// HACK: PSO patch To Fake Entry
+							u32 OrigAddr = FOffset + ((CurPatterns[j].Length == 0xC0) ? 0xAC : 0x23C);
+							if ((read32(OrigAddr - 8) == 0x4C00012C) && (read32(OrigAddr) == 0x4E800021))  // isync and blrl
+							{
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, OrigAddr);
+								PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
+							}
+							else
+								CurPatterns[j].Found = 0;
 						} break;
 						case FCODE_DolEntryMod:
 						{
-							// HACK: PSO patch To Fake Entry
-							u32 OrigAddr = FOffset + 0xAC;
-							if ((read32(OrigAddr - 8) == 0x4C00012C) && (read32(OrigAddr) == 0x4E800021))  // isync and blrl
-							{
-								printpatchfound("PSO", "FakeEntry", OrigAddr);
-								PatchBL(PATCH_OFFSET_ENTRY, OrigAddr);
-							}
-							else if (read32(FOffset + 0x38) == 0x4E800421) // bctrl
+							if (read32(FOffset + 0x38) == 0x4E800421) // bctrl
 							{
 								// HACK: Datel patch To Fake Entry
 								PatchBL(PATCH_OFFSET_ENTRY, FOffset + 0x38);
@@ -3015,6 +3075,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								printpatchfound("Datel", "FakeEntry", FOffset + 0xC8);
 								PatchBL(PATCH_OFFSET_ENTRY, FOffset + 0xC8);
 							}
+							else
+								CurPatterns[j].Found = 0;
 						} break;
 						default:
 						{
@@ -3260,6 +3322,26 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	{
 		memcpy((void*)0x2A65CC, OSReportDM, sizeof(OSReportDM));
 		sync_after_write((void*)0x2A65CC, sizeof(OSReportDM));
+	}
+	if(GAME_ID == 0x47435345) // Street Racing Syndicate
+	{
+		//UnkReport
+		memcpy((void*)0x16884, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x16884, sizeof(OSReportDM));
+		//debug switch
+		write32(0x330E68, 0);
+		//OSReport
+		memcpy((void*)0x235A4, OSReportDM, sizeof(OSReportDM));
+		sync_after_write((void*)0x235A4, sizeof(OSReportDM));
+		//failed expermiments, someday I'll figure it out...
+		//write32(0xF4B4,0x38600000);
+		write32(0x1F6434,0x38600000);
+		write32(0x1F6454,0x60000000);
+		write32(0x1F6464,0x60000000);
+		write32(0x1F646C,0x38800000);
+		write32(0x2583E8,0x38600000);
+		write32(0x2583EC,0x4E800020);
+		dbgprintf("Patch:Patched Street Racing Syndicate NTSC-U\r\n");
 	}*/
 	if(useipl == 1)
 	{
@@ -3291,6 +3373,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			write32(0x1373618, 0x38600000);
 			dbgprintf("Patch:Patched Gamecube PAL IPL v1.2\r\n");
 		}
+		else if(read32(0x13692F4) == 0x38600001)
+		{
+			write32(0x13692F4, 0x38600000);
+			dbgprintf("Patch:Patched Gamecube MPAL IPL v1.1\r\n");
+		}
 	}
 	else if( TITLE_ID == 0x474256 )	// Batman Vengeance
 	{
@@ -3311,23 +3398,71 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		{
 			if(write32A(0x000B0D88, 0x38600001, 0x4801C0B1, 0))
 			{
-				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-J\r\n");
+				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-J MemCard Emu\r\n");
 			}
 			else if(write32A(0x000B30DC, 0x38600001, 0x4801C2ED, 0))
 			{
-				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-U\r\n");
+				dbgprintf("Patch:Patched Pokemon Colosseum NTSC-U MemCard Emu\r\n");
 			}
 			else if(write32A(0x000B66DC, 0x38600001, 0x4801C2ED, 0))
 			{
-				dbgprintf("Patch:Patched Pokemon Colosseum PAL\r\n");
+				dbgprintf("Patch:Patched Pokemon Colosseum PAL MemCard Emu\r\n");
 			}
+		}
+		// Controller Invert Bug
+		if(read32(0x000F6030) == 0x7C0000D0 && read32(0x000F603C) == 0x7C0000D0)
+		{
+			write32(0x000F6030, 0x7C0000F8); //neg->not
+			write32(0x000F603C, 0x7C0000F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon Colosseum NTSC-J Controller Bug\r\n");
+		}
+		else if(read32(0x000F8368) == 0x7C0000D0 && read32(0x000F8374) == 0x7C0000D0)
+		{
+			write32(0x000F8368, 0x7C0000F8); //neg->not
+			write32(0x000F8374, 0x7C0000F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon Colosseum NTSC-U Controller Bug\r\n");
+		}
+		else if(read32(0x000FB9F8) == 0x7C0000D0 && read32(0x000FBA04) == 0x7C0000D0)
+		{
+			write32(0x000FB9F8, 0x7C0000F8); //neg->not
+			write32(0x000FBA04, 0x7C0000F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon Colosseum PAL Controller Bug\r\n");
 		}
 	}
 	else if( GAME_ID == 0x5043534A ) // Colosseum Bonus
 	{
 		// Memory Card inserted hack
 		if( DisableEXIPatch == 0 && write32A(0x000B0474, 0x38600001, 0x4801C0B5, 0) )
-			dbgprintf("Patch:Patched Pokemon Colosseum Bonus NTSC-J\r\n");
+			dbgprintf("Patch:Patched Pokemon Colosseum Bonus NTSC-J MemCard Emu\r\n");
+		// Controller Invert Bug
+		if(read32(0x000F5784) == 0x7C0000D0 && read32(0x000F5790) == 0x7C0000D0)
+		{
+			write32(0x000F5784, 0x7C0000F8); //neg->not
+			write32(0x000F5790, 0x7C0000F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon Colosseum Bonus NTSC-J Controller Bug\r\n");
+		}
+	}
+	else if( TITLE_ID == 0x475858 )	// Pokemon XD
+	{
+		// Controller Invert Bug
+		if(read32(0x00100DA0) == 0x7CC000D0 && read32(0x00100DAC) == 0x7CC000D0)
+		{
+			write32(0x00100DA0, 0x7C0600F8); //neg->not
+			write32(0x00100DAC, 0x7C0600F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon XD NTSC-J Controller Bug\r\n");
+		}
+		else if(read32(0x00104A1C) == 0x7CC000D0 && read32(0x00104A28) == 0x7CC000D0)
+		{
+			write32(0x00104A1C, 0x7C0600F8); //neg->not
+			write32(0x00104A28, 0x7C0600F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon XD NTSC-U Controller Bug\r\n");
+		}
+		else if(read32(0x0010607C) == 0x7CC000D0 && read32(0x00106088) == 0x7CC000D0)
+		{
+			write32(0x0010607C, 0x7C0600F8); //neg->not
+			write32(0x00106088, 0x7C0600F8); //neg->not
+			dbgprintf("Patch:Patched Pokemon XD PAL Controller Bug\r\n");
+		}
 	}
 	else if( TITLE_ID == 0x475A4C )	// GZL=Wind Waker
 	{
@@ -3426,8 +3561,44 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			dbgprintf("Patch:Patched Nintendo Puzzle Collection NTSC-J\r\n");
 		}
 	}
+	else if( TITLE_ID == 0x44504F ) //PSO Demo JAP
+	{
+		//skip modem detection error to let demo boot up
+		if(write32A(0x194F40, 0x4182002C, 0x4082002C, 0))
+		{
+			dbgprintf("Patch:Patched Phantasy Star Online Demo NTSC-J\r\n");
+		}
+	}
+	else if( GAME_ID == 0x33303145 )
+	{
+		if(read32(0x110F898) == 0x3C630C00 && read32(0x110F8A0) == 0x6403C000)
+		{
+			//UnkReport
+			//memcpy((void*)0x110F100, OSReportDM, sizeof(OSReportDM));
+			//sync_after_write((void*)0x110F100, sizeof(OSReportDM));
+			//UnkReport2
+			//write32(0x110F1C8, 0x7C832378); // mr  r3,r4
+			//write32(0x110F1CC, 0x7CA42B78); // mr  r4,r5
+			//memcpy((void*)0x110F1D0, OSReportDM, sizeof(OSReportDM));
+			//sync_after_write((void*)0x110F1D0, sizeof(OSReportDM));
+			//DI Regs get set up weirdly so PatchFuncInterface misses this
+			write32(0x110F898, 0x60000000); // nop this line out, not needed
+			write32(0x110F8A0, 0x6403D302); // Patch to: oris r3, r0, 0xD302
+			dbgprintf("Patch:Patched GameCube Service Disc NTSC-U\r\n");
+		}
+	}
 	if(videoPatches)
 	{
+		bool video60hzPatch = false;
+		if( ConfigGetConfig(NIN_CFG_FORCE_PROG) )
+			video60hzPatch = true; //480p 60hz
+		else if( ConfigGetVideoMode() & NIN_VID_FORCE )
+		{
+			u8 NinForceMode = ConfigGetVideoMode() & NIN_VID_FORCE_MASK;
+			if(NinForceMode == NIN_VID_FORCE_PAL60 || NinForceMode == NIN_VID_FORCE_NTSC 
+					|| NinForceMode == NIN_VID_FORCE_MPAL)
+				video60hzPatch = true; //480i 60hz
+		}
 		if( TITLE_ID == 0x47454F ) // Capcom vs. SNK 2 EO
 		{
 			//fix for force progressive
@@ -3468,6 +3639,71 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				dbgprintf("Patch:Patched Super Smash Bros Melee v1.02\r\n");
 			}
 		}
+		else if( TITLE_ID == 0x475747 ) // Swingerz Golf
+		{
+			//while getTiming supports all video modes
+			//the NTSC-U game code itself does not, so patch it
+			if(read32(0x1E148) == 0x3C60801F)
+			{
+				PatchB(0x1E128, 0x1E148);
+				dbgprintf("Patch:Patched Swingerz Golf NTSC-U\r\n");
+			}
+		}
+		else if( GAME_ID == 0x474C4D50 ) // Luigis Mansion PAL
+		{
+			if(video60hzPatch && read32(0x7A44) == 0x880D00CC)
+			{
+				//start in PAL60
+				write32(0x7A44, 0x38000001);
+				dbgprintf("Patch:Patched Luigis Mansion PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x474B4450 ) // Doshin the Giant PAL
+		{
+			if(video60hzPatch && read32(0x15D04) == 0x38C00010 && read32(0x97F8C) == 0x7FE3FB78)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x15D04, 0x38C00000);
+				write32(0x97F8C, 0x38600005);
+				dbgprintf("Patch:Patched Doshin the Giant PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x474D5050 ) // Mario Party 4 PAL
+		{
+			if(video60hzPatch && read32(0x57F0) == 0x3863AE34)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x57F0, 0x3863AE70);
+				dbgprintf("Patch:Patched Mario Party 4 PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x47503550 ) // Mario Party 5 PAL
+		{
+			if(video60hzPatch && read32(0x58E4) == 0x3863FEB4)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x58E4, 0x3863FEF0);
+				dbgprintf("Patch:Patched Mario Party 5 PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x47503650 ) // Mario Party 6 PAL
+		{
+			if(video60hzPatch && read32(0x5964) == 0x3863C4C4)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x5964, 0x3863C500);
+				dbgprintf("Patch:Patched Mario Party 6 PAL\r\n");
+			}
+		}
+		else if( GAME_ID == 0x47503750 ) // Mario Party 7 PAL
+		{
+			if(video60hzPatch && read32(0x5964) == 0x3863BFC4)
+			{
+				//start in PAL60 (cheat from Ralf@gc-forever)
+				write32(0x5964, 0x3863C000);
+				dbgprintf("Patch:Patched Mario Party 7 PAL\r\n");
+			}
+		}
 	}
 	PatchStaticTimers();
 
@@ -3475,6 +3711,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 
 	UseReadLimit = 1;
 	// Datel discs require read speed. (Related to Stop motor/Read Header?) 
+	// Triforce titles, and the N64 Emu work better without read speed
 	if((RealDiscCMD != 0 && !Datel) || TRIGame != TRI_NONE || IsN64Emu 
 			|| ConfigGetConfig(NIN_CFG_REMLIMIT))
 		UseReadLimit = 0;
@@ -3541,10 +3778,12 @@ void PatchGame()
 	// Didn't look for why PMW2 requires this.  ToDo
 	if ((TITLE_ID) == 0x475032 || TRIGame) // PacMan World 2 and Triforce hack
 		SiInitSet = 1;
-	write32(0x13002740, SiInitSet); //Clear SI Inited == 0
-	write32(0x13002744, PADSwitchRequired() && (useipl == 0));
-	write32(0x13002748, PADForceConnected() && (useipl == 0));
-	sync_after_write((void*)0x13002740, 0x20);
+	write32(0x13003060, SiInitSet); //Clear SI Inited == 0
+	write32(0x13003064, PADSwitchRequired() && (useipl == 0));
+	write32(0x13003068, PADForceConnected() && (useipl == 0));
+	write32(0x1300306C, drcAddress); //Set on kernel boot
+	write32(0x13003070, drcAddressAligned); //Set on kernel boot
+	sync_after_write((void*)0x13003060, 0x20);
 	/* Clear very actively used areas */
 	memset32((void*)0x13026500, 0, 0x100);
 	sync_after_write((void*)0x13026500, 0x100);
@@ -3563,8 +3802,10 @@ void PatchGame()
 	sync_after_write((void*)0x1000, 0x2000); //low patches
 	write32( RESET_STATUS, GameEntry );
 	sync_after_write((void*)RESET_STATUS, 0x20);
-	// required for some games
+	// single rel patch required for some games
 	NeedRelPatches = GameRelTimerPatches();
+	// constant patching required in even fewer cases
+	NeedConstantRelPatches = GameRelConstantTimerPatches();
 	// in case we patched ipl remove status
 	useipl = 0;
 }

@@ -15,19 +15,23 @@
 #	none
 
 ARStartDMA:
-	cmpwi	%r6,	0
-	beq		FakeTransfer
-
 	#adjust ARAM address for safety
 	rlwinm	%r5,	%r5,	0,		6,		26 # 0x03ffffe0
 	oris	%r5,	%r5,	0x9000
 
+	#add length onto ARAM address to see max
 	add		%r0,	%r5,	%r6
 	#ARAM Max Address to ensure no overwriting 
 	lis		%r7,	0x9100
 	cmplw	%r0,	%r7
-	#Out of Memory Bounds, dont do anything
-	bgt		FakeTransfer
+	#Fine as is, continue
+	ble		checkLength
+	#Use in-bounds area as new length
+	subf	%r6,	%r5,	%r7
+checkLength:
+	#make sure there is any input length
+	cmpwi	%r6,	0
+	ble		FakeTransfer
 
 	#adjust MEM1 address for safety
 	rlwinm	%r4,	%r4,	0,		7,		26 # 0x01ffffe0
@@ -77,7 +81,7 @@ DCStoreRangePrep:
 
 	li		%r0,	0
 DCStoreRange:
-	dcbf	%r0,	%r5
+	dcbst	%r0,	%r5
 	addi	%r5,	%r5,	0x20
 	bdnz	DCStoreRange
 	sync

@@ -18,9 +18,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
+
 #include "global.h"
 #include "EXI.h"
 #include "DI.h"
+#include "GCNCard.h"
 #include "common.h"
 #include "vsprintf.h"
 #include "alloc.h"
@@ -38,35 +40,83 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 static u32 CurrentTiming = EXI_IRQ_DEFAULT;
 
 extern vu32 useipl;
+static bool exi_inited = false;
 
-static u32 Device = 0;
+// EXI device selection. (per channel)
+// idx 3 provided to prevent overflows.
+static u8 EXIDeviceSelect[4] = {0, 0, 0, 0};
+
+// Current EXI command. (per channel)
+// idx 3 provided to prevent overflows.
+static u8 EXICommand[4] = {0, 0, 0, 0};
+
+// IRQ causes. (per channel)
+// idx 3 is provided to prevent overflows.
+static u32 IRQ_Cause[4] = {0, 0, 0, 0};
+
 static u32 SRAMWriteCount = 0;
-static u32 EXICommand = 0;
-static u32 BlockOff= 0;
-static bool changed = false;
-static u32 BlockOffLow = 0xFFFFFFFF;
-static u32 BlockOffHigh = 0x00000000;
-static u8 *const MCard = (u8*)(0x11000000);
 static u8 *const FontBuf = (u8*)(0x13100000);
-static u32 CARDWriteCount = 0;
 static u32 IPLReadOffset;
-static FIL MemCard;
 bool EXI_IRQ = false;
 static u32 IRQ_Timer = 0;
-static u32 IRQ_Cause = 0;
-static u32 IRQ_Cause2= 0;
-static char MemCardName[0x20];
 
+// EXI devices.
+// Low 2 bits: Device number. (0-2)
+// High 2 bits: Channel number. (0-2)
+// Reference: http://hitmen.c02.at/files/yagcd/yagcd/chap10.html
+#define EXI_DEVICE_NUMBER(chn, dev) (((chn)<<2)|((dev)&0x3))
+enum EXIDevice
+{
+	EXI_DEV_NONE			= -1,
+	EXI_DEV_MEMCARD_A		= EXI_DEVICE_NUMBER(0, 0),
+	EXI_DEV_MASK_ROM_RTC_SRAM_UART	= EXI_DEVICE_NUMBER(0, 1),
+	EXI_DEV_SP1			= EXI_DEVICE_NUMBER(0, 2),
+	EXI_DEV_ETH			= EXI_DEV_SP1,
+	EXI_DEV_BASEBOARD		= EXI_DEV_SP1,
+	EXI_DEV_MEMCARD_B		= EXI_DEVICE_NUMBER(1, 0),
+	EXI_DEV_AD16			= EXI_DEVICE_NUMBER(2, 0),
+};
+
+// EXI commands.
+enum EXICommands
+{
+	MEM_READ_ID		= 1,
+	MEM_READ_ID_NINTENDO,
+	MEM_READ_STATUS,
+	MEM_BLOCK_READ,
+	MEM_BLOCK_WRITE,
+	MEM_BLOCK_ERASE,
+	MEM_FORMAT,
+
+	AMBB_BACKUP_OFFSET,
+	AMBB_BACKUP_READ,
+	AMBB_BACKUP_WRITE,
+  
+	AMBB_UNKNOWN,				// 
+	AMBB_ISR_READ,			// 0x82
+	AMBB_IMR_READ,			// 0x86
+	AMBB_IMR_WRITE,			// 0x87
+	AMBB_LANCNT_WRITE,	// 0xFF
+
+	RTC_READ,
+	SRAM_READ,
+	UART_READ,
+
+	SRAM_WRITE,
+
+	IPL_READ_FONT,
+};
+
+extern vu32 TRIGame;
 static u32 TRIBackupOffset= 0;
 static u32 EXI2IRQ			= 0;
 static u32 EXI2IRQStatus	= 0;
 
 static u8 *ambbBackupMem;
 
-void EXIInit( void )
+void EXIInit(void)
 {
 	dbgprintf("EXIInit Start\r\n");
-	u32 wrote, ret;
 
 	//some important memory for triforce
 	ambbBackupMem = malloca(0x10000, 0x40);
@@ -75,81 +125,25 @@ void EXIInit( void )
 	memset32((void*)EXI_BASE, 0, 0x20);
 	sync_after_write((void*)EXI_BASE, 0x20);
 
-	const u32 GameID = ConfigGetGameID();
-	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
-	{
-		memset32(MemCardName, 0, 0x20);
-		memcpy(MemCardName, "/saves/", 7);
-		if ( ConfigGetConfig(NIN_CFG_MC_MULTI) )
-		{
-			// "Multi" mode is enabled.
-			// Use one memory card for USA/PAL games,
-			// and another memory card for JPN games.
-			switch (BI2region)
-			{
-				case BI2_REGION_JAPAN:
-				case BI2_REGION_SOUTH_KOREA:
-				default:
-					// JPN games.
-					memcpy(MemCardName+7, "ninmemj.raw", 11);
-					break;
-
-				case BI2_REGION_USA:
-				case BI2_REGION_PAL:
-					// USA/PAL games.
-					memcpy(MemCardName+7, "ninmem.raw", 10);
-					break;
-			}
-		}
-		else
-		{
-			memcpy(MemCardName+7, &GameID, 4);
-			memcpy(MemCardName+11, ".raw", 4);
-		}
-		sync_after_write(MemCardName, 0x20);
-
-		dbgprintf("Trying to open %s\r\n", MemCardName);
-		ret = f_open_char( &MemCard, MemCardName, FA_READ );
-		if( ret != FR_OK || MemCard.obj.objsize == 0 )
-		{
-#ifdef DEBUG_EXI
-			dbgprintf("EXI: Failed to open %s:%u\r\n", MemCardName, ret );
-#endif
-			Shutdown();
-		}
-
-#ifdef DEBUG_EXI
-		dbgprintf("EXI: Loading memory card...");
-#endif
-
-		u32 FindBlocks = 0;
-		for (FindBlocks = 0; FindBlocks <= MEM_CARD_MAX; FindBlocks++)
-			if (MEM_CARD_SIZE(FindBlocks) == MemCard.obj.objsize)
-				break;
-		if (FindBlocks > MEM_CARD_MAX)
-		{
-			dbgprintf("EXI: Memcard unexpected size %s:%u\r\n", MemCardName, MemCard.obj.objsize );
-			Shutdown();
-		}
-		ConfigSetMemcardBlocks(FindBlocks);
-		f_lseek(&MemCard, 0);
-		f_read( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
-		f_close( &MemCard );
-#ifdef DEBUG_EXI
-		dbgprintf("EXI: Loaded memory card size %d\r\n", ConfigGetMemcardSize());
-		dbgprintf("done\r\n");
-#endif
-		sync_after_write( MCard, ConfigGetMemcardSize() );
-
-		// Set the flash ID in SRAM.
-		// FIXME: This doesn't fix the problem with first-party
-		// memory card images, and it might be causing problems
-		// with Ikaruga (PAL).
-		//SRAM_SetFlashID( MCard, 0 );
-	}
-
 	// Initialize SRAM.
 	SRAM_Init();
+
+	// Clear the "Slot B" configuration bit initially.
+	ncfg->Config &= ~NIN_CFG_MC_SLOTB;
+
+	// EXI has been initialized.
+	exi_inited = true;
+
+	// If memory card emulation is enabled, load the card images.
+	if (ConfigGetConfig(NIN_CFG_MEMCARDEMU))
+	{
+		// Load Slot A.
+		GCNCard_Load(0);
+
+		// Load Slot B.
+		if (TRIGame == 0)
+			GCNCard_Load(1);
+	}
 }
 
 extern vu32 TRIGame;
@@ -161,9 +155,9 @@ extern vu32 TRIGame;
  */
 void EXISetTimings(u32 TitleID, u32 Region)
 {
-	//GC BIOS, Trifoce Game, X-Men Legends 2, Rainbow Six 3 or Starfox Assault (NTSC-U)
+	//GC BIOS, Trifoce Game, X-Men Legends 2, Rainbow Six 3, SRS or Starfox Assault (NTSC-U)
 	if(useipl || TRIGame != TRI_NONE || TitleID == 0x475832 || TitleID == 0x473633 ||
-		(TitleID == 0x474637 && Region == REGION_ID_USA))
+		TitleID == 0x474353 || (TitleID == 0x474637 && Region == REGION_ID_USA))
 	{
 		CurrentTiming = EXI_IRQ_INSTANT;
 	}
@@ -186,85 +180,54 @@ bool EXICheckTimer(void)
 }
 void EXIInterrupt(void)
 {
-	write32( 0x10, IRQ_Cause );
-	write32( 0x18, IRQ_Cause2 );
+	write32( 0x10, IRQ_Cause[0] );
+	write32( 0x14, IRQ_Cause[1] );
+	write32( 0x18, IRQ_Cause[2] );
 	sync_after_write( (void*)0, 0x20 );
 	write32( EXI_INT, 0x10 ); // EXI IRQ
 	sync_after_write( (void*)EXI_INT, 0x20 );
-	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
+	write32( HW_IPC_ARMCTRL, 8 ); //throw irq
 	//dbgprintf("EXI Interrupt\r\n");
 	EXI_IRQ = false;
 	IRQ_Timer = 0;
-	IRQ_Cause = 0;
-	IRQ_Cause2 = 0;
-}
-bool EXICheckCard(void)
-{
-	if(changed == true)
-	{
-		changed = false;
-		return true;
-	}
-	return false;
+	IRQ_Cause[0] = 0;
+	IRQ_Cause[1] = 0;
+	IRQ_Cause[2] = 0;
 }
 
-void EXISaveCard(void)
+void EXIShutdown(void)
 {
-	if(TRIGame)
+	if (TRIGame || !exi_inited)
+	{
+		// Triforce doesn't use the standard EXI CARD interface.
 		return;
-
-	u32 wrote;
-	
-	if (BlockOffLow < BlockOffHigh)
-	{
-//#ifdef DEBUG_EXI
-		//dbgprintf("EXI: Saving memory card...");
-//#endif
-		s32 ret = f_open_char( &MemCard, MemCardName, FA_WRITE );
-		if( ret == FR_OK )
-		{
-			sync_before_read(MCard, ConfigGetMemcardSize());
-			f_lseek(&MemCard, BlockOffLow);
-			f_write(&MemCard, MCard + BlockOffLow, BlockOffHigh - BlockOffLow, &wrote);
-			f_close(&MemCard);
-//#ifdef DEBUG_EXI
-			//dbgprintf("Done!\r\n");
-		}
-		//else
-			//dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret );
-//#endif
-		BlockOffLow = 0xFFFFFFFF;
-		BlockOffHigh = 0x00000000;
 	}
-}
-
-void EXIShutdown( void )
-{
-	if(TRIGame)
-		return;
-
-	u32 wrote;
 
 //#ifdef DEBUG_EXI
-	dbgprintf("EXI: Saving memory card...");
+	dbgprintf("EXI: Saving memory card(s)...");
 //#endif
-
-	sync_before_read( MCard, ConfigGetMemcardSize() );
-	s32 ret = f_open_char( &MemCard, MemCardName, FA_WRITE );
-	if( ret == FR_OK )
-	{
-		f_lseek( &MemCard, 0 );
-		f_write( &MemCard, MCard, ConfigGetMemcardSize(), &wrote );
-		f_close( &MemCard );
-	}
-	else
-		dbgprintf("\r\nUnable to open memory card file:%u\r\n", ret );
+	GCNCard_Save();
 //#ifdef DEBUG_EXI
 	dbgprintf("Done!\r\n");
 //#endif
+	exi_inited = false;
 }
-u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
+
+/**
+ * EXI device handler: Memory Card
+ * @param slot Memory card slot. (0 == Slot A, 1 == Slot B)
+ * @param Data Data buffer.
+ * @param Length Length of data buffer.
+ * @param Mode Read/Write mode.
+ */
+static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 {
+	if (!GCNCard_IsEnabled(slot))
+	{
+		// Card is not enabled.
+		return;
+	}
+
 	u32 EXIOK = 1;
 	//u32 read, wrote;
 
@@ -274,22 +237,22 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 		{
 			case 1:
 			{
-				if( EXICommand == MEM_BLOCK_READ || EXICommand == MEM_BLOCK_WRITE )
+				if( EXICommand[slot] == MEM_BLOCK_READ || EXICommand[slot] == MEM_BLOCK_WRITE )
 					break;
 
 				switch( (u32)Data >> 24 )
 				{
 					case 0x00:
 					{
-						EXICommand = MEM_READ_ID_NINTENDO;
+						EXICommand[slot] = MEM_READ_ID_NINTENDO;
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDGetDeviceIDNintendo()\r\n");
+						dbgprintf("EXI: Slot %c: CARDGetDeviceIDNintendo()\r\n", (slot+'A'));
 #endif
 					} break;
 #ifdef DEBUG_EXI					
 					case 0x89:
 					{
-						dbgprintf("EXI: CARDClearStatus()\r\n");
+						dbgprintf("EXI: Slot %c: CARDClearStatus()\r\n", (slot+'A'));
 					} break;
 #endif
 				}
@@ -300,26 +263,26 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 				{
 					case 0x0000:
 					{
-						EXICommand = MEM_READ_ID;
+						EXICommand[slot] = MEM_READ_ID;
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDGetDeviceID()\r\n");
+						dbgprintf("EXI: Slot %c: CARDGetDeviceID()\r\n", (slot+'A'));
 #endif
 					} break;
 					case 0x8300:	//
 					{
-						EXICommand = MEM_READ_STATUS;
+						EXICommand[slot] = MEM_READ_STATUS;
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDReadStatus()\r\n");
+						dbgprintf("EXI: Slot %c: CARDReadStatus()\r\n", (slot+'A'));
 #endif
 					} break;
 #ifdef DEBUG_EXI
 					case 0x8101:
 					{
-						dbgprintf("EXI: CARDIRQEnable()\r\n");
+						dbgprintf("EXI: Slot %c: CARDIRQEnable()\r\n", (slot+'A'));
 					} break;
 					case 0x8100:
 					{
-						dbgprintf("EXI: CARDIRQDisable()\r\n");
+						dbgprintf("EXI: Slot %c: CARDIRQDisable()\r\n", (slot+'A'));
 					} break;
 #endif
 				}
@@ -330,63 +293,58 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 				{
 					case 0xF1:
 					{
-						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
-						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
+						GCNCard_SetBlockOffset_Erase(slot, (u32)Data);
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDErasePage(%08X)\r\n", BlockOff );
+						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
 #endif
-						EXICommand = MEM_BLOCK_ERASE;
-						CARDWriteCount = 0;
-						IRQ_Cause = 2;			// EXI IRQ
+						// FIXME: ERASE command isn't implemented.
+						EXICommand[slot] = MEM_BLOCK_ERASE;
+						GCNCard_ClearWriteCount(slot);
+						IRQ_Cause[slot] = 2;	// EXI IRQ
 						EXIOK = 2;
 					} break;
 				}
 			} break;
 			case 4:
 			{
-				if( EXICommand == MEM_BLOCK_READ || EXICommand == MEM_BLOCK_WRITE )
+				if( EXICommand[slot] == MEM_BLOCK_READ || EXICommand[slot] == MEM_BLOCK_WRITE )
 					break;
 
 				switch( (u32)Data >> 24 )
 				{
 					case 0xF1:
 					{
-						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
-						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
-						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+						GCNCard_SetBlockOffset(slot, (u32)Data);
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDErasePage(%08X)\r\n", BlockOff );
+						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
 #endif
-						EXICommand = MEM_BLOCK_ERASE;
-						CARDWriteCount = 0;
-						IRQ_Cause = 2;			// EXI IRQ
+						// FIXME: ERASE command isn't implemented.
+						EXICommand[slot] = MEM_BLOCK_ERASE;
+						GCNCard_ClearWriteCount(slot);
+						IRQ_Cause[slot] = 2;	// EXI IRQ
 						EXIOK = 2;
 					} break;
 					case 0xF2:
 					{
-						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
-						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
-						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+						GCNCard_SetBlockOffset(slot, (u32)Data);
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDWritePage(%08X)\r\n", BlockOff );
+						dbgprintf("EXI: Slot %c: CARDWritePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
 #endif
-						EXICommand = MEM_BLOCK_WRITE;
+						EXICommand[slot] = MEM_BLOCK_WRITE;
 					} break;
 					case 0x52:
 					{
-						BlockOff = (((u32)Data>>16)&0xFF)  << 17;
-						BlockOff|= (((u32)Data>> 8)&0xFF)  << 9;
-						BlockOff|= (((u32)Data&0xFF) & 3 ) << 7;
+						GCNCard_SetBlockOffset(slot, (u32)Data);
 #ifdef DEBUG_EXI
-						dbgprintf("EXI: CARDReadPage(%08X)\r\n", BlockOff );
+						dbgprintf("EXI: Slot %c: CARDReadPage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
 #endif
 
-						EXICommand = MEM_BLOCK_READ;
+						EXICommand[slot] = MEM_BLOCK_READ;
 					} break;
 #ifdef DEBUG_EXI
 					default:
 					{
-						dbgprintf("EXI: Unknown:%08x Line:%u\r\n", (u32)Data, __LINE__ );
+						dbgprintf("EXI: Slot %c: Unknown:%08x Line:%u\r\n", (slot+'A'), (u32)Data, __LINE__ );
 					//	Shutdown();
 					} break;
 #endif
@@ -394,22 +352,12 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 			} break;
 			default:
 			{
-				switch( EXICommand )
+				switch( EXICommand[slot] )
 				{
 					case MEM_BLOCK_WRITE:
 					{
-						if(BlockOff < BlockOffLow)
-							BlockOffLow = BlockOff;
-						if(BlockOff + Length > BlockOffHigh)
-							BlockOffHigh = BlockOff + Length;
-						changed = true;
-						sync_before_read( Data, Length );
-
-						memcpy( MCard+BlockOff, Data, Length );
-
-						sync_after_write( MCard+BlockOff, Length );	
-
-						IRQ_Cause = 10;	// TC(8) & EXI(2) IRQ
+						GCNCard_Write(slot, Data, Length);
+						IRQ_Cause[slot] = 10;	// TC(8) & EXI(2) IRQ
 						EXIOK = 2;
 					} break;
 				}
@@ -418,45 +366,38 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 
 	} else {			// Read
 
-		switch( EXICommand )
+		switch( EXICommand[slot] )
 		{
 			case MEM_READ_ID_NINTENDO:
 			case MEM_READ_ID:
 			{
 				if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) && (TRIGame == TRI_NONE) )
 				{
-					write32( EXI_CMD_1, ConfigGetMemcardCode() );
+					write32( EXI_CMD_1, GCNCard_GetCode(slot) );
 				} else {
 					write32( EXI_CMD_1, 0x00000000 ); //no memory card
 				}
 #ifdef DEBUG_EXI
-				dbgprintf("EXI: CARDReadID(%X)\r\n", read32(EXI_CMD_1) );
+				dbgprintf("EXI: Slot %c: CARDReadID(%X)\r\n", (slot+'A'), read32(EXI_CMD_1));
 #endif
 			} break;
 			case MEM_READ_STATUS:
 			{
 				write32( EXI_CMD_1, 0x41 );	// Unlocked(0x40) and Ready(0x01)
 #ifdef DEBUG_EXI
-				dbgprintf("EXI: CARDReadStatus(%X)\r\n", read32(EXI_CMD_1) );
+				dbgprintf("EXI: Slot %c: CARDReadStatus(%X)\r\n", (slot+'A'), read32(EXI_CMD_1));
 #endif
 			} break;
 			case MEM_BLOCK_READ:
 			{
-			//	f_lseek( &MemCard, BlockOff );
-			//	f_read( &MemCard, Data, Length, &read );
-				sync_before_read( MCard+BlockOff, Length );
-
-				memcpy( Data, MCard+BlockOff, Length );
-
-				sync_after_write( Data, Length );
-
-				IRQ_Cause = 8;		// TC IRQ
-
+				GCNCard_Read(slot, Data, Length);
+				IRQ_Cause[slot] = 8;	// TC IRQ
 				EXIOK = 2;
 			} break;
 		}
 	}
-	//dbgprintf("%08x %08x %08x %08x\r\n", (u32)Data >> 16, Mode, Length, EXICommand);
+
+	//dbgprintf("%08x %08x %08x %08x\r\n", (u32)Data >> 16, Mode, Length, EXICommand[slot]);
 	write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
 	sync_after_write( (void*)EXI_BASE, 0x20 );
 
@@ -465,10 +406,9 @@ u32 EXIDeviceMemoryCard( u8 *Data, u32 Length, u32 Mode )
 		EXI_IRQ = true;
 		IRQ_Timer = read32(HW_TIMER);
 	}
-	return 1;
 }
 
-u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
+static u32 EXIDevice_ROM_RTC_SRAM_UART(u8 *Data, u32 Length, u32 Mode)
 {
 	if( Mode == 1 )		// Write
 	{
@@ -476,7 +416,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 		{
 			case 4:
 			{
-				if( EXICommand == SRAM_WRITE )
+				if( EXICommand[0] == SRAM_WRITE )
 				{
 					*(u32*)(((u8*)&sram)+SRAMWriteCount) = (u32)Data;
 
@@ -487,7 +427,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 
 				if( (u32)Data == 0x20000000 )
 				{
-					EXICommand = RTC_READ;
+					EXICommand[0] = RTC_READ;
 #ifdef DEBUG_SRAM
 					dbgprintf("EXI: RTCRead()\r\n");
 #endif
@@ -496,7 +436,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 
 				if( (u32)Data == 0x20000100 )
 				{
-					EXICommand = SRAM_READ;
+					EXICommand[0] = SRAM_READ;
 #ifdef DEBUG_SRAM
 					dbgprintf("EXI: SRAMRead()\r\n");
 #endif
@@ -505,7 +445,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 
 				if( (u32)Data == 0x20010000 )
 				{
-					EXICommand = UART_READ;
+					EXICommand[0] = UART_READ;
 #ifdef DEBUG_SRAM
 					dbgprintf("EXI: UARTRead()\r\n");
 #endif
@@ -514,7 +454,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 
 				if( (u32)Data == 0xA0000100 || (u32)Data == 0xA0000600 )
 				{
-					EXICommand = SRAM_WRITE;
+					EXICommand[0] = SRAM_WRITE;
 					SRAMWriteCount = 0;
 #ifdef DEBUG_SRAM
 					dbgprintf("EXI: SRAMWrite()\r\n");
@@ -524,7 +464,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 				u32 PossibleIPLOffset = (u32)Data >> 6;
 				if( PossibleIPLOffset >= IPL_ROM_FONT_SJIS && PossibleIPLOffset < IPL_ROM_END_OFFSET )
 				{
-					EXICommand = IPL_READ_FONT;
+					EXICommand[0] = IPL_READ_FONT;
 #ifdef DEBUG_SRAM
 					dbgprintf("EXI: IPLReadFont()\r\n");
 #endif
@@ -537,7 +477,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 
 	} else {
 
-		switch( EXICommand )
+		switch( EXICommand[0] )
 		{
 			case IPL_READ_FONT:
 			{
@@ -586,6 +526,7 @@ u32 EXIDevice_ROM_RTC_SRAM_UART( u8 *Data, u32 Length, u32 Mode )
 	sync_after_write( (void*)EXI_BASE, 0x20 );
 	return 1;
 }
+
 u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 {
 	u32 EXIOK = 0;
@@ -601,49 +542,50 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 			*/
 			case 4:
 			{
+				// FIXME: Use CARD_ctx for Triforce?
 				switch( (u32)Data >> 24 )
 				{
 					case 0x01:
 					{
 						TRIBackupOffset = ((u32)Data >> 8) & 0xFFFF;
-						EXICommand = AMBB_BACKUP_OFFSET;
+						EXICommand[0] = AMBB_BACKUP_OFFSET;
 					} break;
 					case 0x02:
 					{
 						ambbBackupMem[TRIBackupOffset] = ((u32)Data >> 16) & 0xFF;
-						EXICommand = AMBB_BACKUP_WRITE;
+						EXICommand[0] = AMBB_BACKUP_WRITE;
 					} break;
 					case 0x03:
 					{
-						EXICommand = AMBB_BACKUP_READ;
+						EXICommand[0] = AMBB_BACKUP_READ;
 					} break;
 					case 0x82:
 					{
 #ifdef DEBUG_GCAM
 						dbgprintf("EXI:ISRRead()\n");
 #endif
-						EXICommand = AMBB_ISR_READ;
+						EXICommand[0] = AMBB_ISR_READ;
 					} break;
 					case 0x83:
 					{
 #ifdef DEBUG_GCAM
 						dbgprintf("EXI:0x83()\n");
 #endif
-						EXICommand = AMBB_UNKNOWN;
+						EXICommand[0] = AMBB_UNKNOWN;
 					} break;
 					case 0x86:
 					{
 #ifdef DEBUG_GCAM
 						dbgprintf("EXI:IMRRead()\n");
 #endif
-						EXICommand = AMBB_IMR_READ;
+						EXICommand[0] = AMBB_IMR_READ;
 					} break;
 					case 0x87:
 					{
 #ifdef DEBUG_GCAM
 						dbgprintf("EXI:IMRWrite(%04X)\n", ((u32)Data >> 8) & 0xFFFF );
 #endif
-						EXICommand = AMBB_IMR_WRITE;
+						EXICommand[0] = AMBB_IMR_WRITE;
 					} break;
 					case 0xFF:
 					{
@@ -659,7 +601,7 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 							EXI2IRQ = 1;
 							EXI2IRQStatus = 2;
 						}
-						EXICommand = AMBB_LANCNT_WRITE;
+						EXICommand[0] = AMBB_LANCNT_WRITE;
 					} break;
 				}
 			} break;
@@ -669,14 +611,14 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 				{
 					case 0x0000:
 					{
-						EXICommand = MEM_READ_ID;
+						EXICommand[0] = MEM_READ_ID;
 					} break;
 				}
 			} break;
 		}
 
 	} else {
-		switch(EXICommand)
+		switch(EXICommand[0])
 		{
 			/* 0x02 */
 			case AMBB_BACKUP_WRITE:
@@ -740,8 +682,8 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 	if( EXIOK == 2 )
 	{
 		//dbgprintf("EXI: Triforce IRQ\r\n");
-		IRQ_Cause = 8;
-		IRQ_Cause2 = 2;
+		IRQ_Cause[0] = 8;
+		IRQ_Cause[2] = 2;
 		EXI_IRQ = true;
 		IRQ_Timer = read32(HW_TIMER);
 	}
@@ -768,53 +710,51 @@ void EXIUpdateRegistersNEW( void )
 				chn = command & 0xFF;
 				dev = (command>>8) & 0xFF;
 				//frq = (command>>16) & 0xFF;
-				
 				//dbgprintf("EXISelect( %u, %u, %u )\r\n", chn, dev, frq );
-				ret = 1;
 
-				switch( chn )
+				ret = 0;
+				if (chn <= 2 && dev <= 2)
 				{
-					case 0:
+					// Valid channel/device number.
+					EXIDeviceSelect[chn] = dev;
+
+					// Check if this device is present.
+					switch (EXI_DEVICE_NUMBER(chn, dev))
 					{
-						switch( dev )
-						{
-							case 0:
-							{
-								Device = EXI_DEV_MEMCARD_A;
-							} break;
-							case 1:
-							{
-								Device = EXI_DEV_MASK_ROM_RTC_SRAM_UART;
-							} break;
-							case 2:
-							{
-								Device = EXI_DEV_SP1;
-							} break;
-						}
-					} break;
-					case 1:
-					{
-						Device = EXI_DEV_MEMCARD_B;
-						ret = 0;
-					} break;
-					case 2:
-					{
-						Device = EXI_DEV_AD16;
-						ret = 0;
-					} break;
+						case EXI_DEV_MEMCARD_A:
+						case EXI_DEV_MASK_ROM_RTC_SRAM_UART:
+						case EXI_DEV_SP1:
+							// Device is present.
+							// TODO: SP1 only for Triforce?
+							ret = 1;
+							break;
+
+#ifdef GCNCARD_ENABLE_SLOT_B
+						case EXI_DEV_MEMCARD_B:
+							ret = GCNCard_IsEnabled(1);
+							break;
+#endif /* GCNCARD_ENABLE_SLOT_B */
+
+						case EXI_DEV_AD16:
+						default:
+							// Unsupported device.
+							ret = 0;
+							break;
+					}
+
+					EXICommand[chn] = 0;
 				}
 
-				EXICommand = 0;
-				write32( EXI_CMD_0, 0 );
 				write32( EXI_CMD_1, ret );
+				write32( EXI_CMD_0, 0 );
 				sync_after_write((void*)EXI_BASE, 0x20);
 			} break;
 			case 0x11:	// EXI_Imm( s32 nChn, void *pData, u32 nLen, u32 nMode, EXICallback tc_cb );
 			{
-				chn	=	(command >> 20) & 0xF;
-				data=	read32(EXI_CMD_1);
-				len	=	command& 0xFFFF;
-				mode=	(command >> 16) & 0xF;
+				chn	= (command >> 20) & 0xF;
+				data	= read32(EXI_CMD_1);
+				len	= command& 0xFFFF;
+				mode	= (command >> 16) & 0xF;
 
 				if( len > 4 )
 				{
@@ -822,63 +762,74 @@ void EXIUpdateRegistersNEW( void )
 				}
 				
 				//dbgprintf("EXIImm( %u, %p, %u, %u, Dev:%u EC:%u )\r\n", chn, data, len, mode, Device, EXICommand );
-				switch( Device )
+				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-					{
-						EXIDeviceMemoryCard( (u8*)data, len, mode );
-					} break;
+						EXIDeviceMemoryCard(0, (u8*)data, len, mode);
+						break;
+
+#ifdef GCNCARD_ENABLE_SLOT_B
+					case EXI_DEV_MEMCARD_B:
+						EXIDeviceMemoryCard(1, (u8*)data, len, mode);
+						break;
+#endif /* GCNCARD_ENABLE_SLOT_B */
+
 					case EXI_DEV_MASK_ROM_RTC_SRAM_UART:
-					{
 						EXIDevice_ROM_RTC_SRAM_UART( (u8*)data, len, mode );
-					} break;
+						break;
+
 					case EXI_DEV_SP1:
-					{
 						EXIDeviceSP1( (u8*)data, len, mode );
-					} break;
+						break;
+
 					default:
-					{
 #ifdef DEBUG_SRAM
-						dbgprintf("EXI: EXIImm: Unhandled device:%u\r\n", Device );
+						dbgprintf("EXI: EXIImm: Unhandled device: Ch%u, Dev%u\r\n", chn, EXIDeviceSelect[chn&3]);
 #endif
-					} break;
+						break;
 				}
 
 			} break;
 			case 0x12:	// EXIDMA
 			{
-				chn	=	(command >> 20) & 0xF;
-				ptr=	(u8*)P2C(read32(EXI_CMD_1));
-				len	=	command& 0xFFFF;
-				mode=	(command >> 16) & 0xF;
+				chn	= (command >> 20) & 0xF;
+				ptr	= (u8*)P2C(read32(EXI_CMD_1));
+				len	= command& 0xFFFF;
+				mode	= (command >> 16) & 0xF;
 				
 				//dbgprintf("EXIDMA( %u, %p, %u, %u )\r\n", chn, ptr, len, mode );
-				switch( Device )
+				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-					{
-						EXIDeviceMemoryCard( ptr, len, mode );
-					} break;
+						EXIDeviceMemoryCard(0, ptr, len, mode);
+						break;
+
+#ifdef GCNCARD_ENABLE_SLOT_B
+					case EXI_DEV_MEMCARD_B:
+						EXIDeviceMemoryCard(1, ptr, len, mode);
+						break;
+#endif /* GCNCARD_ENABLE_SLOT_B */
+
 					case EXI_DEV_MASK_ROM_RTC_SRAM_UART:
-					{
 						EXIDevice_ROM_RTC_SRAM_UART( ptr, len, mode );
-					} break;
+						break;
+
 					case EXI_DEV_SP1:
-					{
 #ifdef DEBUG_SRAM
 						hexdump( ptr, len );
 #endif
 						EXIDeviceSP1( ptr, len, mode );
-					} break;
+						break;
+
 					default:
-					{
 #ifdef DEBUG_SRAM
-						dbgprintf("EXI: EXIDMA: Unhandled device:%u\r\n", Device );
+						dbgprintf("EXI: EXIDMA: Unhandled device: Ch%u, Dev%u\r\n", chn, EXIDeviceSelect[chn&3]);
 #endif
-					} break;
+						break;
 				}
 
-				EXICommand = 0;
+				if (chn <= 2)
+					EXICommand[chn] = 0;
 
 			} break;
 			default:

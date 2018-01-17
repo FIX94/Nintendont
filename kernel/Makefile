@@ -14,7 +14,7 @@ PREFIX	:= $(DEVKITARM)/bin/arm-none-eabi-
 CC	:= $(PREFIX)gcc
 AS	:= $(PREFIX)as
 LD	:= $(PREFIX)gcc
-STRIP	:= $(PREFIX)strip
+OBJCOPY	:= $(PREFIX)objcopy
 
 ifeq ($(windows), 1)
 	ZIP = zip/zip.exe
@@ -34,9 +34,9 @@ LDFLAGS	:= -nostartfiles -nodefaultlibs -mbig-endian -Wl,--gc-sections,-T,kernel
 TARGET	:= kernel.elf
 OBJECTS	:= start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o RealDI.o \
 	   Patch.o PatchTimers.o TRI.o PatchWidescreen.o ISO.o Stream.o adp.o \
-	   EXI.o SRAM.o SI.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o \
+	   EXI.o SRAM.o GCNCard.o SI.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o \
 	   main.o syscalls.o ReadSpeed.o vsprintf.o string.o prs.o \
-	   SDI.o usb.o usbstorage.o
+	   SDI.o usb.o usbstorage.o wdvd.o
 LIBS	:= ../fatfs/libfatfs-arm.a be/libc.a be/libgcc.a
 ZIPFILE	:= ../loader/data/kernel.zip
 
@@ -52,7 +52,7 @@ all: $(TARGET)
 $(TARGET): kernel.ld $(OBJECTS)
 	@echo  "LD	$@"
 	@$(LD) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $@
-	@$(STRIP) -s -g kernel.elf -o kernel.bin
+	@$(OBJCOPY) -S -O binary kernel.elf kernel.bin
 	@echo  "ZIP	$(ZIPFILE)"
 	@$(ZIP) -JXjq9 $(ZIPFILE) kernel.bin
 

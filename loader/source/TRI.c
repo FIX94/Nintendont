@@ -24,9 +24,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 #include "TRI.h"
 #include "ff_utf8.h"
+#include "wdvd.h"
 
 static const char CARD_NAME_GP1[] = "/saves/GP1.bin";
 static const char CARD_NAME_GP2[] = "/saves/GP2.bin";
+static const char CARD_NAME_GP2J[] = "/saves/GP2J.bin";
 static const char CARD_NAME_AX[] = "/saves/AX.bin";
 
 static const char SETTINGS_AX_RVC[] = "/saves/AX_RVCsettings.bin";
@@ -40,19 +42,25 @@ static const char SETTINGS_VS4EXP[] = "/saves/VS4EXPsettings.bin";
 static const char SETTINGS_VS4V06JAP[] = "/saves/VS4V06JAPsettings.bin";
 static const char SETTINGS_VS4V06EXP[] = "/saves/VS4V06EXPsettings.bin";
 
+extern bool wiiVCInternal;
+
 static u32 DOLRead32(u32 loc, u32 DOLOffset, FIL *f, u32 CurDICMD)
 {
 	u32 BufAtOffset = 0;
-	if(f != NULL)
+	if(wiiVCInternal)
+	{
+		WDVD_FST_LSeek(DOLOffset+loc);
+		WDVD_FST_Read(wdvdTmpBuf, 4);
+		memcpy(&BufAtOffset, wdvdTmpBuf, 4);
+	}
+	else if(f != NULL)
 	{
 		UINT read;
 		f_lseek(f, DOLOffset+loc);
 		f_read(f, &BufAtOffset, 4, &read);
 	}
 	else if(CurDICMD)
-	{
 		ReadRealDisc((u8*)&BufAtOffset, DOLOffset+loc, 4, CurDICMD);
-	}
 	return BufAtOffset;
 }
 
@@ -68,6 +76,14 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 	if(CurDICMD)
 	{
 		ReadRealDisc((u8*)&DOLOffset, 0x420+ISOShift, 4, CurDICMD);
+		DOLOffset+=ISOShift;
+	}
+	else if(wiiVCInternal)
+	{
+		WDVD_FST_OpenDisc(0);
+		WDVD_FST_LSeek(0x420+ISOShift);
+		WDVD_FST_Read(wdvdTmpBuf, 4);
+		memcpy(&DOLOffset, wdvdTmpBuf, 4);
 		DOLOffset+=ISOShift;
 	}
 	else
@@ -98,15 +114,22 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 	if(DOLRead32(0x210320, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Mario Kart Arcade GP (Feb 14 2006 13:09:48)\r\n");
+		gprintf("TRI:Mario Kart Arcade GP (ENG Feb 14 2006 13:09:48)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP1);
 		CreateNewFile(SaveFile, 0x45);
 	}
 	else if(DOLRead32(0x25C0AC, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Mario Kart Arcade GP 2 (Feb 7 2007 02:47:24)\r\n");
+		gprintf("TRI:Mario Kart Arcade GP 2 (ENG Feb 7 2007 02:47:24)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2);
+		CreateNewFile(SaveFile, 0x45);
+	}
+	else if(DOLRead32(0x25C664, DOLOffset, fp, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Mario Kart Arcade GP 2 (JPN Feb 6 2007 20:29:25)\r\n");
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), CARD_NAME_GP2J);
 		CreateNewFile(SaveFile, 0x45);
 	}
 	else if(DOLRead32(0x181E60, DOLOffset, fp, CurDICMD) == 0x386000A8)
@@ -150,17 +173,31 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4JAP);
 		CreateNewFile(SaveFile, 0x2B);
 	}
+	else if(DOLRead32(0x1C51E4, DOLOffset, fp, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Virtua Striker 4 (Export) (GDT-0014)\r\n");
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4EXP);
+		CreateNewFile(SaveFile, 0x2B);
+	}
 	else if(DOLRead32(0x1C5514, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Virtua Striker 4 (Export)\r\n");
+		gprintf("TRI:Virtua Striker 4 (Export) (GDT-0015)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4EXP);
 		CreateNewFile(SaveFile, 0x2B);
+	}
+	else if(DOLRead32(0x24A4C8, DOLOffset, fp, CurDICMD) == 0x386000A8)
+	{
+		res = 1;
+		gprintf("TRI:Virtua Striker 4 Ver 2006 (Japan) (Rev B)\r\n");
+		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4V06JAP);
+		CreateNewFile(SaveFile, 0x2E);
 	}
 	else if(DOLRead32(0x24B248, DOLOffset, fp, CurDICMD) == 0x386000A8)
 	{
 		res = 1;
-		gprintf("TRI:Virtua Striker 4 Ver 2006 (Japan)\r\n");
+		gprintf("TRI:Virtua Striker 4 Ver 2006 (Japan) (Rev D)\r\n");
 		snprintf(SaveFile, sizeof(SaveFile), "%s:%s", GetRootDevice(), SETTINGS_VS4V06JAP);
 		CreateNewFile(SaveFile, 0x2E);
 	}
@@ -186,7 +223,9 @@ u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
 		CreateNewFile(SaveFile, 0x100);
 	}
 
-	if (fres == FR_OK)
+	if(wiiVCInternal)
+		WDVD_FST_Close();
+	else if (fres == FR_OK)
 		f_close(&f);
 	return res;
 }

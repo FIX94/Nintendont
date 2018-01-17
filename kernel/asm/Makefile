@@ -18,17 +18,19 @@ else
 endif
 
 SFILES		:=	$(wildcard *.S)
+DFILES		:=	$(SFILES:.S=.d)
 ELFFILES	:=	$(SFILES:.S=.elf)
 BINFILES	:=	$(ELFFILES:.elf=.bin)
 HFILES		:=	$(BINFILES:.bin=.h)
 
-DEPDIR = .deps
-
 all: $(HFILES)
+
+-include $(DFILES)
+.PRECIOUS: %.elf %.bin
 
 %.elf: %.S
 	@echo " ASSEMBLE    $<"
-	@$(AS) $< -o $@
+	@$(AS) $< -MD $(@:.elf=.d) -o $@
 
 %.bin: %.elf
 	@echo " STRIP       $<"
@@ -38,13 +40,6 @@ all: $(HFILES)
 	@echo " BIN2H       $<"
 	@$(BIN2H) $<
 
-$(ELFFILES): $(SFILES)
-
-$(BINFILES): $(ELFFILES)
-
-$(HFILES): $(BINFILES)
-
 clean:
 	@echo clean ...
-	@rm -fr *.h *.bin *.elf
-
+	@rm -fr *.d *.h *.bin *.elf

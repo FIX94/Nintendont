@@ -2,37 +2,44 @@
 #include "global.h"
 #include "HID.h"
 #include "hidmem.h"
+#include "wiidrc.h"
 #define PAD_CHAN0_BIT				0x80000000
 
 static u32 stubsize = 0x1800;
-static vu32 *stubdest = (u32*)0x80004000;
-static vu32 *stubsrc = (u32*)0x93011810;
-static vu16* const _memReg = (u16*)0xCC004000;
-static vu16* const _dspReg = (u16*)0xCC005000;
-static vu32* const _siReg = (u32*)0xCD006400;
-static vu32* const MotorCommand = (u32*)0x93003010;
-static vu32* RESET_STATUS = (u32*)0xD3003420;
-static vu32* HID_STATUS = (u32*)0xD3003440;
-static vu32* HIDMotor = (u32*)0x93002700;
-static vu32* PadUsed = (u32*)0x93002704;
+static vu32 *stubdest = (vu32*)0x80004000;
+static vu32 *stubsrc = (vu32*)0x93011810;
+static vu16* const _memReg = (vu16*)0xCC004000;
+static vu16* const _dspReg = (vu16*)0xCC005000;
+static vu32* const _siReg = (vu32*)0xCD006400;
+static vu32* const MotorCommand = (vu32*)0x93003010;
+static vu32* RESET_STATUS = (vu32*)0xD3003420;
+static vu32* HID_STATUS = (vu32*)0xD3003440;
+static vu32* HIDMotor = (vu32*)0x93003020;
+static vu32* PadUsed = (vu32*)0x93003024;
 
-static vu32* PADIsBarrel = (u32*)0xD3002830;
-static vu32* PADBarrelEnabled = (u32*)0xD3002840;
-static vu32* PADBarrelPress = (u32*)0xD3002850;
+static vu32* PADIsBarrel = (vu32*)0xD3003130;
+static vu32* PADBarrelEnabled = (vu32*)0xD3003140;
+static vu32* PADBarrelPress = (vu32*)0xD3003150;
 
-struct BTPadCont *BTPad = (struct BTPadCont*)0x932F0000;
-static vu32* BTMotor = (u32*)0x93002720;
-static vu32* BTPadFree = (u32*)0x93002730;
-static vu32* SIInited = (u32*)0x93002740;
-static vu32* PADSwitchRequired = (u32*)0x93002744;
-static vu32* PADForceConnected = (u32*)0x93002748;
+static volatile struct BTPadCont *BTPad = (volatile struct BTPadCont*)0x932F0000;
+static vu32* BTMotor = (vu32*)0x93003040;
+static vu32* BTPadFree = (vu32*)0x93003050;
+static vu32* SIInited = (vu32*)0x93003060;
+static vu32* PADSwitchRequired = (vu32*)0x93003064;
+static vu32* PADForceConnected = (vu32*)0x93003068;
+static vu32* drcAddress = (vu32*)0x9300306C;
+static vu32* drcAddressAligned = (vu32*)0x93003070;
 
 static u32 PrevAdapterChannel1 = 0;
 static u32 PrevAdapterChannel2 = 0;
 static u32 PrevAdapterChannel3 = 0;
 static u32 PrevAdapterChannel4 = 0;
+static u32 PrevDRCButton = 0;
+
+#define DRC_SWAP (1<<16)
 
 const s8 DEADZONE = 0x1A;
+
 #define HID_PAD_NONE	4
 #define HID_PAD_NOT_SET	0xFF
 
@@ -76,6 +83,16 @@ const s8 DEADZONE = 0x1A;
 	); \
   }
 
+#define DRC_DEADZONE 10
+#define _DRC_BUILD_TMPSTICK(inval) \
+	tmp_stick16 = (((s8)(inval-0x80))*14)>>3; \
+	if(tmp_stick16 > DRC_DEADZONE) tmp_stick16 = (tmp_stick16-DRC_DEADZONE)*1.08f; \
+	else if(tmp_stick16 < -DRC_DEADZONE) tmp_stick16 = (tmp_stick16+DRC_DEADZONE)*1.08f; \
+	else tmp_stick16 = 0; \
+	if(tmp_stick16 > 0x7F) tmp_stick8 = 0x7F; \
+	else if(tmp_stick16 < -0x80) tmp_stick8 = -0x80; \
+	else tmp_stick8 = (s8)tmp_stick16;
+
 u32 _start(u32 calledByGame)
 {
 	// Registers r1,r13-r31 automatically restored if used.
@@ -84,11 +101,11 @@ u32 _start(u32 calledByGame)
 	u32 Rumble = 0, memInvalidate, memFlush;
 	u32 used = 0;
 
-	PADStatus *Pad = (PADStatus*)(0x93002800); //PadBuff
+	PADStatus *Pad = (PADStatus*)(0x93003100); //PadBuff
 	u32 MaxPads;
 	if(calledByGame)
 	{
-		MaxPads = ((NIN_CFG*)0x93002900)->MaxPads;
+		MaxPads = ((NIN_CFG*)0x93004000)->MaxPads;
 		if (MaxPads > NIN_CFG_MAXPAD)
 			MaxPads = NIN_CFG_MAXPAD;
 	}
@@ -97,122 +114,220 @@ u32 _start(u32 calledByGame)
 
 	u32 HIDPad = (*HID_STATUS == 0) ? HID_PAD_NONE : HID_PAD_NOT_SET;
 	u32 chan;
-	for (chan = 0; (chan < MaxPads); ++chan)
+
+	memInvalidate = (u32)SIInited;
+	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+
+	/* For Wii VC */
+	if(calledByGame && *drcAddress)
 	{
-		/* transfer the actual data */
-		u32 x, PADButtonsStick, PADTriggerCStick;
-		u32 addr = 0xCD006400 + (0x0c * chan);
-		asm volatile("lwz %0,0(%1) ; sync" : "=r"(x) : "b"(addr));
-		//we just needed the first read to clear the status
-		asm volatile("lwz %0,4(%1) ; sync" : "=r"(PADButtonsStick) : "b"(addr));
-		asm volatile("lwz %0,8(%1) ; sync" : "=r"(PADTriggerCStick) : "b"(addr));
-		/* convert data to PADStatus */
-		Pad[chan].button = ((PADButtonsStick>>16)&0xFFFF);
-		if(Pad[chan].button & 0x8000) /* controller not enabled */
+		used |= (1<<0); //always use channel 0
+		if(HIDPad == HID_PAD_NOT_SET)
 		{
-			PADBarrelEnabled[chan] = 1; //if wavebird disconnects it cant reconnect
-			u32 psize = sizeof(PADStatus)-1; //dont set error twice
-			u8 *CurPad = (u8*)(&Pad[chan]);
-			while(psize--) *CurPad++ = 0;
-			if(HIDPad == HID_PAD_NOT_SET)
-			{
-				*HIDMotor = (MotorCommand[chan]&0x3);
-				HIDPad = chan;
-			}
-			continue;
+			//Force HID to player 2
+			*HIDMotor = (MotorCommand[1]&0x3);
+			HIDPad = 1;
 		}
-		used |= (1<<chan);
-
-		/* save IsBarrel status */
-		PADIsBarrel[chan] = ((Pad[chan].button & 0x80) == 0) && PADBarrelEnabled[chan];
-		if(PADIsBarrel[chan])
-		{
-			u8 curchan = chan*4;
-			if(Pad[chan].button & (PAD_BUTTON_Y | PAD_BUTTON_B)) //left
-			{
-				if(PADBarrelPress[0+curchan] == 5)
-					Pad[chan].button &= ~(PAD_BUTTON_Y | PAD_BUTTON_B);
-				else
-					PADBarrelPress[0+curchan]++;
-			}
-			else
-				PADBarrelPress[0+curchan] = 0;
-
-			if(Pad[chan].button & (PAD_BUTTON_X | PAD_BUTTON_A)) //right
-			{
-				if(PADBarrelPress[1+curchan] == 5)
-					Pad[chan].button &= ~(PAD_BUTTON_X | PAD_BUTTON_A);
-				else
-					PADBarrelPress[1+curchan]++;
-			}
-			else
-				PADBarrelPress[1+curchan] = 0;
-
-			if(Pad[chan].button & PAD_BUTTON_START) //start
-			{
-				if(PADBarrelPress[2+curchan] == 5)
-					Pad[chan].button &= ~PAD_BUTTON_START;
-				else
-					PADBarrelPress[2+curchan]++;
-			}
-			else
-				PADBarrelPress[2+curchan] = 0;
-
-			//signal lengthener
-			if(PADBarrelPress[3+curchan] == 0)
-			{
-				u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
-				if(tmp_triggerR > 0x30) // need to do this manually
-					PADBarrelPress[3+curchan] = 3;
-			}
-			else
-			{
-				Pad[chan].button |= PAD_TRIGGER_R;
-				PADBarrelPress[3+curchan]--;
-			}
+		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
+		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+		vu8 *i2cdata = (vu8*)(*drcAddress);
+		//check for console shutdown request
+		if(i2cdata[1] & 0x80) goto DoShutdown;
+		//Start out mapping buttons first
+		u16 button = 0;
+		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
+		//swap abxy when minus is pressed
+		if((!(PrevDRCButton & WIIDRC_BUTTON_MINUS)) && drcbutton & WIIDRC_BUTTON_MINUS)
+			PrevDRCButton ^= DRC_SWAP;
+		PrevDRCButton = (PrevDRCButton & DRC_SWAP) | drcbutton;
+		if(PrevDRCButton & DRC_SWAP)
+		{	/* turn buttons quarter clockwise */
+			if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_A;
+			if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_B;
+			if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_X;
+			if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_Y;
 		}
 		else
 		{
-			if(Pad[chan].button & 0x80)
-				Rumble |= ((1<<31)>>chan);
-			Pad[chan].stickX = ((PADButtonsStick>>8)&0xFF)-128;
-			Pad[chan].stickY = ((PADButtonsStick>>0)&0xFF)-128;
-			Pad[chan].substickX = ((PADTriggerCStick>>24)&0xFF)-128;
-			Pad[chan].substickY = ((PADTriggerCStick>>16)&0xFF)-128;
-
-			/* Calculate left trigger with deadzone */
-			u8 tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
-			if(tmp_triggerL > DEADZONE)
-				Pad[chan].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
-			else
-				Pad[chan].triggerLeft = 0;
-			/* Calculate right trigger with deadzone */
-			u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
-			if(tmp_triggerR > DEADZONE)
-				Pad[chan].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
-			else
-				Pad[chan].triggerRight = 0;
+			if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
+			if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
+			if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_X;
+			if(drcbutton & WIIDRC_BUTTON_Y) button |= PAD_BUTTON_Y;
 		}
-
-		/* shutdown by pressing B,Z,R,PAD_BUTTON_DOWN */
-		if((Pad[chan].button&0x234) == 0x234)
+		if(drcbutton & WIIDRC_BUTTON_LEFT) button |= PAD_BUTTON_LEFT;
+		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
+		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
+		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
+		//also sets left analog trigger
+		if(drcbutton & WIIDRC_BUTTON_ZL)
 		{
-			goto Shutdown;
+			//Check half-press by holding L
+			if(drcbutton & WIIDRC_BUTTON_L)
+				Pad[0].triggerLeft = 0x7F;
+			else
+			{
+				button |= PAD_TRIGGER_L;
+				Pad[0].triggerLeft = 0xFF;
+			}
 		}
-		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+		else
+			Pad[0].triggerLeft = 0;
+		//also sets right analog trigger
+		if(drcbutton & WIIDRC_BUTTON_ZR)
+		{
+			//Check half-press by holding L
+			if(drcbutton & WIIDRC_BUTTON_L)
+				Pad[0].triggerRight = 0x7F;
+			else
+			{
+				button |= PAD_TRIGGER_R;
+				Pad[0].triggerRight = 0xFF;
+			}
+		}
+		else
+			Pad[0].triggerRight = 0;
+		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
+		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
+		if(drcbutton & WIIDRC_BUTTON_HOME) goto DoExit;
+		//write in mapped out buttons
+		Pad[0].button = button;
+		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
 		{
 			/* reset status 3 */
 			*RESET_STATUS = 0x3DEA;
 		}
 		else /* for held status */
 			*RESET_STATUS = 0;
-		/* clear unneeded button attributes */
-		Pad[chan].button &= 0x9F7F;
-		/* set current command */
-		_siReg[chan*3] = (MotorCommand[chan]&0x3) | 0x00400300;
-		/* transfer command */
-		_siReg[14] |= (1<<31);
-		while(_siReg[14] & (1<<31));
+		//do scale, deadzone and clamp
+		s8 tmp_stick8; s16 tmp_stick16;
+		_DRC_BUILD_TMPSTICK(i2cdata[4]);
+		Pad[0].stickX = tmp_stick8;
+		_DRC_BUILD_TMPSTICK(i2cdata[5]);
+		Pad[0].stickY = tmp_stick8;
+		_DRC_BUILD_TMPSTICK(i2cdata[6]);
+		Pad[0].substickX = tmp_stick8;
+		_DRC_BUILD_TMPSTICK(i2cdata[7]);
+		Pad[0].substickY = tmp_stick8;
+	}
+	else
+	{
+		for (chan = 0; (chan < MaxPads); ++chan)
+		{
+			/* transfer the actual data */
+			u32 x, PADButtonsStick, PADTriggerCStick;
+			u32 addr = 0xCD006400 + (0x0c * chan);
+			asm volatile("lwz %0,0(%1) ; sync" : "=r"(x) : "b"(addr));
+			//we just needed the first read to clear the status
+			asm volatile("lwz %0,4(%1) ; sync" : "=r"(PADButtonsStick) : "b"(addr));
+			asm volatile("lwz %0,8(%1) ; sync" : "=r"(PADTriggerCStick) : "b"(addr));
+			/* convert data to PADStatus */
+			Pad[chan].button = ((PADButtonsStick>>16)&0xFFFF);
+			if(Pad[chan].button & 0x8000) /* controller not enabled */
+			{
+				PADBarrelEnabled[chan] = 1; //if wavebird disconnects it cant reconnect
+				u32 psize = sizeof(PADStatus)-1; //dont set error twice
+				vu8 *CurPad = (vu8*)(&Pad[chan]);
+				while(psize--) *CurPad++ = 0;
+				if(HIDPad == HID_PAD_NOT_SET)
+				{
+					*HIDMotor = (MotorCommand[chan]&0x3);
+					HIDPad = chan;
+				}
+				continue;
+			}
+			used |= (1<<chan);
+
+			/* save IsBarrel status */
+			PADIsBarrel[chan] = ((Pad[chan].button & 0x80) == 0) && PADBarrelEnabled[chan];
+			if(PADIsBarrel[chan])
+			{
+				u8 curchan = chan*4;
+				if(Pad[chan].button & (PAD_BUTTON_Y | PAD_BUTTON_B)) //left
+				{
+					if(PADBarrelPress[0+curchan] == 5)
+						Pad[chan].button &= ~(PAD_BUTTON_Y | PAD_BUTTON_B);
+					else
+						PADBarrelPress[0+curchan]++;
+				}
+				else
+					PADBarrelPress[0+curchan] = 0;
+
+				if(Pad[chan].button & (PAD_BUTTON_X | PAD_BUTTON_A)) //right
+				{
+					if(PADBarrelPress[1+curchan] == 5)
+						Pad[chan].button &= ~(PAD_BUTTON_X | PAD_BUTTON_A);
+					else
+						PADBarrelPress[1+curchan]++;
+				}
+				else
+					PADBarrelPress[1+curchan] = 0;
+
+				if(Pad[chan].button & PAD_BUTTON_START) //start
+				{
+					if(PADBarrelPress[2+curchan] == 5)
+						Pad[chan].button &= ~PAD_BUTTON_START;
+					else
+						PADBarrelPress[2+curchan]++;
+				}
+				else
+					PADBarrelPress[2+curchan] = 0;
+
+				//signal lengthener
+				if(PADBarrelPress[3+curchan] == 0)
+				{
+					u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
+					if(tmp_triggerR > 0x30) // need to do this manually
+						PADBarrelPress[3+curchan] = 3;
+				}
+				else
+				{
+					Pad[chan].button |= PAD_TRIGGER_R;
+					PADBarrelPress[3+curchan]--;
+				}
+			}
+			else
+			{
+				if(Pad[chan].button & 0x80)
+					Rumble |= ((1<<31)>>chan);
+				Pad[chan].stickX = ((PADButtonsStick>>8)&0xFF)-128;
+				Pad[chan].stickY = ((PADButtonsStick>>0)&0xFF)-128;
+				Pad[chan].substickX = ((PADTriggerCStick>>24)&0xFF)-128;
+				Pad[chan].substickY = ((PADTriggerCStick>>16)&0xFF)-128;
+
+				/* Calculate left trigger with deadzone */
+				u8 tmp_triggerL = ((PADTriggerCStick>>8)&0xFF);
+				if(tmp_triggerL > DEADZONE)
+					Pad[chan].triggerLeft = (tmp_triggerL - DEADZONE) * 1.11f;
+				else
+					Pad[chan].triggerLeft = 0;
+				/* Calculate right trigger with deadzone */
+				u8 tmp_triggerR = ((PADTriggerCStick>>0)&0xFF);
+				if(tmp_triggerR > DEADZONE)
+					Pad[chan].triggerRight = (tmp_triggerR - DEADZONE) * 1.11f;
+				else
+					Pad[chan].triggerRight = 0;
+			}
+
+			/* exit by pressing B,Z,R,PAD_BUTTON_DOWN */
+			if((Pad[chan].button&0x234) == 0x234)
+			{
+				goto DoExit;
+			}
+			if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+			{
+				/* reset status 3 */
+				*RESET_STATUS = 0x3DEA;
+			}
+			else /* for held status */
+				*RESET_STATUS = 0;
+			/* clear unneeded button attributes */
+			Pad[chan].button &= 0x9F7F;
+			/* set current command */
+			_siReg[chan*3] = (MotorCommand[chan]&0x3) | 0x00400300;
+			/* transfer command */
+			_siReg[14] |= (1<<31);
+			while(_siReg[14] & (1<<31));
+		}
 	}
 	u32 HIDMemPrep = 0;
 	if (HIDPad == HID_PAD_NOT_SET)
@@ -222,8 +337,11 @@ u32 _start(u32 calledByGame)
 	{
 		if(HIDMemPrep == 0) // first run
 		{
-			HID_Packet = (u8*)0x930050F0; // reset back to default offset
+			HID_Packet = (vu8*)0x930050F0; // reset back to default offset
 			memInvalidate = (u32)HID_Packet; // prepare memory
+			asm volatile("dcbi 0,%0" : : "b"(memInvalidate) : "memory");
+			//invalidate cache block for controllers using more than 0x10 bytes
+			memInvalidate = (u32)HID_Packet+0x10; // prepare memory
 			asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 			HIDMemPrep = memInvalidate;
 		}
@@ -241,7 +359,7 @@ u32 _start(u32 calledByGame)
 
 		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
 		{
-			HID_Packet = (u8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
+			HID_Packet = (vu8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
 			u32 HID_CacheEndBlock = ALIGN32(((u32)HID_Packet) + HID_CTRL->MultiInValue); //calculate upper cache block used
 			if(HID_CacheEndBlock > HIDMemPrep) //new cache block, prepare memory
 			{
@@ -280,10 +398,10 @@ u32 _start(u32 calledByGame)
 			}
 		}
 
-		if(calledByGame && HID_CTRL->Power.Mask &&	//shutdown if power configured and all power buttons pressed
+		if(calledByGame && HID_CTRL->Power.Mask &&	//exit if power configured and all power buttons pressed
 		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
 		{
-			goto Shutdown;
+			goto DoExit;
 		}
 		used |= (1<<chan);
 
@@ -1181,7 +1299,7 @@ u32 _start(u32 calledByGame)
 			if(BTPad[chan].button & WM_BUTTON_ONE)
 				button |= PAD_BUTTON_START;	
 			if(BTPad[chan].button & WM_BUTTON_HOME)
-				goto Shutdown;
+				goto DoExit;
 		}	//end nunchuck configs
 
 		if(BTPad[chan].used & (C_CC | C_CCP))
@@ -1221,7 +1339,7 @@ u32 _start(u32 calledByGame)
 				button |= PAD_BUTTON_UP;
 			
 			if(BTPad[chan].button & BT_BUTTON_HOME)
-				goto Shutdown;
+				goto DoExit;
 		}	
 		
 		Pad[chan].button = button;
@@ -1240,10 +1358,10 @@ u32 _start(u32 calledByGame)
 			Pad[chan].stickY = Pad[chan].triggerLeft;
 		#endif
 
-		//shutdown by pressing B,Z,R,PAD_BUTTON_DOWN 
+		//exit by pressing B,Z,R,PAD_BUTTON_DOWN 
 		if((Pad[chan].button&0x234) == 0x234)
 		{
-			goto Shutdown;
+			goto DoExit;
 		}
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
@@ -1253,8 +1371,6 @@ u32 _start(u32 calledByGame)
 		else // for held status
 			*RESET_STATUS = 0;
 	}
-	memInvalidate = (u32)SIInited;
-	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
 	/* Some games always need the controllers "used" */
 	if(*PADForceConnected)
@@ -1292,24 +1408,26 @@ u32 _start(u32 calledByGame)
 	}
 	return Rumble;
 
-Shutdown:
+DoExit:
 	/* disable interrupts */
 	asm volatile("mfmsr 3 ; rlwinm 3,3,0,17,15 ; mtmsr 3");
 	/* stop audio dma */
 	_dspReg[27] = (_dspReg[27]&~0x8000);
+	/* reset status 1 (DoExit) */
+	*RESET_STATUS = 0x1DEA;
+	while(*RESET_STATUS == 0x1DEA) ;
 	/* disable dcache and icache */
 	asm volatile("sync ; isync ; mfspr 3,1008 ; rlwinm 3,3,0,18,15 ; mtspr 1008,3");
 	/* disable memory protection */
 	_memReg[15] = 0xF;
 	_memReg[16] = 0;
 	_memReg[8] = 0xFF;
-	/* reset status 1 */
-	*RESET_STATUS = 0x1DEA;
-	while(*RESET_STATUS == 0x1DEA) ;
 	/* load in stub */
 	do {
 		*stubdest++ = *stubsrc++;
 	} while((stubsize-=4) > 0);
+	/* Allow all IOS IRQs again */
+	*(vu32*)0xCD800004 = 0x36;
 	/* jump to it */
 	asm volatile(
 		"lis %r3, 0x8000\n"
@@ -1318,4 +1436,12 @@ Shutdown:
 		"blr\n"
 	);
 	return 0;
+DoShutdown:
+	/* disable interrupts */
+	asm volatile("mfmsr 3 ; rlwinm 3,3,0,17,15 ; mtmsr 3");
+	/* stop audio dma */
+	_dspReg[27] = (_dspReg[27]&~0x8000);
+	/* reset status 7 (DoShutdown) */
+	*RESET_STATUS = 0x7DEA;
+	while(1) ;
 }

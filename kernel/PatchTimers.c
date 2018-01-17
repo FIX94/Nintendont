@@ -55,9 +55,13 @@ static u32 CheckFor( u32 Buf, u32 Val )
 //Processor speed
 #define U32_TIMER_CLOCK_CPU_GC		0x1cf7c580
 #define U32_TIMER_CLOCK_CPU_WII		0x2b73a840
+//WiiU with 5x CPU Multi
+#define U32_TIMER_CLOCK_CPU_FAST	0x486b6dc0
 
 #define FLT_TIMER_CLOCK_CPU_GC		0x4de7be2c
 #define FLT_TIMER_CLOCK_CPU_WII		0x4e2dcea1
+//WiiU with 5x CPU Multi
+#define FLT_TIMER_CLOCK_CPU_FAST	0x4e90d6dc
 
 //Ticks per second
 #define U32_TIMER_CLOCK_SECS_GC		0x0269fb20
@@ -97,50 +101,56 @@ static u32 CheckFor( u32 Buf, u32 Val )
 #define DBL_1_1574		0x3ff284b5dcc63f14ull
 #define DBL_0_7716		0x3fe8b0f27bb2fec5ull
 
-bool PatchTimers(u32 FirstVal, u32 Buffer)
+bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 {
 	/* The floats in the data sections */
-	if( FirstVal == FLT_TIMER_CLOCK_BUS_GC )
+	if(checkFloats)
 	{
-		write32(Buffer, FLT_TIMER_CLOCK_BUS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float Bus] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_TIMER_CLOCK_CPU_GC )
-	{
-		write32(Buffer, FLT_TIMER_CLOCK_CPU_WII);
-		dbgprintf("PatchTimers:[Timer Clock float CPU] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_TIMER_CLOCK_SECS_GC )
-	{
-		write32(Buffer, FLT_TIMER_CLOCK_SECS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float s] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_TIMER_CLOCK_MSECS_GC )
-	{
-		write32(Buffer, FLT_TIMER_CLOCK_MSECS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float ms] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_ONE_DIV_CLOCK_SECS_GC )
-	{
-		write32(Buffer, FLT_ONE_DIV_CLOCK_SECS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float 1/s] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_ONE_DIV_CLOCK_MSECS_GC )
-	{
-		write32(Buffer, FLT_ONE_DIV_CLOCK_MSECS_WII);
-		dbgprintf("PatchTimers:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
-		return true;
-	}
-	if( FirstVal == FLT_ONE_DIV_CLOCK_1200_GC )
-	{
-		write32(Buffer, FLT_ONE_DIV_CLOCK_1200_WII);
-		dbgprintf("PatchTimers:[Timer Clock float 1/1200] applied (0x%08X)\r\n", Buffer );
-		return true;
+		if( FirstVal == FLT_TIMER_CLOCK_BUS_GC )
+		{
+			write32(Buffer, FLT_TIMER_CLOCK_BUS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float Bus] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_TIMER_CLOCK_CPU_GC )
+		{
+			if(IsWiiUFastCPU())
+				write32(Buffer, FLT_TIMER_CLOCK_CPU_FAST);
+			else
+				write32(Buffer, FLT_TIMER_CLOCK_CPU_WII);
+			dbgprintf("PatchTimers:[Timer Clock float CPU] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_TIMER_CLOCK_SECS_GC )
+		{
+			write32(Buffer, FLT_TIMER_CLOCK_SECS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float s] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_TIMER_CLOCK_MSECS_GC )
+		{
+			write32(Buffer, FLT_TIMER_CLOCK_MSECS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float ms] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_ONE_DIV_CLOCK_SECS_GC )
+		{
+			write32(Buffer, FLT_ONE_DIV_CLOCK_SECS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float 1/s] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_ONE_DIV_CLOCK_MSECS_GC )
+		{
+			write32(Buffer, FLT_ONE_DIV_CLOCK_MSECS_WII);
+			dbgprintf("PatchTimers:[Timer Clock float 1/ms] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
+		if( FirstVal == FLT_ONE_DIV_CLOCK_1200_GC )
+		{
+			write32(Buffer, FLT_ONE_DIV_CLOCK_1200_WII);
+			dbgprintf("PatchTimers:[Timer Clock float 1/1200] applied (0x%08X)\r\n", Buffer );
+			return true;
+		}
 	}
 	/* For Nintendo Puzzle Collection */
 	if( FirstVal == 0x38C00BB8 && (u32)Buffer == 0x770528 )
@@ -178,8 +188,16 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		u32 NextP = CheckFor(Buffer, 0x6000C580);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, U32_TIMER_CLOCK_CPU_WII >> 16);
-			W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+			if(IsWiiUFastCPU())
+			{
+				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_FAST >> 16);
+				W16(NextP + 2, U32_TIMER_CLOCK_CPU_FAST & 0xFFFF);
+			}
+			else
+			{
+				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_WII >> 16);
+				W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+			}
 			dbgprintf("PatchTimers:[Timer Clock ori CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -189,8 +207,16 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 		u32 NextP = CheckFor(Buffer, 0x3800C580);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, (U32_TIMER_CLOCK_CPU_WII >> 16) + 1);
-			W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+			if(IsWiiUFastCPU())
+			{	//no ">>16) + 1" since its a positive 16bit value
+				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_FAST >> 16);
+				W16(NextP + 2, U32_TIMER_CLOCK_CPU_FAST & 0xFFFF);
+			}
+			else
+			{
+				W16(Buffer + 2, (U32_TIMER_CLOCK_CPU_WII >> 16) + 1);
+				W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+			}
 			dbgprintf("PatchTimers:[Timer Clock addi CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -300,11 +326,41 @@ bool PatchTimers(u32 FirstVal, u32 Buffer)
 	return false;
 }
 
+//Audio sample rate differs from GC to Wii, affects some emus
+
+//Sonic Mega Collection
+//GC Original, (44100(emu audio)/60(emu video)) / (32029(gc audio)/59.94(gc video)) = 1.3755
+static u32 smc_arr_gc[11] = 
+{
+	0x3FB00B44, 0x3FB00C4A, 0x3FB00D50, 0x3FB00E56, 0x3FB00F5C,
+	0x3FB01062, //base value of 1.3755, rest goes up/down in 0.00003125 steps
+	0x3FB01168, 0x3FB0126F, 0x3FB01375, 0x3FB0147B, 0x3FB01581,
+};
+
+//Wii Modified, (44100(emu audio)/60(emu video)) / (32000(wii audio)/59.94(wii video)) = 1.3767469
+static u32 smc_arr_wii[11] = 
+{
+	0x3FB0341F, 0x3FB03525, 0x3FB0362C, 0x3FB03732, 0x3FB03838,
+	0x3FB0393E, //base value of 1.3767469, rest goes up/down in 0.00003125 steps
+	0x3FB03A44, 0x3FB03B4A, 0x3FB03C50, 0x3FB03D57, 0x3FB03E5D,
+};
+
+//Wii Modified PAL50, (44100(emu audio)/50(emu video)) / (32000(wii audio)/50(wii video)) = 1.378125
+static u32 smc_pal50_arr_wii[11] = 
+{
+	0x3FB05C29, 0x3FB05E35, 0x3FB06042, 0x3FB0624E, 0x3FB0645A,
+	0x3FB06666, //base value of 1.378125, rest goes up/down in 0.0000625 steps
+	0x3FB06873, 0x3FB06A7F, 0x3FB06C8B, 0x3FB06E98, 0x3FB070A4,
+};
+
 void PatchStaticTimers()
 {
 	sync_before_read((void*)0xE0, 0x20);
 	write32(0xF8, U32_TIMER_CLOCK_BUS_WII);
-	write32(0xFC, U32_TIMER_CLOCK_CPU_WII);
+	if(IsWiiUFastCPU())
+		write32(0xFC, U32_TIMER_CLOCK_CPU_FAST);
+	else
+		write32(0xFC, U32_TIMER_CLOCK_CPU_WII);
 	sync_after_write((void*)0xE0, 0x20);
 	if(write64A(0x001463E0, DBL_0_7716, DBL_1_1574))
 	{
@@ -336,6 +392,39 @@ void PatchStaticTimers()
 		write32(0x5ED8, 0x38600180); //li r3, 0x180
 		#ifdef DEBUG_PATCH
 		dbgprintf("PatchTimers:[GT Cube NTSC-J] applied\r\n");
+		#endif
+	}
+	else if(memcmp((void*)0x263130, smc_arr_gc, sizeof(smc_arr_gc)) == 0)
+	{
+		memcpy((void*)0x263130, smc_arr_wii, sizeof(smc_arr_wii));
+		write32(0x3FF368, 0x3FB0393E); //base value of 1.3767469 again
+		#ifdef DEBUG_PATCH
+		dbgprintf("PatchTimers:[Sonic Mega Collection NTSC-U] applied\r\n");
+		#endif
+	}
+	else if(memcmp((void*)0x264B08, smc_arr_gc, sizeof(smc_arr_gc)) == 0)
+	{
+		memcpy((void*)0x264B08, smc_arr_wii, sizeof(smc_arr_wii));
+		write32(0x401388, 0x3FB0393E); //base value of 1.3767469 again
+		#ifdef DEBUG_PATCH
+		dbgprintf("PatchTimers:[Sonic Mega Collection NTSC-J] applied\r\n");
+		#endif
+	}
+	else if(memcmp((void*)0x281508, smc_arr_gc, sizeof(smc_arr_gc)) == 0)
+	{
+		memcpy((void*)0x281508, smc_arr_wii, sizeof(smc_arr_wii));
+		memcpy((void*)0x281534, smc_pal50_arr_wii, sizeof(smc_pal50_arr_wii));
+		write32(0x41FCE0, 0x3FB0393E); //base value of 1.3767469 again
+		#ifdef DEBUG_PATCH
+		dbgprintf("PatchTimers:[Sonic Mega Collection PAL] applied\r\n");
+		#endif
+	}
+	else if(read32(0x3F2DE0) == 0x3FB0147B)
+	{
+		//proto didnt have dynamic resample yet
+		write32(0x3F2DE0, 0x3FB0393E); //base value of 1.3767469
+		#ifdef DEBUG_PATCH
+		dbgprintf("PatchTimers:[Sonic Mega Collection Proto NTSC-U] applied\r\n");
 		#endif
 	}
 }

@@ -861,6 +861,7 @@ static bool __usbstorage_IsInserted(void)
 	s32 maxLun;
 	s32 retval;
 	u32 sectorsize, numSectors;
+	u8 sector_buf[4096];
 
 	if(__mounted)
 	{
@@ -937,12 +938,34 @@ static bool __usbstorage_IsInserted(void)
 				continue;
 			}
 
-			__mounted = true;
 			__lun = j;
-			__vid = vid;
-			__pid = pid;
 			usb_last_used = gettime()-secs_to_ticks(100);
 			usleep(10000);
+
+			// Make sure this drive has a valid MBR/GPT signature.
+			// If not, it might be a Wii U drive.
+			retval = USBStorageOGC_Read(&__usbfd, __lun, 0, 1, sector_buf);
+			if (retval == 0) {
+				if (sector_buf[510] == 0x55 &&
+				    (sector_buf[511] == 0xAA || sector_buf[511] == 0xAB))
+				{
+					// Valid MBR and/or UStealth signature.
+					__mounted = true;
+					__vid = vid;
+					__pid = pid;
+					usb_last_used = gettime()-secs_to_ticks(100);
+					usleep(10000);
+				} else {
+					// Invalid signature.
+					// This may be a Wii U-formatted HDD.
+					__mounted = false;
+					__lun = 0;
+				}
+			} else {
+				// Read error.
+				__mounted = false;
+				__lun = 0;
+			}
 			break;
 		}
 

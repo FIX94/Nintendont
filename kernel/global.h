@@ -345,9 +345,28 @@ static inline void sync_after_write_align32(void *Buf, u32 Len)
  * Is this system a Wii U?
  * @return True if this is Wii U; false if not.
  */
+extern bool isWiiVC;
 static inline bool IsWiiU(void)
 {
-	return ((*(vu32*)(0x0d8005A0) >> 16) == 0xCAFE);
+	return ((read16(0xD8005A0) == 0xCAFE) || isWiiVC);
+}
+static inline bool IsWiiUFastCPU(void)
+{
+	return ((read16(0xD8005A0) == 0xCAFE) && ((read32(0xD8005B0) & 0x20) == 0));
+}
+
+/* Writing to this reboots the WiiU */
+static inline void WiiUResetToMenu(void)
+{
+	write32( 0x0D8005E0, 0xFFFFFFFE );
+}
+
+extern u32 virtentry;
+static inline u32 do_thread_create(void *entry, u32 *stackaddr, u32 stacksize, u32 prio)
+{
+	*(vu32*)0x12FFFFE0 = (u32)entry; //physical entry
+	sync_after_write((void*)0x12FFFFE0, 0x20);
+	return thread_create((u32(*)(void*))virtentry, NULL, stackaddr, stacksize / sizeof(u32), prio, 1);
 }
 
 #endif

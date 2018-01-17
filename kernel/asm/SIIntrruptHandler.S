@@ -1,7 +1,5 @@
 #include <asm.h>
-
-.set	INT_BASE,	0xD3026500
-.set	SI_INT,		INT_BASE+0x40
+.include "constants.inc"
 
 SIIntrruptHandler:
 	#original instruction

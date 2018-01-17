@@ -2,14 +2,15 @@
 
 .set	SI_GC_CONTROLLER,		0x09000000
 .set	SI_ERROR_NO_RESPONSE,	0x08
+.set	PAD_USED_BASE,			0x93003020
 
 #
 #
 #	r3	channel
 
 SIGetType:
-	lis		%r4,			0x9300
-	ori		%r4,	%r4,	0x2700
+	lis		%r4,			PAD_USED_BASE@h
+	ori		%r4,	%r4,	PAD_USED_BASE@l
 
 	li		%r0,	0
 DCInvalidateRange:

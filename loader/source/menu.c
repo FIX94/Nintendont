@@ -47,12 +47,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 // Device state.
 typedef enum {
-	// Device is open and has a "games" directory.
+	// Device is open and has GC titles in "games" directory.
 	DEV_OK = 0,
 	// Device could not be opened.
 	DEV_NO_OPEN = 1,
 	// Device was opened but has no "games" directory.
 	DEV_NO_GAMES = 2,
+	// Device was opened but "games" directory is empty.
+	DEV_NO_TITLES = 3,
 } DevState;
 static u8 devState = DEV_OK;
 
@@ -83,9 +85,13 @@ inline u32 SettingY(u32 row)
 {
 	return 127 + 16 * row;
 }
-void HandleWiiMoteEvent(s32 chan)
+void SetShutdown(void)
 {
 	Shutdown = 1;
+}
+void HandleWiiMoteEvent(s32 chan)
+{
+	SetShutdown();
 }
 void HandleSTMEvent(u32 event)
 {
@@ -97,7 +103,7 @@ void HandleSTMEvent(u32 event)
 		case STM_EVENT_RESET:
 			break;
 		case STM_EVENT_POWER:
-			Shutdown = 1;
+			SetShutdown();
 			break;
 	}
 }
@@ -288,9 +294,10 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
  * @param pGameCount   [out] Number of games loaded. (Includes GCN pseudo-game for Wii.)
  *
  * @return DevState value:
- * - DEV_OK: Device opened and has a "games/" directory.
+ * - DEV_OK: Device opened and has GC titles in "games/" directory.
  * - DEV_NO_OPEN: Could not open the storage device.
  * - DEV_NO_GAMES: No "games/" directory was found.
+ * - DEV_NO_TITLES: "games/" directory contains no GC titles.
  */
 static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 {
@@ -299,7 +306,18 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	u8 buf[0x100];			// Disc header.
 	int gamecount = 0;		// Current game count.
 
-	if( !IsWiiU() )
+	if( isWiiVC )
+	{
+		// Pseudo game for booting a GameCube disc on Wii VC.
+		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
+		gi[0].ID[3] = 'C',gi[0].ID[4] = '0',gi[0].ID[5] = '1';
+		gi[0].Name = "Boot included GC Disc";
+		gi[0].Revision = 0;
+		gi[0].Flags = 0;
+		gi[0].Path = strdup("di:di");
+		gamecount++;
+	}
+	else if( !IsWiiU() )
 	{
 		// Pseudo game for booting a GameCube disc on Wii.
 		gi[0].ID[0] = 'D',gi[0].ID[1] = 'I',gi[0].ID[2] = 'S';
@@ -485,7 +503,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	// Sort the list alphabetically.
 	// On Wii, the pseudo-entry for GameCube discs is always
 	// kept at the top.
-	if( IsWiiU() )
+	if( gamecount && IsWiiU() && !isWiiVC )
 		qsort(gi, gamecount, sizeof(gameinfo), compare_names);
 	else if( gamecount > 1 )
 		qsort(&gi[1], gamecount-1, sizeof(gameinfo), compare_names);
@@ -493,6 +511,9 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	// Save the game count.
 	if (pGameCount)
 		*pGameCount = gamecount;
+
+	if(gamecount == 0)
+		return DEV_NO_TITLES;
 
 	return DEV_OK;
 }
@@ -522,6 +543,7 @@ typedef struct _MenuCtx
 		const gameinfo *gi;	// Game information.
 		int gamecount;		// Game count.
 
+		bool canBeBooted;	// Selected game is bootable.
 		bool canShowInfo;	// Can show information for the selected game.
 	} games;
 
@@ -616,8 +638,11 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 				ctx->games.posX	= 0;
 				ctx->games.scrollX = 0;
 			}
-		} else {
+		} else if(ctx->games.listMax) {
 			ctx->games.posX = ctx->games.listMax - 1;
+		}
+		else {
+			ctx->games.posX	= 0;
 		}
 
 		clearCheats = true;
@@ -639,7 +664,12 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 				ctx->games.scrollX--;
 			} else {
 				// Wraparound.
-				ctx->games.posX	= ctx->games.listMax - 1;
+				if(ctx->games.listMax) {
+					ctx->games.posX = ctx->games.listMax - 1;
+				}
+				else {
+					ctx->games.posX	= 0;
+				}
 				ctx->games.scrollX = ctx->games.gamecount - ctx->games.listMax;
 			}
 		} else {
@@ -677,7 +707,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		ctx->saveSettings = true;
 	}
 
-	if (FPAD_OK(0))
+	if (FPAD_OK(0) && ctx->games.canBeBooted)
 	{
 		// User selected a game.
 		ctx->selected = true;
@@ -707,7 +737,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
 
 		// Starting position.
-		int gamelist_y = MENU_POS_Y + 20*5;
+		int gamelist_y = MENU_POS_Y + 20*5 + 10;
 
 		const gameinfo *gi = &ctx->games.gi[ctx->games.scrollX];
 		int gamesToPrint = ctx->games.gamecount - ctx->games.scrollX;
@@ -743,18 +773,40 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 			}
 		}
 
-		// Can we show information for the selected title?
-		if (!IsWiiU() && (ctx->games.scrollX + ctx->games.posX) == 0)
+		if(ctx->games.gamecount && (ctx->games.scrollX + ctx->games.posX) >= 0 
+			&& (ctx->games.scrollX + ctx->games.posX) < ctx->games.gamecount)
 		{
-			// Cannot show information for DISC01.
-			ctx->games.canShowInfo = false;
+			ctx->games.canBeBooted = true;
+			// Can we show information for the selected title?
+			if (IsWiiU() && !isWiiVC) {
+				// Can show information for all games on WiiU
+				ctx->games.canShowInfo = true;
+			} else {
+				if ((ctx->games.scrollX + ctx->games.posX) == 0) {
+					// Cannot show information for DISC01 on Wii and Wii VC.
+					ctx->games.canShowInfo = false;
+				} else {
+					// Can show information for all other games.
+					ctx->games.canShowInfo = true;
+				}
+			}
+
+			if (ctx->games.canShowInfo) {
+				// Print the selected game's filename.
+				const gameinfo *const gi = &ctx->games.gi[ctx->games.scrollX + ctx->games.posX];
+				const int len = strlen(gi->Path);
+				const int x = (640 - (len*10)) / 2;
+
+				const u32 color = DiscFormatColors[gi->Flags & GIFLAG_FORMAT_MASK];
+				PrintFormat(DEFAULT_SIZE, color, x, MENU_POS_Y + 20*4+5, "%s", gi->Path);
+			}
 		}
 		else
 		{
-			// Can show information for all other games.
-			ctx->games.canShowInfo = true;
+			//invalid title selected
+			ctx->games.canBeBooted = false;
+			ctx->games.canShowInfo = false;
 		}
-
 		// GRRLIB rendering is done by SelectGame().
 	}
 
@@ -1204,21 +1256,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				// Standard boolean setting.
 				if (ctx->settings.posX == NIN_CFG_BIT_USB) {
 					// USB option is replaced with Wii U widescreen.
-					// NOTE: Only adjustable on Wii U.
-					if (IsWiiU()) {
-						ncfg->Config ^= NIN_CFG_WIIU_WIDE;
-					}
+					ncfg->Config ^= NIN_CFG_WIIU_WIDE;
 				} else {
-					if (IsWiiU() &&
-					    (ctx->settings.posX == NIN_CFG_BIT_DEBUGGER ||
-					     ctx->settings.posX == NIN_CFG_BIT_DEBUGWAIT ||
-					     ctx->settings.posX == NIN_CFG_BIT_LED))
-					{
-						// These options are only available on Wii.
-						// Don't do anything.
-					} else {
-						ncfg->Config ^= (1 << ctx->settings.posX);
-					}
+					ncfg->Config ^= (1 << ctx->settings.posX);
 				}
 			}
 			else switch (ctx->settings.posX)
@@ -1226,12 +1266,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				case NIN_SETTINGS_MAX_PADS:
 					// Maximum native controllers.
 					// Not available on Wii U.
-					// TODO: Disable on RVL-101?
-					if (IsWiiU()) {
-						ncfg->MaxPads++;
-						if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
-							ncfg->MaxPads = 0;
-						}
+					ncfg->MaxPads++;
+					if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
+						ncfg->MaxPads = 0;
 					}
 					break;
 
@@ -1290,11 +1327,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					break;
 
 				case NIN_SETTINGS_NATIVE_SI:
-					// NOTE: Not adjustable on Wii U.
-					// TODO: Also RVL-101?
-					if (!IsWiiU()) {
-						ncfg->Config ^= (NIN_CFG_NATIVE_SI);
-					}
+					ncfg->Config ^= (NIN_CFG_NATIVE_SI);
 					break;
 
 				default:
@@ -1573,6 +1606,13 @@ static int SelectGame(void)
 			gprintf("WARNING: %s:/games/ was not found.\n", GetRootDevice());
 			break;
 
+		case DEV_NO_TITLES:
+			// "games" directory appears to be empty.
+			// The list will still be shown, since there's a
+			// "Boot GC Disc in Drive" option on Wii.
+			gprintf("WARNING: %s:/games/ contains no GC titles.\n", GetRootDevice());
+			break;
+
 		case DEV_NO_OPEN:
 		default:
 		{
@@ -1626,6 +1666,8 @@ static int SelectGame(void)
 	{
 		VIDEO_WaitVSync();
 		FPAD_Update();
+		if(Shutdown)
+			LoaderShutdown();
 
 		if( FPAD_Start(0) )
 		{
@@ -1672,9 +1714,12 @@ static int SelectGame(void)
 			if (ctx.menuMode == 0)
 			{
 				// Game List menu.
-				PrintButtonActions("Go Back", "Select", "Settings", NULL);
+				PrintButtonActions("Go Back", NULL, "Settings", NULL);
+				// If the selected game bootable, enable "Select".
+				u32 color = ((ctx.games.canBeBooted) ? BLACK : DARK_GRAY);
+				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
 				// If the selected game is not DISC01, enable "Game Info".
-				const u32 color = ((ctx.games.canShowInfo) ? BLACK : DARK_GRAY);
+				color = ((ctx.games.canShowInfo) ? BLACK : DARK_GRAY);
 				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Game Info");
 			}
 			else
@@ -1699,16 +1744,19 @@ static int SelectGame(void)
 		}
 	}
 
-	// Save the selected game to the configuration.
-	u32 SelectedGame = ctx.games.posX + ctx.games.scrollX;
-	const char* StartChar = gi[SelectedGame].Path + 3;
-	if (StartChar[0] == ':') {
-		StartChar++;
+	if(ctx.games.canBeBooted)
+	{
+		// Save the selected game to the configuration.
+		u32 SelectedGame = ctx.games.posX + ctx.games.scrollX;
+		const char* StartChar = gi[SelectedGame].Path + 3;
+		if (StartChar[0] == ':') {
+			StartChar++;
+		}
+		strncpy(ncfg->GamePath, StartChar, sizeof(ncfg->GamePath));
+		ncfg->GamePath[sizeof(ncfg->GamePath)-1] = 0;
+		memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
+		DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 	}
-	strncpy(ncfg->GamePath, StartChar, sizeof(ncfg->GamePath));
-	memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
-	DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
-
 	// Free allocated memory in the game list.
 	for (i = 0; i < gamecount; ++i)
 	{
@@ -1741,6 +1789,8 @@ bool SelectDevAndGame(void)
 	{
 		VIDEO_WaitVSync();
 		FPAD_Update();
+		if(Shutdown)
+			LoaderShutdown();
 
 		if (redraw)
 		{
@@ -1824,13 +1874,14 @@ void ShowMessageScreenAndExit(const char *msg, int ret)
  */
 void PrintInfo(void)
 {
+	const char *consoleType = (isWiiVC ? (IsWiiUFastCPU() ? "WiiVC 5x CPU" : "Wii VC") : (IsWiiUFastCPU() ? "WiiU 5x CPU" : (IsWiiU() ? "Wii U" : "Wii")));
 #ifdef NIN_SPECIAL_VERSION
 	// "Special" version with customizations. (Not mainline!)
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u" NIN_SPECIAL_VERSION " (%s)",
-		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
+		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #else
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u (%s)",
-		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, IsWiiU() ? "Wii U" : "Wii");
+		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #endif
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*2, "Firmware: %u.%u.%u",
@@ -1885,6 +1936,10 @@ static void PrintDevInfo(void)
 		case DEV_NO_GAMES:
 			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4,
 				"WARNING: %s:/games/ was not found.", GetRootDevice());
+			break;
+		case DEV_NO_TITLES:
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4,
+				"WARNING: %s:/games/ contains no GC titles.", GetRootDevice());
 			break;
 		default:
 			break;

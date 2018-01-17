@@ -142,9 +142,19 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			PatchWideMulti(0x28C800, 1);
 			return true;
 		case TRI_GP2:
-			dbgprintf("PatchWidescreen:[Mario Kart GP2] applied\r\n");
-			PatchWideMulti(0x2C80D4, 1);
-			return true;
+			if(read32(0x2C80D4) == 0xC03F0034)
+			{
+				dbgprintf("PatchWidescreen:[Mario Kart GP2 US] applied\r\n");
+				PatchWideMulti(0x2C80D4, 1);
+				return true;
+			}
+			else if(read32(0x2C86EC) == 0xC03F0034)
+			{
+				dbgprintf("PatchWidescreen:[Mario Kart GP2 JP] applied\r\n");
+				PatchWideMulti(0x2C86EC, 1);
+				return true;
+			}
+			return false;
 		case TRI_VS4:
 			if (read32(0x5E418) == 0xEC020024)
 			{
@@ -483,6 +493,18 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 
 			return true;
 
+		case 0x4B44: // Doshin the Giant
+			if (Region == REGION_ID_EUR)
+			{
+				write32(0x17AABC, 0x3FE38E39);
+				write32(0x17B0B8, 0xBF2AAAAB);
+				write32(0x17B0BC, 0x3F2AAAAB);
+				write32(0x17BBFC, 0xBF2AAAAB);
+				write32(0x17BC00, 0x3F2AAAAB);
+				return true;
+			}
+			return false;
+
 		case 0x494E: // Batman Begins
 		case 0x3857: // Battalion Wars
 		case 0x4351: // Buffy the Vampire Slayer: Chaos Bleeds
@@ -558,6 +580,13 @@ bool PatchStaticWidescreen(u32 TitleID, u32 Region)
 			// Return 'true' so Nintendont doesn't attempt
 			// to apply any dynamic patches.
 			// Reference: https://en.wikipedia.org/wiki/List_of_GameCube_games_with_alternate_display_modes
+		case 0x425A: // Resident Evil Zero
+		case 0x4249: // Resident Evil Remake
+		case 0x4841: // Resident Evil 2
+		case 0x4C45: // Resident Evil 3: Nemesis
+			// These four Resident Evil games utilize preredered backgrounds in 4:3
+			// This causes the 3D objects/models to have an odd side effect
+			// with the background images. 
 			return true;
 
 		default:

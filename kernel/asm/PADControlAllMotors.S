@@ -1,8 +1,9 @@
 #include <asm.h>
+.include "constants.inc"
 
 PADControlAllMotors:
-	lis		%r4,	0x9300
-	ori		%r4,	%r4,	0x3010 #chan0 base
+	lis		%r4,	PadRumble@h
+	ori		%r4,	%r4,	PadRumble@l	#chan0 base
 
 	li		%r5,	3
 

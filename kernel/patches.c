@@ -112,8 +112,10 @@ enum
 	FCODE_OSExceptionInit,
 	FCODE_OSExceptionInit_DBG,
 	FCODE___DSPHandler,
+	FCODE___DSPHandler_DBG,
 	FCODE_PatchPatchBuffer,
 	FCODE_PrsLoad,
+	FCODE_PsoDolEntryMod,
 	FCODE_DolEntryMod,
 	FCODE_AppLoad,
 } FPatternCodes;
@@ -153,6 +155,9 @@ enum
 	FGROUP___OSInitAudioSystem,
 	FGROUP_OSExceptionInit,
 	FGROUP_ReadROM,
+	FGROUP___OSReadROM,
+	FGROUP___DSPHandler,
+	FGROUP_PsoDolEntryMod,
 } FPatternGroups;
 
 static FuncPattern NormalFPatterns[] =
@@ -215,7 +220,8 @@ static FuncPattern NormalFPatterns[] =
 	{  0x28C,   70,    8,    8,   10,    4,	NULL,				FCODE___OSInitAudioSystem_A,"__OSInitAudioSystem",	"DBG A",	FGROUP___OSInitAudioSystem,	0 },
 	{  0x2B8,   77,    8,   12,   10,    4,	NULL,				FCODE___OSInitAudioSystem_B,"__OSInitAudioSystem",	"DBG B",	FGROUP___OSInitAudioSystem,	0 },
 #ifdef AUDIOSTREAM
-	{  0x420,  103,   23,   34,   32,    9,	NULL,				FCODE___DSPHandler,			"__DSPHandler",			NULL,		FGROUP_NONE,				0 },
+	{  0x420,  103,   23,   34,   32,    9,	NULL,				FCODE___DSPHandler,			"__DSPHandler",			NULL,		FGROUP___DSPHandler,		0 },
+	{  0x508,  150,   23,   36,   33,    9,	NULL,				FCODE___DSPHandler_DBG,		"__DSPHandler",			"DBG",		FGROUP___DSPHandler,		0 },
 #else
 	{   0x94,   18,   10,    2,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"A",		FGROUP_DVDLowAudioStream,	0 },
 	{   0x8C,   16,   12,    1,    0,    2,	DVDLowReadAudioNULL,sizeof(DVDLowReadAudioNULL),"DVDLowAudioStream",	"B",		FGROUP_DVDLowAudioStream,	0 },
@@ -309,6 +315,7 @@ static FuncPattern EXIFPatterns[] =
 	{  0x1A8,   34,    2,    7,    9,    8,	EXILock,			EXILock_size,				"EXISync",				"DBG A",	FGROUP_EXISync,				0 },
 	{  0x13C,   25,    2,    6,    7,    7,	EXILock,			EXILock_size,				"EXISync",				"DBG B",	FGROUP_EXISync,				0 },
 	{  0x13C,   24,    2,    6,    7,    6,	EXILock,			EXILock_size,				"EXISync",				"DBG C",	FGROUP_EXISync,				0 },
+	{  0x194,   33,    2,    6,    8,    8,	EXILock,			EXILock_size,				"EXISync",				"DBG D",	FGROUP_EXISync,				0 },
 
 	{  0x170,   30,    7,    5,    8,    9,	EXIProbe,			EXIProbe_size,				"__EXIProbe",			"A",		FGROUP___EXIProbe,			0 },
 	{  0x170,   30,    7,    5,    8,   10,	EXIProbe,			EXIProbe_size,				"__EXIProbe",			"B",		FGROUP___EXIProbe,			0 },
@@ -367,8 +374,10 @@ static FuncPattern EXIFPatterns[] =
 
 	{   0x88,    9,    6,    1,    3,    2,	NULL,				FCODE_ReadROM,				"ReadROM",				"A",		FGROUP_ReadROM,				0 },
 	{   0x80,    8,    6,    1,    4,    6,	NULL,				FCODE_ReadROM,				"ReadROM",				"B",		FGROUP_ReadROM,				0 },
+	{   0x70,    5,    2,    1,    3,    2,	NULL,				FCODE_ReadROM,				"ReadROM",				"DBG",		FGROUP_ReadROM,				0 },
 
-	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",			NULL,		FGROUP_NONE,				0 },
+	{  0x120,   28,    6,   10,    2,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",			NULL,		FGROUP___OSReadROM,			0 },
+	{  0x144,   32,    4,   11,    3,    7,	NULL,				FCODE___OSReadROM,			"__OSReadROM",			"DBG",		FGROUP___OSReadROM,			0 },
 };
 
 static FuncPattern DatelFPatterns[] =
@@ -386,7 +395,8 @@ static FuncPattern PSOFPatterns[] =
 	{  0x378,  110,   26,   52,    0,    9,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"E",		FGROUP_NONE,			    0 },
 	{  0x378,  109,   26,   52,    0,   10,	NULL,				FCODE_PatchPatchBuffer,		"PatchBuffer",			"F",		FGROUP_NONE,			    0 },
 	{  0x268,   52,    9,   39,    8,    7,	NULL,				FCODE_PrsLoad,				"PrsLoad",				NULL,		FGROUP_NONE,			    0 },
-	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_DolEntryMod,			"DolEntryMod",			NULL,		FGROUP_NONE,			    0 },
+	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_PsoDolEntryMod,		"PsoDolEntryMod",		"A",		FGROUP_PsoDolEntryMod,	    0 },
+	{  0x250,   58,    5,   38,    3,    9,	NULL,				FCODE_PsoDolEntryMod,		"PsoDolEntryMod",		"B",		FGROUP_PsoDolEntryMod,	    0 },
 };
 
 enum

@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/lwp_watchdog.h>
 #include <ogc/lwp_threads.h>
 #include <wiiuse/wpad.h>
+#include <wiidrc/wiidrc.h>
 #include <wupc/wupc.h>
 #include <di/di.h>
 #include <unistd.h>
@@ -37,6 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "MemCard.h"
 #include "Patches.h"
 #include "kernel_zip.h"
+#include "kernelboot_bin.h"
 #include "multidol_ldr_bin.h"
 #include "stub_bin.h"
 #include "titles.h"
@@ -44,6 +46,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "HID.h"
 #include "TRI.h"
 #include "Config.h"
+#include "wdvd.h"
 
 #include "ff_utf8.h"
 #include "diskio.h"
@@ -72,7 +75,7 @@ extern u32 __SYS_SyncSram(void);
 
 static GXRModeObj *vmode = NULL;
 
-static const unsigned char Boot2Patch[] =
+static unsigned char ESBootPatch[] =
 {
     0x48, 0x03, 0x49, 0x04, 0x47, 0x78, 0x46, 0xC0, 0xE6, 0x00, 0x08, 0x70, 0xE1, 0x2F, 0xFF, 0x1E, 
     0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x25,
@@ -112,7 +115,6 @@ s32 __IOS_LoadStartupIOS(void)
 // 0 == SD, 1 == USB
 extern FATFS *devices[2];
 
-extern vu32 FoundVersion;
 vu32 KernelLoaded = 0;
 u32 entrypoint = 0;
 char launch_dir[MAXPATHLEN] = {0};
@@ -121,6 +123,9 @@ static u8 loader_stub[0x1800]; //save internally to prevent overwriting
 static ioctlv IOCTL_Buf ALIGNED(32);
 static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
 static const char NIN_BUILD_STRING[] ALIGNED(32) = NIN_VERSION_STRING; // Version detection string used by nintendont launchers "$$Version:x.xxx"
+
+bool isWiiVC = false;
+bool wiiVCInternal = false;
 
 /**
  * Update meta.xml.
@@ -228,27 +233,42 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	FRESULT fres = FR_DISK_ERR;
 
 	if(CurDICMD)
-	{
 		ReadRealDisc(MultiHdr, 0, 0x800, CurDICMD);
-	}
-	else if (IsSupportedFileExt(ncfg->GamePath))
+	else if (IsSupportedFileExt(ncfg->GamePath) || wiiVCInternal)
 	{
-		snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
-		fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
-		if (fres != FR_OK)
+		if(wiiVCInternal)
 		{
-			// Error opening the file.
-			free(MultiHdr);
-			return -1;
+			if(WDVD_FST_OpenDisc(0) != 0)
+			{
+				// Error opening the file.
+				free(MultiHdr);
+				return 1;
+			}
 		}
-
-		f_read(&f, MultiHdr, 0x800, &read);
+		else
+		{
+			snprintf(GamePath, sizeof(GamePath), "%s:%s", GetRootDevice(), ncfg->GamePath);
+			fres = f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING);
+			if (fres != FR_OK)
+			{
+				// Error opening the file.
+				free(MultiHdr);
+				return 1;
+			}
+		}
+		if(wiiVCInternal)
+			read = WDVD_FST_Read(MultiHdr, 0x800);
+		else
+			f_read(&f, MultiHdr, 0x800, &read);
 		if (read != 0x800)
 		{
 			// Error reading from the file.
-			f_close(&f);
+			if(wiiVCInternal)
+				WDVD_FST_Close();
+			else
+				f_close(&f);
 			free(MultiHdr);
-			return -2;
+			return 2;
 		}
 
 		// Check for CISO magic with 2 MB block size.
@@ -266,16 +286,27 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 				*ISOShift = 0;
 			if (BI2region)
 			{
-				f_lseek(&f, 0x8458);
-				f_read(&f, BI2region, sizeof(*BI2region), &read);
+				if(wiiVCInternal)
+				{
+					WDVD_FST_LSeek(0x8458);
+					read = WDVD_FST_Read(wdvdTmpBuf, sizeof(*BI2region));
+					memcpy(&BI2region, wdvdTmpBuf, sizeof(*BI2region));
+				}
+				else
+				{
+					f_lseek(&f, 0x8458);
+					f_read(&f, BI2region, sizeof(*BI2region), &read);
+				}
 				if (read != sizeof(*BI2region))
 				{
 					// Error reading from the file.
-					ret = -3;
+					ret = 3;
 				}
 			}
-
-			f_close(&f);
+			if(wiiVCInternal)
+				WDVD_FST_Close();
+			else
+				f_close(&f);
 			free(MultiHdr);
 			return ret;
 		}
@@ -299,7 +330,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		{
 			// Error opening bi2.bin.
 			free(MultiHdr);
-			return -4;
+			return 4;
 		}
 
 		// bi2.bin is normally 8 KB, but we only need
@@ -310,7 +341,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		{
 			// Could not read bi2.bin.
 			free(MultiHdr);
-			return -5;
+			return 5;
 		}
 
 		// BI2.bin is at 0x440.
@@ -326,7 +357,10 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 		if (!CurDICMD)
 		{
 			// Close the disc image file.
-			f_close(&f);
+			if(wiiVCInternal)
+				WDVD_FST_Close();
+			else
+				f_close(&f);
 		}
 
 		if (BI2region)
@@ -353,6 +387,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	// Games must be aligned to 4-byte boundaries, since
 	// we're using 34-bit rsh2 (Wii) offsets.
 	u8 gameIsUnaligned[15];
+	memset(gameIsUnaligned, 0, sizeof(gameIsUnaligned));
 
 	u8 *GameHdr = memalign(32, 0x800);
 	// GCOPDV(D9) uses Wii-style 34-bit shifted addresses.
@@ -382,13 +417,19 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 			}
 
 			if(CurDICMD)
-			{
 				ReadRealDisc(GameHdr, RealOffset, 0x800, CurDICMD);
-			}
 			else
 			{
-				f_lseek(&f, RealOffset);
-				f_read(&f, GameHdr, 0x800, &read);
+				if(wiiVCInternal)
+				{
+					WDVD_FST_LSeek(RealOffset);
+					read = WDVD_FST_Read(GameHdr, 0x800);
+				}
+				else
+				{
+					f_lseek(&f, RealOffset);
+					f_read(&f, GameHdr, 0x800, &read);
+				}
 			}
 
 			// Make sure the title in the header is NULL terminated.
@@ -412,7 +453,10 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	free(MultiHdr);
 	if (!CurDICMD)
 	{
-		f_close(&f);
+		if(wiiVCInternal)
+			WDVD_FST_Close();
+		else
+			f_close(&f);
 	}
 
 	// TODO: Share code with menu.c.
@@ -505,6 +549,9 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 	return 0;
 }
 
+static char dev_es[] ATTRIBUTE_ALIGN(32) = "/dev/es";
+
+extern vu32 FoundVersion;
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -513,7 +560,6 @@ int main(int argc, char **argv)
 	CheckForGecko();
 	DCInvalidateRange(loader_stub, 0x1800);
 	memcpy(loader_stub, (void*)0x80001800, 0x1800);
-
 	RAMInit();
 	//tell devkitPPC r29 that we use UTF-8
 	setlocale(LC_ALL,"C.UTF-8");
@@ -539,25 +585,6 @@ int main(int argc, char **argv)
 
 	Initialise(argsboot);
 
-	// Initializing IOS58...
-	if(argsboot == false)
-		ShowMessageScreen("Initializing IOS58...");
-
-	u32 u;
-	//Disables MEMPROT for patches
-	write16(MEM_PROT, 0);
-	//Patches FS access
-	for( u = 0x93A00000; u < 0x94000000; u+=2 )
-	{
-		if( memcmp( (void*)(u), FSAccessPattern, sizeof(FSAccessPattern) ) == 0 )
-		{
-		//	gprintf("FSAccessPatch:%08X\r\n", u );
-			memcpy( (void*)u, FSAccessPatch, sizeof(FSAccessPatch) );
-			DCFlushRange((void*)u, sizeof(FSAccessPatch));
-			break;
-		}
-	}
-
 	//for BT.c
 	CONF_GetPadDevices((conf_pads*)0x932C0000);
 	DCFlushRange((void*)0x932C0000, sizeof(conf_pads));
@@ -565,55 +592,125 @@ int main(int argc, char **argv)
 	*(vu32*)0x932C0494 = CONF_GetSensorBarPosition();
 	DCFlushRange((void*)0x932C0490, 8);
 
-	// Load and patch IOS58.
-	if (LoadKernel() < 0)
+	WiiDRC_Init();
+	isWiiVC = WiiDRC_Inited();
+	if(isWiiVC)
 	{
-		// NOTE: Attempting to initialize controllers here causes a crash.
-		// Hence, we can't wait for the user to press the HOME button, so
-		// we'll just wait for a timeout instead.
-		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*20, "Returning to loader in 10 seconds.");
-		UpdateScreen();
-		VIDEO_WaitVSync();
-
-		// Wait 10 seconds...
-		usleep(10000000);
-
-		// Return to the loader.
-		ExitToLoader(1);
+		//Clear out stubs to make it (hopefully) reboot properly
+		memset(loader_stub, 0, 0x1800);
+		memset((void*)0x80001800, 0, 0x1800);
+		DCStoreRange((void*)0x80001800, 0x1800);
 	}
 
+	s32 fd;
+
+	/* Wii VC fw.img is pre-patched but Wii/vWii isnt, so we
+		still have to reload IOS on those with a patched kernel */
+	if(!isWiiVC)
+	{
+		// Preparing IOS58 Kernel...
+		if(argsboot == false)
+			ShowMessageScreen("Preparing IOS58 Kernel...");
+
+		u32 u;
+		//Disables MEMPROT for patches
+		write16(MEM_PROT, 0);
+		//Patches FS access
+		for( u = 0x93A00000; u < 0x94000000; u+=2 )
+		{
+			if( memcmp( (void*)(u), FSAccessPattern, sizeof(FSAccessPattern) ) == 0 )
+			{
+				//gprintf("FSAccessPatch:%08X\r\n", u );
+				memcpy( (void*)u, FSAccessPatch, sizeof(FSAccessPatch) );
+				DCFlushRange((void*)u, sizeof(FSAccessPatch));
+				break;
+			}
+		}
+
+		// Load and patch IOS58.
+		if (LoadKernel() < 0)
+		{
+			// NOTE: Attempting to initialize controllers here causes a crash.
+			// Hence, we can't wait for the user to press the HOME button, so
+			// we'll just wait for a timeout instead.
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*20, "Returning to loader in 10 seconds.");
+			UpdateScreen();
+			VIDEO_WaitVSync();
+
+			// Wait 10 seconds...
+			usleep(10000000);
+
+			// Return to the loader.
+			ExitToLoader(1);
+		}
+		PatchKernel();
+		u32 v = FoundVersion;
+		//this ensures all IOS modules get loaded in ES on reload
+		memcpy( ESBootPatch+0x14, &v, 4 );
+		DCInvalidateRange( (void*)0x939F0348, sizeof(ESBootPatch) );
+		memcpy( (void*)0x939F0348, ESBootPatch, sizeof(ESBootPatch) );
+		DCFlushRange( (void*)0x939F0348, sizeof(ESBootPatch) );
+
+		// Loading IOS58 Kernel...
+		if(argsboot == false)
+			ShowMessageScreen("Loading IOS58 Kernel...");
+
+		//libogc still has that, lets close it
+		__ES_Close();
+		fd = IOS_Open( dev_es, 0 );
+
+		raw_irq_handler_t irq_handler = BeforeIOSReload();
+		IOS_IoctlvAsync( fd, 0x25, 0, 0, &IOCTL_Buf, NULL, NULL );
+		sleep(1); //wait this time at least
+		AfterIOSReload( irq_handler, v );
+		//Disables MEMPROT for patches
+		write16(MEM_PROT, 0);
+	}
+	//else if(*(vu16*)0xCD8005A0 != 0xCAFE)
+	//{
+		/* WiiVC seems to have some bug that without any fake IOS
+		   reload makes it impossible to read HW regs on PPC 
+		   and it seems to break some consoles to reload IOS */
+	//	IOS_ReloadIOS(58);
+	//}
+
+	// Preparing Nintendont Kernel...
+	if(argsboot == false)
+		ShowMessageScreen("Preparing Nintendont Kernel...");
+
+	//inject nintendont thread
 	void *kernel_bin = NULL;
 	unsigned int kernel_bin_size = 0;
 	unzip_data(kernel_zip, kernel_zip_size, &kernel_bin, &kernel_bin_size);
 	gprintf("Decompressed kernel.bin with %i bytes\r\n", kernel_bin_size);
-	InsertModule((char*)kernel_bin, kernel_bin_size);
+	memcpy((void*)0x92F00000,kernel_bin,kernel_bin_size);
+	DCFlushRange((void*)0x92F00000,kernel_bin_size);
 	free(kernel_bin);
-
-	memset( (void*)0x92f00000, 0, 0x100000 );
-	DCFlushRange( (void*)0x92f00000, 0x100000 );
-
-	DCInvalidateRange( (void*)0x939F02F0, 0x20 );
-
-	memcpy( (void*)0x939F02F0, Boot2Patch, sizeof(Boot2Patch) );
-
-	DCFlushRange( (void*)0x939F02F0, 0x20 );
-
-	//libogc still has that, lets close it
+	//inject kernelboot
+	memcpy((void*)0x92FFFE00,kernelboot_bin,kernelboot_bin_size);
+	DCFlushRange((void*)0x92FFFE00,kernelboot_bin_size);
+	//Loading Nintendont Kernel...
+	if(argsboot == false)
+		ShowMessageScreen("Loading Nintendont Kernel...");
+	//close in case this is wii vc
 	__ES_Close();
-	s32 fd = IOS_Open( "/dev/es", 0 );
-
-	memset( STATUS, 0xFFFFFFFF, 0x20  );
+	memset( STATUS, 0, 0x20 );
 	DCFlushRange( STATUS, 0x20 );
-
-	memset( (void*)0x91000000, 0xFFFFFFFF, 0x20  );
-	DCFlushRange( (void*)0x91000000, 0x20 );
-
-	*(vu32*)0xD3003420 = 0; //make sure kernel doesnt reload
-
-	raw_irq_handler_t irq_handler = BeforeIOSReload();
-	IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
-	AfterIOSReload( irq_handler, FoundVersion );
-
+	//make sure kernel doesnt reload
+	*(vu32*)0x93003420 = 0;
+	DCFlushRange((void*)0x93003420,0x20);
+	//Set some important kernel regs
+	*(vu32*)0x92FFFFC0 = isWiiVC; //cant be detected in IOS
+	if(WiiDRC_Connected()) //used in PADReadGC.c
+		*(vu32*)0x92FFFFC4 = (u32)WiiDRC_GetRawI2CAddr();
+	else //will disable gamepad spot for player 1
+		*(vu32*)0x92FFFFC4 = 0;
+	DCFlushRange((void*)0x92FFFFC0,0x20);
+	fd = IOS_Open( dev_es, 0 );
+	IOS_IoctlvAsync(fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL);
+	//Waiting for Nintendont...
+	if(argsboot == false)
+		ShowMessageScreen("Waiting for Nintendont...");
 	while(1)
 	{
 		DCInvalidateRange( STATUS, 0x20 );
@@ -623,6 +720,8 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+	//Async Ioctlv done by now
+	IOS_Close(fd);
 
 	gprintf("Nintendont at your service!\r\n%s\r\n", NIN_BUILD_STRING);
 	KernelLoaded = 1;
@@ -638,6 +737,10 @@ int main(int argc, char **argv)
 	int i;
 	for (i = DEV_SD; i <= DEV_USB; i++)
 	{
+		//only check SD on Wii VC
+		if(i == DEV_USB && isWiiVC)
+			break;
+		//check SD and USB on Wii and WiiU
 		const WCHAR *devNameFF = MountDevice(i);
 		if (devNameFF && !foundOneDevice)
 		{
@@ -657,9 +760,12 @@ int main(int argc, char **argv)
 		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232, "No FAT device found!");
 		ExitToLoader(1);
 	}
-
-	char* first_slash = strrchr(argv[0], '/');
-	if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
+	// Seems like some programs start without any args
+	if(argc > 0 && argv != NULL && argv[0] != NULL)
+	{
+		char* first_slash = strrchr(argv[0], '/');
+		if (first_slash != NULL) strncpy(launch_dir, argv[0], first_slash-argv[0]+1);
+	}
 	gprintf("launch_dir = %s\r\n", launch_dir);
 
 	// Initialize controllers.
@@ -747,37 +853,70 @@ int main(int argc, char **argv)
 	{
 		if(argsboot == false)
 			ShowLoadingScreen();
-
-		DI_UseCache(false);
-		DI_Init();
-		DI_Mount();
-		while (DI_GetStatus() & DVD_INIT)
-			usleep(20000);
-		if(!(DI_GetStatus() & DVD_READY))
+		if(isWiiVC)
 		{
-			ShowMessageScreenAndExit("The Disc Drive could not be initialized!", 1);
-		}
-		DI_Close();
-
-		u8 *DIBuf = memalign(32,0x800);
-		memset(DIBuf, 0, 0x20);
-		DCFlushRange(DIBuf, 0x20);
-		CurDICMD = DIP_CMD_NORMAL;
-		ReadRealDisc(DIBuf, 0, 0x20, CurDICMD);
-		if( IsGCGame(DIBuf) == false )
-		{
-			memset(DIBuf, 0, 0x800);
-			DCFlushRange(DIBuf, 0x800);
-			CurDICMD = DIP_CMD_DVDR;
-			ReadRealDisc(DIBuf, 0, 0x800, CurDICMD);
-			if( IsGCGame(DIBuf) == false )
+			if(WDVD_Init() != 0)
+				ShowMessageScreenAndExit("The Wii VC Disc could not be initialized!", 1);
+			if(WDVD_OpenDataPartition() != 0)
+				ShowMessageScreenAndExit("Found no Partition on Wii VC Disc!", 1);
+			if(!WDVD_FST_Mount())
+				ShowMessageScreenAndExit("Unable to open Partition on Wii VC Disc!", 1);
+			if(WDVD_FST_OpenDisc(0) != 0)
+				ShowMessageScreenAndExit("No game.iso on Wii VC Disc!", 1);
+			u8 *DIBuf = memalign(32,0x800);
+			if(WDVD_FST_Read(DIBuf, 0x800) != 0x800)
 			{
 				free(DIBuf);
-				ShowMessageScreenAndExit("The Disc in the Drive is not a GC Disc!", 1);
+				ShowMessageScreenAndExit("Cant read game.iso start!", 1);
 			}
+			if( IsGCGame(DIBuf) == false )
+			{
+				WDVD_FST_LSeek(0x8000);
+				WDVD_FST_Read(DIBuf, 0x800);
+				if( IsGCGame(DIBuf) == false )
+				{
+					free(DIBuf);
+					ShowMessageScreenAndExit("game.iso is not a GC Disc!", 1);
+				}
+			}
+			memcpy(&(ncfg->GameID), DIBuf, 4);
+			free(DIBuf);
+			WDVD_FST_Close();
+			wiiVCInternal = true;
 		}
-		memcpy(&(ncfg->GameID), DIBuf, 4);
-		free(DIBuf);
+		else
+		{
+			DI_UseCache(false);
+			DI_Init();
+			DI_Mount();
+			while (DI_GetStatus() & DVD_INIT)
+				usleep(20000);
+			if(!(DI_GetStatus() & DVD_READY))
+			{
+				ShowMessageScreenAndExit("The Disc Drive could not be initialized!", 1);
+			}
+			DI_Close();
+
+			u8 *DIBuf = memalign(32,0x800);
+			memset(DIBuf, 0, 0x20);
+			DCFlushRange(DIBuf, 0x20);
+			CurDICMD = DIP_CMD_NORMAL;
+			ReadRealDisc(DIBuf, 0, 0x20, CurDICMD);
+			if( IsGCGame(DIBuf) == false )
+			{
+				memset(DIBuf, 0, 0x800);
+				DCFlushRange(DIBuf, 0x800);
+				CurDICMD = DIP_CMD_DVDR;
+				ReadRealDisc(DIBuf, 0, 0x800, CurDICMD);
+				if( IsGCGame(DIBuf) == false )
+				{
+					free(DIBuf);
+					ShowMessageScreenAndExit("The Disc in the Drive is not a GC Disc!", 1);
+				}
+			}
+			memcpy(&(ncfg->GameID), DIBuf, 4);
+			free(DIBuf);
+		}
 	}
 
 	if(SaveSettings)
@@ -822,10 +961,65 @@ int main(int argc, char **argv)
 	// Get multi-game and region code information.
 	u32 ISOShift = 0;	// NOTE: This is a 34-bit shifted offset.
 	u32 BI2region = 0;	// bi2.bin region code [TODO: Validate?]
-	if (CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region) != 0)
-	{
-		ShowMessageScreenAndExit("CheckForMultiGameAndRegion() failed.", 1);
+	int ret = CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region);
+	if (ret != 0) {
+		ClearScreen();
+		PrintInfo();
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4, "CheckForMultiGameAndRegion() failed: %d", ret);
+		switch (ret) {
+			case 1:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to open the %s.",
+					CurDICMD == 0 ? "disc image file" : "disc drive");
+				break;
+			case 2:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to read the disc header.");
+				break;
+			case 3:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to read the CISO bi2.bin area.");
+				break;
+			case 4:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to open the extracted FST bi2.bin file.");
+				break;
+			case 5:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to read the extracted FST bi2.bin file.");
+				break;
+			default:
+				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unknown error code.");
+				break;
+		}
+
+		if (CurDICMD) {
+			char unkdev[32];
+			const char *device;
+			switch (CurDICMD) {
+				case DIP_CMD_NORMAL:
+					device = "GameCube disc";
+					break;
+				case DIP_CMD_DVDR:
+					device = "DVD-R";
+					break;
+				default:
+					snprintf(unkdev, sizeof(unkdev), "Unknown (CMD: 0x%02lX)", CurDICMD);
+					device = unkdev;
+					break;
+			}
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "Device: %s", device);
+		} else {
+			PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "Filename: %s:%s", GetRootDevice(), ncfg->GamePath);
+		}
+
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*20, "Returning to loader in 10 seconds.");
+		UpdateScreen();
+		VIDEO_WaitVSync();
+
+		// Wait 10 seconds...
+		usleep(10000000);
+
+		// Return to the loader.
+		ExitToLoader(1);
 	}
+
+	// Save the ISO shift value for multi-game discs.
 	*(vu32*)0xD300300C = ISOShift;
 
 //Set Language
@@ -1003,6 +1197,12 @@ int main(int argc, char **argv)
 
 	WUPC_Shutdown();
 	WPAD_Shutdown();
+
+	if(wiiVCInternal)
+	{
+		WDVD_FST_Unmount();
+		WDVD_Close();
+	}
 
 	//before flushing do game specific patches
 	if(ncfg->Config & NIN_CFG_FORCE_PROG &&
@@ -1266,12 +1466,18 @@ int main(int argc, char **argv)
 			// Disable PAL60.
 			sram->ntd &= 0x40;
 
+			// NTSC Prince of Persia Warrior Within set to Spanish
+			// actually has a bug that cant display the progressive
+			// screen question so dont set progressive flag in that
+			bool spPopWW = (ncfg->GameID == 0x47324F45 &&
+							ncfg->Language == NIN_LAN_SPANISH);
+
 			// Set the progressive scan flag if a component cable
 			// is connected (or HDMI on Wii U), unless we're loading
 			// BMX XXX, since that game won't even boot on a real
 			// GameCube if a component cable is connected.
-			if ((ncfg->GameID >> 8) != 0x474233 &&
-			    (ncfg->VideoMode & NIN_VID_PROG))
+			if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW &&
+				(ncfg->VideoMode & NIN_VID_PROG))
 			{
 				sram->flags |= 0x80;
 			}
@@ -1315,10 +1521,6 @@ int main(int argc, char **argv)
 		VIDEO_WaitVSync();
 	GX_AbortFrame();
 
-	DCInvalidateRange((void*)0x93000000, 0x3000);
-	memset((void*)0x93002700, 0, 0x200); //clears alot of pad stuff
-	memset((void*)0x93002C00, 0, 0x400); //clears alot of multidol stuff
-	strcpy((char*)0x930028A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
 	DCFlushRange((void*)0x93000000, 0x3000);
 
 	DCInvalidateRange((void*)0x93010010, 0x10000);
@@ -1330,12 +1532,14 @@ int main(int argc, char **argv)
 	memset((void*)0x93020000, 0, 0x10000);
 	DCFlushRange((void*)0x93020000, 0x10000);
 
-	DCInvalidateRange((void*)0x93003000, 0x20);
+	DCInvalidateRange((void*)0x93003000, 0x200);
 	//*(vu32*)0x93003000 = currev; //set kernel rev (now in LoadKernel)
 	*(vu32*)0x93003008 = 0x80000004; //just some address for SIGetType
 	//0x9300300C is already used for multi-iso
-	memset((void*)0x93003010, 0, 0x10); //disable rumble on bootup
-	DCFlushRange((void*)0x93003000, 0x20);
+	memset((void*)0x93003010, 0, 0x190); //clears alot of pad stuff
+	strcpy((char*)0x930031A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
+	memset((void*)0x930031E0, 0, 0x20); //clears tgc stuff
+	DCFlushRange((void*)0x93003000, 0x200);
 
 	//lets prevent weird events
 	__STM_Close();
@@ -1358,7 +1562,8 @@ int main(int argc, char **argv)
 	DCFlushRange((void*)0x90000000, 0x1000000);
 
 	gprintf("Game Start\n");
-
+	//alow interrupts on Y2
+	write32(0x0d000004,0x22);
 	if(useipl)
 	{
 		load_ipl(iplbuf);

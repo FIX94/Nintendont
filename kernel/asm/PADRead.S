@@ -1,7 +1,5 @@
 #include <asm.h>
-
-.set		PadStub,	0x93000000
-.set		PadBuff,	0x93002800
+.include "constants.inc"
 
 PADRead:
 	stwu	%sp,	-0x20(%sp)

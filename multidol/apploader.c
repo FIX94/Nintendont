@@ -27,7 +27,7 @@ typedef void *(*app_final)();
 typedef void  (*app_entry)(void (**init)(int (*report)(const char *fmt, ...)), int (**main)(), void *(**final)());
 
 static u8 *appldr = (u8*)0x81200000;
-static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x93002FE0;
+static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x930031E0;
 
 #define APPLDR_OFFSET	0x2440
 #define APPLDR_CODE		0x2460

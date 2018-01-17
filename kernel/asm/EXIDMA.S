@@ -10,13 +10,26 @@
 #out
 #	r3	res
 
-.set	EXI_CMD_0,	0xD3026800
-.set	EXI_CMD_1,	0xD3026804
+.include "constants.inc"
+
+.set	CH0_MASK,	0x60
+.set	CH1_MASK,	0xC
+.set	CH_LENGTH,	0x38
 
 EXIDMA:
 	lis		%r8,	0x803F
-	stw		%r7,	0x0CB4(%r8)		# callback
+	addi		%r8,	%r8, 0x0CB4
+	cmpwi		%r3,	1
+	bne		CallbackSet
+	addi		%r8,	%r8, CH_LENGTH		#mult instead? break channel2?
+CallbackSet:
+	stw		%r7,	0x4(%r8)		# callback
 
+	lis		%r8,	CH0_MASK
+	cmpwi		%r3,	1
+	bne		MaskSet
+	lis		%r8,	CH1_MASK
+MaskSet:
 	lis		%r7,	0xD302
 	lis		%r0,	0x1200
 
@@ -33,7 +46,6 @@ EXIDMA:
 	lis		%r3,	0x8000
 	lwz		%r4,	0xC4(%r3)
 
-	lis		%r8,	0x60
 	andc	%r4,	%r4,	%r8
 
 	stw		%r4,	0xC4(%r3)

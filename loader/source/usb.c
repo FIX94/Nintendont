@@ -1356,7 +1356,7 @@ s32 USB_OGC_DeviceChangeNotifyAsync(u8 interface_class, usbcallback cb, void* us
 s32 USB_OGC_GetDeviceList(usb_device_entry *descr_buffer,u8 num_descr,u8 interface_class,u8 *cnt_descr)
 {
 	int i;
-	u8 cntdevs=0;
+	u8 cntdevs = 0;
 
 	if (ven_host==NULL) {
 		s32 fd;
@@ -1386,18 +1386,18 @@ s32 USB_OGC_GetDeviceList(usb_device_entry *descr_buffer,u8 num_descr,u8 interfa
 
 	// for ven_host, we can only exclude usb_hid class devices
 	if (interface_class != USB_CLASS_HID && ven_host) {
-		i=0;
+		i = 0;
 		while (cntdevs<num_descr && ven_host->attached_devices[i].device_id) {
 			descr_buffer[cntdevs++] = ven_host->attached_devices[i++];
-			if (i>=32) break;
+			if (i >= USB_MAX_DEVICES) break;
 		}
 	}
 
 	if ((!interface_class || interface_class==USB_CLASS_HID) && hid_host) {
-		i=0;
+		i = 0;
 		while (cntdevs<num_descr && hid_host->attached_devices[i].device_id) {
 			descr_buffer[cntdevs++] = hid_host->attached_devices[i++];
-			if (i>32) break;
+			if (i >= USB_MAX_DEVICES) break;
 		}
 	}
 

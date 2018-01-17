@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Stream.h"
 #include "HID.h"
 #include "EXI.h"
+#include "GCNCard.h"
 #include "debug.h"
 #include "GCAM.h"
 #include "TRI.h"
@@ -40,6 +41,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "usbstorage.h"
 #include "SDI.h"
 #include "ff_utf8.h"
+
+//#define USE_OSREPORTDM 1
 
 //#undef DEBUG
 bool access_led = false;
@@ -59,6 +62,12 @@ extern u32 DI_MessageQueue;
 extern vu32 DisableSIPatch;
 extern char __bss_start, __bss_end;
 extern char __di_stack_addr, __di_stack_size;
+
+u32 virtentry = 0;
+u32 drcAddress = 0;
+u32 drcAddressAligned = 0;
+bool isWiiVC = false;
+bool wiiVCInternal = false;
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
@@ -66,36 +75,50 @@ int _main( int argc, char *argv[] )
 	memset32(&__bss_start, 0, &__bss_end - &__bss_start);
 	sync_after_write(&__bss_start, &__bss_end - &__bss_start);
 
+	//Important to do this as early as possible
+	if(read32(0x20109740) == 0xE59F1004)
+		virtentry = 0x20109740; //Address on Wii 
+	else if(read32(0x2010999C) == 0xE59F1004)
+		virtentry = 0x2010999C; //Address on WiiU
+
+	//Use libwiidrc values to detect Wii VC
+	sync_before_read((void*)0x12FFFFC0, 0x20);
+	isWiiVC = read32(0x12FFFFC0);
+	if(isWiiVC)
+	{
+		drcAddress = read32(0x12FFFFC4); //used in PADReadGC.c
+		drcAddressAligned = ALIGN_BACKWARD(drcAddress,0x20);
+	}
+
 	s32 ret = 0;
 	u32 DI_Thread = 0;
 
-	u8 MessageHeap[0x10];
-
 	BootStatus(0, 0, 0);
 
-	thread_set_priority( 0, 0x79 );	// do not remove this, this waits for FS to be ready!
+	if(!isWiiVC)
+	{
+		//Enable DVD Access
+		write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
+	}
+
 	thread_set_priority( 0, 0x50 );
-	thread_set_priority( 0, 0x79 );
 
-//Disable AHBPROT
-	EnableAHBProt(-1);
-
-//Load IOS Modules
-	ES_Init( MessageHeap );
-
-//Early HID for loader
+	//Early HID for loader
 	HIDInit();
-
-//Enable DVD Access
-	write32(HW_DIFLAGS, read32(HW_DIFLAGS) & ~DI_DISABLEDVD);
 
 	dbgprintf("Sending signal to loader\r\n");
 	BootStatus(1, 0, 0);
 	mdelay(10);
 
-//Loader running, selects games
+	//give power button to loader
+	set32(HW_GPIO_ENABLE, GPIO_POWER);
+	clear32(HW_GPIO_DIR, GPIO_POWER);
+	set32(HW_GPIO_OWNER, GPIO_POWER);
+
+	//Loader running, selects games
 	while(1)
 	{
+		_ahbMemFlush(1);
 		sync_before_read((void*)RESET_STATUS, 0x20);
 		vu32 reset_status = read32(RESET_STATUS);
 		if(reset_status != 0)
@@ -103,12 +126,13 @@ int _main( int argc, char *argv[] )
 			if(reset_status == 0x0DEA)
 				break; //game selected
 			else if(reset_status == 0x1DEA)
-				goto DoIOSBoot; //exit
+				goto WaitForExit;
 			write32(RESET_STATUS, 0);
 			sync_after_write((void*)RESET_STATUS, 0x20);
 		}
 		HIDUpdateRegisters(1);
 		udelay(20);
+		cc_ahbMemFlush(1);
 	}
 	//get time from loader
 	InitCurrentTime();
@@ -139,8 +163,12 @@ int _main( int argc, char *argv[] )
 
 	//Verification if we can read from disc
 	if(memcmp(ConfigGetGamePath(), "di", 3) == 0)
-		RealDI_Init(); //will shutdown on fail
-
+	{
+		if(isWiiVC) //will be inited later
+			wiiVCInternal = true;
+		else //will shutdown on fail
+			RealDI_Init();
+	}
 	BootStatus(3, 0, 0);
 	fatfs = (FATFS*)malloca( sizeof(FATFS), 32 );
 
@@ -159,22 +187,23 @@ int _main( int argc, char *argv[] )
 
 	FIL fp;
 	s32 fres = f_open_char(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
-	switch(fres)
+	switch (fres)
 	{
 		case FR_OK:
 			f_close(&fp);
+			break;
+
 		case FR_NO_PATH:
 		case FR_NO_FILE:
-		{
 			fres = FR_OK;
-		} break;
+			break;
+
 		default:
 		case FR_DISK_ERR:
-		{
 			BootStatusError(-5, fres);
 			mdelay(4000);
 			Shutdown();
-		} break;
+			break;
 	}
 
 	if(!UseUSB) //Use FAT values for SD
@@ -194,8 +223,8 @@ int _main( int argc, char *argv[] )
 	memset32((void*)RESET_STATUS, 0, 0x20);
 	sync_after_write((void*)RESET_STATUS, 0x20);
 
-	memset32((void*)0x13002800, 0, 0x30);
-	sync_after_write((void*)0x13002800, 0x30);
+	memset32((void*)0x13003100, 0, 0x30);
+	sync_after_write((void*)0x13003100, 0x30);
 	memset32((void*)0x13160000, 0, 0x20);
 	sync_after_write((void*)0x13160000, 0x20);
 
@@ -205,7 +234,7 @@ int _main( int argc, char *argv[] )
 	BootStatus(9, s_size, s_cnt);
 
 	DIRegister();
-	DI_Thread = thread_create(DIReadThread, NULL, ((u32*)&__di_stack_addr), ((u32)(&__di_stack_size)) / sizeof(u32), 0x78, 1);
+	DI_Thread = do_thread_create(DIReadThread, ((u32*)&__di_stack_addr), ((u32)(&__di_stack_size)), 0x78);
 	thread_continue(DI_Thread);
 
 	DIinit(true);
@@ -228,10 +257,10 @@ int _main( int argc, char *argv[] )
 	BootStatus(0xdeadbeef, s_size, s_cnt);
 	mdelay(1000); //wait before hw flag changes
 	dbgprintf("Kernel Start\r\n");
-
-	//write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
-	//sync_after_write((void*)0x1860, 0x20);
-
+#ifdef USE_OSREPORTDM
+	write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
+	sync_after_write((void*)0x1860, 0x20);
+#endif
 	u32 Now = read32(HW_TIMER);
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
@@ -259,7 +288,9 @@ int _main( int argc, char *argv[] )
 	clear32(HW_GPIO_OWNER, GPIO_SENSOR_BAR);
 	set32(HW_GPIO_OUT, GPIO_SENSOR_BAR);	//turn on sensor bar
 
-	write32( HW_PPCIRQMASK, (1<<30) );
+	clear32(HW_GPIO_OWNER, GPIO_POWER); //take back power button
+
+	write32( HW_PPCIRQMASK, (1<<30) ); //only allow IPC IRQ
 	write32( HW_PPCIRQFLAG, read32(HW_PPCIRQFLAG) );
 
 	//This bit seems to be different on japanese consoles
@@ -310,7 +341,7 @@ int _main( int argc, char *argv[] )
 			sync_before_read((void*)INT_BASE, 0x80);
 			if((read32(RSW_INT) & 2) || (read32(DI_INT) & 4) || 
 				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10))
-				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+				write32(HW_IPC_ARMCTRL, 8); //throw irq
 			InterruptTimer = read32(HW_TIMER);
 		}
 		#ifdef PATCHALL
@@ -339,7 +370,7 @@ int _main( int argc, char *argv[] )
 		{
 			if(TimerDiffSeconds(Now) > 2) /* after 3 second earliest */
 			{
-				EXISaveCard();
+				GCNCard_Save();
 				SaveCard = false;
 			}
 		}
@@ -408,7 +439,7 @@ int _main( int argc, char *argv[] )
 		#endif
 		StreamUpdateRegisters();
 		CheckOSReport();
-		if(EXICheckCard())
+		if(GCNCard_CheckChanges())
 		{
 			Now = read32(HW_TIMER);
 			SaveCard = true;
@@ -418,8 +449,6 @@ int _main( int argc, char *argv[] )
 		if (reset_status == 0x1DEA)
 		{
 			dbgprintf("Game Exit\r\n");
-			write32(RESET_STATUS, 0);
-			sync_after_write((void*)RESET_STATUS, 0x20);
 			DIFinishAsync();
 			break;
 		}
@@ -430,7 +459,7 @@ int _main( int argc, char *argv[] )
 				dbgprintf("Fake Reset IRQ\r\n");
 				write32( RSW_INT, 0x2 ); // Reset irq
 				sync_after_write( (void*)RSW_INT, 0x20 );
-				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
+				write32(HW_IPC_ARMCTRL, 8); //throw irq
 				Reset = 1;
 			}
 		}
@@ -464,7 +493,7 @@ int _main( int argc, char *argv[] )
 			write32(RESET_STATUS, 0);
 			sync_after_write((void*)RESET_STATUS, 0x20);
 		}
-		if(read32(HW_GPIO_IN) & GPIO_POWER)
+		if(reset_status == 0x7DEA || (read32(HW_GPIO_IN) & GPIO_POWER))
 		{
 			DIFinishAsync();
 			#ifdef PATCHALL
@@ -472,38 +501,30 @@ int _main( int argc, char *argv[] )
 			#endif
 			Shutdown();
 		}
-		//sync_before_read( (void*)0x1860, 0x20 );
-		//if( read32(0x1860) != 0xdeadbeef )
-		//{
-		//	if( read32(0x1860) != 0 )
-		//	{
-		//		dbgprintf(	(char*)(P2C(read32(0x1860))),
-		//					(char*)(P2C(read32(0x1864))),
-		//					(char*)(P2C(read32(0x1868))),
-		//					(char*)(P2C(read32(0x186C))),
-		//					(char*)(P2C(read32(0x1870))),
-		//					(char*)(P2C(read32(0x1874)))
-		//				);
-		//	}
-		//	write32(0x1860, 0xdeadbeef);
-		//	sync_after_write( (void*)0x1860, 0x20 );
-		//}
+		#ifdef USE_OSREPORTDM
+		sync_before_read( (void*)0x1860, 0x20 );
+		if( read32(0x1860) != 0xdeadbeef )
+		{
+			if( read32(0x1860) != 0 )
+			{
+				dbgprintf(	(char*)(P2C(read32(0x1860))),
+							(char*)(P2C(read32(0x1864))),
+							(char*)(P2C(read32(0x1868))),
+							(char*)(P2C(read32(0x186C))),
+							(char*)(P2C(read32(0x1870))),
+							(char*)(P2C(read32(0x1874)))
+						);
+			}
+			write32(0x1860, 0xdeadbeef);
+			sync_after_write( (void*)0x1860, 0x20 );
+		}
+		#endif
 		cc_ahbMemFlush(1);
 	}
-	//if( UseHID )
-		HIDClose();
+	HIDClose();
 	IOS_Close(DI_Handle); //close game
 	thread_cancel(DI_Thread, 0);
 	DIUnregister();
-
-	/* reset time */
-	while(1)
-	{
-		sync_before_read( (void*)RESET_STATUS, 0x20 );
-		if(read32(RESET_STATUS) == 0x2DEA)
-			break;
-		wait_for_ppc(1);
-	}
 
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
@@ -536,8 +557,21 @@ int _main( int argc, char *argv[] )
 		write32(0xd8006a0, ori_widesetting);
 		mask32(0xd8006a8, 0, 2);
 	}
-DoIOSBoot:
-	sync_before_read((void*)0x13003000, 0x420);
-	IOSBoot((char*)0x13003020, 0, read32(0x13003000));
+WaitForExit:
+	/* Allow all IOS IRQs again */
+	write32(HW_IPC_ARMCTRL, 0x36);
+	/* Wii VC is unable to cleanly use ES */
+	if(isWiiVC)
+	{
+		dbgprintf("Force reboot into WiiU Menu\n");
+		WiiUResetToMenu();
+	}
+	else
+	{
+		dbgprintf("Kernel done, waiting for IOS Reload\n");
+		write32(RESET_STATUS, 0);
+		sync_after_write((void*)RESET_STATUS, 0x20);
+	}
+	while(1) mdelay(100);
 	return 0;
 }

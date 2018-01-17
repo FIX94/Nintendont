@@ -23,7 +23,6 @@ int ios_close(int fd);
 int ios_ioctlv(int fd, u32 n, u32 in_count, u32 out_count, struct ioctlv *vec);
 int ios_ioctlvreboot(int fd, u32 n, u32 in_count, u32 out_count, struct ioctlv *vec);
 int ios_read(int fd, void *buf, u32 size);
-void ios_reload(void);
 
 #endif
 

@@ -1,11 +1,5 @@
 #include <asm.h>
-
-#all in different cache blocks
-.set	INT_BASE,	0xD3026500
-.set	RSW_INT,	INT_BASE+0x00
-.set	DI_INT,		INT_BASE+0x20
-.set	SI_INT,		INT_BASE+0x40
-.set	EXI_INT,	INT_BASE+0x60
+.include "constants.inc"
 
 FakeInterrupt_DBG:
 	lwz		%r29,	0x3000(%r3)
@@ -14,7 +8,7 @@ FakeInterrupt_DBG:
 	beq		end		#if bit 14=0 then no need to check
 
 	lis		%r3,	0xCD80
-	li		%r0,	0x34
+	li		%r0,	0x22
 	stw		%r0,	4(%r3)
 	lis		%r0,	0x4000
 	stw		%r0,	0x30(%r3)

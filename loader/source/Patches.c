@@ -59,38 +59,60 @@ static const unsigned char UnusedSWI[] =
 	0x20, 0x05,
 };
 
-static const unsigned char HWAccess_ESPatch[] =
-{
-	0x0D, 0x04, 0x00, 0x00,
-	0x0D, 0x04, 0x00, 0x00,
-	0x01, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x0F,
-	0x00, 0x00, 0x00, 0x03,
-	0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x02,
-};
+/* Full HW 0x0D8000000 Access in Nintendont */
 static const unsigned char HWAccess_ES[] =
 {
-	0x0D, 0x00, 0x00, 0x00,
-	0x0D, 0x00, 0x00, 0x00,
-	0x00, 0x0D, 0x00, 0x00,
+	0x0D, 0x80, 0x00, 0x00, //virt address (0x0D8000000)
+	0x0D, 0x80, 0x00, 0x00, //phys address (0x0D8000000)
+	0x00, 0x0D, 0x00, 0x00, //length (up to 0x0D8D00000)
 	0x00, 0x00, 0x00, 0x0F, 
-	0x00, 0x00, 0x00, 0x01,
+	0x00, 0x00, 0x00, 0x02, //permission (2=ro, patchme)
 	0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x02, 
+};
+static const unsigned char HWAccess_ESPatch[] =
+{
+	0x0D, 0x80, 0x00, 0x00, //virt address (0x0D8000000)
+	0x0D, 0x80, 0x00, 0x00, //phys address (0x0D8000000)
+	0x00, 0x0D, 0x00, 0x00, //length (up to 0x0D8D00000)
+	0x00, 0x00, 0x00, 0x0F,
+	0x00, 0x00, 0x00, 0x03, //permission (3=rw)
+	0x00, 0x00, 0x00, 0x00,
+};
+
+/* Replace ES Ioctl 0x1F to start Nintendont */
+static const unsigned char ES_Ioctl_1F[] =
+{
+	0x68, 0x4B, 0x2B, 0x06, 0xD1, 0x0C, 0x68, 0x8B, 0x2B, 0x00, 0xD1, 0x09, 0x68, 0xC8, 0x68, 0x42,
+	0x23, 0xA9, 0x00, 0x9B
+};
+static const unsigned char ES_Ioctl_1F_Patch[] =
+{
+	0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 
+	0x46, 0xC0, 0x46, 0xC0
+};
+
+/* Since ES Ioctl 0x1F is replaced its function can be used */
+static const unsigned char ES_Ioctl_1F_Function[] =
+{
+	0xB5, 0xF0, 0x46, 0x5F, 0x46, 0x56, 0x46, 0x4D, 0x46, 0x44, 0xB4, 0xF0, 0xB0, 0xBA, 0x1C, 0x0F
+};
+static const unsigned char ES_Ioctl_1F_Function_Patch[] = {
+	0xE5, 0x9F, 0x10, 0x04, 0xE5, 0x91, 0x00, 0x00, 0xE1, 0x2F, 0xFF, 0x10, 0x12, 0xFF, 0xFF, 0xE0
 };
 
 static char Entry[0x1C] ALIGNED(32);
 
 // IOS58 kernel memory base address.
-static char *const Kernel = (char*)0x90100000;
+static char *const KernelDst = (char*)0x90100000;
+// kernel address we first read into
+static char *const KernelReadBuf = (char*)0x91000000;
 static unsigned int KernelSize = 0;
 
-void InsertModule( char *Module, u32 ModuleSize )
+void PatchKernel()
 {
-	unsigned int loadersize = *(vu32*)(Kernel) + *(vu32*)(Kernel+4);
+	unsigned int loadersize = *(vu32*)(KernelReadBuf) + *(vu32*)(KernelReadBuf+4);
 	u32 PatchCount = 0;
-	int i = 0, j = 0;
+	int i = 0;
 
 #ifdef DEBUG_MODULE_PATCH
 	gprintf("LoaderSize:%08X\r\n", loadersize );
@@ -102,118 +124,9 @@ void InsertModule( char *Module, u32 ModuleSize )
 	if( loadersize > 0x1000 )
 		return;
 
-	Elf32_Ehdr *inhdr = (Elf32_Ehdr*)(Kernel+loadersize);
-
 	unsigned int size = KernelSize;
 
-	char *buf = Kernel;
-	
-	Elf32_Ehdr *outhdr = (Elf32_Ehdr *)(buf+loadersize);
-
-	// set new ES thread entry point
-	*(volatile unsigned int*)(buf+loadersize+0x254) = 0x20F00000;
-
-	// Update ES stack address
-	*(volatile unsigned int*)(buf+loadersize+0x264) = 0x2000; //size
-	*(volatile unsigned int*)(buf+loadersize+0x26C) = 0x2010F000;
-
-#ifdef DEBUG_MODULE_PATCH
-	gprintf("PHeaders:%d\r\n", inhdr->e_phnum );
-	gprintf("PHOffset:%d\r\n", inhdr->e_phoff );
-#endif
-
-	if( inhdr->e_phnum == 0 )
-	{
-#ifdef DEBUG_MODULE_PATCH
-		gprintf("Error program header entries are zero!\r\n");
-#endif
-	} else {
-	
-		for( i=0; i < inhdr->e_phnum; ++i )
-		{
-			Elf32_Phdr *phdr = (Elf32_Phdr*)( Module + inhdr->e_phoff + sizeof( Elf32_Phdr ) * i );
-
-			if( (phdr->p_vaddr & 0xF0000000) == 0x20000000  )
-			{
-#ifdef DEBUG_MODULE_PATCH
-				gprintf("Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (phdr->p_type), (phdr->p_offset), (phdr->p_vaddr), (phdr->p_paddr), (phdr->p_filesz), (phdr->p_memsz) );
-#endif
-				if( (phdr->p_filesz) > 100*1024*1024 )
-					continue;
-
-				//Look for entry
-				for(j=0; j < (outhdr->e_phnum); ++j )
-				{
-					Elf32_Phdr *ophdr = (Elf32_Phdr *)( buf + loadersize + j*sizeof(Elf32_Phdr) + (outhdr->e_phoff) );
-					
-					if( (ophdr->p_vaddr) == 0x20100000 && (phdr->p_vaddr) == 0x20F00000 )
-					{
-#ifdef DEBUG_MODULE_PATCH
-						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
-#endif
-						ophdr->p_vaddr = phdr->p_vaddr;
-						ophdr->p_paddr = phdr->p_paddr;
-						
-						ophdr->p_filesz = phdr->p_filesz;
-						ophdr->p_memsz  = phdr->p_filesz;
-
-						ophdr->p_offset = ( size - loadersize );
-						size += (phdr->p_filesz);
-
-						*(unsigned int*)(buf+8) = ( (*(unsigned int*)(buf+8)) + (phdr->p_filesz) );
-
-						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
-												
-#ifdef DEBUG_MODULE_PATCH
-						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
-#endif
-						break;
-					} else if( (ophdr->p_vaddr) == 0x2010D000 && (phdr->p_vaddr) == 0x20F38000 )
-					{
-#ifdef DEBUG_MODULE_PATCH
-						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
-#endif
-						ophdr->p_vaddr = phdr->p_vaddr;
-						ophdr->p_paddr = phdr->p_paddr;
-						// is not set correctly because of BSS, meaning the VMA isnt set up to the actually used point
-						ophdr->p_filesz = 0x68000;
-						ophdr->p_memsz  = 0x68000;
-
-						ophdr->p_offset = ( size - loadersize );
-						size += (phdr->p_filesz);
-
-						*(unsigned int*)(buf+8) = ( (*(unsigned int*)(buf+8)) + (phdr->p_filesz) );
-
-						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
-						
-#ifdef DEBUG_MODULE_PATCH
-						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
-#endif
-						break;
-					}
-					else if( (ophdr->p_vaddr) == 0x2010E000 && (phdr->p_vaddr) == 0x20106000 )
-					{
-#ifdef DEBUG_MODULE_PATCH
-						gprintf("  O:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
-#endif
-						ophdr->p_vaddr = phdr->p_vaddr;
-						ophdr->p_paddr = phdr->p_paddr;
-						
-						ophdr->p_memsz = 0x9000;
-
-						memcpy( buf+loadersize+(ophdr->p_offset), (char*)(Module+phdr->p_offset), phdr->p_filesz );
-						
-#ifdef DEBUG_MODULE_PATCH
-						gprintf("  N:Type:%X Offset:%08X VAdr:%08X PAdr:%08X FSz:%08X MSz:%08X\r\n", (ophdr->p_type), (ophdr->p_offset), (ophdr->p_vaddr), (ophdr->p_paddr), (ophdr->p_filesz), (ophdr->p_memsz) );
-#endif
-						goto done;
-					}
-				}
-			}
-		}
-	}
-
-done:
+	char *buf = KernelReadBuf;
 
 	for( i=0; i < size; i+=4 )
 	{
@@ -244,20 +157,39 @@ done:
 			gprintf("Found HWAccess_ES at %08X\r\n", i );
 #endif
 			memcpy( buf+i, HWAccess_ESPatch, sizeof( HWAccess_ESPatch ) );
-
 			PatchCount |= 4;
+		}
+
+		if( memcmp( buf+i, ES_Ioctl_1F, sizeof(ES_Ioctl_1F) ) == 0 )
+		{
+#ifdef DEBUG_MODULE_PATCH
+			gprintf("Found ES Ioctl 0x1F at %08X\r\n", i );
+#endif
+			memcpy( buf+i, ES_Ioctl_1F_Patch, sizeof( ES_Ioctl_1F_Patch ) );
+			PatchCount |= 8;
+		}
+
+		if( memcmp( buf+i, ES_Ioctl_1F_Function, sizeof(ES_Ioctl_1F_Function) ) == 0 )
+		{
+#ifdef DEBUG_MODULE_PATCH
+			gprintf("Found ES Ioctl 0x1F Function at %08X\r\n", i );
+#endif
+			memcpy( buf+i, ES_Ioctl_1F_Function_Patch, sizeof( ES_Ioctl_1F_Function_Patch ) );
+			PatchCount |= 0x10;
 		}
 
 		if( IsWiiU() )
 		{
-			if( PatchCount == 4 )
+			if( PatchCount == 0x1C )
 				break;
 		} else {
-			if( PatchCount == 7 )
+			if( PatchCount == 0x1F )
 				break;
 		}
 	}
-	DCFlushRange(Kernel, KernelSize);
+	//copy into place AFTER patching
+	memcpy(KernelDst, KernelReadBuf, KernelSize);
+	DCFlushRange(KernelDst, KernelSize);
 }
 
 // Title ID for IOS58.
@@ -350,13 +282,10 @@ int LoadKernel(void)
 	gprintf("IOS Version: 0x%08X\n", FoundVersion);
 	DCFlushRange(IOSVersion, 0x20);
 
-	//char Path[32];
-	char *const Path = (char*)0x93003020;
-	DCInvalidateRange(Path, 1024);
-	memset(Path, 0, 1024);
-	snprintf(Path, 1024, "/shared1/%.8s.app", Entry);
+	char Path[32];
+	snprintf(Path, 32, "/shared1/%.8s.app", Entry);
 	gprintf("Kernel:\"%s\"\r\n", Path );
-	DCFlushRange(Path, 1024);
+	DCFlushRange(Path, 32);
 
 	// Open the actual IOS58 kernel file.
 	int kfd = IOS_Open(Path, 1);
@@ -371,8 +300,8 @@ int LoadKernel(void)
 	IOS_Seek( kfd, 0, 0);
 
 	gprintf("KernelSize:%u\r\n", KernelSize );
-
-	if (IOS_Read(kfd, Kernel, KernelSize) != KernelSize)
+	DCInvalidateRange(KernelReadBuf, KernelSize);
+	if (IOS_Read(kfd, KernelReadBuf, KernelSize) != KernelSize)
 	{
 		gprintf("IOS_Read() failed\r\n");
 		PrintLoadKernelError(LKERR_IOS_Read_IOS58_kernel, kfd);

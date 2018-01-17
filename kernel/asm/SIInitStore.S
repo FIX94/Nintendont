@@ -1,6 +1,6 @@
 #include <asm.h>
 
-.set	SI_INITED,		0x93002740
+.set	SI_INITED,		0x93003060
 
 SIInitStore:
 	lis		%r5,	SI_INITED@h

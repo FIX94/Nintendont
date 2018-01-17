@@ -39,7 +39,7 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive number to identify the drive */
 )
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB)
 		return STA_NOINIT;
 
 	if (disk_isInit[pdrv]) {
@@ -61,7 +61,7 @@ DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive number to identify the drive */
 )
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB)
 		return STA_NOINIT;
 
 	// Attempt to initialize the device.
@@ -112,7 +112,7 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB || count == 0)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB || count == 0)
 		return RES_PARERR;
 
 	// Read from the cache.
@@ -142,7 +142,7 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write */
 )
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB || count == 0)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB || count == 0)
 		return RES_PARERR;
 
 	// Write to the cache.
@@ -170,7 +170,7 @@ DRESULT disk_ioctl (
 )
 {
 	int ret = RES_PARERR;
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB)
 		return ret;
 
 	switch (cmd) {
@@ -233,7 +233,7 @@ DWORD get_fattime(void)
 /*-----------------------------------------------------------------------*/
 DRESULT disk_shutdown (BYTE pdrv)
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB)
 		return RES_PARERR;
 	if (!disk_isInit[pdrv])
 		return RES_OK;
@@ -262,7 +262,7 @@ DRESULT disk_shutdown (BYTE pdrv)
 /*-----------------------------------------------------------------------*/
 DRESULT disk_flush (BYTE pdrv)
 {
-	if (pdrv < DEV_SD || pdrv > DEV_USB)
+	if (/*pdrv < DEV_SD ||*/ pdrv > DEV_USB)
 		return RES_PARERR;
 	if (!disk_isInit[pdrv])
 		return RES_OK;

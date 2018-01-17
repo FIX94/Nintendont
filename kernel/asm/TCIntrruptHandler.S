@@ -1,7 +1,5 @@
 #include <asm.h>
-
-.set	INT_BASE,	0xD3026500
-.set	EXI_INT,	INT_BASE+0x60
+.include "constants.inc"
 
 TCIntrruptHandler:
 	#original instruction

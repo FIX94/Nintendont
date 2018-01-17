@@ -61,7 +61,7 @@ static const char SETTINGS_VS4V06EXP[] = "/saves/VS4V06EXPsettings.bin";
 static const char *TRISettingsName = (char*)0;
 static u32 TRISettingsLoc = 0, TRISettingsSize = 0;
 
-static void *OUR_SETTINGS_LOC = (void*)0x13002780;
+static void *OUR_SETTINGS_LOC = (void*)0x13003500;
 
 #ifndef DEBUG_PATCH
 #define dbgprintf(...)
@@ -150,9 +150,9 @@ void TRISetupGames()
 {
 	if( read32(0x023D240) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Mario Kart Arcade GP (Feb 14 2006 13:09:48)\r\n");
+		dbgprintf("TRI:Mario Kart Arcade GP (ENG Feb 14 2006 13:09:48)\r\n");
 		TRIGame = TRI_GP1;
-		SystemRegion = REGION_JAPAN;
+		SystemRegion = REGION_EXPORT;
 
 		//Unlimited CARD uses
 		write32( 0x01F5C44, 0x60000000 );
@@ -223,9 +223,9 @@ void TRISetupGames()
 	}
 	else if( read32(0x02856EC) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Mario Kart Arcade GP 2 (Feb 7 2007 02:47:24)\r\n");
+		dbgprintf("TRI:Mario Kart Arcade GP 2 (ENG Feb 7 2007 02:47:24)\r\n");
 		TRIGame = TRI_GP2;
-		SystemRegion = REGION_JAPAN;
+		SystemRegion = REGION_EXPORT;
 
 		//Unlimited CARD uses
 		write32( 0x00A02F8, 0x60000000 );
@@ -288,6 +288,67 @@ void TRISetupGames()
 		//memcpy( (void*)0x002CE3C, OSReportDM, sizeof(OSReportDM) );
 		//memcpy( (void*)0x002CE8C, OSReportDM, sizeof(OSReportDM) );
 		//write32( 0x002CEF8, 0x60000000 );
+	}
+	else if( read32(0x0285D04) == 0x386000A8 )
+	{
+		dbgprintf("TRI:Mario Kart Arcade GP 2 (JPN Feb 6 2007 20:29:25)\r\n");
+		TRIGame = TRI_GP2;
+		SystemRegion = REGION_JAPAN;
+
+		//Unlimited CARD uses
+		write32( 0x00A0910, 0x60000000 );
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuGP, CheckTestMenuGP_size), 0x2E398 );
+
+		//dont wait for other cabinets to link up
+		write32( 0x002F0B4, 0x38600000 );
+
+		//Disable cam
+		write32( 0x00741F0, 0x98C50025 );
+
+		//Disable red item button
+		write32( 0x00742B0, 0x98BF0045 );
+
+		//VS wait patch 
+		write32( 0x00855DC, 0x4800000C );
+		write32( 0x0085618, 0x60000000 );
+
+		if(!arcadeMode)
+		{
+			//Remove some menu timers (thanks conanac)
+			write32( 0x001C1664, 0x60000000 ); //card check
+			write32( 0x001C0764, 0x60000000 ); //want to make a card
+			write32( 0x00232E20, 0x60000000 ); //card view
+			write32( 0x001C1FF8, 0x60000000 ); //select game mode
+			write32( 0x001C3970, 0x60000000 ); //select character
+			write32( 0x001D7B84, 0x60000000 ); //select kart
+			write32( 0x001C806C, 0x60000000 ); //select cup
+			write32( 0x001CA4C8, 0x60000000 ); //select round
+			write32( 0x00238144, 0x60000000 ); //select item (card)
+			write32( 0x0024D964, 0x60000000 ); //continue
+			write32( 0x0015F90C, 0x60000000 ); //rewrite rank
+			write32( 0x001CFBCC, 0x60000000 ); //select course (time attack)
+			write32( 0x001BE838, 0x60000000 ); //enter name (time attack, card)
+			write32( 0x0021E5F8, 0x60000000 ); //save record (time attack on card)
+
+			//Make some menu timers invisible
+			write32( 0x001B831C, 0x60000000 );
+			write32( 0x002322A8, 0x60000000 );
+
+			//Make coin count (layer 7) invisible
+			write32( 0x001B8D98, 0x60000000 );
+			write32( 0x00248070, 0x60000000 );
+		}
+
+		//Modify to regular GX pattern to patch later
+		write32( 0x3F25F0, 0x00 ); //NTSC Interlaced
+
+		//PAD Hook for control updates
+		PatchBL( PatchCopy(PADReadGP, PADReadGP_size), 0x3904C );
+
+		// Game specific rumble hook
+		PatchBL( PatchCopy(PADControlMotorGP, PADControlMotorGP_size), 0x37794 );
 	}
 	else if( read32(0x0184E60) == 0x386000A8 )
 	{
@@ -364,6 +425,10 @@ void TRISetupGames()
 		NTSC480ProgTri = 0x302600;
 		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
 		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		//Make sure GX modes get set on force PAL60 as well
+		PatchB(0x8FFF0, 0x90110);
+		PatchB(0x1FB92C, 0x1FB96C);
 
 		//PAD Hook for control updates
 		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4004 );
@@ -446,6 +511,10 @@ void TRISetupGames()
 		NTSC480ProgTri = 0x302AC0;
 		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
 		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		//Make sure GX modes get set on force PAL60 as well
+		PatchB(0x900F8, 0x90218);
+		PatchB(0x1FBDE8, 0x1FBE28);
 
 		//PAD Hook for control updates
 		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4368 );
@@ -533,6 +602,10 @@ void TRISetupGames()
 		NTSC480ProgTri = 0x303040;
 		write32(NTSC480ProgTri, 0x00); //NTSC Interlaced
 		write32(NTSC480ProgTri + 0x14, 0x01); //Mode DF
+
+		//Make sure GX modes get set on force PAL60 as well
+		PatchB(0x90140, 0x90260);
+		PatchB(0x1FC258, 0x1FC298);
 
 		//PAD Hook for control updates
 		PatchBL( PatchCopy(PADReadF, PADReadF_size), 0x1B4900 );
@@ -622,9 +695,40 @@ void TRISetupGames()
 		//PAD Hook for control updates
 		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3C230 );
 	}
+	else if( read32( 0x01C8584 ) == 0x386000A8 )
+	{
+		dbgprintf("TRI:Virtua Striker 4 (Export GDT-0014)\r\n");
+		TRIGame = TRI_VS4;
+		SystemRegion = REGION_USA;
+		TRISettingsName = SETTINGS_VS4EXP;
+		TRISettingsLoc = 0x05C5CA0-0x2CA8; //NOTE:logic turned around!
+		TRISettingsSize = 0x2B;
+
+		if(!arcadeMode)
+		{
+			//Set menu timer to about 51 days
+			write32( 0x00C14E0, 0x3C800FFF );
+		}
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3B3E8 );
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings();
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchB(PatchCopy(RestoreSettingsVS4EXP, RestoreSettingsVS4EXP_size), 0x12454);
+
+		//Modify to regular GX pattern to patch later
+		write32( 0x21D468, 0x00 ); //NTSC Interlaced
+
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3C174 );
+	}
 	else if( read32( 0x01C88B4 ) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Virtua Striker 4 (Export)\r\n");
+		dbgprintf("TRI:Virtua Striker 4 (Export GDT-0015)\r\n");
 		TRIGame = TRI_VS4;
 		SystemRegion = REGION_USA;
 		TRISettingsName = SETTINGS_VS4EXP;
@@ -653,9 +757,47 @@ void TRISetupGames()
 		//PAD Hook for control updates
 		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3C174 );
 	}
+	else if( read32( 0x024DB08 ) == 0x386000A8 )
+	{
+		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (Japan) (Rev B)\r\n");
+		TRIGame = TRI_VS4;
+		SystemRegion = REGION_JAPAN;
+		TRISettingsName = SETTINGS_VS4V06JAP;
+		TRISettingsLoc = 0x06D4C80-0xC38;
+		TRISettingsSize = 0x2E;
+		DISetDIMMVersion(0xA3A479);
+
+		//DIMM memory format skip (saves 2 minutes bootup time)
+		write32( 0x0013950, 0x60000000 );
+
+		//dont wait for other cabinets to link up
+		write32( 0x0056114, 0x38600001 );
+
+		if(!arcadeMode)
+		{
+			//Set menu timer to about 51 days
+			write32( 0x00D6BC8, 0x3C800FFF );
+		}
+
+		//Allow test menu if requested
+		PatchBL( PatchCopy(CheckTestMenuVS, CheckTestMenuVS_size), 0x3ECD8 );
+
+		//Check for already existing settings
+		if(TRI_BackupAvailable == 0)
+			TRIReadSettings();
+		//Custom backup handler
+		if(TRI_BackupAvailable == 1)
+			PatchB(PatchCopy(RestoreSettingsVS4V06JAP, RestoreSettingsVS4V06JAP_size), 0x13C10);
+
+		//Modify to regular GX pattern to patch later
+		write32( 0x2BC7D8, 0x00 ); //NTSC Interlaced
+
+		//PAD Hook for control updates
+		PatchBL(PatchCopy(PADReadVS, PADReadVS_size), 0x3F9C8 );
+	}
 	else if( read32( 0x024E888 ) == 0x386000A8 )
 	{
-		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (Japan)\r\n");
+		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (Japan) (Rev D)\r\n");
 		TRIGame = TRI_VS4;
 		SystemRegion = REGION_JAPAN;
 		TRISettingsName = SETTINGS_VS4V06JAP;

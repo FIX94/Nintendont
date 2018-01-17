@@ -43,8 +43,8 @@ static struct linkkey_info BTKeys[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
 
 static struct BTPadCont *BTPad = (struct BTPadCont*)0x132F0000;
 
-static vu32* BTMotor = (u32*)0x13002720;
-static vu32* BTPadFree = (u32*)0x13002730;
+static vu32* BTMotor = (u32*)0x13003040;
+static vu32* BTPadFree = (u32*)0x13003050;
 
 static vu32* IRSensitivity = (u32*)0x132C0490;
 static vu32* SensorBarPosition = (u32*)0x132C0494;
@@ -752,7 +752,7 @@ void BTUpdateRegisters(void)
 	}
 
 	u32 i = 0, j = 0;
-	sync_before_read((void*)0x13002700,0x40);
+	sync_before_read((void*)0x13003020,0x40);
 	for( ; i < BTChannelsUsed; ++i)
 	{
 		sync_before_read(BTPadConnected[i], sizeof(struct BTPadStat));

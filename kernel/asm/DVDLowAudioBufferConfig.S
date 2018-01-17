@@ -17,8 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
-
-.set	REAL_STREAMING,	0xCD80682E
+.include "constants.inc"
 
 DVDLowAudioBufferConfig:
 	mtctr	%r5
