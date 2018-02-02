@@ -136,8 +136,8 @@ u32 _start(u32 calledByGame)
 		//Start out mapping buttons first
 		u16 button = 0;
 		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
-		//swap abxy when minus is pressed
-		if((!(PrevDRCButton & WIIDRC_BUTTON_MINUS)) && drcbutton & WIIDRC_BUTTON_MINUS)
+		//swap abxy when L+minus is pressed
+		if((!((PrevDRCButton & WIIDRC_BUTTON_L) && (PrevDRCButton & WIIDRC_BUTTON_MINUS))) && ((drcbutton & WIIDRC_BUTTON_L) && (drcbutton & WIIDRC_BUTTON_MINUS)))
 			PrevDRCButton ^= DRC_SWAP;
 		PrevDRCButton = (PrevDRCButton & DRC_SWAP) | drcbutton;
 		if(PrevDRCButton & DRC_SWAP)
@@ -188,7 +188,8 @@ u32 _start(u32 calledByGame)
 			Pad[0].triggerRight = 0;
 		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
 		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
-		if(drcbutton & WIIDRC_BUTTON_HOME) goto DoExit;
+		//L+HOME to exit
+		if((drcbutton & WIIDRC_BUTTON_L) && (drcbutton & WIIDRC_BUTTON_HOME)) goto DoExit;
 		//write in mapped out buttons
 		Pad[0].button = button;
 		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
@@ -1298,7 +1299,8 @@ u32 _start(u32 calledByGame)
 			}
 			if(BTPad[chan].button & WM_BUTTON_ONE)
 				button |= PAD_BUTTON_START;	
-			if(BTPad[chan].button & WM_BUTTON_HOME)
+			//2+HOME to exit
+			if((BTPad[chan].button & WM_BUTTON_TWO) && (BTPad[chan].button & WM_BUTTON_HOME))
 				goto DoExit;
 		}	//end nunchuck configs
 
@@ -1338,7 +1340,8 @@ u32 _start(u32 calledByGame)
 			if(BTPad[chan].button & BT_DPAD_UP)
 				button |= PAD_BUTTON_UP;
 			
-			if(BTPad[chan].button & BT_BUTTON_HOME)
+			//L+HOME to exit
+			if((BTPad[chan].button & BT_TRIGGER_L) && (BTPad[chan].button & BT_BUTTON_HOME))
 				goto DoExit;
 		}	
 		
