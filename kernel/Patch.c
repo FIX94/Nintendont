@@ -3,7 +3,7 @@
 Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
 
 Copyright (C) 2013  crediar
-Copyright (C) 2014 - 2016 FIX94
+Copyright (C) 2014 - 2018 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -3603,7 +3603,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if( TITLE_ID == 0x47454F ) // Capcom vs. SNK 2 EO
 		{
 			//fix for force progressive
-			if(write32A(0x1137C, 0x60000000, 0xB0010010, 0))
+			if(write32A(0x11224, 0x60000000, 0xB0010010, 0))
+			{
+				dbgprintf("Patch:Patched Capcom vs. SNK 2 EO NTSC-J\r\n");
+			}
+			else if(write32A(0x1137C, 0x60000000, 0xB0010010, 0))
 			{
 				dbgprintf("Patch:Patched Capcom vs. SNK 2 EO NTSC-U\r\n");
 			}
