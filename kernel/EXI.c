@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "debug.h"
 #include "SRAM.h"
+#include "Slippi.h"
 
 #include "ff_utf8.h"
 
@@ -223,186 +224,186 @@ void EXIShutdown(void)
  */
 static void EXIDeviceMemoryCard(int slot, u8 *Data, u32 Length, u32 Mode)
 {
-// 	if (!GCNCard_IsEnabled(slot))
-// 	{
-// 		// Card is not enabled.
-// 		return;
-// 	}
-//
-// 	u32 EXIOK = 1;
-// 	//u32 read, wrote;
-//
-// 	if( Mode == 1 )		// Write
-// 	{
-// 		switch( Length )
-// 		{
-// 			case 1:
-// 			{
-// 				if( EXICommand[slot] == MEM_BLOCK_READ || EXICommand[slot] == MEM_BLOCK_WRITE )
-// 					break;
-//
-// 				switch( (u32)Data >> 24 )
-// 				{
-// 					case 0x00:
-// 					{
-// 						EXICommand[slot] = MEM_READ_ID_NINTENDO;
-// #ifdef DEBUG_EXI
-// 						dbgprintf("EXI: Slot %c: CARDGetDeviceIDNintendo()\r\n", (slot+'A'));
-// #endif
-// 					} break;
-// #ifdef DEBUG_EXI
-// 					case 0x89:
-// 					{
-// 						dbgprintf("EXI: Slot %c: CARDClearStatus()\r\n", (slot+'A'));
-// 					} break;
-// #endif
-// 				}
-// 			} break;
-// 			case 2:
-// 			{
-// 				switch( (u32)Data >> 16 )
-// 				{
-// 					case 0x0000:
-// 					{
-// 						EXICommand[slot] = MEM_READ_ID;
-// #ifdef DEBUG_EXI
-// 						dbgprintf("EXI: Slot %c: CARDGetDeviceID()\r\n", (slot+'A'));
-// #endif
-// 					} break;
-// 					case 0x8300:	//
-// 					{
-// 						EXICommand[slot] = MEM_READ_STATUS;
-// #ifdef DEBUG_EXI
-// 						dbgprintf("EXI: Slot %c: CARDReadStatus()\r\n", (slot+'A'));
-// #endif
-// 					} break;
-// #ifdef DEBUG_EXI
-// 					case 0x8101:
-// 					{
-// 						dbgprintf("EXI: Slot %c: CARDIRQEnable()\r\n", (slot+'A'));
-// 					} break;
-// 					case 0x8100:
-// 					{
-// 						dbgprintf("EXI: Slot %c: CARDIRQDisable()\r\n", (slot+'A'));
-// 					} break;
-// #endif
-// 				}
-// 			} break;
-// 			case 3:
-// 			{
-// 				switch( (u32)Data >> 24 )
-// 				{
-// 					case 0xF1:
-// 					{
-// 						GCNCard_SetBlockOffset_Erase(slot, (u32)Data);
-// #ifdef DEBUG_EXI
-// 						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
-// #endif
-// 						// FIXME: ERASE command isn't implemented.
-// 						EXICommand[slot] = MEM_BLOCK_ERASE;
-// 						GCNCard_ClearWriteCount(slot);
-// 						IRQ_Cause[slot] = 2;	// EXI IRQ
-// 						EXIOK = 2;
-// 					} break;
-// 				}
-// 			} break;
-// 			case 4:
-// 			{
-// 				if( EXICommand[slot] == MEM_BLOCK_READ || EXICommand[slot] == MEM_BLOCK_WRITE )
-// 					break;
-//
-// 				switch( (u32)Data >> 24 )
-// 				{
-// 					case 0xF1:
-// 					{
-// 						GCNCard_SetBlockOffset(slot, (u32)Data);
-// #ifdef DEBUG_EXI
-// 						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
-// #endif
-// 						// FIXME: ERASE command isn't implemented.
-// 						EXICommand[slot] = MEM_BLOCK_ERASE;
-// 						GCNCard_ClearWriteCount(slot);
-// 						IRQ_Cause[slot] = 2;	// EXI IRQ
-// 						EXIOK = 2;
-// 					} break;
-// 					case 0xF2:
-// 					{
-// 						GCNCard_SetBlockOffset(slot, (u32)Data);
-// #ifdef DEBUG_EXI
-// 						dbgprintf("EXI: Slot %c: CARDWritePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
-// #endif
-// 						EXICommand[slot] = MEM_BLOCK_WRITE;
-// 					} break;
-// 					case 0x52:
-// 					{
-// 						GCNCard_SetBlockOffset(slot, (u32)Data);
-// #ifdef DEBUG_EXI
-// 						dbgprintf("EXI: Slot %c: CARDReadPage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
-// #endif
-//
-// 						EXICommand[slot] = MEM_BLOCK_READ;
-// 					} break;
-// #ifdef DEBUG_EXI
-// 					default:
-// 					{
-// 						dbgprintf("EXI: Slot %c: Unknown:%08x Line:%u\r\n", (slot+'A'), (u32)Data, __LINE__ );
-// 					//	Shutdown();
-// 					} break;
-// #endif
-// 				}
-// 			} break;
-// 			default:
-// 			{
-// 				switch( EXICommand[slot] )
-// 				{
-// 					case MEM_BLOCK_WRITE:
-// 					{
-// 						GCNCard_Write(slot, Data, Length);
-// 						IRQ_Cause[slot] = 10;	// TC(8) & EXI(2) IRQ
-// 						EXIOK = 2;
-// 					} break;
-// 				}
-// 			} break;
-// 		}
-//
-// 	} else {			// Read
-//
-// 		switch( EXICommand[slot] )
-// 		{
-// 			case MEM_READ_ID_NINTENDO:
-// 			case MEM_READ_ID:
-// 			{
-// 				write32( EXI_CMD_1, GCNCard_GetCode(slot) );
-//
-// #ifdef DEBUG_EXI
-// 				dbgprintf("EXI: Slot %c: CARDReadID(%X)\r\n", (slot+'A'), read32(EXI_CMD_1));
-// #endif
-// 			} break;
-// 			case MEM_READ_STATUS:
-// 			{
-// 				write32( EXI_CMD_1, 0x41 );	// Unlocked(0x40) and Ready(0x01)
-// #ifdef DEBUG_EXI
-// 				dbgprintf("EXI: Slot %c: CARDReadStatus(%X)\r\n", (slot+'A'), read32(EXI_CMD_1));
-// #endif
-// 			} break;
-// 			case MEM_BLOCK_READ:
-// 			{
-// 				GCNCard_Read(slot, Data, Length);
-// 				IRQ_Cause[slot] = 8;	// TC IRQ
-// 				EXIOK = 2;
-// 			} break;
-// 		}
-// 	}
-//
-// 	//dbgprintf("%08x %08x %08x %08x\r\n", (u32)Data >> 16, Mode, Length, EXICommand[slot]);
+	if (!GCNCard_IsEnabled(slot))
+	{
+		// Card is not enabled.
+		return;
+	}
+
+	u32 EXIOK = 1;
+	//u32 read, wrote;
+
+	if( Mode == 1 )		// Write
+	{
+		switch( Length )
+		{
+			case 1:
+			{
+				if( EXICommand[slot] == MEM_BLOCK_READ || EXICommand[slot] == MEM_BLOCK_WRITE )
+					break;
+
+				switch( (u32)Data >> 24 )
+				{
+					case 0x00:
+					{
+						EXICommand[slot] = MEM_READ_ID_NINTENDO;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: Slot %c: CARDGetDeviceIDNintendo()\r\n", (slot+'A'));
+#endif
+					} break;
+#ifdef DEBUG_EXI
+					case 0x89:
+					{
+						dbgprintf("EXI: Slot %c: CARDClearStatus()\r\n", (slot+'A'));
+					} break;
+#endif
+				}
+			} break;
+			case 2:
+			{
+				switch( (u32)Data >> 16 )
+				{
+					case 0x0000:
+					{
+						EXICommand[slot] = MEM_READ_ID;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: Slot %c: CARDGetDeviceID()\r\n", (slot+'A'));
+#endif
+					} break;
+					case 0x8300:	//
+					{
+						EXICommand[slot] = MEM_READ_STATUS;
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: Slot %c: CARDReadStatus()\r\n", (slot+'A'));
+#endif
+					} break;
+#ifdef DEBUG_EXI
+					case 0x8101:
+					{
+						dbgprintf("EXI: Slot %c: CARDIRQEnable()\r\n", (slot+'A'));
+					} break;
+					case 0x8100:
+					{
+						dbgprintf("EXI: Slot %c: CARDIRQDisable()\r\n", (slot+'A'));
+					} break;
+#endif
+				}
+			} break;
+			case 3:
+			{
+				switch( (u32)Data >> 24 )
+				{
+					case 0xF1:
+					{
+						GCNCard_SetBlockOffset_Erase(slot, (u32)Data);
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
+#endif
+						// FIXME: ERASE command isn't implemented.
+						EXICommand[slot] = MEM_BLOCK_ERASE;
+						GCNCard_ClearWriteCount(slot);
+						IRQ_Cause[slot] = 2;	// EXI IRQ
+						EXIOK = 2;
+					} break;
+				}
+			} break;
+			case 4:
+			{
+				if( EXICommand[slot] == MEM_BLOCK_READ || EXICommand[slot] == MEM_BLOCK_WRITE )
+					break;
+
+				switch( (u32)Data >> 24 )
+				{
+					case 0xF1:
+					{
+						GCNCard_SetBlockOffset(slot, (u32)Data);
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: Slot %c: CARDErasePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
+#endif
+						// FIXME: ERASE command isn't implemented.
+						EXICommand[slot] = MEM_BLOCK_ERASE;
+						GCNCard_ClearWriteCount(slot);
+						IRQ_Cause[slot] = 2;	// EXI IRQ
+						EXIOK = 2;
+					} break;
+					case 0xF2:
+					{
+						GCNCard_SetBlockOffset(slot, (u32)Data);
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: Slot %c: CARDWritePage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
+#endif
+						EXICommand[slot] = MEM_BLOCK_WRITE;
+					} break;
+					case 0x52:
+					{
+						GCNCard_SetBlockOffset(slot, (u32)Data);
+#ifdef DEBUG_EXI
+						dbgprintf("EXI: Slot %c: CARDReadPage(%08X)\r\n", (slot+'A'), GCNCard_GetBlockOffset(slot));
+#endif
+
+						EXICommand[slot] = MEM_BLOCK_READ;
+					} break;
+#ifdef DEBUG_EXI
+					default:
+					{
+						dbgprintf("EXI: Slot %c: Unknown:%08x Line:%u\r\n", (slot+'A'), (u32)Data, __LINE__ );
+					//	Shutdown();
+					} break;
+#endif
+				}
+			} break;
+			default:
+			{
+				switch( EXICommand[slot] )
+				{
+					case MEM_BLOCK_WRITE:
+					{
+						GCNCard_Write(slot, Data, Length);
+						IRQ_Cause[slot] = 10;	// TC(8) & EXI(2) IRQ
+						EXIOK = 2;
+					} break;
+				}
+			} break;
+		}
+
+	} else {			// Read
+
+		switch( EXICommand[slot] )
+		{
+			case MEM_READ_ID_NINTENDO:
+			case MEM_READ_ID:
+			{
+				write32( EXI_CMD_1, GCNCard_GetCode(slot) );
+
+#ifdef DEBUG_EXI
+				dbgprintf("EXI: Slot %c: CARDReadID(%X)\r\n", (slot+'A'), read32(EXI_CMD_1));
+#endif
+			} break;
+			case MEM_READ_STATUS:
+			{
+				write32( EXI_CMD_1, 0x41 );	// Unlocked(0x40) and Ready(0x01)
+#ifdef DEBUG_EXI
+				dbgprintf("EXI: Slot %c: CARDReadStatus(%X)\r\n", (slot+'A'), read32(EXI_CMD_1));
+#endif
+			} break;
+			case MEM_BLOCK_READ:
+			{
+				GCNCard_Read(slot, Data, Length);
+				IRQ_Cause[slot] = 8;	// TC IRQ
+				EXIOK = 2;
+			} break;
+		}
+	}
+
+	//dbgprintf("%08x %08x %08x %08x\r\n", (u32)Data >> 16, Mode, Length, EXICommand[slot]);
 	write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
 	sync_after_write( (void*)EXI_BASE, 0x20 );
-//
-// 	if( EXIOK == 2 )
-// 	{
-// 		EXI_IRQ = true;
-// 		IRQ_Timer = read32(HW_TIMER);
-// 	}
+
+	if( EXIOK == 2 )
+	{
+		EXI_IRQ = true;
+		IRQ_Timer = read32(HW_TIMER);
+	}
 }
 
 static u32 EXIDevice_ROM_RTC_SRAM_UART(u8 *Data, u32 Length, u32 Mode)
@@ -762,14 +763,15 @@ void EXIUpdateRegistersNEW( void )
 				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-						dbgprintf("Len: %d, Data: %08X!\r\n", len, data);
-						if (len == 1 && data == 0x36000000) {
-								dbgprintf("Hi stream 2!\r\n");
-						}
-						if (len == 1 && data == 0x36) {
-								dbgprintf("Hi stream 3!\r\n");
-						}
-						EXIDeviceMemoryCard(0, (u8*)data, len, mode);
+						// TODO: Eventually when we're done debugging this stuff should
+						// TODO: be moved to MEMCARD_B to re-enable mem card emulation
+						// EXIDeviceMemoryCard(0, (u8*)data, len, mode);
+
+						Slippi_ImmWrite(*(u32*)data, len);
+
+						// Write that data has been processed
+						write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
+						sync_after_write( (void*)EXI_BASE, 0x20 );
 						break;
 
 					case EXI_DEV_MEMCARD_B:
