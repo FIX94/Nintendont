@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "GCAM.h"
 #include "TRI.h"
 #include "Patch.h"
+#include "Slippi.h"
 
 #include "diskio.h"
 #include "usbstorage.h"
@@ -251,6 +252,9 @@ int _main( int argc, char *argv[] )
 	StreamInit();
 
 	PatchInit();
+
+	SlippiInit();
+	
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);

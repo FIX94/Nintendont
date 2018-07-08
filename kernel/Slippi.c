@@ -7,6 +7,10 @@
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
 #define PAYLOAD_SIZES_BUFFER_SIZE 10
 
+// Debugging
+static u32 debugCounter = 0;
+static u32 debugMax = 50;
+
 enum {
   CMD_UNKNOWN = 0x0,
   CMD_RECEIVE_COMMANDS = 0x35,
@@ -31,9 +35,16 @@ static u8 m_payload[PAYLOAD_BUFFER_SIZE];
 // Payload Sizes
 static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
 
+void SlippiInit() {
+	// Set the commands payload to start at length 1. The reason for this
+	// is that the game will pass in all the command sizes but if
+	// it starts at 0 then the command is ignored and nothing ever happens
+	payloadSizes[0] = 1;
+}
+
 u16 getPayloadSize(u8 command) {
 	int payloadSizesIndex = command - CMD_RECEIVE_COMMANDS;
-	if (payloadSizesIndex >= PAYLOAD_SIZES_BUFFER_SIZE) {
+	if (payloadSizesIndex >= PAYLOAD_SIZES_BUFFER_SIZE || payloadSizesIndex < 0) {
 		return 0;
 	}
 
@@ -45,7 +56,7 @@ void configureCommands(u8* payload, u8 length) {
 	while (i < length) {
 		// Go through the receive commands payload and set up other commands
 		u8 commandByte = payload[i];
-		u32 commandPayloadSize = payload[i + 1] << 8 | payload[i + 2];
+		u16 commandPayloadSize = payload[i + 1] << 8 | payload[i + 2];
 		payloadSizes[commandByte - CMD_RECEIVE_COMMANDS] = commandPayloadSize;
 
 		i += 3;
@@ -251,9 +262,11 @@ void writeToFile(u8* payload, u32 length, u8 fileOption) {
 // 	m_file = nullptr;
 // }
 
-void Slippi_ImmWrite(u32 data, u32 size)
+void SlippiImmWrite(u32 data, u32 size)
 {
-	// dbgprintf("Size: %d, Data: %08X!\r\n", size, data);
+	debugCounter++;
+
+	if (debugCounter <= debugMax) dbgprintf("Size: %d, Data: %08X!\r\n", size, data);
 
 	bool lookingForMessage = m_payload_type == CMD_UNKNOWN;
 	if (lookingForMessage) {
@@ -268,6 +281,7 @@ void Slippi_ImmWrite(u32 data, u32 size)
 		// Obviously as written, commands with payloads of size zero will not work, there
 		// are currently no such commands atm
 		u16 payloadSize = getPayloadSize(m_payload_type);
+		if (debugCounter <= debugMax) dbgprintf("Payload Size: %02X\r\n", payloadSize);
 		if (payloadSize == 0) {
 			m_payload_type = CMD_UNKNOWN;
 			return;
@@ -295,18 +309,23 @@ void Slippi_ImmWrite(u32 data, u32 size)
 		payloadSize = m_payload[1];
 	}
 
+	if (debugCounter <= debugMax) dbgprintf("Payload Size 2: %02X\r\n", payloadSize);
+
 	if (m_payload_loc >= payloadSize + 1) {
 		// Handle payloads
 		switch (m_payload_type) {
 		case CMD_RECEIVE_COMMANDS:
+			if (debugCounter <= debugMax) dbgprintf("Receive Commands Payload Complete!\r\n");
 			// time(&gameStartTime); // Store game start time
 			configureCommands(&m_payload[1], m_payload_loc - 1);
 			writeToFile(&m_payload[0], m_payload_loc, 1);
 			break;
 		case CMD_RECEIVE_GAME_END:
+			if (debugCounter <= debugMax) dbgprintf("Receive Game End Payload Complete!\r\n");
 			writeToFile(&m_payload[0], m_payload_loc, 2);
 			break;
 		default:
+			if (debugCounter <= debugMax) dbgprintf("Receive Command %02X Payload Complete!\r\n", m_payload_type);
 			writeToFile(&m_payload[0], m_payload_loc, 0);
 			break;
 		}

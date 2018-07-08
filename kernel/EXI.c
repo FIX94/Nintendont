@@ -767,7 +767,7 @@ void EXIUpdateRegistersNEW( void )
 						// TODO: be moved to MEMCARD_B to re-enable mem card emulation
 						// EXIDeviceMemoryCard(0, (u8*)data, len, mode);
 
-						Slippi_ImmWrite(*(u32*)data, len);
+						SlippiImmWrite(data, len);
 
 						// Write that data has been processed
 						write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm

@@ -3,6 +3,8 @@
 
 #include "global.h"
 
-void Slippi_ImmWrite(u32 data, u32 size);
+void SlippiInit();
+
+void SlippiImmWrite(u32 data, u32 size);
 
 #endif
