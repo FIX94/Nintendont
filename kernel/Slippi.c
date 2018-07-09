@@ -164,6 +164,7 @@ void writeToFile(u8* payload, u32 length, u8 fileOption) {
 	dbgprintf("%s\r\n", toWrite);
 
 	free(toWrite);
+
 	// std::vector<u8> dataToWrite;
 	// if (fileOption == 1) {
 	// 	// If the game sends over option 1 that means a file should be created
@@ -225,42 +226,52 @@ void writeToFile(u8* payload, u32 length, u8 fileOption) {
 	// }
 }
 
-// void createNewFile() {
-// 	if (m_file) {
-// 		// If there's already a file open, close that one
-// 		closeFile();
-// 	}
+void createNewFile() {
+	if (m_file) {
+		// If there's already a file open, close that one
+		closeFile();
+	}
 
-// 	File::CreateDir("Slippi");
-// 	std::string filepath = generateFileName();
+	f_mkdir_char("Slippi");
 
-// 	#ifdef _WIN32
-// 	m_file = File::IOFile(filepath, "wb", _SH_DENYWR);
-// 	#else
-// 	m_file = File::IOFile(filepath, "wb");
-// 	#endif
-// }
+	char* filepath = generateFileName();
+  f_open_char(&m_file, filepath, FA_CREATE_ALWAYS | FA_WRITE);
+  free(filepath);
+}
 
-// std::string generateFileName() {
-// 	// Add game start time
-// 	uint8_t dateTimeStrLength = sizeof "20171015T095717";
-// 	std::vector<char> dateTimeBuf(dateTimeStrLength);
-// 	strftime(&dateTimeBuf[0], dateTimeStrLength, "%Y%m%dT%H%M%S", localtime(&gameStartTime));
+char* generateFileName() {
+	// Add game start time
+	u8 dateTimeStrLength = sizeof "20171015T095717";
+	char* dateTimeBuf = (char*)malloc(dateTimeStrLength);
+	strftime(&dateTimeBuf[0], dateTimeStrLength, "%Y%m%dT%H%M%S", localtime(&gameStartTime));
 
-// 	std::string str(&dateTimeBuf[0]);
-// 	return StringFromFormat("Slippi/Game_%s.slp", str.c_str());
-// }
+	std::string str(&dateTimeBuf[0]);
+	return StringFromFormat("Slippi/Game_%s.slp", str.c_str());
+}
 
-// void closeFile() {
-// 	if (!m_file) {
-// 		// If we have no file or payload is not game end, do nothing
-// 		return;
-// 	}
+void writeFile(u8* data, u32 length) {
+  if (!m_file) {
+    return;
+  }
 
-// 	// If this is the end of the game end payload, reset the file so that we create a new one
-// 	m_file.Close();
-// 	m_file = nullptr;
-// }
+  u32 bw;
+  f_write(&m_file, data, length, &bw);
+
+  if (bw != length) {
+    // Disk is full, do something?
+  }
+}
+
+void closeFile() {
+	if (!m_file) {
+		// If we have no file or payload is not game end, do nothing
+		return;
+	}
+
+	// If this is the end of the game end payload, reset the file so that we create a new one
+	f_close(&m_file);
+	m_file = NULL;
+}
 
 void SlippiImmWrite(u32 data, u32 size)
 {
