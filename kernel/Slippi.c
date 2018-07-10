@@ -3,6 +3,7 @@
 #include "malloc.h"
 #include "debug.h"
 #include "string.h"
+#include "ff_utf8.h"
 
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
 #define PAYLOAD_SIZES_BUFFER_SIZE 10
@@ -11,14 +12,18 @@
 static u32 debugCounter = 0;
 static u32 debugMax = 50;
 
-enum {
-  CMD_UNKNOWN = 0x0,
-  CMD_RECEIVE_COMMANDS = 0x35,
-  CMD_RECEIVE_GAME_INFO = 0x36,
-  CMD_RECEIVE_PRE_FRAME_UPDATE = 0x37,
-  CMD_RECEIVE_POST_FRAME_UPDATE = 0x38,
-  CMD_RECEIVE_GAME_END = 0x39,
+enum
+{
+	CMD_UNKNOWN = 0x0,
+	CMD_RECEIVE_COMMANDS = 0x35,
+	CMD_RECEIVE_GAME_INFO = 0x36,
+	CMD_RECEIVE_PRE_FRAME_UPDATE = 0x37,
+	CMD_RECEIVE_POST_FRAME_UPDATE = 0x38,
+	CMD_RECEIVE_GAME_END = 0x39,
 };
+
+static FIL m_file;
+static bool isFileOpen = false;
 
 // .slp File creation stuff
 // static u32 writtenByteCount = 0;
@@ -35,29 +40,100 @@ static u8 m_payload[PAYLOAD_BUFFER_SIZE];
 // Payload Sizes
 static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
 
-void SlippiInit() {
+void SlippiInit()
+{
 	// Set the commands payload to start at length 1. The reason for this
 	// is that the game will pass in all the command sizes but if
 	// it starts at 0 then the command is ignored and nothing ever happens
 	payloadSizes[0] = 1;
 }
 
-u16 getPayloadSize(u8 command) {
+char *generateFileName()
+{
+	// // Add game start time
+	// u8 dateTimeStrLength = sizeof "20171015T095717";
+	// char *dateTimeBuf = (char *)malloc(dateTimeStrLength);
+	// strftime(&dateTimeBuf[0], dateTimeStrLength, "%Y%m%dT%H%M%S", localtime(&gameStartTime));
+
+	// std::string str(&dateTimeBuf[0]);
+	// return StringFromFormat("Slippi/Game_%s.slp", str.c_str());
+
+	static char pathStr[30];
+
+	_sprintf(&pathStr[0], "/Slippi/Game.slp");
+
+	return pathStr;
+}
+
+void closeSlpFile()
+{
+	if (!isFileOpen)
+	{
+		// If we have no file or payload is not game end, do nothing
+		return;
+	}
+
+	// If this is the end of the game end payload, reset the file so that we create a new one
+	f_close(&m_file);
+	isFileOpen = false;
+}
+
+void createSlpFile()
+{
+	if (isFileOpen)
+	{
+		// If there's already a file open, close that one
+		closeSlpFile();
+	}
+
+	f_mkdir_char("/Slippi");
+
+	char *filepath = generateFileName();
+	f_open_char(&m_file, filepath, FA_CREATE_ALWAYS | FA_WRITE);
+	free(filepath);
+
+	isFileOpen = true;
+}
+
+void writeSlpFile(u8 *data, u32 length)
+{
+	if (!isFileOpen)
+	{
+		return;
+	}
+
+	u32 bw;
+	f_write(&m_file, data, length, &bw);
+
+	if (bw != length)
+	{
+		// Disk is full, do something?
+	}
+}
+
+u16 getPayloadSize(u8 command)
+{
 	int payloadSizesIndex = command - CMD_RECEIVE_COMMANDS;
-	if (payloadSizesIndex >= PAYLOAD_SIZES_BUFFER_SIZE || payloadSizesIndex < 0) {
+	if (payloadSizesIndex >= PAYLOAD_SIZES_BUFFER_SIZE || payloadSizesIndex < 0)
+	{
 		return 0;
 	}
 
 	return payloadSizes[payloadSizesIndex];
 }
 
-void configureCommands(u8* payload, u8 length) {
-	int i = 0;
-	while (i < length) {
+void configureCommands(u8 *payload, u8 length)
+{
+	int i = 1;
+	while (i < length)
+	{
 		// Go through the receive commands payload and set up other commands
 		u8 commandByte = payload[i];
 		u16 commandPayloadSize = payload[i + 1] << 8 | payload[i + 2];
 		payloadSizes[commandByte - CMD_RECEIVE_COMMANDS] = commandPayloadSize;
+
+		// if (debugCounter <= debugMax)
+		// 	dbgprintf("Index: %02X, Size: %02X\r\n", commandByte - CMD_RECEIVE_COMMANDS, commandPayloadSize);
 
 		i += 3;
 	}
@@ -150,20 +226,34 @@ void configureCommands(u8* payload, u8 length) {
 // 	return metadata;
 // }
 
-void writeToFile(u8* payload, u32 length, u8 fileOption) {
-	char* toWrite = malloc((2 * length) + 1);
+void processPayload(u8 *payload, u32 length, u8 fileOption)
+{
+	// DEBUG MESSAGES RECEIVED
+	// char *toWrite = malloc((2 * length) + 1);
 
-	int i = 0;
-	while (i < length) {
-		_sprintf(&toWrite[i * 2], "%02X", payload[i]);
-		i++;
+	// int i = 0;
+	// while (i < length)
+	// {
+	// 	_sprintf(&toWrite[i * 2], "%02X", payload[i]);
+	// 	i++;
+	// }
+
+	// toWrite[(2 * length) + 1] = '\0';
+
+	// dbgprintf("%s\r\n", toWrite);
+
+	// free(toWrite);
+
+	// WRITE FILE TEST
+	if (fileOption == 1) {
+		createSlpFile();
 	}
 
-	toWrite[(2 * length) + 1] = '\0';
+	writeSlpFile(payload, length);
 
-	dbgprintf("%s\r\n", toWrite);
-
-	free(toWrite);
+	if (fileOption == 2) {
+		closeSlpFile();
+	}
 
 	// std::vector<u8> dataToWrite;
 	// if (fileOption == 1) {
@@ -226,63 +316,14 @@ void writeToFile(u8* payload, u32 length, u8 fileOption) {
 	// }
 }
 
-void createNewFile() {
-	if (m_file) {
-		// If there's already a file open, close that one
-		closeFile();
-	}
-
-	f_mkdir_char("Slippi");
-
-	char* filepath = generateFileName();
-  f_open_char(&m_file, filepath, FA_CREATE_ALWAYS | FA_WRITE);
-  free(filepath);
-}
-
-char* generateFileName() {
-	// Add game start time
-	u8 dateTimeStrLength = sizeof "20171015T095717";
-	char* dateTimeBuf = (char*)malloc(dateTimeStrLength);
-	strftime(&dateTimeBuf[0], dateTimeStrLength, "%Y%m%dT%H%M%S", localtime(&gameStartTime));
-
-	std::string str(&dateTimeBuf[0]);
-	return StringFromFormat("Slippi/Game_%s.slp", str.c_str());
-}
-
-void writeFile(u8* data, u32 length) {
-  if (!m_file) {
-    return;
-  }
-
-  u32 bw;
-  f_write(&m_file, data, length, &bw);
-
-  if (bw != length) {
-    // Disk is full, do something?
-  }
-}
-
-void closeFile() {
-	if (!m_file) {
-		// If we have no file or payload is not game end, do nothing
-		return;
-	}
-
-	// If this is the end of the game end payload, reset the file so that we create a new one
-	f_close(&m_file);
-	m_file = NULL;
-}
-
 void SlippiImmWrite(u32 data, u32 size)
 {
-	debugCounter++;
-
-	if (debugCounter <= debugMax) dbgprintf("Size: %d, Data: %08X!\r\n", size, data);
-
 	bool lookingForMessage = m_payload_type == CMD_UNKNOWN;
-	if (lookingForMessage) {
+	if (lookingForMessage)
+	{
 		// If the size is not one, this can't be the start of a command
-		if (size != 1) {
+		if (size != 1)
+		{
 			return;
 		}
 
@@ -292,8 +333,8 @@ void SlippiImmWrite(u32 data, u32 size)
 		// Obviously as written, commands with payloads of size zero will not work, there
 		// are currently no such commands atm
 		u16 payloadSize = getPayloadSize(m_payload_type);
-		if (debugCounter <= debugMax) dbgprintf("Payload Size: %02X\r\n", payloadSize);
-		if (payloadSize == 0) {
+		if (payloadSize == 0)
+		{
 			m_payload_type = CMD_UNKNOWN;
 			return;
 		}
@@ -301,7 +342,8 @@ void SlippiImmWrite(u32 data, u32 size)
 
 	// Add new data to payload
 	int i = 0;
-	while (i < size) {
+	while (i < size)
+	{
 		int shiftAmount = 8 * (3 - i);
 		u8 byte = 0xFF & (data >> shiftAmount);
 		m_payload[m_payload_loc] = byte;
@@ -314,30 +356,28 @@ void SlippiImmWrite(u32 data, u32 size)
 	// This section deals with saying we are done handling the payload
 	// add one because we count the command as part of the total size
 	u16 payloadSize = getPayloadSize(m_payload_type);
-	if (m_payload_type == CMD_RECEIVE_COMMANDS && m_payload_loc > 1) {
+	if (m_payload_type == CMD_RECEIVE_COMMANDS && m_payload_loc > 1)
+	{
 		// the receive commands command tells us exactly how long it is
 		// this is to make adding new commands easier
 		payloadSize = m_payload[1];
 	}
 
-	if (debugCounter <= debugMax) dbgprintf("Payload Size 2: %02X\r\n", payloadSize);
-
-	if (m_payload_loc >= payloadSize + 1) {
+	if (m_payload_loc >= payloadSize + 1)
+	{
 		// Handle payloads
-		switch (m_payload_type) {
+		switch (m_payload_type)
+		{
 		case CMD_RECEIVE_COMMANDS:
-			if (debugCounter <= debugMax) dbgprintf("Receive Commands Payload Complete!\r\n");
 			// time(&gameStartTime); // Store game start time
 			configureCommands(&m_payload[1], m_payload_loc - 1);
-			writeToFile(&m_payload[0], m_payload_loc, 1);
+			processPayload(&m_payload[0], m_payload_loc, 1);
 			break;
 		case CMD_RECEIVE_GAME_END:
-			if (debugCounter <= debugMax) dbgprintf("Receive Game End Payload Complete!\r\n");
-			writeToFile(&m_payload[0], m_payload_loc, 2);
+			processPayload(&m_payload[0], m_payload_loc, 2);
 			break;
 		default:
-			if (debugCounter <= debugMax) dbgprintf("Receive Command %02X Payload Complete!\r\n", m_payload_type);
-			writeToFile(&m_payload[0], m_payload_loc, 0);
+			processPayload(&m_payload[0], m_payload_loc, 0);
 			break;
 		}
 
