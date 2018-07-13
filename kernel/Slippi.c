@@ -86,7 +86,7 @@ void createSlpFile()
 		closeSlpFile();
 	}
 
-	f_mkdir_char("/Slippi");
+	// f_mkdir_char("/Slippi");
 
 	char *filepath = generateFileName();
 	f_open_char(&m_file, filepath, FA_CREATE_ALWAYS | FA_WRITE);
@@ -245,15 +245,15 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 	// free(toWrite);
 
 	// WRITE FILE TEST
-	if (fileOption == 1) {
-		createSlpFile();
-	}
+	// if (fileOption == 1) {
+	// 	createSlpFile();
+	// }
 
-	writeSlpFile(payload, length);
+	// writeSlpFile(payload, length);
 
-	if (fileOption == 2) {
-		closeSlpFile();
-	}
+	// if (fileOption == 2) {
+	// 	closeSlpFile();
+	// }
 
 	// std::vector<u8> dataToWrite;
 	// if (fileOption == 1) {
