@@ -318,71 +318,96 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 
 void SlippiImmWrite(u32 data, u32 size)
 {
-	bool lookingForMessage = m_payload_type == CMD_UNKNOWN;
-	if (lookingForMessage)
+	// bool lookingForMessage = m_payload_type == CMD_UNKNOWN;
+	// if (lookingForMessage)
+	// {
+	// 	// If the size is not one, this can't be the start of a command
+	// 	if (size != 1)
+	// 	{
+	// 		return;
+	// 	}
+
+	// 	m_payload_type = data >> 24;
+
+	// 	// Attempt to get payload size for this command. If not found, don't do anything
+	// 	// Obviously as written, commands with payloads of size zero will not work, there
+	// 	// are currently no such commands atm
+	// 	u16 payloadSize = getPayloadSize(m_payload_type);
+	// 	if (payloadSize == 0)
+	// 	{
+	// 		m_payload_type = CMD_UNKNOWN;
+	// 		return;
+	// 	}
+	// }
+
+	// // Add new data to payload
+	// int i = 0;
+	// while (i < size)
+	// {
+	// 	int shiftAmount = 8 * (3 - i);
+	// 	u8 byte = 0xFF & (data >> shiftAmount);
+	// 	m_payload[m_payload_loc] = byte;
+
+	// 	m_payload_loc += 1;
+
+	// 	i++;
+	// }
+
+	// // This section deals with saying we are done handling the payload
+	// // add one because we count the command as part of the total size
+	// u16 payloadSize = getPayloadSize(m_payload_type);
+	// if (m_payload_type == CMD_RECEIVE_COMMANDS && m_payload_loc > 1)
+	// {
+	// 	// the receive commands command tells us exactly how long it is
+	// 	// this is to make adding new commands easier
+	// 	payloadSize = m_payload[1];
+	// }
+
+	// if (m_payload_loc >= payloadSize + 1)
+	// {
+	// 	// Handle payloads
+	// 	switch (m_payload_type)
+	// 	{
+	// 	case CMD_RECEIVE_COMMANDS:
+	// 		// time(&gameStartTime); // Store game start time
+	// 		configureCommands(&m_payload[1], m_payload_loc - 1);
+	// 		processPayload(&m_payload[0], m_payload_loc, 1);
+	// 		break;
+	// 	case CMD_RECEIVE_GAME_END:
+	// 		processPayload(&m_payload[0], m_payload_loc, 2);
+	// 		break;
+	// 	default:
+	// 		processPayload(&m_payload[0], m_payload_loc, 0);
+	// 		break;
+	// 	}
+
+	// 	// reset payload loc and type so we look for next command
+	// 	m_payload_loc = 0;
+	// 	m_payload_type = CMD_UNKNOWN;
+	// }
+}
+
+void SlippiDmaWrite(const void *buf, u32 len) {
+	sync_before_read((void*)buf, len);
+	memcpy(&m_payload, buf, len);
+	sync_after_write(&m_payload, len);
+	
+	u8 command = m_payload[0];
+	dbgprintf("%02X%02X\r\n", command, m_payload[1]);
+
+	// Handle payloads
+	switch (command)
 	{
-		// If the size is not one, this can't be the start of a command
-		if (size != 1)
-		{
-			return;
-		}
-
-		m_payload_type = data >> 24;
-
-		// Attempt to get payload size for this command. If not found, don't do anything
-		// Obviously as written, commands with payloads of size zero will not work, there
-		// are currently no such commands atm
-		u16 payloadSize = getPayloadSize(m_payload_type);
-		if (payloadSize == 0)
-		{
-			m_payload_type = CMD_UNKNOWN;
-			return;
-		}
-	}
-
-	// Add new data to payload
-	int i = 0;
-	while (i < size)
-	{
-		int shiftAmount = 8 * (3 - i);
-		u8 byte = 0xFF & (data >> shiftAmount);
-		m_payload[m_payload_loc] = byte;
-
-		m_payload_loc += 1;
-
-		i++;
-	}
-
-	// This section deals with saying we are done handling the payload
-	// add one because we count the command as part of the total size
-	u16 payloadSize = getPayloadSize(m_payload_type);
-	if (m_payload_type == CMD_RECEIVE_COMMANDS && m_payload_loc > 1)
-	{
-		// the receive commands command tells us exactly how long it is
-		// this is to make adding new commands easier
-		payloadSize = m_payload[1];
-	}
-
-	if (m_payload_loc >= payloadSize + 1)
-	{
-		// Handle payloads
-		switch (m_payload_type)
-		{
-		case CMD_RECEIVE_COMMANDS:
-			// time(&gameStartTime); // Store game start time
-			configureCommands(&m_payload[1], m_payload_loc - 1);
-			processPayload(&m_payload[0], m_payload_loc, 1);
-			break;
-		case CMD_RECEIVE_GAME_END:
-			processPayload(&m_payload[0], m_payload_loc, 2);
-			break;
-		default:
-			processPayload(&m_payload[0], m_payload_loc, 0);
-			break;
-		}
-
-		// reset payload loc and type so we look for next command
-		m_payload_loc = 0;
-		m_payload_type = CMD_UNKNOWN;
+	case CMD_RECEIVE_COMMANDS:
+		// time(&gameStartTime); // Store game start time
+		configureCommands(&(m_payload[1]), len - 1);
+		processPayload(&(m_payload[0]), len, 1);
+		break;
+	case CMD_RECEIVE_GAME_END:
+		processPayload(&(m_payload[0]), len, 2);
+		break;
+	default:
+		processPayload(&(m_payload[0]), len, 0);
+		break;
 	}
 }
