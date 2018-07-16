@@ -254,7 +254,7 @@ int _main( int argc, char *argv[] )
 	PatchInit();
 
 	SlippiInit();
-	
+
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);

@@ -8,10 +8,6 @@
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
 #define PAYLOAD_SIZES_BUFFER_SIZE 10
 
-// Debugging
-static u32 debugCounter = 0;
-static u32 debugMax = 50;
-
 enum
 {
 	CMD_UNKNOWN = 0x0,
@@ -90,7 +86,7 @@ void createSlpFile()
 
 	char *filepath = generateFileName();
 	f_open_char(&m_file, filepath, FA_CREATE_ALWAYS | FA_WRITE);
-	free(filepath);
+	// free(filepath);
 
 	isFileOpen = true;
 }
@@ -109,6 +105,8 @@ void writeSlpFile(u8 *data, u32 length)
 	{
 		// Disk is full, do something?
 	}
+
+	f_sync(&m_file);
 }
 
 u16 getPayloadSize(u8 command)
@@ -228,6 +226,8 @@ void configureCommands(u8 *payload, u8 length)
 
 void processPayload(u8 *payload, u32 length, u8 fileOption)
 {
+	// dbgprintf("%02X%02X\r\n", payload[0], payload[1]);
+
 	// DEBUG MESSAGES RECEIVED
 	// char *toWrite = malloc((2 * length) + 1);
 
@@ -246,12 +246,14 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 
 	// WRITE FILE TEST
 	// if (fileOption == 1) {
+	// 	dbgprintf("Creating File...\r\n");
 	// 	createSlpFile();
 	// }
 
 	// writeSlpFile(payload, length);
 
 	// if (fileOption == 2) {
+	// 	dbgprintf("Closing File...\r\n");
 	// 	closeSlpFile();
 	// }
 
@@ -318,73 +320,73 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 
 void SlippiImmWrite(u32 data, u32 size)
 {
-	// bool lookingForMessage = m_payload_type == CMD_UNKNOWN;
-	// if (lookingForMessage)
-	// {
-	// 	// If the size is not one, this can't be the start of a command
-	// 	if (size != 1)
-	// 	{
-	// 		return;
-	// 	}
+	bool lookingForMessage = m_payload_type == CMD_UNKNOWN;
+	if (lookingForMessage)
+	{
+		// If the size is not one, this can't be the start of a command
+		if (size != 1)
+		{
+			return;
+		}
 
-	// 	m_payload_type = data >> 24;
+		m_payload_type = data >> 24;
 
-	// 	// Attempt to get payload size for this command. If not found, don't do anything
-	// 	// Obviously as written, commands with payloads of size zero will not work, there
-	// 	// are currently no such commands atm
-	// 	u16 payloadSize = getPayloadSize(m_payload_type);
-	// 	if (payloadSize == 0)
-	// 	{
-	// 		m_payload_type = CMD_UNKNOWN;
-	// 		return;
-	// 	}
-	// }
+		// Attempt to get payload size for this command. If not found, don't do anything
+		// Obviously as written, commands with payloads of size zero will not work, there
+		// are currently no such commands atm
+		u16 payloadSize = getPayloadSize(m_payload_type);
+		if (payloadSize == 0)
+		{
+			m_payload_type = CMD_UNKNOWN;
+			return;
+		}
+	}
 
-	// // Add new data to payload
-	// int i = 0;
-	// while (i < size)
-	// {
-	// 	int shiftAmount = 8 * (3 - i);
-	// 	u8 byte = 0xFF & (data >> shiftAmount);
-	// 	m_payload[m_payload_loc] = byte;
+	// Add new data to payload
+	int i = 0;
+	while (i < size)
+	{
+		int shiftAmount = 8 * (3 - i);
+		u8 byte = 0xFF & (data >> shiftAmount);
+		m_payload[m_payload_loc] = byte;
 
-	// 	m_payload_loc += 1;
+		m_payload_loc += 1;
 
-	// 	i++;
-	// }
+		i++;
+	}
 
-	// // This section deals with saying we are done handling the payload
-	// // add one because we count the command as part of the total size
-	// u16 payloadSize = getPayloadSize(m_payload_type);
-	// if (m_payload_type == CMD_RECEIVE_COMMANDS && m_payload_loc > 1)
-	// {
-	// 	// the receive commands command tells us exactly how long it is
-	// 	// this is to make adding new commands easier
-	// 	payloadSize = m_payload[1];
-	// }
+	// This section deals with saying we are done handling the payload
+	// add one because we count the command as part of the total size
+	u16 payloadSize = getPayloadSize(m_payload_type);
+	if (m_payload_type == CMD_RECEIVE_COMMANDS && m_payload_loc > 1)
+	{
+		// the receive commands command tells us exactly how long it is
+		// this is to make adding new commands easier
+		payloadSize = m_payload[1];
+	}
 
-	// if (m_payload_loc >= payloadSize + 1)
-	// {
-	// 	// Handle payloads
-	// 	switch (m_payload_type)
-	// 	{
-	// 	case CMD_RECEIVE_COMMANDS:
-	// 		// time(&gameStartTime); // Store game start time
-	// 		configureCommands(&m_payload[1], m_payload_loc - 1);
-	// 		processPayload(&m_payload[0], m_payload_loc, 1);
-	// 		break;
-	// 	case CMD_RECEIVE_GAME_END:
-	// 		processPayload(&m_payload[0], m_payload_loc, 2);
-	// 		break;
-	// 	default:
-	// 		processPayload(&m_payload[0], m_payload_loc, 0);
-	// 		break;
-	// 	}
+	if (m_payload_loc >= payloadSize + 1)
+	{
+		// Handle payloads
+		switch (m_payload_type)
+		{
+		case CMD_RECEIVE_COMMANDS:
+			// time(&gameStartTime); // Store game start time
+			configureCommands(&m_payload[1], m_payload_loc - 1);
+			processPayload(&m_payload[0], m_payload_loc, 1);
+			break;
+		case CMD_RECEIVE_GAME_END:
+			processPayload(&m_payload[0], m_payload_loc, 2);
+			break;
+		default:
+			processPayload(&m_payload[0], m_payload_loc, 0);
+			break;
+		}
 
-	// 	// reset payload loc and type so we look for next command
-	// 	m_payload_loc = 0;
-	// 	m_payload_type = CMD_UNKNOWN;
-	// }
+		// reset payload loc and type so we look for next command
+		m_payload_loc = 0;
+		m_payload_type = CMD_UNKNOWN;
+	}
 }
 
 void SlippiDmaWrite(const void *buf, u32 len) {
@@ -393,8 +395,7 @@ void SlippiDmaWrite(const void *buf, u32 len) {
 	sync_after_write(&m_payload, len);
 	
 	u8 command = m_payload[0];
-	dbgprintf("%02X%02X\r\n", command, m_payload[1]);
-
+	
 	// Handle payloads
 	switch (command)
 	{

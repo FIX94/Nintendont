@@ -690,7 +690,7 @@ u32 EXIDeviceSP1( u8 *Data, u32 Length, u32 Mode )
 
 void EXIUpdateRegistersNEW( void )
 {
-	if( EXI_IRQ == true ) //still working
+	if( EXI_IRQ == true )//still working
 		return;
 
 	//u32 chn, dev, frq, ret, data, len, mode;
@@ -766,20 +766,18 @@ void EXIUpdateRegistersNEW( void )
 						// TODO: Eventually when we're done debugging this stuff should
 						// TODO: be moved to MEMCARD_B to re-enable mem card emulation
 						// EXIDeviceMemoryCard(0, (u8*)data, len, mode);
+						if (mode == 1) {
+							SlippiImmWrite(data, len);
+						}
 
 						// Write that data has been received
 						write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
 						sync_after_write( (void*)EXI_BASE, 0x20 );
 
-						// SlippiImmWrite(data, len);
-
 						break;
 
 					case EXI_DEV_MEMCARD_B:
-						// EXIDeviceMemoryCard(1, (u8*)data, len, mode);
-						if (len == 1 && data == 0x36) {
-								dbgprintf("Hi stream!\r\n");
-						}
+						EXIDeviceMemoryCard(1, (u8*)data, len, mode);
 						break;
 
 					case EXI_DEV_MASK_ROM_RTC_SRAM_UART:
