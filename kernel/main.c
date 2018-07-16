@@ -253,6 +253,7 @@ int _main( int argc, char *argv[] )
 
 	PatchInit();
 
+	dbgprintf("Main Thread ID: %d\r\n", thread_get_id());
 	SlippiInit();
 
 //Tell PPC side we are ready!
@@ -532,6 +533,8 @@ int _main( int argc, char *argv[] )
 
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
+
+	SlippiShutdown();
 
 	if (ConfigGetConfig(NIN_CFG_LOG))
 		closeLog();

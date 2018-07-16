@@ -8,6 +8,13 @@
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
 #define PAYLOAD_SIZES_BUFFER_SIZE 10
 
+// Thread stuff
+static u32 Slippi_Thread = 0;
+extern char __slippi_stack_addr, __slippi_stack_size;
+static s32 slippihandlerqueue = -1;
+static vu32 slippihandler = 0;
+static u8 *slippihandlerheap = NULL;
+
 enum
 {
 	CMD_UNKNOWN = 0x0,
@@ -42,6 +49,17 @@ void SlippiInit()
 	// is that the game will pass in all the command sizes but if
 	// it starts at 0 then the command is ignored and nothing ever happens
 	payloadSizes[0] = 1;
+
+	slippihandlerheap = (u8*)malloca(32,32);
+	slippihandlerqueue = mqueue_create(slippihandlerheap, 1);
+
+	Slippi_Thread = do_thread_create(SlippiHandlerThread, ((u32*)&__slippi_stack_addr), ((u32)(&__slippi_stack_size)), 0x78);
+	thread_continue(Slippi_Thread);
+}
+
+void SlippiShutdown()
+{
+	thread_cancel(Slippi_Thread, 0);
 }
 
 char *generateFileName()
@@ -411,4 +429,28 @@ void SlippiDmaWrite(const void *buf, u32 len) {
 		processPayload(&(m_payload[0]), len, 0);
 		break;
 	}
+}
+
+u32 SlippiHandlerThread(void *arg) {
+	// dbgprintf("Slippi Handler Started\r\n");
+
+	// int idk = 0;
+
+	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
+
+	struct ipcmessage *msg = NULL;
+	while(1)
+	{
+		mqueue_recv(slippihandlerqueue, &msg, 0);
+		mqueue_ack(msg, 0);
+		slippihandler = 1;
+
+		// if (idk >= 100000) {
+		// 	dbgprintf("??\r\n");
+		// 	idk = 0;
+		// }
+
+		// idk += 1;
+	}
+	return 0;
 }
