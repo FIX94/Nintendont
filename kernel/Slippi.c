@@ -1,19 +1,14 @@
 #include "Slippi.h"
 #include "time.h"
-#include "malloc.h"
+#include "alloc.h"
 #include "debug.h"
 #include "string.h"
 #include "ff_utf8.h"
+#include "DI.h"
 
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
+#define FRAME_PAYLOAD_BUFFER_SIZE 0x80
 #define PAYLOAD_SIZES_BUFFER_SIZE 10
-
-// Thread stuff
-static u32 Slippi_Thread = 0;
-extern char __slippi_stack_addr, __slippi_stack_size;
-static s32 slippihandlerqueue = -1;
-static vu32 slippihandler = 0;
-static u8 *slippihandlerheap = NULL;
 
 enum
 {
@@ -25,8 +20,35 @@ enum
 	CMD_RECEIVE_GAME_END = 0x39,
 };
 
+// TEST
+static u32 testInt = 0;
+
+// Thread stuff
+static u32 Slippi_Thread = 0;
+extern char __slippi_stack_addr, __slippi_stack_size;
+static s32 slippihandlerqueue = -1;
+static vu32 slippihandler = 0;
+static u8 *slippihandlerheap = NULL;
+
+// File writing stuff
+static const char *fileName = "/Slippi/Game01.slp";
 static FIL m_file;
 static bool isFileOpen = false;
+static u32 fileIndex = 1;
+static u8 *writeBuffer;
+
+typedef volatile struct BufferAccess {
+	bool isInUse; // Is set to true when main thread starts writting to this buf
+	bool isFilled; // Is set to true when main thread finished writting to this buf
+	u8 fileAction; // 0 = no action, 1 = create file, 2 = close file
+	u32 len; // Length of the data in the buffer
+	u8 buffer[PAYLOAD_BUFFER_SIZE]; // Data to write
+} bufferAccess;
+
+#define BUFFER_ACCESS_COUNT 200
+static volatile bufferAccess accessManager[BUFFER_ACCESS_COUNT];
+static u32 writeBufferIndex = 0;
+static u32 processBufferIndex = 0;
 
 // .slp File creation stuff
 // static u32 writtenByteCount = 0;
@@ -50,8 +72,10 @@ void SlippiInit()
 	// it starts at 0 then the command is ignored and nothing ever happens
 	payloadSizes[0] = 1;
 
-	slippihandlerheap = (u8*)malloca(32,32);
-	slippihandlerqueue = mqueue_create(slippihandlerheap, 1);
+	writeBuffer = (u8*)malloca(BUFFER_ACCESS_COUNT * FRAME_PAYLOAD_BUFFER_SIZE, 32);
+
+	// slippihandlerheap = (u8*)malloca(32,32);
+	// slippihandlerqueue = mqueue_create(slippihandlerheap, 1);
 
 	Slippi_Thread = do_thread_create(SlippiHandlerThread, ((u32*)&__slippi_stack_addr), ((u32)(&__slippi_stack_size)), 0x78);
 	thread_continue(Slippi_Thread);
@@ -62,7 +86,7 @@ void SlippiShutdown()
 	thread_cancel(Slippi_Thread, 0);
 }
 
-char *generateFileName()
+char *generateFileName(bool isNewFile)
 {
 	// // Add game start time
 	// u8 dateTimeStrLength = sizeof "20171015T095717";
@@ -74,13 +98,19 @@ char *generateFileName()
 
 	static char pathStr[30];
 
-	_sprintf(&pathStr[0], "/Slippi/Game.slp");
+	_sprintf(&pathStr[0], "/Slippi/Game-%d.slp", fileIndex);
+
+	if (isNewFile) {
+		fileIndex += 1;
+	}
 
 	return pathStr;
 }
 
 void closeSlpFile()
 {
+	DIFinishAsync();
+
 	if (!isFileOpen)
 	{
 		// If we have no file or payload is not game end, do nothing
@@ -94,6 +124,8 @@ void closeSlpFile()
 
 void createSlpFile()
 {
+	DIFinishAsync();
+
 	if (isFileOpen)
 	{
 		// If there's already a file open, close that one
@@ -102,7 +134,7 @@ void createSlpFile()
 
 	// f_mkdir_char("/Slippi");
 
-	char *filepath = generateFileName();
+	char *filepath = generateFileName(true);
 	f_open_char(&m_file, filepath, FA_CREATE_ALWAYS | FA_WRITE);
 	// free(filepath);
 
@@ -111,6 +143,8 @@ void createSlpFile()
 
 void writeSlpFile(u8 *data, u32 length)
 {
+	DIFinishAsync();
+	
 	if (!isFileOpen)
 	{
 		return;
@@ -244,6 +278,28 @@ void configureCommands(u8 *payload, u8 length)
 
 void processPayload(u8 *payload, u32 length, u8 fileOption)
 {
+	bufferAccess *currentBuffer = &accessManager[writeBufferIndex];
+	if (currentBuffer->isInUse) {
+		dbgprintf("ERROR: Not enough buffers!\r\n");
+		return;
+	}
+
+	dbgprintf("Adding to manager. Len: %d | Command: %02X\r\n", length, payload[0]);
+
+	currentBuffer->isInUse = true;
+	
+	currentBuffer->fileAction = fileOption;
+	currentBuffer->len = length;
+	memcpy(currentBuffer->buffer, payload, length);
+	
+	currentBuffer->isFilled = true;
+
+	// Increment write buffer
+	writeBufferIndex += 1;
+	if (writeBufferIndex >= BUFFER_ACCESS_COUNT) {
+		writeBufferIndex = 0;
+	}
+	
 	// dbgprintf("%02X%02X\r\n", payload[0], payload[1]);
 
 	// DEBUG MESSAGES RECEIVED
@@ -431,26 +487,82 @@ void SlippiDmaWrite(const void *buf, u32 len) {
 	}
 }
 
+void handleCurrentBuffer() {
+	bufferAccess *currentBuffer = &accessManager[processBufferIndex];
+	if (!currentBuffer->isFilled) {
+		return;
+	}
+
+	dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
+
+	DIFinishAsync(); //DONT ever try todo file i/o async
+
+	FIL file;
+	FRESULT fileOpenResult;
+	if (currentBuffer->fileAction == 1) {
+		// int nextBufferIndex = (processBufferIndex + 1) % BUFFER_ACCESS_COUNT;
+		// bufferAccess *nextBuffer = &accessManager[nextBufferIndex];
+		// while (!nextBuffer->isFilled) {
+		// 	udelay(50); // Delay creating file cause it can crash the game
+		// }
+		mdelay(300);
+		dbgprintf("Creating File...\r\n");
+		// createSlpFile();
+
+		DIFinishAsync();
+		// char *filepath = generateFileName(true);
+		fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
+	} else {
+		// char *filepath = generateFileName(false);
+		fileOpenResult = f_open_char(&file, fileName, FA_OPEN_APPEND | FA_WRITE);
+	}
+
+	if (fileOpenResult != FR_OK) {
+		dbgprintf("ERROR: Failed to open file: %d...\r\n", fileOpenResult);
+		return;
+	}
+
+	u32 writePosition = 0;
+
+	// Loop until we have nothing left to write, or if we've looped around all buffers
+	u32 startBufferIndex = processBufferIndex;
+	do {
+		memcpy(&writeBuffer[writePosition], currentBuffer->buffer, currentBuffer->len);
+		writePosition += currentBuffer->len;
+
+		// Mark buffer as usable again
+		currentBuffer->isFilled = false;
+		currentBuffer->isInUse = false;
+
+		processBufferIndex = (processBufferIndex + 1) % BUFFER_ACCESS_COUNT;
+		currentBuffer = &accessManager[processBufferIndex];
+	} while (currentBuffer->isFilled && processBufferIndex != startBufferIndex);
+
+	u32 wrote;
+	f_write(&file, writeBuffer, writePosition, &wrote);
+	f_close(&file);
+
+	sync_after_write(writeBuffer, writePosition);
+
+	dbgprintf("Bytes written: %d/%d...\r\n", wrote, writePosition);
+}
+
 u32 SlippiHandlerThread(void *arg) {
-	// dbgprintf("Slippi Handler Started\r\n");
-
-	// int idk = 0;
-
 	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
 
-	struct ipcmessage *msg = NULL;
+	// struct ipcmessage *msg = NULL;
 	while(1)
 	{
-		mqueue_recv(slippihandlerqueue, &msg, 0);
-		mqueue_ack(msg, 0);
-		slippihandler = 1;
+		// dbgprintf("Hello 1\r\n");
+		// mqueue_recv(slippihandlerqueue, &msg, 0);
+		// dbgprintf("Hello 2\r\n");
+		mdelay(300);
 
-		// if (idk >= 100000) {
-		// 	dbgprintf("??\r\n");
-		// 	idk = 0;
-		// }
-
-		// idk += 1;
+		handleCurrentBuffer();
+		
+		
+		// mqueue_ack(msg, 0);
+		// slippihandler = 1;
 	}
 	return 0;
 }
