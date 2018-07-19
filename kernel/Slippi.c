@@ -8,7 +8,7 @@
 
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
-#define WRITE_BUFFER_LENGTH 0x9600
+#define WRITE_BUFFER_LENGTH 0x800
 #define PAYLOAD_SIZES_BUFFER_SIZE 10
 
 enum
@@ -198,40 +198,45 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 	memcpy(&writeBuffer[writePosition], payload, length);
 	writePosition += length;
 	
+	static FIL file;
+	static bool fileOpen = false;
+	if (fileOption == 1) {
+		DIFinishAsync();
+
+		dbgprintf("Creating File...\r\n");
+		char* fileName = generateFileName(true);
+		FRESULT fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
+
+		if (fileOpenResult != FR_OK) {
+			fileOpen = false;
+			dbgprintf("ERROR: Failed to open file: %d...\r\n", fileOpenResult);
+			return;
+		}
+
+		fileOpen = true;
+	}
 	// If write buffer is not full yet, don't do anything else
-	if (writePosition < WRITE_BUFFER_LENGTH - FRAME_PAYLOAD_BUFFER_SIZE) {
+	bool isBufferFull = writePosition >= WRITE_BUFFER_LENGTH - FRAME_PAYLOAD_BUFFER_SIZE;
+	bool isGameComplete = fileOption == 2;
+	bool shouldWrite = fileOpen && (isBufferFull || isGameComplete);
+	if (!shouldWrite) {
 		return;
 	}
 
 	DIFinishAsync();
 
-	// Here our write buffer is full, so let's write the file
-	bool isNewFile = writeBuffer[0] == CMD_RECEIVE_COMMANDS;
-	char* fileName = generateFileName(isNewFile);
-	FIL file;
-	FRESULT fileOpenResult;
-	if (isNewFile) {
-		dbgprintf("Creating File...\r\n");
-		fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
-	} else {
-		fileOpenResult = f_open_char(&file, fileName, FA_OPEN_APPEND | FA_WRITE);
-	}
-	
-	if (fileOpenResult != FR_OK) {
-		writePosition = 0;
-		dbgprintf("ERROR: Failed to open file: %d...\r\n", fileOpenResult);
-		return;
-	}
-
 	u32 wrote;
 	f_write(&file, writeBuffer, writePosition, &wrote);
-	f_close(&file);
-
+	if (fileOption == 2) {
+		f_close(&file);
+	}
+	
 	sync_after_write(writeBuffer, writePosition);
 
+	dbgprintf("Bytes written: %d/%d...\r\n", wrote, writePosition);
+	
 	writePosition = 0;
 	
-	dbgprintf("Bytes written: %d/%d...\r\n", wrote, writePosition);
 	// dbgprintf("%02X%02X\r\n", payload[0], payload[1]);
 
 	// DEBUG MESSAGES RECEIVED
