@@ -8,8 +8,9 @@
 
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
-#define WRITE_BUFFER_LENGTH 0x800
+#define WRITE_BUFFER_LENGTH 0x400
 #define PAYLOAD_SIZES_BUFFER_SIZE 10
+#define FOOTER_BUFFER_LENGTH 200
 
 enum
 {
@@ -27,11 +28,11 @@ static u8 *writeBuffer;
 static u32 writePosition = 0;
 
 // .slp File creation stuff
-// static u32 writtenByteCount = 0;
+static u32 writtenByteCount = 0;
 
 // vars for metadata generation
 // time_t gameStartTime;
-// u32 lastFrame;
+s32 lastFrame;
 
 // Payload
 static u32 m_payload_loc = 0;
@@ -105,92 +106,78 @@ void configureCommands(u8 *payload, u8 length)
 	}
 }
 
-// void updateMetadataFields(u8* payload, u32 length) {
-// 	if (length <= 0 || payload[0] != CMD_RECEIVE_POST_FRAME_UPDATE) {
-// 		// Only need to update if this is a post frame update
-// 		return;
-// 	}
+void updateMetadataFields(u8* payload, u32 length) {
+	if (length <= 0 || payload[0] != CMD_RECEIVE_POST_FRAME_UPDATE) {
+		// Only need to update if this is a post frame update
+		return;
+	}
 
-// 	// Keep track of last frame
-// 	lastFrame = payload[1] << 24 | payload[2] << 16 | payload[3] << 8 | payload[4];
+	// Keep track of last frame
+	lastFrame = payload[1] << 24 | payload[2] << 16 | payload[3] << 8 | payload[4];
 
-// 	// TODO: Add character usage
-// 	// Keep track of character usage
-// 	// u8 playerIndex = payload[5];
-// 	// u8 internalCharacterId = payload[7];
-// 	// if (!characterUsage.count(playerIndex) || !characterUsage[playerIndex].count(internalCharacterId)) {
-// 	// 	characterUsage[playerIndex][internalCharacterId] = 0;
-// 	// }
-// 	// characterUsage[playerIndex][internalCharacterId] += 1;
-// }
+	// TODO: Add character usage
+	// Keep track of character usage
+	// u8 playerIndex = payload[5];
+	// u8 internalCharacterId = payload[7];
+	// if (!characterUsage.count(playerIndex) || !characterUsage[playerIndex].count(internalCharacterId)) {
+	// 	characterUsage[playerIndex][internalCharacterId] = 0;
+	// }
+	// characterUsage[playerIndex][internalCharacterId] += 1;
+}
 
-// u8* generateMetadata() {
-// 	u8* output = malloc()
-// 	std::vector<u8> metadata(
-// 		{ 'U', 8, 'm', 'e', 't', 'a', 'd', 'a', 't', 'a', '{' }
-// 	);
+void writeHeader(FIL *file) {
+	u8 header[] = { '{', 'U', 3, 'r', 'a', 'w', '[', '$', 'U', '#', 'l', 0, 0, 0, 0 };
 
-// 	// TODO: Abstract out UBJSON functions to make this cleaner
+	u32 wrote;
+	f_write(file, header, sizeof(header), &wrote);
+}
 
-// 	// Add game start time
-// 	uint8_t dateTimeStrLength = sizeof "2011-10-08T07:07:09Z";
-// 	char* dateTimeBuf = malloc(dateTimeStrLength);
-// 	strftime(&dateTimeBuf[0], dateTimeStrLength, "%FT%TZ", gmtime(&gameStartTime));
-// 	dateTimeBuf.pop_back(); // Removes the \0 from the back of string
-// 	metadata.insert(metadata.end(), {
-// 		'U', 7, 's', 't', 'a', 'r', 't', 'A', 't', 'S', 'U', (uint8_t)dateTimeBuf.size()
-// 	});
-// 	metadata.insert(metadata.end(), dateTimeBuf.begin(), dateTimeBuf.end());
+void completeFile(FIL *file) {
+	u8 footer[FOOTER_BUFFER_LENGTH];
+	u32 writePos = 0;
 
-// 	// Add game duration
-// 	std::vector<u8> lastFrameToWrite = int32ToVector(lastFrame);
-// 	metadata.insert(metadata.end(), {
-// 		'U', 9, 'l', 'a', 's', 't', 'F', 'r', 'a', 'm', 'e', 'l'
-// 	});
-// 	metadata.insert(metadata.end(), lastFrameToWrite.begin(), lastFrameToWrite.end());
+	// Write opener
+	u8 footerOpener[] = { 'U', 8, 'm', 'e', 't', 'a', 'd', 'a', 't', 'a', '{' };
+	u8 writeLen = sizeof(footerOpener);
+	memcpy(&footer[writePos], footerOpener, writeLen);
+	writePos += writeLen;
 
-// 	// Add players elements to metadata, one per player index
-// 	// metadata.insert(metadata.end(), {
-// 	// 	'U', 7, 'p', 'l', 'a', 'y', 'e', 'r', 's', '{'
-// 	// });
-// 	// for (auto it = characterUsage.begin(); it != characterUsage.end(); ++it) {
-// 	// 	metadata.push_back('U');
-// 	// 	std::string playerIndexStr = std::to_string(it->first);
-// 	// 	metadata.push_back((u8)playerIndexStr.length());
-// 	// 	metadata.insert(metadata.end(), playerIndexStr.begin(), playerIndexStr.end());
-// 	// 	metadata.push_back('{');
+	// Write startAt
+	char timeStr[] = "2011-10-08T07:07:09Z"; // TODO: get actual time str
+	u8 startAtOpener[] = { 'U', 7, 's', 't', 'a', 'r', 't', 'A', 't', 'S', 'U', (u8)sizeof(timeStr) };
+	writeLen = sizeof(startAtOpener);
+	memcpy(&footer[writePos], startAtOpener, writeLen);
+	writePos += writeLen;
+	writeLen = sizeof(timeStr);
+	memcpy(&footer[writePos], timeStr, writeLen);
+	writePos += writeLen;
 
-// 	// 	// Add character element for this player
-// 	// 	metadata.insert(metadata.end(), {
-// 	// 		'U', 10, 'c', 'h', 'a', 'r', 'a', 'c', 't', 'e', 'r', 's', '{'
-// 	// 	});
-// 	// 	for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-// 	// 		metadata.push_back('U');
-// 	// 		std::string internalCharIdStr = std::to_string(it2->first);
-// 	// 		metadata.push_back((u8)internalCharIdStr.length());
-// 	// 		metadata.insert(metadata.end(), internalCharIdStr.begin(), internalCharIdStr.end());
+	// Write lastFrame
+	u8 lastFrameOpener[] = { 'U', 9, 'l', 'a', 's', 't', 'F', 'r', 'a', 'm', 'e', 'l' };
+	writeLen = sizeof(lastFrameOpener);
+	memcpy(&footer[writePos], lastFrameOpener, writeLen);
+	writePos += writeLen;
+	memcpy(&footer[writePos], &lastFrame, 4);
+	writePos += 4;
 
-// 	// 		metadata.push_back('l');
-// 	// 		std::vector<u8> frameCount = uint32ToVector(it2->second);
-// 	// 		metadata.insert(metadata.end(), frameCount.begin(), frameCount.end());
-// 	// 	}
-// 	// 	metadata.push_back('}'); // close characters
+	// Write closing
+	u8 closing[] = {
+		'U', 7, 'p', 'l', 'a', 'y', 'e', 'r', 's', '{', '}',
+		'U', 8, 'p', 'l', 'a', 'y', 'e', 'd', 'O', 'n', 'S', 'U',
+		10, 'n', 'i', 'n', 't', 'e', 'n', 'd', 'o', 'n', 't',
+		'}', '}'
+	};
+	writeLen = sizeof(closing);
+	memcpy(&footer[writePos], closing, writeLen);
+	writePos += writeLen;
 
-// 	// 	metadata.push_back('}'); // close player
-// 	// }
-// 	// metadata.push_back('}');
+	// Write footer
+	u32 wrote;
+	f_write(file, footer, writePos, &wrote);
 
-// 	// Indicate this was played on dolphin
-// 	metadata.insert(metadata.end(), {
-// 		'U', 8, 'p', 'l', 'a', 'y', 'e', 'd', 'O', 'n', 'S', 'U',
-// 		10, 'n', 'i', 'n', 't', 'e', 'n', 'd', 'o', 'n', 't'
-// 	});
-
-// 	// TODO: Add player names
-
-// 	metadata.push_back('}');
-// 	return metadata;
-// }
+	f_lseek(file, 11);
+	f_write(file, &writtenByteCount, 4, &wrote);
+}
 
 void processPayload(u8 *payload, u32 length, u8 fileOption)
 {
@@ -198,6 +185,8 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 	memcpy(&writeBuffer[writePosition], payload, length);
 	writePosition += length;
 	
+	updateMetadataFields(payload, length);
+
 	static FIL file;
 	static bool fileOpen = false;
 	if (fileOption == 1) {
@@ -213,8 +202,12 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 			return;
 		}
 
+		writtenByteCount = 0;
 		fileOpen = true;
+
+		writeHeader(&file);
 	}
+
 	// If write buffer is not full yet, don't do anything else
 	bool isBufferFull = writePosition >= WRITE_BUFFER_LENGTH - FRAME_PAYLOAD_BUFFER_SIZE;
 	bool isGameComplete = fileOption == 2;
@@ -227,106 +220,14 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 
 	u32 wrote;
 	f_write(&file, writeBuffer, writePosition, &wrote);
+	writtenByteCount += writePosition;
+
 	if (fileOption == 2) {
+		completeFile(&file);
 		f_close(&file);
 	}
 	
-	sync_after_write(writeBuffer, writePosition);
-
-	dbgprintf("Bytes written: %d/%d...\r\n", wrote, writePosition);
-	
 	writePosition = 0;
-	
-	// dbgprintf("%02X%02X\r\n", payload[0], payload[1]);
-
-	// DEBUG MESSAGES RECEIVED
-	// char *toWrite = malloc((2 * length) + 1);
-
-	// int i = 0;
-	// while (i < length)
-	// {
-	// 	_sprintf(&toWrite[i * 2], "%02X", payload[i]);
-	// 	i++;
-	// }
-
-	// toWrite[(2 * length) + 1] = '\0';
-
-	// dbgprintf("%s\r\n", toWrite);
-
-	// free(toWrite);
-
-	// WRITE FILE TEST
-	// if (fileOption == 1) {
-	// 	dbgprintf("Creating File...\r\n");
-	// 	createSlpFile();
-	// }
-
-	// writeSlpFile(payload, length);
-
-	// if (fileOption == 2) {
-	// 	dbgprintf("Closing File...\r\n");
-	// 	closeSlpFile();
-	// }
-
-	// std::vector<u8> dataToWrite;
-	// if (fileOption == 1) {
-	// 	// If the game sends over option 1 that means a file should be created
-	// 	createNewFile();
-
-	// 	// Start ubjson file and prepare the "raw" element that game
-	// 	// data output will be dumped into. The size of the raw output will
-	// 	// be initialized to 0 until all of the data has been received
-	// 	std::vector<u8> headerBytes(
-	// 		{ '{', 'U', 3, 'r', 'a', 'w', '[', '$', 'U', '#', 'l', 0, 0, 0, 0 }
-	// 	);
-	// 	dataToWrite.insert(dataToWrite.end(), headerBytes.begin(), headerBytes.end());
-
-	// 	// Used to keep track of how many bytes have been written to the file
-	// 	writtenByteCount = 0;
-
-	// 	// Used to track character usage (sheik/zelda)
-	// 	characterUsage.clear();
-
-	// 	// Reset lastFrame
-	// 	lastFrame = Slippi::GAME_FIRST_FRAME;
-	// }
-
-	// // If no file, do nothing
-	// if (!m_file) {
-	// 	return;
-	// }
-
-	// // Update fields relevant to generating metadata at the end
-	// updateMetadataFields(payload, length);
-
-	// // Add the payload to data to write
-	// dataToWrite.insert(dataToWrite.end(), payload, payload + length);
-	// writtenByteCount += length;
-
-	// // If we are going to close the file, generate data to complete the UBJSON file
-	// if (fileOption == 2) {
-	// 	// This option indicates we are done sending over body
-	// 	std::vector<u8> closingBytes = generateMetadata();
-	// 	closingBytes.push_back('}');
-	// 	dataToWrite.insert(dataToWrite.end(), closingBytes.begin(), closingBytes.end());
-	// }
-
-	// // Write data to file
-	// bool result = m_file.WriteBytes(&dataToWrite[0], dataToWrite.size());
-	// if (!result) {
-	// 	ERROR_LOG(EXPANSIONINTERFACE, "Failed to write data to file.");
-	// }
-
-	// // If file should be closed, close it
-	// if (fileOption == 2) {
-	// 	// Write the number of bytes for the raw output
-	// 	std::vector<u8> sizeBytes = uint32ToVector(writtenByteCount);
-	// 	m_file.Seek(11, 0);
-	// 	m_file.WriteBytes(&sizeBytes[0], sizeBytes.size());
-
-	// 	// Close file
-	// 	closeFile();
-	// }
 }
 
 void SlippiImmWrite(u32 data, u32 size)
