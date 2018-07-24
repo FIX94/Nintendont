@@ -8,7 +8,7 @@
 
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
-#define WRITE_BUFFER_LENGTH 0x400
+#define WRITE_BUFFER_LENGTH 0x800
 #define PAYLOAD_SIZES_BUFFER_SIZE 10
 #define FOOTER_BUFFER_LENGTH 200
 
@@ -22,10 +22,27 @@ enum
 	CMD_RECEIVE_GAME_END = 0x39,
 };
 
+// Thread stuff
+static u32 Slippi_Thread = 0;
+extern char __slippi_stack_addr, __slippi_stack_size;
+
+volatile bool isWritingSlp = false;
+
+typedef struct BufferAccess {
+	bool isInUse; // Is set to true when main thread starts writting to this buf
+	bool isFilled; // Is set to true when main thread finished writting to this buf
+	u8 fileAction; // 0 = no action, 1 = create file, 2 = close file
+	u32 len; // Length of the data in the buffer
+	u8 buffer[WRITE_BUFFER_LENGTH]; // Data to write
+} bufferAccess;
+
+#define BUFFER_ACCESS_COUNT 3
+static bufferAccess accessManager[BUFFER_ACCESS_COUNT];
+static u32 writeBufferIndex = 0;
+static u32 processBufferIndex = 0;
+
 // File writing stuff
 static u32 fileIndex = 1;
-static u8 *writeBuffer;
-static u32 writePosition = 0;
 
 // .slp File creation stuff
 static u32 writtenByteCount = 0;
@@ -49,12 +66,13 @@ void SlippiInit()
 	// it starts at 0 then the command is ignored and nothing ever happens
 	payloadSizes[0] = 1;
 
-	writeBuffer = (u8*)malloca(WRITE_BUFFER_LENGTH, 32);
+	Slippi_Thread = do_thread_create(SlippiHandlerThread, ((u32*)&__slippi_stack_addr), ((u32)(&__slippi_stack_size)), 0x78);
+	thread_continue(Slippi_Thread);
 }
 
 void SlippiShutdown()
 {
-	// Do nothing
+	thread_cancel(Slippi_Thread, 0);
 }
 
 char *generateFileName(bool isNewFile)
@@ -111,6 +129,10 @@ void updateMetadataFields(u8* payload, u32 length) {
 		// Only need to update if this is a post frame update
 		return;
 	}
+
+	// TODO: Consider moving this stuff into a message, feels wrong
+	// TODO: using this data in the thread without communicating through
+	// TODO: the buffers
 
 	// Keep track of last frame
 	lastFrame = payload[1] << 24 | payload[2] << 16 | payload[3] << 8 | payload[4];
@@ -181,53 +203,35 @@ void completeFile(FIL *file) {
 
 void processPayload(u8 *payload, u32 length, u8 fileOption)
 {
+	bufferAccess *currentBuffer = &accessManager[writeBufferIndex];
+	if (currentBuffer->isFilled) {
+		dbgprintf("ERROR: Buffers not processed fast enough\r\n");
+	}
+
+	// Mark this buffer as in use. Is this needed?
+	currentBuffer->isInUse = true;
+	if (fileOption > 0) {
+		currentBuffer->fileAction = fileOption;
+	}
+
 	// Copy data to write buffer
-	memcpy(&writeBuffer[writePosition], payload, length);
-	writePosition += length;
+	u32 writePos = currentBuffer->len;
+	memcpy(&currentBuffer->buffer[writePos], payload, length);
+	currentBuffer->len += length;
 	
 	updateMetadataFields(payload, length);
 
-	static FIL file;
-	static bool fileOpen = false;
-	if (fileOption == 1) {
-		DIFinishAsync();
-
-		dbgprintf("Creating File...\r\n");
-		char* fileName = generateFileName(true);
-		FRESULT fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
-
-		if (fileOpenResult != FR_OK) {
-			fileOpen = false;
-			dbgprintf("ERROR: Failed to open file: %d...\r\n", fileOpenResult);
-			return;
-		}
-
-		writtenByteCount = 0;
-		fileOpen = true;
-
-		writeHeader(&file);
-	}
-
 	// If write buffer is not full yet, don't do anything else
-	bool isBufferFull = writePosition >= WRITE_BUFFER_LENGTH - FRAME_PAYLOAD_BUFFER_SIZE;
+	bool isBufferFull = currentBuffer->len >= WRITE_BUFFER_LENGTH - FRAME_PAYLOAD_BUFFER_SIZE;
 	bool isGameComplete = fileOption == 2;
-	bool shouldWrite = fileOpen && (isBufferFull || isGameComplete);
+	bool isGameStart = payload[0] == CMD_RECEIVE_GAME_INFO;
+	bool shouldWrite = isBufferFull || isGameComplete || isGameStart;
 	if (!shouldWrite) {
 		return;
 	}
 
-	DIFinishAsync();
-
-	u32 wrote;
-	f_write(&file, writeBuffer, writePosition, &wrote);
-	writtenByteCount += writePosition;
-
-	if (fileOption == 2) {
-		completeFile(&file);
-		f_close(&file);
-	}
-	
-	writePosition = 0;
+	currentBuffer->isFilled = true;
+	writeBufferIndex = (writeBufferIndex + 1) % BUFFER_ACCESS_COUNT;
 }
 
 void SlippiImmWrite(u32 data, u32 size)
@@ -323,4 +327,66 @@ void SlippiDmaWrite(const void *buf, u32 len) {
 		processPayload(&(m_payload[0]), len, 0);
 		break;
 	}
+}
+
+void handleCurrentBuffer() {
+	bufferAccess *currentBuffer = &accessManager[processBufferIndex];
+	if (!currentBuffer->isFilled) {
+		return;
+	}
+
+	dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
+
+	DIFinishAsync(); //DONT ever try todo file i/o async
+	isWritingSlp = true;
+
+	static FIL file;
+	if (currentBuffer->fileAction == 1) {
+		dbgprintf("Creating File...\r\n");
+		char* fileName = generateFileName(true);
+		FRESULT fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
+
+		if (fileOpenResult != FR_OK) {
+			dbgprintf("ERROR: Failed to open file: %d...\r\n", fileOpenResult);
+			mdelay(100);
+			return;
+		}
+
+		writtenByteCount = 0;
+		writeHeader(&file);
+	}
+
+	u32 wrote;
+	f_write(&file, currentBuffer->buffer, currentBuffer->len, &wrote);
+	writtenByteCount += currentBuffer->len;
+
+	f_sync(&file);
+
+	if (currentBuffer->fileAction == 2) {
+		completeFile(&file);
+		f_close(&file);
+	}
+
+	dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
+
+	currentBuffer->len = 0;
+	currentBuffer->fileAction = 0;
+	currentBuffer->isInUse = false;
+	currentBuffer->isFilled = false;
+	
+	processBufferIndex = (processBufferIndex + 1) % BUFFER_ACCESS_COUNT;
+
+	isWritingSlp = false;
+}
+
+u32 SlippiHandlerThread(void *arg) {
+	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
+
+	while(1)
+	{
+		mdelay(10);
+		handleCurrentBuffer();
+	}
+
+	return 0;
 }

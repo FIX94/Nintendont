@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "HID.h"
 #include "BT.h"
 #include "usbstorage.h"
+// #include "Slippi.h"
 
 #include "ff_utf8.h"
 static u8 DummyBuffer[0x1000] __attribute__((aligned(32)));
@@ -49,6 +50,8 @@ extern u32 s_cnt;
 #else
 extern int dbgprintf( const char *fmt, ...);
 #endif
+
+extern volatile bool isWritingSlp;
 
 struct ipcmessage DI_CallbackMsg;
 u32 DI_MessageQueue = 0xFFFFFFFF;
@@ -914,7 +917,7 @@ u32 DIReadThread(void *arg)
 
 void DIFinishAsync()
 {
-	while(DiscCheckAsync() == false)
+	while(DiscCheckAsync() == false || isWritingSlp)
 	{
 		udelay(200); //wait for driver
 		CheckOSReport();
