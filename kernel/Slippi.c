@@ -305,9 +305,18 @@ void SlippiImmWrite(u32 data, u32 size)
 
 void SlippiDmaWrite(const void *buf, u32 len) {
 	sync_before_read((void*)buf, len);
-	memcpy(&m_payload, buf, len);
-	sync_after_write(&m_payload, len);
+	memcpy(&m_payload[0], buf, len);
+	sync_after_write(&m_payload[0], len);
 	
+	dbgprintf("Length of payload: %d\r\n", len);
+
+	u32 i = 0;
+	while (i < len) {
+		dbgprintf("%02X", m_payload[i]);
+		i += 1;
+	}
+	dbgprintf("\r\n");
+
 	u8 command = m_payload[0];
 	
 	// Handle payloads
@@ -334,8 +343,6 @@ void handleCurrentBuffer() {
 	}
 
 	dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
-
-	// DIFinishAsync(); //DONT ever try todo file i/o async
 
 	static FIL file;
 	if (currentBuffer->fileAction == 1) {
@@ -376,7 +383,7 @@ void handleCurrentBuffer() {
 		f_close(&file);
 	}
 
-	// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
+	dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 
 	currentBuffer->len = 0;
 	currentBuffer->fileAction = 0;
