@@ -354,19 +354,29 @@ void handleCurrentBuffer() {
 	}
 
 	u32 wrote;
+
+	dbgprintf("About to f_write...\r\n");
+	u32 writeStartTime = read32(HW_TIMER);
 	f_write(&file, currentBuffer->buffer, currentBuffer->len, &wrote);
+	u32 writeTime = TimerDiffTicks(writeStartTime);
+	dbgprintf("Time to write: %d ms\r\n", (u32)(writeTime * 0.0005267));
+
 	writtenByteCount += currentBuffer->len;
 
+	dbgprintf("About to f_sync...\r\n");
+	u32 syncStartTime = read32(HW_TIMER);
 	f_sync(&file);
+	u32 syncTime = TimerDiffTicks(syncStartTime);
+	dbgprintf("Time to sync: %d ms\r\n", (u32)(syncTime * 0.0005267));
 
 	if (currentBuffer->fileAction == 2) {
+		// TODO: For some reason the last file doesn't get a footer written. Figure out why
 		dbgprintf("Completing File...\r\n");
 		completeFile(&file);
-		f_sync(&file);
 		f_close(&file);
 	}
 
-	dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
+	// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 
 	currentBuffer->len = 0;
 	currentBuffer->fileAction = 0;
