@@ -166,23 +166,11 @@
 / Drive/Volume Configurations
 /---------------------------------------------------------------------------*/
 
-#ifdef __PPC__
-// Nintendont loader: Support both SD and USB at the same time.
+// Support both SD and USB at the same time.
 #define _VOLUMES	2
-#else /* !__PPC__ */
-// Nintendont kernel: Only one device at a time.
-#define _VOLUMES	1
-#endif /* __PPC__ */
-/* Number of volumes (logical drives) to be used. */
 
-
-#ifdef __PPC__
-// Nintendont loader: Use volume names.
+// Use volume names.
 #define _STR_VOLUME_ID	1
-#else /* !__PPC__ */
-// Nintendont kernel: No volume names.
-#define _STR_VOLUME_ID	0
-#endif /* __PPC__ */
 #define _VOLUME_STRS	"SD","USB"
 /* _STR_VOLUME_ID switches string support of volume ID.
 /  When _STR_VOLUME_ID is set to 1, also pre-defined strings can be used as drive

@@ -175,6 +175,38 @@ DRESULT disk_write_usb (
 }
 
 
+DRESULT disk_read_both (
+	BYTE pdrv,		/* Physical drive nmuber to identify the drive */
+	BYTE *buff,		/* Data buffer to store read data */
+	DWORD sector,	/* Sector address in LBA */
+	UINT count		/* Number of sectors to read */
+)
+{
+	if (pdrv == DEV_SD) {
+		return disk_read_sd(pdrv, buff, sector, count);
+	} else if (pdrv == DEV_USB) {
+		return disk_read_usb(pdrv, buff, sector, count);
+	}
+
+	return RES_PARERR;
+}
+
+DRESULT disk_write_both (
+	BYTE pdrv,			/* Physical drive nmuber to identify the drive */
+	const BYTE *buff,	/* Data to be written */
+	DWORD sector,		/* Sector address in LBA */
+	UINT count			/* Number of sectors to write */
+)
+{
+	if (pdrv == DEV_SD) {
+		return disk_write_sd(pdrv, buff, sector, count);
+	} else if (pdrv == DEV_USB) {
+		return disk_write_usb(pdrv, buff, sector, count);
+	}
+
+	return RES_PARERR;
+}
+
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */
 /*-----------------------------------------------------------------------*/
@@ -228,14 +260,6 @@ DiskReadFunc disk_read;
 DiskWriteFunc disk_write;
 void SetDiskFunctions(DWORD usb)
 {
-	if(usb == 1)
-	{
-		disk_read = disk_read_usb;
-		disk_write = disk_write_usb;
-	}
-	else
-	{
-		disk_read = disk_read_sd;
-		disk_write = disk_write_sd;
-	}
+	disk_read = disk_read_both;
+	disk_write = disk_write_both;
 }

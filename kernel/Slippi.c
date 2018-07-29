@@ -8,8 +8,8 @@
 
 #define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
-#define WRITE_BUFFER_LENGTH 0x800
-#define PAYLOAD_SIZES_BUFFER_SIZE 10
+#define WRITE_BUFFER_LENGTH 0x1000
+#define PAYLOAD_SIZES_BUFFER_SIZE 20
 #define FOOTER_BUFFER_LENGTH 200
 
 enum
@@ -26,8 +26,6 @@ enum
 static u32 Slippi_Thread = 0;
 extern char __slippi_stack_addr, __slippi_stack_size;
 
-volatile bool isWritingSlp = false;
-
 typedef struct BufferAccess {
 	bool isInUse; // Is set to true when main thread starts writting to this buf
 	bool isFilled; // Is set to true when main thread finished writting to this buf
@@ -36,7 +34,7 @@ typedef struct BufferAccess {
 	u8 buffer[WRITE_BUFFER_LENGTH]; // Data to write
 } bufferAccess;
 
-#define BUFFER_ACCESS_COUNT 3
+#define BUFFER_ACCESS_COUNT 10
 static bufferAccess accessManager[BUFFER_ACCESS_COUNT];
 static u32 writeBufferIndex = 0;
 static u32 processBufferIndex = 0;
@@ -87,7 +85,7 @@ char *generateFileName(bool isNewFile)
 
 	static char pathStr[30];
 
-	_sprintf(&pathStr[0], "/Slippi/Game-%d.slp", fileIndex);
+	_sprintf(&pathStr[0], "usb:/Slippi/Game-%d.slp", fileIndex);
 
 	if (isNewFile) {
 		fileIndex += 1;
@@ -337,8 +335,7 @@ void handleCurrentBuffer() {
 
 	dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
 
-	DIFinishAsync(); //DONT ever try todo file i/o async
-	isWritingSlp = true;
+	// DIFinishAsync(); //DONT ever try todo file i/o async
 
 	static FIL file;
 	if (currentBuffer->fileAction == 1) {
@@ -363,7 +360,9 @@ void handleCurrentBuffer() {
 	f_sync(&file);
 
 	if (currentBuffer->fileAction == 2) {
+		dbgprintf("Completing File...\r\n");
 		completeFile(&file);
+		f_sync(&file);
 		f_close(&file);
 	}
 
@@ -375,8 +374,6 @@ void handleCurrentBuffer() {
 	currentBuffer->isFilled = false;
 	
 	processBufferIndex = (processBufferIndex + 1) % BUFFER_ACCESS_COUNT;
-
-	isWritingSlp = false;
 }
 
 u32 SlippiHandlerThread(void *arg) {

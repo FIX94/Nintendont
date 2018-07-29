@@ -51,8 +51,6 @@ extern u32 s_cnt;
 extern int dbgprintf( const char *fmt, ...);
 #endif
 
-extern volatile bool isWritingSlp;
-
 struct ipcmessage DI_CallbackMsg;
 u32 DI_MessageQueue = 0xFFFFFFFF;
 static u8 *DI_MessageHeap = NULL;
@@ -917,7 +915,7 @@ u32 DIReadThread(void *arg)
 
 void DIFinishAsync()
 {
-	while(DiscCheckAsync() == false || isWritingSlp)
+	while(DiscCheckAsync() == false)
 	{
 		udelay(200); //wait for driver
 		CheckOSReport();
