@@ -150,6 +150,7 @@ void writeHeader(FIL *file) {
 
 	u32 wrote;
 	f_write(file, header, sizeof(header), &wrote);
+	f_sync(file);
 }
 
 void completeFile(FIL *file) {
@@ -194,9 +195,11 @@ void completeFile(FIL *file) {
 	// Write footer
 	u32 wrote;
 	f_write(file, footer, writePos, &wrote);
+	f_sync(file);
 
 	f_lseek(file, 11);
 	f_write(file, &writtenByteCount, 4, &wrote);
+	f_sync(file);
 }
 
 void processPayload(u8 *payload, u32 length, u8 fileOption)
@@ -306,7 +309,6 @@ void SlippiImmWrite(u32 data, u32 size)
 void SlippiDmaWrite(const void *buf, u32 len) {
 	sync_before_read((void*)buf, len);
 	memcpy(&m_payload[0], buf, len);
-	sync_after_write(&m_payload[0], len);
 	
 	// dbgprintf("Length of payload: %d\r\n", len);
 
