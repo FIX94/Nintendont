@@ -34,7 +34,7 @@ typedef struct BufferAccess {
 	u8 buffer[WRITE_BUFFER_LENGTH]; // Data to write
 } bufferAccess;
 
-#define BUFFER_ACCESS_COUNT 10
+#define BUFFER_ACCESS_COUNT 20
 static bufferAccess accessManager[BUFFER_ACCESS_COUNT];
 static u32 writeBufferIndex = 0;
 static u32 processBufferIndex = 0;
@@ -308,14 +308,14 @@ void SlippiDmaWrite(const void *buf, u32 len) {
 	memcpy(&m_payload[0], buf, len);
 	sync_after_write(&m_payload[0], len);
 	
-	dbgprintf("Length of payload: %d\r\n", len);
+	// dbgprintf("Length of payload: %d\r\n", len);
 
-	u32 i = 0;
-	while (i < len) {
-		dbgprintf("%02X", m_payload[i]);
-		i += 1;
-	}
-	dbgprintf("\r\n");
+	// u32 i = 0;
+	// while (i < len) {
+	// 	dbgprintf("%02X", m_payload[i]);
+	// 	i += 1;
+	// }
+	// dbgprintf("\r\n");
 
 	u8 command = m_payload[0];
 	
@@ -362,19 +362,19 @@ void handleCurrentBuffer() {
 
 	u32 wrote;
 
-	dbgprintf("About to f_write...\r\n");
-	u32 writeStartTime = read32(HW_TIMER);
+	// dbgprintf("About to f_write...\r\n");
+	// u32 writeStartTime = read32(HW_TIMER);
 	f_write(&file, currentBuffer->buffer, currentBuffer->len, &wrote);
-	u32 writeTime = TimerDiffTicks(writeStartTime);
-	dbgprintf("Time to write: %d ms\r\n", (u32)(writeTime * 0.0005267));
+	// u32 writeTime = TimerDiffTicks(writeStartTime);
+	// dbgprintf("Time to write: %d ms\r\n", (u32)(writeTime * 0.0005267));
 
 	writtenByteCount += currentBuffer->len;
 
-	dbgprintf("About to f_sync...\r\n");
-	u32 syncStartTime = read32(HW_TIMER);
+	// dbgprintf("About to f_sync...\r\n");
+	// u32 syncStartTime = read32(HW_TIMER);
 	f_sync(&file);
-	u32 syncTime = TimerDiffTicks(syncStartTime);
-	dbgprintf("Time to sync: %d ms\r\n", (u32)(syncTime * 0.0005267));
+	// u32 syncTime = TimerDiffTicks(syncStartTime);
+	// dbgprintf("Time to sync: %d ms\r\n", (u32)(syncTime * 0.0005267));
 
 	if (currentBuffer->fileAction == 2) {
 		// TODO: For some reason the last file doesn't get a footer written. Figure out why
