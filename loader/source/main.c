@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <di/di.h>
 #include <unistd.h>
 #include <locale.h>
+#include <network.h>
 
 #include "exi.h"
 #include "dip.h"
@@ -673,6 +674,38 @@ int main(int argc, char **argv)
 		   and it seems to break some consoles to reload IOS */
 	//	IOS_ReloadIOS(58);
 	//}
+
+	/* Initialize the network immediately here for Slippi with the libogc
+	 * implementation in `if_config()`. You might want to ultimately push
+	 * this further back into some kind of menu so you can at least give
+	 * users a choice (or something).
+	 *
+	 * This needs to happen at some point, and it's probably easier to do
+	 * in PPC-land. `if_config()` will die with -24 if you do this too
+	 * late in the function here - I suspect this has something to do with
+	 * (a) kernel being patched, or perhaps (b) libogc loses something
+	 * necessary for success when we `__ES_Close()`.
+	 *
+	 * ~meta
+	 */
+
+	if(argsboot == false)
+		ShowMessageScreen("Initializing network ...");
+
+	char addr[16] = {0};
+	char mask[16] = {0};
+	char gw[16] = {0};
+	s32 net_status = if_config(addr, mask, gw, TRUE, 20);
+	if (net_status < 0) {
+		ClearScreen();
+		gprintf("Couldn't initialize Wi-fi networking! (%d)\n", net_status);
+		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232,
+			"Couldn't initialize networking! (%d)", net_status);
+		usleep(3000000);
+		//ExitToLoader(1);
+	}
+	gprintf("Network initialized: IP=%s\n", addr);
+
 
 	// Preparing Nintendont Kernel...
 	if(argsboot == false)
