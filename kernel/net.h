@@ -6,6 +6,18 @@
 #define SOCK_STREAM	1
 #define AF_INET		2
 
+/* From marcan - see git://git.bootmii.org/var/git/mini.git
+ * Looks like this is also used in libogc code */
+
+#define ALIGNED(x) __attribute__((aligned(x)))
+#define STACK_ALIGN(type, name, cnt, alignment)				\
+	u8 _al__##name[((sizeof(type)*(cnt)) + (alignment) +		\
+	(((sizeof(type)*(cnt))%(alignment)) > 0 ? ((alignment) -	\
+	((sizeof(type)*(cnt))%(alignment))) : 0))];			\
+	type *name = (type*)(((u32)(_al__##name)) + ((alignment) - ((	\
+	(u32)(_al__##name))&((alignment)-1))))
+
+
 /* Structures describing IOCTL parameters */
 
 struct address {
@@ -22,6 +34,12 @@ struct bind_params {
 	struct address addr;
 };
 
+struct connect_params {
+	unsigned int socket;
+	unsigned int has_addr;
+	struct address addr;
+};
+
 struct sendto_params {
 	unsigned int socket;
 	unsigned int flags;
@@ -29,8 +47,7 @@ struct sendto_params {
 	struct address addr;
 };
 
-
-/* These IOCTL definitions are from `libogc/network_wii.c`, and are also 
+/* These IOCTL definitions are from `libogc/network_wii.c`, and are also
  * in Dolphin (I think?) */
 
 enum {
