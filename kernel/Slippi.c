@@ -1,15 +1,14 @@
 #include "Slippi.h"
-#include "time.h"
 #include "alloc.h"
 #include "debug.h"
 #include "string.h"
 #include "ff_utf8.h"
 #include "DI.h"
 
-#define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
+#define RECEIVE_BUFFER_SIZE 1000 // Must be longer than the games' transfer buffer (currently 784)
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
-#define WRITE_BUFFER_LENGTH 0x800
-#define PAYLOAD_SIZES_BUFFER_SIZE 10
+#define WRITE_BUFFER_LENGTH 0x1000
+#define PAYLOAD_SIZES_BUFFER_SIZE 20
 #define FOOTER_BUFFER_LENGTH 200
 
 enum
@@ -26,8 +25,6 @@ enum
 static u32 Slippi_Thread = 0;
 extern char __slippi_stack_addr, __slippi_stack_size;
 
-volatile bool isWritingSlp = false;
-
 typedef struct BufferAccess {
 	bool isInUse; // Is set to true when main thread starts writting to this buf
 	bool isFilled; // Is set to true when main thread finished writting to this buf
@@ -36,7 +33,7 @@ typedef struct BufferAccess {
 	u8 buffer[WRITE_BUFFER_LENGTH]; // Data to write
 } bufferAccess;
 
-#define BUFFER_ACCESS_COUNT 3
+#define BUFFER_ACCESS_COUNT 35 // need lots of buffers for 4 ICs. 37 is max
 static bufferAccess accessManager[BUFFER_ACCESS_COUNT];
 static u32 writeBufferIndex = 0;
 static u32 processBufferIndex = 0;
@@ -48,13 +45,8 @@ static u32 fileIndex = 1;
 static u32 writtenByteCount = 0;
 
 // vars for metadata generation
-// time_t gameStartTime;
+u32 gameStartTime;
 s32 lastFrame;
-
-// Payload
-static u32 m_payload_loc = 0;
-static u8 m_payload_type = CMD_UNKNOWN;
-static u8 m_payload[PAYLOAD_BUFFER_SIZE];
 
 // Payload Sizes
 static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
@@ -75,6 +67,18 @@ void SlippiShutdown()
 	thread_cancel(Slippi_Thread, 0);
 }
 
+//we cant include time.h so hardcode what we need
+struct tm
+{
+	int tm_sec;
+	int tm_min;
+	int tm_hour;
+	int tm_mday;
+	int tm_mon;
+	int tm_year;
+};
+extern struct tm *gmtime(u32 *time);
+
 char *generateFileName(bool isNewFile)
 {
 	// // Add game start time
@@ -85,9 +89,13 @@ char *generateFileName(bool isNewFile)
 	// std::string str(&dateTimeBuf[0]);
 	// return StringFromFormat("Slippi/Game_%s.slp", str.c_str());
 
-	static char pathStr[30];
+	static char pathStr[50];
+	struct tm *tmp = gmtime(&gameStartTime);
 
-	_sprintf(&pathStr[0], "/Slippi/Game-%d.slp", fileIndex);
+	_sprintf(
+		&pathStr[0], "usb:/Slippi/Game_%04d%02d%02dT%02d%02d%02d.slp", tmp->tm_year + 1900,
+		tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec
+	);
 
 	if (isNewFile) {
 		fileIndex += 1;
@@ -117,8 +125,7 @@ void configureCommands(u8 *payload, u8 length)
 		u16 commandPayloadSize = payload[i + 1] << 8 | payload[i + 2];
 		payloadSizes[commandByte - CMD_RECEIVE_COMMANDS] = commandPayloadSize;
 
-		// if (debugCounter <= debugMax)
-		// 	dbgprintf("Index: %02X, Size: %02X\r\n", commandByte - CMD_RECEIVE_COMMANDS, commandPayloadSize);
+		// dbgprintf("Index: 0x%02X, Size: 0x%02X\r\n", commandByte - CMD_RECEIVE_COMMANDS, commandPayloadSize);
 
 		i += 3;
 	}
@@ -152,6 +159,7 @@ void writeHeader(FIL *file) {
 
 	u32 wrote;
 	f_write(file, header, sizeof(header), &wrote);
+	f_sync(file);
 }
 
 void completeFile(FIL *file) {
@@ -165,7 +173,13 @@ void completeFile(FIL *file) {
 	writePos += writeLen;
 
 	// Write startAt
-	char timeStr[] = "2011-10-08T07:07:09Z"; // TODO: get actual time str
+	// TODO: Figure out how to specify time zone
+	char timeStr[] = "2011-10-08T07:07:09";
+	struct tm *tmp = gmtime(&gameStartTime);
+	_sprintf(
+		&timeStr[0], "%04d-%02d-%02dT%02d:%02d:%02d", tmp->tm_year + 1900,
+		tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec
+	);
 	u8 startAtOpener[] = { 'U', 7, 's', 't', 'a', 'r', 't', 'A', 't', 'S', 'U', (u8)sizeof(timeStr) };
 	writeLen = sizeof(startAtOpener);
 	memcpy(&footer[writePos], startAtOpener, writeLen);
@@ -196,9 +210,11 @@ void completeFile(FIL *file) {
 	// Write footer
 	u32 wrote;
 	f_write(file, footer, writePos, &wrote);
+	f_sync(file);
 
 	f_lseek(file, 11);
 	f_write(file, &writtenByteCount, 4, &wrote);
+	f_sync(file);
 }
 
 void processPayload(u8 *payload, u32 length, u8 fileOption)
@@ -234,99 +250,43 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 	writeBufferIndex = (writeBufferIndex + 1) % BUFFER_ACCESS_COUNT;
 }
 
-void SlippiImmWrite(u32 data, u32 size)
-{
-	bool lookingForMessage = m_payload_type == CMD_UNKNOWN;
-	if (lookingForMessage)
-	{
-		// If the size is not one, this can't be the start of a command
-		if (size != 1)
-		{
-			return;
-		}
-
-		m_payload_type = data >> 24;
-
-		// Attempt to get payload size for this command. If not found, don't do anything
-		// Obviously as written, commands with payloads of size zero will not work, there
-		// are currently no such commands atm
-		u16 payloadSize = getPayloadSize(m_payload_type);
-		if (payloadSize == 0)
-		{
-			m_payload_type = CMD_UNKNOWN;
-			return;
-		}
-	}
-
-	// Add new data to payload
-	int i = 0;
-	while (i < size)
-	{
-		int shiftAmount = 8 * (3 - i);
-		u8 byte = 0xFF & (data >> shiftAmount);
-		m_payload[m_payload_loc] = byte;
-
-		m_payload_loc += 1;
-
-		i++;
-	}
-
-	// This section deals with saying we are done handling the payload
-	// add one because we count the command as part of the total size
-	u16 payloadSize = getPayloadSize(m_payload_type);
-	if (m_payload_type == CMD_RECEIVE_COMMANDS && m_payload_loc > 1)
-	{
-		// the receive commands command tells us exactly how long it is
-		// this is to make adding new commands easier
-		payloadSize = m_payload[1];
-	}
-
-	if (m_payload_loc >= payloadSize + 1)
-	{
-		// Handle payloads
-		switch (m_payload_type)
-		{
-		case CMD_RECEIVE_COMMANDS:
-			// time(&gameStartTime); // Store game start time
-			configureCommands(&m_payload[1], m_payload_loc - 1);
-			processPayload(&m_payload[0], m_payload_loc, 1);
-			break;
-		case CMD_RECEIVE_GAME_END:
-			processPayload(&m_payload[0], m_payload_loc, 2);
-			break;
-		default:
-			processPayload(&m_payload[0], m_payload_loc, 0);
-			break;
-		}
-
-		// reset payload loc and type so we look for next command
-		m_payload_loc = 0;
-		m_payload_type = CMD_UNKNOWN;
-	}
-}
-
 void SlippiDmaWrite(const void *buf, u32 len) {
+	static u8 receiveBuf[RECEIVE_BUFFER_SIZE];
+
 	sync_before_read((void*)buf, len);
-	memcpy(&m_payload, buf, len);
-	sync_after_write(&m_payload, len);
-	
-	u8 command = m_payload[0];
+	memcpy(&receiveBuf[0], buf, len);
+
+	// dbgprintf("Received buf with len: %d\r\n", len);
+
+	u32 bufLoc = 0;
+
+	u8 command = receiveBuf[0];
+	if (command == CMD_RECEIVE_COMMANDS) {
+		gameStartTime = GetCurrentTime();
+		u8 receiveCommandsLen = receiveBuf[1];
+		configureCommands(&receiveBuf[1], receiveCommandsLen);
+		processPayload(&receiveBuf[0], receiveCommandsLen + 1, 1);
+		bufLoc += receiveCommandsLen + 1;
+	}
 	
 	// Handle payloads
-	switch (command)
-	{
-	case CMD_RECEIVE_COMMANDS:
-		// time(&gameStartTime); // Store game start time
-		configureCommands(&(m_payload[1]), len - 1);
-		processPayload(&(m_payload[0]), len, 1);
-		break;
-	case CMD_RECEIVE_GAME_END:
-		processPayload(&(m_payload[0]), len, 2);
-		break;
-	default:
-		processPayload(&(m_payload[0]), len, 0);
-		break;
+	while (bufLoc < len) {
+		command = receiveBuf[bufLoc];
+		u16 payloadLen = getPayloadSize(command);
+		if (payloadLen == 0) {
+			// This should never happen, do something else if it does?
+			return;
+		}
+
+		// dbgprintf("Processing buf at %d with len %d and command 0x%02X\r\n", bufLoc, payloadLen, command);
+
+		// process this payload and close file if this is a game end command
+		u8 fileOption = command == CMD_RECEIVE_GAME_END ? 2 : 0;
+		processPayload(&receiveBuf[bufLoc], payloadLen + 1, fileOption);
+
+		bufLoc += payloadLen + 1;
 	}
+
 }
 
 void handleCurrentBuffer() {
@@ -335,10 +295,7 @@ void handleCurrentBuffer() {
 		return;
 	}
 
-	dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
-
-	DIFinishAsync(); //DONT ever try todo file i/o async
-	isWritingSlp = true;
+	// dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
 
 	static FIL file;
 	if (currentBuffer->fileAction == 1) {
@@ -357,17 +314,29 @@ void handleCurrentBuffer() {
 	}
 
 	u32 wrote;
+
+	// dbgprintf("About to f_write...\r\n");
+	// u32 writeStartTime = read32(HW_TIMER);
 	f_write(&file, currentBuffer->buffer, currentBuffer->len, &wrote);
+	// u32 writeTime = TimerDiffTicks(writeStartTime);
+	// dbgprintf("Time to write: %d ms\r\n", (u32)(writeTime * 0.0005267));
+
 	writtenByteCount += currentBuffer->len;
 
+	// dbgprintf("About to f_sync...\r\n");
+	// u32 syncStartTime = read32(HW_TIMER);
 	f_sync(&file);
+	// u32 syncTime = TimerDiffTicks(syncStartTime);
+	// dbgprintf("Time to sync: %d ms\r\n", (u32)(syncTime * 0.0005267));
 
 	if (currentBuffer->fileAction == 2) {
+		// TODO: For some reason the last file doesn't get a footer written. Figure out why
+		dbgprintf("Completing File...\r\n");
 		completeFile(&file);
 		f_close(&file);
 	}
 
-	dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
+	// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 
 	currentBuffer->len = 0;
 	currentBuffer->fileAction = 0;
@@ -375,8 +344,6 @@ void handleCurrentBuffer() {
 	currentBuffer->isFilled = false;
 	
 	processBufferIndex = (processBufferIndex + 1) % BUFFER_ACCESS_COUNT;
-
-	isWritingSlp = false;
 }
 
 u32 SlippiHandlerThread(void *arg) {

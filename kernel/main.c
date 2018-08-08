@@ -51,9 +51,13 @@ u32 USBReadTimer = 0;
 extern u32 s_size;
 extern u32 s_cnt;
 
-static FATFS *fatfs = NULL;
+/** Device mount/unmount. **/
+// 0 == SD, 1 == USB
+static FATFS *devices[2];
+
 //this is just a single / as u16, easier to write in hex
-static const WCHAR fatDevName[2] = { 0x002F, 0x0000 };
+static const WCHAR fatSdName[] = {'s', 'd', ':', 0};
+static const WCHAR fatUsbName[] = {'u', 's', 'b', ':', 0};
 
 extern u32 SI_IRQ;
 extern bool DI_IRQ, EXI_IRQ;
@@ -144,23 +148,26 @@ int _main( int argc, char *argv[] )
 	SetDiskFunctions(UseUSB);
 
 	BootStatus(2, 0, 0);
-	if(UseUSB)
-	{
-		ret = USBStorage_Startup();
-		dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
-	}
-	else
-	{
-		s_size = PAGE_SIZE512; //manually set s_size
-		ret = SDHCInit();
-	}
+	ret = USBStorage_Startup();
+	dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
 	if(ret != 1)
 	{
-		dbgprintf("Device Init failed:%d\r\n", ret );
+		dbgprintf("USB Device Init failed:%d\r\n", ret );
 		BootStatusError(-2, ret);
 		mdelay(4000);
 		Shutdown();
 	}
+
+	s_size = PAGE_SIZE512; //manually set s_size
+	ret = SDHCInit();
+	if(ret != 1)
+	{
+		dbgprintf("SD Device Init failed:%d\r\n", ret );
+		BootStatusError(-2, ret);
+		mdelay(4000);
+		Shutdown();
+	}
+	
 
 	//Verification if we can read from disc
 	if(memcmp(ConfigGetGamePath(), "di", 3) == 0)
@@ -171,9 +178,20 @@ int _main( int argc, char *argv[] )
 			RealDI_Init();
 	}
 	BootStatus(3, 0, 0);
-	fatfs = (FATFS*)malloca( sizeof(FATFS), 32 );
+	devices[0] = (FATFS*)malloca( sizeof(FATFS), 32 );
 
-	s32 res = f_mount( fatfs, fatDevName, 1 );
+	s32 res = f_mount( devices[0], fatSdName, 1 );
+	if( res != FR_OK )
+	{
+		dbgprintf("ES:f_mount() failed:%d\r\n", res );
+		BootStatusError(-3, res);
+		mdelay(4000);
+		Shutdown();
+	}
+
+	devices[1] = (FATFS*)malloca( sizeof(FATFS), 32 );
+
+	res = f_mount( devices[1], fatUsbName, 1 );
 	if( res != FR_OK )
 	{
 		dbgprintf("ES:f_mount() failed:%d\r\n", res );
@@ -208,7 +226,7 @@ int _main( int argc, char *argv[] )
 	}
 
 	if(!UseUSB) //Use FAT values for SD
-		s_cnt = fatfs->n_fatent * fatfs->csize;
+		s_cnt = devices[0]->n_fatent * devices[0]->csize;
 
 	BootStatus(6, s_size, s_cnt);
 
@@ -544,14 +562,16 @@ int _main( int argc, char *argv[] )
 #endif
 
 	//unmount FAT device
-	f_mount(NULL, fatDevName, 1);
-	free(fatfs);
-	fatfs = NULL;
+	f_mount(NULL, fatSdName, 1);
+	free(devices[0]);
+	devices[0] = NULL;
 
-	if(UseUSB)
-		USBStorage_Shutdown();
-	else
-		SDHCShutdown();
+	f_mount(NULL, fatUsbName, 1);
+	free(devices[1]);
+	devices[1] = NULL;
+
+	USBStorage_Shutdown();
+	SDHCShutdown();
 
 //make sure drive led is off before quitting
 	if( access_led ) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
