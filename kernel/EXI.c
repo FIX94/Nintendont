@@ -763,17 +763,7 @@ void EXIUpdateRegistersNEW( void )
 				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-						// TODO: Eventually when we're done debugging this stuff should
-						// TODO: be moved to MEMCARD_B to re-enable mem card emulation
-						// EXIDeviceMemoryCard(0, (u8*)data, len, mode);
-						if (mode == 1) {
-							SlippiImmWrite(data, len);
-						}
-
-						// Write that data has been received
-						write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
-						sync_after_write( (void*)EXI_BASE, 0x20 );
-
+						EXIDeviceMemoryCard(0, (u8*)data, len, mode);
 						break;
 
 					case EXI_DEV_MEMCARD_B:
