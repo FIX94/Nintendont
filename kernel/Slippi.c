@@ -6,7 +6,7 @@
 #include "ff_utf8.h"
 #include "DI.h"
 
-#define PAYLOAD_BUFFER_SIZE 0x200 // Current largest payload is 0x15D in length
+#define PAYLOAD_BUFFER_SIZE 1000 // Must be longer than the games' transfer buffer (currently 784)
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
 #define WRITE_BUFFER_LENGTH 0x1000
 #define PAYLOAD_SIZES_BUFFER_SIZE 20
@@ -34,7 +34,7 @@ typedef struct BufferAccess {
 	u8 buffer[WRITE_BUFFER_LENGTH]; // Data to write
 } bufferAccess;
 
-#define BUFFER_ACCESS_COUNT 20
+#define BUFFER_ACCESS_COUNT 35 // need lots of buffers for 4 ICs. 37 is max
 static bufferAccess accessManager[BUFFER_ACCESS_COUNT];
 static u32 writeBufferIndex = 0;
 static u32 processBufferIndex = 0;
@@ -115,8 +115,7 @@ void configureCommands(u8 *payload, u8 length)
 		u16 commandPayloadSize = payload[i + 1] << 8 | payload[i + 2];
 		payloadSizes[commandByte - CMD_RECEIVE_COMMANDS] = commandPayloadSize;
 
-		// if (debugCounter <= debugMax)
-		// 	dbgprintf("Index: %02X, Size: %02X\r\n", commandByte - CMD_RECEIVE_COMMANDS, commandPayloadSize);
+		// dbgprintf("Index: 0x%02X, Size: 0x%02X\r\n", commandByte - CMD_RECEIVE_COMMANDS, commandPayloadSize);
 
 		i += 3;
 	}
@@ -309,33 +308,38 @@ void SlippiImmWrite(u32 data, u32 size)
 void SlippiDmaWrite(const void *buf, u32 len) {
 	sync_before_read((void*)buf, len);
 	memcpy(&m_payload[0], buf, len);
-	
-	// dbgprintf("Length of payload: %d\r\n", len);
 
-	// u32 i = 0;
-	// while (i < len) {
-	// 	dbgprintf("%02X", m_payload[i]);
-	// 	i += 1;
-	// }
-	// dbgprintf("\r\n");
+	// dbgprintf("Received buf with len: %d\r\n", len);
+
+	u32 bufLoc = 0;
 
 	u8 command = m_payload[0];
+	if (command == CMD_RECEIVE_COMMANDS) {
+		// time(&gameStartTime); // Store game start time
+		u8 receiveCommandsLen = m_payload[1];
+		configureCommands(&m_payload[1], receiveCommandsLen);
+		processPayload(&m_payload[0], receiveCommandsLen + 1, 1);
+		bufLoc += receiveCommandsLen + 1;
+	}
 	
 	// Handle payloads
-	switch (command)
-	{
-	case CMD_RECEIVE_COMMANDS:
-		// time(&gameStartTime); // Store game start time
-		configureCommands(&(m_payload[1]), len - 1);
-		processPayload(&(m_payload[0]), len, 1);
-		break;
-	case CMD_RECEIVE_GAME_END:
-		processPayload(&(m_payload[0]), len, 2);
-		break;
-	default:
-		processPayload(&(m_payload[0]), len, 0);
-		break;
+	while (bufLoc < len) {
+		command = m_payload[bufLoc];
+		u16 payloadLen = getPayloadSize(command);
+		if (payloadLen == 0) {
+			// This should never happen, do something else if it does?
+			return;
+		}
+
+		// dbgprintf("Processing buf at %d with len %d and command 0x%02X\r\n", bufLoc, payloadLen, command);
+
+		// process this payload and close file if this is a game end command
+		u8 fileOption = command == CMD_RECEIVE_GAME_END ? 2 : 0;
+		processPayload(&m_payload[bufLoc], payloadLen + 1, fileOption);
+
+		bufLoc += payloadLen + 1;
 	}
+
 }
 
 void handleCurrentBuffer() {
@@ -344,7 +348,7 @@ void handleCurrentBuffer() {
 		return;
 	}
 
-	dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
+	// dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
 
 	static FIL file;
 	if (currentBuffer->fileAction == 1) {
@@ -385,7 +389,7 @@ void handleCurrentBuffer() {
 		f_close(&file);
 	}
 
-	dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
+	// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 
 	currentBuffer->len = 0;
 	currentBuffer->fileAction = 0;
