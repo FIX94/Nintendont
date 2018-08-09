@@ -28,6 +28,9 @@ int syscall_0a(void *ptr, int n);
 #define mqueue_destroy(a) syscall_0b(a)
 void syscall_0b(int queue);
 
+#define mqueue_send(a, b, c) syscall_0c(a, b, c)
+int syscall_0c(int queue, struct ipcmessage *message, int flags);
+
 #define mqueue_send_now(a, b, c) syscall_0d(a, b, c)
 int syscall_0d(int queue, struct ipcmessage *message, int flags);
 

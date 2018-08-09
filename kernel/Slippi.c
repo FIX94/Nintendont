@@ -11,6 +11,8 @@
 #define PAYLOAD_SIZES_BUFFER_SIZE 20
 #define FOOTER_BUFFER_LENGTH 200
 
+static u32 SlippiHandlerThread(void *arg);
+
 enum
 {
 	CMD_UNKNOWN = 0x0,
@@ -22,27 +24,22 @@ enum
 };
 
 // Thread stuff
-static u32 Slippi_Thread = 0;
+static u32 Slippi_Thread;
+static void *Slippi_MessageHeap;
+static u32 Slippi_MessageQueue;
 extern char __slippi_stack_addr, __slippi_stack_size;
 
 typedef struct BufferAccess {
-	bool isInUse; // Is set to true when main thread starts writting to this buf
-	bool isFilled; // Is set to true when main thread finished writting to this buf
-	u8 fileAction; // 0 = no action, 1 = create file, 2 = close file
-	u32 len; // Length of the data in the buffer
 	u8 buffer[WRITE_BUFFER_LENGTH]; // Data to write
+	struct ipcmessage message;
 } bufferAccess;
 
 #define BUFFER_ACCESS_COUNT 35 // need lots of buffers for 4 ICs. 37 is max
 static bufferAccess accessManager[BUFFER_ACCESS_COUNT];
 static u32 writeBufferIndex = 0;
-static u32 processBufferIndex = 0;
 
 // File writing stuff
 static u32 fileIndex = 1;
-
-// .slp File creation stuff
-static u32 writtenByteCount = 0;
 
 // vars for metadata generation
 u32 gameStartTime;
@@ -58,12 +55,16 @@ void SlippiInit()
 	// it starts at 0 then the command is ignored and nothing ever happens
 	payloadSizes[0] = 1;
 
+	Slippi_MessageHeap = malloca(sizeof(void*) * BUFFER_ACCESS_COUNT, 0x20);
+	Slippi_MessageQueue = mqueue_create(Slippi_MessageHeap, BUFFER_ACCESS_COUNT);
 	Slippi_Thread = do_thread_create(SlippiHandlerThread, ((u32*)&__slippi_stack_addr), ((u32)(&__slippi_stack_size)), 0x78);
 	thread_continue(Slippi_Thread);
 }
 
 void SlippiShutdown()
 {
+	mqueue_destroy(Slippi_MessageQueue);
+	free(Slippi_MessageHeap);
 	thread_cancel(Slippi_Thread, 0);
 }
 
@@ -162,7 +163,7 @@ void writeHeader(FIL *file) {
 	f_sync(file);
 }
 
-void completeFile(FIL *file) {
+void completeFile(FIL *file, u32 writtenByteCount) {
 	u8 footer[FOOTER_BUFFER_LENGTH];
 	u32 writePos = 0;
 
@@ -220,33 +221,34 @@ void completeFile(FIL *file) {
 void processPayload(u8 *payload, u32 length, u8 fileOption)
 {
 	bufferAccess *currentBuffer = &accessManager[writeBufferIndex];
-	if (currentBuffer->isFilled) {
-		dbgprintf("ERROR: Buffers not processed fast enough\r\n");
+	if (currentBuffer->message.result == -1) {
+		dbgprintf("Slippi: buffer not processed fast enough: %d\r\n", writeBufferIndex);
 	}
 
-	// Mark this buffer as in use. Is this needed?
-	currentBuffer->isInUse = true;
 	if (fileOption > 0) {
-		currentBuffer->fileAction = fileOption;
+		currentBuffer->message.ioctl.command = fileOption;
 	}
 
 	// Copy data to write buffer
-	u32 writePos = currentBuffer->len;
+	u32 writePos = currentBuffer->message.ioctl.length_io;
 	memcpy(&currentBuffer->buffer[writePos], payload, length);
-	currentBuffer->len += length;
+	currentBuffer->message.ioctl.length_io += length;
 	
 	updateMetadataFields(payload, length);
 
 	// If write buffer is not full yet, don't do anything else
-	bool isBufferFull = currentBuffer->len >= WRITE_BUFFER_LENGTH - FRAME_PAYLOAD_BUFFER_SIZE;
+	bool isBufferFull = currentBuffer->message.ioctl.length_io >= WRITE_BUFFER_LENGTH - FRAME_PAYLOAD_BUFFER_SIZE;
 	bool isGameComplete = fileOption == 2;
 	bool isGameStart = payload[0] == CMD_RECEIVE_GAME_INFO;
 	bool shouldWrite = isBufferFull || isGameComplete || isGameStart;
-	if (!shouldWrite) {
+	if (!shouldWrite)
 		return;
-	}
 
-	currentBuffer->isFilled = true;
+	// The cast on the next line is only to make the compiler happy
+	currentBuffer->message.ioctl.buffer_io = (unsigned int *)currentBuffer->buffer;
+	currentBuffer->message.result = -1;
+	mqueue_send(Slippi_MessageQueue, &currentBuffer->message, 1);
+
 	writeBufferIndex = (writeBufferIndex + 1) % BUFFER_ACCESS_COUNT;
 }
 
@@ -289,71 +291,51 @@ void SlippiDmaWrite(const void *buf, u32 len) {
 
 }
 
-void handleCurrentBuffer() {
-	bufferAccess *currentBuffer = &accessManager[processBufferIndex];
-	if (!currentBuffer->isFilled) {
-		return;
-	}
-
-	// dbgprintf("Found a filled buffer. Len: %d | Command: %02X\r\n", currentBuffer->len, currentBuffer->buffer[0]);
-
-	static FIL file;
-	if (currentBuffer->fileAction == 1) {
-		dbgprintf("Creating File...\r\n");
-		char* fileName = generateFileName(true);
-		FRESULT fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
-
-		if (fileOpenResult != FR_OK) {
-			dbgprintf("ERROR: Failed to open file: %d...\r\n", fileOpenResult);
-			mdelay(100);
-			return;
-		}
-
-		writtenByteCount = 0;
-		writeHeader(&file);
-	}
-
-	u32 wrote;
-
-	// dbgprintf("About to f_write...\r\n");
-	// u32 writeStartTime = read32(HW_TIMER);
-	f_write(&file, currentBuffer->buffer, currentBuffer->len, &wrote);
-	// u32 writeTime = TimerDiffTicks(writeStartTime);
-	// dbgprintf("Time to write: %d ms\r\n", (u32)(writeTime * 0.0005267));
-
-	writtenByteCount += currentBuffer->len;
-
-	// dbgprintf("About to f_sync...\r\n");
-	// u32 syncStartTime = read32(HW_TIMER);
-	f_sync(&file);
-	// u32 syncTime = TimerDiffTicks(syncStartTime);
-	// dbgprintf("Time to sync: %d ms\r\n", (u32)(syncTime * 0.0005267));
-
-	if (currentBuffer->fileAction == 2) {
-		// TODO: For some reason the last file doesn't get a footer written. Figure out why
-		dbgprintf("Completing File...\r\n");
-		completeFile(&file);
-		f_close(&file);
-	}
-
-	// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
-
-	currentBuffer->len = 0;
-	currentBuffer->fileAction = 0;
-	currentBuffer->isInUse = false;
-	currentBuffer->isFilled = false;
-	
-	processBufferIndex = (processBufferIndex + 1) % BUFFER_ACCESS_COUNT;
+static void SlippiHandlerThread_Finish(struct ipcmessage *slippi_msg, int retval)
+{
+	// Prior to setting result, the result of the message is -1
+	slippi_msg->result = retval;
+	slippi_msg->ioctl.command = 0;
+	slippi_msg->ioctl.length_io = 0;
+	mqueue_ack(slippi_msg, retval);
 }
 
-u32 SlippiHandlerThread(void *arg) {
-	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
-
+static u32 SlippiHandlerThread(void *arg) {
+	FIL file;
+	u32 writtenByteCount = 0;
+	struct ipcmessage *slippi_msg;
 	while(1)
 	{
-		mdelay(10);
-		handleCurrentBuffer();
-	}
+		mqueue_recv(Slippi_MessageQueue, &slippi_msg, 0);
 
+		if (slippi_msg->ioctl.command == 1) {
+			dbgprintf("Creating File...\r\n");
+			char* fileName = generateFileName(true);
+			FRESULT fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
+
+			if (fileOpenResult != FR_OK) {
+				dbgprintf("Slippi: failed to open file: %s, errno: %d\r\n", fileName, fileOpenResult);
+				SlippiHandlerThread_Finish(slippi_msg, fileOpenResult);
+				break;
+			}
+
+			// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
+			writtenByteCount = 0;
+			writeHeader(&file);
+		}
+
+		UINT wrote;
+		f_write(&file, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
+		f_sync(&file);
+		writtenByteCount += wrote;
+
+		if (slippi_msg->ioctl.command == 2) {
+			dbgprintf("Completing File...\r\n");
+			completeFile(&file, writtenByteCount);
+			f_close(&file);
+		}
+
+		SlippiHandlerThread_Finish(slippi_msg, 0);
+	}
 	return 0;
 }
