@@ -309,6 +309,9 @@ static u32 SlippiHandlerThread(void *arg) {
 		mqueue_recv(Slippi_MessageQueue, &slippi_msg, 0);
 
 		if (slippi_msg->ioctl.command == 1) {
+			// Create folder if it doesn't exist yet
+			f_mkdir_char("usb:/Slippi");
+
 			dbgprintf("Creating File...\r\n");
 			char* fileName = generateFileName(true);
 			FRESULT fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
