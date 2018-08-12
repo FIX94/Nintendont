@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "TRI.h"
 #include "Patch.h"
 #include "Slippi.h"
+#include "net.h"
 
 #include "diskio.h"
 #include "usbstorage.h"
@@ -273,6 +274,9 @@ int _main( int argc, char *argv[] )
 
 	dbgprintf("Main Thread ID: %d\r\n", thread_get_id());
 	SlippiInit();
+
+	ret = NetInit();
+	dbgprintf("NetInit returned %d\n", ret);
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
