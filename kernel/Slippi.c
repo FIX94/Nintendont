@@ -5,11 +5,17 @@
 #include "ff_utf8.h"
 #include "DI.h"
 
+#include "net.h"
+
 #define RECEIVE_BUFFER_SIZE 1000 // Must be longer than the games' transfer buffer (currently 784)
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
 #define WRITE_BUFFER_LENGTH 0x1000
 #define PAYLOAD_SIZES_BUFFER_SIZE 20
 #define FOOTER_BUFFER_LENGTH 200
+
+// Global state from net.c 
+extern int client_sock;
+extern s32 top_fd;
 
 static u32 SlippiHandlerThread(void *arg);
 
@@ -334,10 +340,20 @@ static u32 SlippiHandlerThread(void *arg) {
 		f_sync(&file);
 		writtenByteCount += wrote;
 
+		if ((top_fd >= 0) && (client_sock >= 0)) {
+			// Emit data to client (assuming they've connected already)
+			sendto(top_fd, client_sock, slippi_msg->ioctl.buffer_io, 
+				slippi_msg->ioctl.length_io, 0);
+		}
+
 		if (slippi_msg->ioctl.command == 2) {
 			dbgprintf("Completing File...\r\n");
 			completeFile(&file, writtenByteCount);
 			f_close(&file);
+
+			// End connection if file is completed
+			close(top_fd, client_sock);
+			client_sock = -1;
 		}
 
 		SlippiHandlerThread_Finish(slippi_msg, 0);

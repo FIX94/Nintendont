@@ -180,6 +180,37 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 	return res;
 }
 
+
+/* For now, just assume that we provide an aligned address and
+ * disregard having to allocate heap to do memcpy things */
+s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
+{
+	s32 res;
+	u8* message_buf = NULL;
+	STACK_ALIGN(u32, params, 2, 32);
+	STACK_ALIGN(ioctlv, vec, 3, 32);
+
+	if (fd < 0) return -62;
+	if (len <= 0) return -28;
+
+	params[0] = socket;
+	params[1] = flags;
+
+	vec[0].data = params;
+	vec[0].len = 8;
+	vec[1].data = mem;
+	vec[1].len = len;
+	vec[2].data = NULL;
+	vec[2].len = 0;
+
+	res = IOS_Ioctlv(fd, IOCTLV_SO_RECVFROM, 2, 0, vec);
+
+	return res;
+}
+
+
+
+
 s32 connect(s32 fd, s32 socket, struct address *addr)
 {
 	s32 res;
@@ -206,25 +237,36 @@ s32 connect(s32 fd, s32 socket, struct address *addr)
 
 static struct sockaddr_in server __attribute__((aligned(32)));
 static int sock __attribute__((aligned(32)));
-static int client_sock __attribute__((aligned(32)));
-static s32 top_fd __attribute__((aligned(32)));
+
+//static int client_sock __attribute__((aligned(32)));
+//static s32 top_fd __attribute__((aligned(32)));
+int client_sock __attribute__((aligned(32)));
+s32 top_fd __attribute__((aligned(32)));
+
+static u8 message[0x100] __attribute__((aligned(32)));
+
 
 u32 net_handler(void *arg)
 {
 	s32 res;
 	dbgprintf("net_handler TID: %d\r\n", thread_get_id());
-	u32 my_message = 0xdeadc0de;
 
 	while (1)
 	{
+		// Wait for a client to connect
 		mdelay(10);
 		client_sock = accept(top_fd, sock);
+
 		if (client_sock >= 0) {
 			while (1) 
 			{
-				sendto(top_fd, client_sock, &my_message, 4, 0);
-				close(top_fd, client_sock);
-				break;
+
+			// We expect the Slippi thread to send messages
+			// on client_sock here. Just wait until the
+			// socket is closed by the Slippi thread.
+
+				mdelay(100);
+				if (client_sock < 0) break;
 			}
 		}
 

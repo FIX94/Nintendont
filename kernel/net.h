@@ -112,5 +112,13 @@ enum {
 void net_shutdown(void);
 int NetInit(void);
 u32 net_handler(void *arg);
+int current_ip_address(s32 fd);
+s32 socket(s32 fd, u32 domain, u32 type, u32 protocol);
+s32 close(s32 fd, s32 socket);
+s32 bind(s32 fd, s32 socket, struct sockaddr *name);
+s32 listen(s32 fd, s32 socket, u32 backlog);
+s32 accept(s32 fd, s32 socket);
+s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags);
+s32 connect(s32 fd, s32 socket, struct address *addr);
 
 #endif
