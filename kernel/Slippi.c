@@ -301,6 +301,8 @@ static void SlippiHandlerThread_Finish(struct ipcmessage *slippi_msg, int retval
 }
 
 static u32 SlippiHandlerThread(void *arg) {
+	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
+
 	FIL file;
 	u32 writtenByteCount = 0;
 	struct ipcmessage *slippi_msg;

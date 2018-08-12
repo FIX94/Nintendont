@@ -276,7 +276,7 @@ int _main( int argc, char *argv[] )
 	SlippiInit();
 
 	ret = NetInit();
-	dbgprintf("NetInit returned %d\n", ret);
+	dbgprintf("NetInit returned %d\r\n", ret);
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);

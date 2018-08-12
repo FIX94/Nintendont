@@ -700,12 +700,12 @@ int main(int argc, char **argv)
 	if (net_status < 0) {
 		ClearScreen();
 		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232,
-			"Couldn't initialize networking! (%d)", net_status);
+			"Couldn't initialize networking! (%d)\r\n", (int)net_status);
 		usleep(3000000);
 		ExitToLoader(1);
 	}
 	PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232,
-			"Got network! (%s)\n", addr);
+			"Got network! (%s)\r\n", addr);
 	usleep(5000000);
 
 

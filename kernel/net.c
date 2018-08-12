@@ -36,7 +36,7 @@ int current_ip_address(s32 fd)
 		mdelay(1000);
 		ip = IOS_Ioctl(fd, 16, 0, 0, 0, 0);
 	} while(ip <= 0);
-	dbgprintf("ip: 0x%x\n", ip);
+	dbgprintf("ip: 0x%x\r\n", ip);
 	return ip;
 }
 
@@ -56,7 +56,7 @@ s32 socket(s32 fd, u32 domain, u32 type, u32 protocol)
 
 	res = IOS_Ioctl(fd, IOCTL_SO_SOCKET, params, 12, 0, 0);
 
-	dbgprintf("socket(%d, %d, %d, %d) = %d\n", 
+	dbgprintf("socket(%d, %d, %d, %d) = %d\r\n", 
 			fd, domain, type, protocol, res);
 	return res;
 }
@@ -70,7 +70,7 @@ s32 close(s32 fd, s32 socket)
 	*params = socket;
 	res = IOS_Ioctl(fd, IOCTL_SO_CLOSE, params, 4, 0, 0);
 
-	dbgprintf("close(%d, %d) = %d\n", fd, socket, res);
+	dbgprintf("close(%d, %d) = %d\r\n", fd, socket, res);
 	return res;
 }
 
@@ -92,7 +92,7 @@ s32 bind(s32 fd, s32 socket, struct sockaddr *name)//, socklen_t address_len)
 	res = IOS_Ioctl(fd, IOCTL_SO_BIND, params,
 			sizeof(struct bind_params), 0, 0);
 
-	dbgprintf("bind(%d, %d, %p) = %d\n", fd, socket, name);
+	dbgprintf("bind(%d, %d, %p) = %d\r\n", fd, socket, name);
 	return res;
 }
 
@@ -110,7 +110,7 @@ s32 listen(s32 fd, s32 socket, u32 backlog)
 
 	res = IOS_Ioctl(fd, IOCTL_SO_BIND, params, 8, 0, 0);
 
-	dbgprintf("listen(%d, %d, %d) = %d\n", fd, socket, backlog, res);
+	dbgprintf("listen(%d, %d, %d) = %d\r\n", fd, socket, backlog, res);
 	return res;
 }
 
@@ -131,7 +131,7 @@ s32 accept(s32 fd, s32 socket)
 	addr->sa_family = AF_INET;
 
 	res = IOS_Ioctl(fd, IOCTL_SO_ACCEPT, params, 4, addr, 8);
-	dbgprintf("accept(%d, %d) = %d\n", fd, socket, res);
+	dbgprintf("accept(%d, %d) = %d\r\n", fd, socket, res);
 
 	return res;
 }
@@ -151,7 +151,7 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags, struct sockaddr *
 
 	u8 *message_buf = (u8*)heap_alloc_aligned(0, len, 32);
 	if (message_buf == NULL) {
-		dbgprintf("sendto() couldn't heap_alloc_aligned() - uh oh\n");
+		dbgprintf("sendto() couldn't heap_alloc_aligned() - uh oh\r\n");
 		return -1;
 	}
 
@@ -174,7 +174,7 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags, struct sockaddr *
 	if (message_buf != NULL)
 		heap_free(0, message_buf);
 
-	dbgprintf("sendto(%d, %d, %p, %d, %d, %p) = %d\n",
+	dbgprintf("sendto(%d, %d, %p, %d, %d, %p) = %d\r\n",
 			fd, socket, data, len, flags, to);
 
 	return res;
@@ -199,7 +199,7 @@ s32 connect(s32 fd, s32 socket, struct address *addr)
 	res = IOS_Ioctl(fd, IOCTL_SO_CONNECT, &params,
 			sizeof(struct connect_params), 0, 0);
 
-	dbgprintf("connect(%d, %p) = %d\n", socket, addr, res);
+	dbgprintf("connect(%d, %p) = %d\r\n", socket, addr, res);
 	return res;
 }
 
@@ -211,7 +211,7 @@ static s32 top_fd;
 u32 net_handler(void *arg)
 {
 	s32 res;
-	dbgprintf("net_handler TID: %d\n", thread_get_id());
+	dbgprintf("net_handler TID: %d\r\n", thread_get_id());
 
 	
 	int client_sock;
@@ -219,14 +219,14 @@ u32 net_handler(void *arg)
 
 	while (1)
 	{
-		mdelay(10);
+		mdelay(1000);
 		client_sock = accept(top_fd, sock);
+		dbgprintf("client:sock: %d\r\n", client_sock);
 		if (client_sock >= 0) {
-			dbgprintf("accept returned %d\n", client_sock);
+			dbgprintf("accept returned %d\r\n", client_sock);
 			close(top_fd, client_sock);
 			break;
 		}
-		continue;
 	}
 	return 0;
 }
@@ -236,7 +236,7 @@ void net_shutdown(void) { thread_cancel(net_thread, 0); }
 int NetInit(void)
 {
 	s32 res;
-	dbgprintf("setting up state for net_thread ...\n");
+	dbgprintf("setting up state for net_thread ...\r\n");
 
 	char *top_filename = "/dev/net/ip/top";
 	void *name = heap_alloc_aligned(0,32,32);
@@ -244,20 +244,20 @@ int NetInit(void)
 	top_fd = IOS_Open(name,0);
 	heap_free(0,name);
 	IOS_Ioctl(top_fd, IOCTL_SO_STARTUP, 0, 0, 0, 0);
-	dbgprintf("top_fd: %d\n", top_fd);
+	dbgprintf("top_fd: %d\r\n", top_fd);
 	if (top_fd < 0) return -1;
 
-	int ip = 0;
-	do
-	{
-		mdelay(1000);
-		ip = IOS_Ioctl(top_fd, 16, 0, 0, 0, 0);
-	} while(ip <= 0);
-	dbgprintf("ip: 0x%x\n", ip);
+	// int ip = 0;
+	// do
+	// {
+	// 	mdelay(1000);
+	// 	ip = IOS_Ioctl(top_fd, 16, 0, 0, 0, 0);
+	// } while(ip <= 0);
+	// dbgprintf("ip: 0x%x\n", ip);
 
 
 	sock = socket(top_fd, AF_INET, SOCK_STREAM, IPPROTO_IP);
-	dbgprintf("sock: %d\n", sock);
+	dbgprintf("sock: %d\r\n", sock);
 
 	/* Bind to socket and start listening */
 
@@ -278,9 +278,11 @@ int NetInit(void)
 		return res;
 	}
 
-	dbgprintf("net_thread is starting ...\n");
+	dbgprintf("net_thread is starting ...\r\n");
 	net_thread = do_thread_create(net_handler, ((u32*)&__net_stack_addr),
 			((u32)(&__net_stack_size)), 0x40);
 	thread_continue(net_thread);
+
+	return 0;
 }
 
