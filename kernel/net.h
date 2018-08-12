@@ -20,6 +20,24 @@
 
 /* Structures describing IOCTL parameters */
 
+struct in_addr {
+	u32 s_addr;
+};
+
+struct sockaddr_in {
+	u8 sin_len;
+	u8 sin_family;
+	u16 sin_port;
+	struct in_addr sin_addr;
+	s8 sin_zero[8];
+} __attribute__((packed));
+
+struct sockaddr {
+	u8 sa_len;
+	u8 sa_family;
+	u8 sa_data[14];
+} __attribute__((packed));
+
 struct address {
 	unsigned char len;
 	unsigned char family;
@@ -29,9 +47,10 @@ struct address {
 };
 
 struct bind_params {
-	unsigned int socket;
-	unsigned int has_name;
-	struct address addr;
+	u32 socket;
+	u32 has_name;
+	u8 name[28];
+	//struct address name;
 };
 
 struct connect_params {
@@ -44,7 +63,8 @@ struct sendto_params {
 	unsigned int socket;
 	unsigned int flags;
 	unsigned int has_destaddr;
-	struct address addr;
+	u8 destaddr[28];
+	//struct address addr;
 };
 
 /* These IOCTL definitions are from `libogc/network_wii.c`, and are also
@@ -90,7 +110,7 @@ enum {
 
 
 void net_shutdown(void);
-void NetInit(void);
+int NetInit(void);
 u32 net_handler(void *arg);
 
 #endif

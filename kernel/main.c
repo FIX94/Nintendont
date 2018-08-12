@@ -255,7 +255,8 @@ int _main( int argc, char *argv[] )
 
 	dbgprintf("Main TID: %d\n", thread_get_id());
 
-	NetInit();
+	ret = NetInit();
+	dbgprintf("NetInit returned %d\n", ret);
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);

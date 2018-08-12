@@ -695,16 +695,19 @@ int main(int argc, char **argv)
 	char addr[16] = {0};
 	char mask[16] = {0};
 	char gw[16] = {0};
-	s32 net_status = if_config(addr, mask, gw, TRUE, 20);
+	usleep(5000000);
+	s32 net_status = if_config(addr, mask, gw, TRUE, 50);
 	if (net_status < 0) {
 		ClearScreen();
-		gprintf("Couldn't initialize Wi-fi networking! (%d)\n", net_status);
 		PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232,
 			"Couldn't initialize networking! (%d)", net_status);
 		usleep(3000000);
-		//ExitToLoader(1);
+		ExitToLoader(1);
 	}
-	gprintf("Network initialized: IP=%s\n", addr);
+	PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, 232,
+			"Got network! (%s)\n", addr);
+	usleep(5000000);
+
 
 
 	// Preparing Nintendont Kernel...
