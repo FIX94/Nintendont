@@ -131,7 +131,7 @@ s32 accept(s32 fd, s32 socket)
 	addr->sa_family = AF_INET;
 
 	res = IOS_Ioctl(fd, IOCTL_SO_ACCEPT, params, 4, addr, 8);
-	dbgprintf("accept(%d, %d) = %d\r\n", fd, socket, res);
+	// dbgprintf("accept(%d, %d) = %d\r\n", fd, socket, res);
 
 	return res;
 }
@@ -219,9 +219,9 @@ u32 net_handler(void *arg)
 
 	while (1)
 	{
-		mdelay(1000);
+		mdelay(10);
 		client_sock = accept(top_fd, sock);
-		dbgprintf("client:sock: %d\r\n", client_sock);
+		// dbgprintf("client:sock: %d\r\n", client_sock);
 		if (client_sock >= 0) {
 			dbgprintf("accept returned %d\r\n", client_sock);
 			close(top_fd, client_sock);
