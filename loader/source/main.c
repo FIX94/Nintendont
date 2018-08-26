@@ -1402,7 +1402,8 @@ int main(int argc, char **argv)
 
 		case BI2_REGION_USA:
 			if ((vidForce && vidForceMode == NIN_VID_FORCE_MPAL) ||
-			    (!vidForce && CONF_GetVideo() == CONF_VIDEO_MPAL))
+			    (!vidForce && ((CONF_GetVideo() == CONF_VIDEO_MPAL) 
+					|| (useipl && memcmp(iplbuf+0x55,"MPAL",4) == 0))))
 			{
 				// PAL-M
 				*(vu32*)0x800000CC = 3;

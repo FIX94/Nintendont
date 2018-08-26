@@ -2735,8 +2735,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								W16(GCAMSendCommandAddr+0x0E, R16(FOffset+0x1E));
 								W16(GCAMSendCommandAddr+0x12, R16(FOffset+0x22));
 								/* Callback */
-								W16(GCAMSendCommandAddr+0x9A, R16(FOffset+0x26));
-								W16(GCAMSendCommandAddr+0x9E, R16(FOffset+0x2A));
+								W16(GCAMSendCommandAddr+0x92, R16(FOffset+0x26));
+								W16(GCAMSendCommandAddr+0x96, R16(FOffset+0x2A));
 								PatchB(GCAMSendCommandAddr, FOffset);
 							}
 							else
