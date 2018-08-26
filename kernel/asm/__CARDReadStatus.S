@@ -9,9 +9,9 @@
 
 __CARDReadStatus:
 
-	li		%r3,	0x41		# unlock | ready
-	stb		%r3,	0x0(%r4)
+	li		r3,	0x41		# unlock | ready
+	stb		r3,	0x0(r4)
 
-	li		%r3,	0
+	li		r3,	0
 
 	blr

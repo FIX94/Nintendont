@@ -44,7 +44,7 @@ static const char SETTINGS_VS4V06EXP[] = "/saves/VS4V06EXPsettings.bin";
 
 extern bool wiiVCInternal;
 
-static u32 DOLRead32(u32 loc, u32 DOLOffset, FIL *f, u32 CurDICMD)
+static u32 DOLRead32(u32 loc, u32 DOLOffset, FIL *f, unsigned int CurDICMD)
 {
 	u32 BufAtOffset = 0;
 	if(wiiVCInternal)
@@ -64,7 +64,7 @@ static u32 DOLRead32(u32 loc, u32 DOLOffset, FIL *f, u32 CurDICMD)
 	return BufAtOffset;
 }
 
-u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift)
+u32 TRISetupGames(char *Path, unsigned int CurDICMD, u32 ISOShift)
 {
 	u32 res = 0;
 	u32 DOLOffset = 0;

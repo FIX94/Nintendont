@@ -27,10 +27,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #they left the stack room but didnt use it, good for us
 MajoraSaveRegs:
-	stw		glob,	0x10(%r1)
-	stw		buf,	0xC(%r1)
-	stw		loc,	0x8(%r1)
-	stw		tmp,	0x4(%r1)
+	stw		glob,	0x10(r1)
+	stw		buf,	0xC(r1)
+	stw		loc,	0x8(r1)
+	stw		tmp,	0x4(r1)
 	lis		glob,	STREAMING@h
 	lwz		tmp,	STREAMING@l(glob)
 	cmpwi	cmpstrm,tmp,	0

@@ -30,7 +30,7 @@ all: $(HFILES)
 
 %.elf: %.S
 	@echo " ASSEMBLE    $<"
-	@$(AS) $< -MD $(@:.elf=.d) -o $@
+	@$(AS) $< -mregnames -MD $(@:.elf=.d) -o $@
 
 %.bin: %.elf
 	@echo " STRIP       $<"

@@ -20,10 +20,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .include "constants.inc"
 
 DVDSendCMDEncrypted:
-	lis %r6, DI_BASE@h
-	ori %r6, %r6, DI_BASE@l
-	rotrwi %r3, %r3, 8 #GC Norm
-	stw %r3, 0x08(%r6) #DI_CMD_0
-	stw %r4, 0x0C(%r6) #DI_CMD_1
-	stw %r5, 0x10(%r6) #DI_CMD_2
+	lis r6, DI_BASE@h
+	ori r6, r6, DI_BASE@l
+	rotrwi r3, r3, 8 #GC Norm
+	stw r3, 0x08(r6) #DI_CMD_0
+	stw r4, 0x0C(r6) #DI_CMD_1
+	stw r5, 0x10(r6) #DI_CMD_2
 	blr

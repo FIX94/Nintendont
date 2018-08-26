@@ -1,7 +1,6 @@
 #include <errno.h>
 #include <ogc/es.h>
 #include <ogc/lwp_watchdog.h>
-#include <ogcsys.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

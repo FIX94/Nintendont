@@ -21,21 +21,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 CalcWidescreen:
 	nop		#original instruction
 	stwu	%sp,	-0x20(%sp)
-	stw		%r30,	0x4(%sp)
-	stw		%r31,	0x8(%sp)
+	stw		r30,	0x4(%sp)
+	stw		r31,	0x8(%sp)
 	stfd	%f31,	0xC(%sp)
-	mflr	%r30
+	mflr	r30
 	bl		GetFloatBase
 	.long	0x3faaaaab	#4/3
 GetFloatBase:
-	mflr	%r31
-	lfs		%f31,	0(%r31)
+	mflr	r31
+	lfs		%f31,	0(r31)
 MulAspect:
 	fmuls	%f3,	%f31,	%f3 #gets replaced with float we want
 end:
-	mtlr	%r30
-	lwz		%r30,	0x4(%sp)
-	lwz		%r31,	0x8(%sp)
+	mtlr	r30
+	lwz		r30,	0x4(%sp)
+	lwz		r31,	0x8(%sp)
 	lfd		%f31,	0xC(%sp)
 	addi	%sp,	%sp,	0x20
 	nop		#b original code

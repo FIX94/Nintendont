@@ -11,22 +11,22 @@
 .include "constants.inc"
 
 EXISelect:
-	lis		%r7,	0xD302
-	lis		%r0,	0x1000
+	lis		r7,	0xD302
+	lis		r0,	0x1000
 
-	slwi	%r4,	%r4,	8
-	slwi	%r5,	%r5,	16
+	slwi	r4,	r4,	8
+	slwi	r5,	r5,	16
 
-	or		%r0,	%r0,	%r3
-	or		%r0,	%r0,	%r4
-	or		%r0,	%r0,	%r5
+	or		r0,	r0,	r3
+	or		r0,	r0,	r4
+	or		r0,	r0,	r5
 
-	stw		%r0,	EXI_CMD_0@l(%r7)
+	stw		r0,	EXI_CMD_0@l(r7)
 
 ready_loop:
-	lwz		%r3,	EXI_CMD_0@l(%r7)
-	cmpw	%r3,	%r0
+	lwz		r3,	EXI_CMD_0@l(r7)
+	cmpw	r3,	r0
 	beq		ready_loop
 
-	lwz		%r3,	EXI_CMD_1@l(%r7)
+	lwz		r3,	EXI_CMD_1@l(r7)
 	blr

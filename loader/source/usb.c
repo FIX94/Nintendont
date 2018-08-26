@@ -45,7 +45,7 @@ distribution.
 #include <malloc.h>
 #include <time.h>
 #include <gcutil.h>
-#include <ogcsys.h>
+#include <gccore.h>
 #include <ogc/ipc.h>
 #include <ogc/machine/asm.h>
 #include <ogc/machine/processor.h>

@@ -504,7 +504,7 @@ typedef struct _devInitInfo_t
 
 	// Maximum init timeout, in seconds.
 	// (0 = only try once)
-	int timeout;
+	time_t timeout;
 } devInitInfo_t;
 
 static const devInitInfo_t devInitInfo[2] =

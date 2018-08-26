@@ -27,7 +27,8 @@ INCLUDES	:= include ../fatfs
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	:= -O3 -g -std=gnu89 \
+ASFLAGS := $(MACHDEP) -mregnames -D_LANGUAGE_ASSEMBLY
+CFLAGS	:= -O3 -g -std=gnu89 -Wno-format-truncation \
 	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN
 CXXFLAGS := $(CFLAGS)
 

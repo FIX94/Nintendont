@@ -3,10 +3,10 @@
 
 SIIntrruptHandler:
 	#original instruction
-	stw		%r0,	4(%sp)
+	stw		r0,	4(%sp)
 
-	li		%r0,	0
-	lis		%r8,	INT_BASE@h
-	stw		%r0,	SI_INT@l(%r8)
+	li		r0,	0
+	lis		r8,	INT_BASE@h
+	stw		r0,	SI_INT@l(r8)
 
 	blr
