@@ -350,10 +350,6 @@ static u32 SlippiHandlerThread(void *arg) {
 			dbgprintf("Completing File...\r\n");
 			completeFile(&file, writtenByteCount);
 			f_close(&file);
-
-			// End connection if file is completed
-			close(top_fd, client_sock);
-			client_sock = -1;
 		}
 
 		SlippiHandlerThread_Finish(slippi_msg, 0);

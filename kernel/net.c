@@ -251,6 +251,9 @@ u32 net_handler(void *arg)
 	s32 res;
 	dbgprintf("net_handler TID: %d\r\n", thread_get_id());
 
+	// Sleep 10 seconds. hopefully this helps the game start correctly
+	mdelay(20000);
+
 	while (1)
 	{
 		// Wait for a client to connect
@@ -314,7 +317,7 @@ int NetInit(void)
 
 	dbgprintf("net_thread is starting ...\r\n");
 	net_thread = do_thread_create(net_handler, ((u32*)&__net_stack_addr),
-			((u32)(&__net_stack_size)), 0x40);
+			((u32)(&__net_stack_size)), 0x78);
 	thread_continue(net_thread);
 
 	return 0;
