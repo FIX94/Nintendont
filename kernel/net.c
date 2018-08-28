@@ -1,16 +1,20 @@
 
-/* Mostly fixing up FIX94's net.c from the bbatest branch (ha-ha).
- *
- * This prints an endless stream of 0xdeadbeefs to my terminal, wee!
- * You can test this with something like `nc <Wii IP> 666 | xxd`.
+/* Mostly fixing up FIX94's net.c from the bbatest branch (ha-ha). This should
+ * be good start to exposing networking/socket primitives to other code in the
+ * Nintendont kernel (ie. Slippi).
  *
  * I think that for now it's reasonable to keep /dev/net/ip/top's file
- * descriptor in some global state in this file so that we don't need to
- * pass it via arguments when implementing the socket operations (so that
- * the interfaces will look just like libogc's.
+ * descriptor in some global state in this file so that we don't need to pass
+ * it via arguments when implementing the socket operations (so that the
+ * interfaces will look just like libogc's). In some end state, we would
+ * expect the caller to keep track of this. This code is from the Slippi fork,
+ * so the assumption is that we've only got one thread dealing with that fd.
  *
- * Also need to be weary of the fact that Ioctls expect pointer arguments to
- * be 32-byte aligned.
+ * See scripts/slippi-net-test for an example of dealing with streaming data
+ * from the network.
+ *
+ * Recall that, when issuing ioctls, all pointer arguments need to be 32-byte
+ * aligned (or at least, this is what the doctor tells me).
  *
  */
 
@@ -61,6 +65,7 @@ s32 socket(s32 fd, u32 domain, u32 type, u32 protocol)
 	return res;
 }
 
+/* Close a socket */
 s32 close(s32 fd, s32 socket)
 {
 	s32 res;
@@ -74,6 +79,7 @@ s32 close(s32 fd, s32 socket)
 	return res;
 }
 
+/* Bind a name to some socket */
 s32 bind(s32 fd, s32 socket, struct sockaddr *name)//, socklen_t address_len)
 {
 	s32 res;
@@ -96,6 +102,7 @@ s32 bind(s32 fd, s32 socket, struct sockaddr *name)//, socklen_t address_len)
 	return res;
 }
 
+/* Listen for connections on a socket */
 s32 listen(s32 fd, s32 socket, u32 backlog)
 {
 	s32 res;
@@ -114,7 +121,7 @@ s32 listen(s32 fd, s32 socket, u32 backlog)
 	return res;
 }
 
-// I think ioctl writes into addr - might be a problem if it isn't aligned?
+/* Accept some connection on a socket */
 s32 accept(s32 fd, s32 socket)
 {
 	s32 res;
@@ -136,6 +143,7 @@ s32 accept(s32 fd, s32 socket)
 	return res;
 }
 
+/* Emit a message on a socket */
 s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 {
 	s32 res;
@@ -181,8 +189,7 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 }
 
 
-/* For now, just assume that we provide an aligned address and
- * disregard having to allocate heap to do memcpy things */
+/* Recieve a message from some socket */
 s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
 {
 	s32 res;
@@ -210,7 +217,8 @@ s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
 
 
 
-
+/* Connect a socket to some remote host. Pretty sure this
+ * assumes IPv4, speaking TCP/IP */
 s32 connect(s32 fd, s32 socket, struct address *addr)
 {
 	s32 res;
@@ -244,7 +252,6 @@ int client_sock __attribute__((aligned(32)));
 s32 top_fd __attribute__((aligned(32)));
 
 static u8 message[0x100] __attribute__((aligned(32)));
-
 
 u32 net_handler(void *arg)
 {
