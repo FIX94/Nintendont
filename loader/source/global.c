@@ -209,13 +209,20 @@ void Initialise(bool autoboot)
 	{
 		for (i=0; i<255; i +=5) // Fade background image in from black screen
 		{
-			if (bg_isWidescreen)
+			if (ncfg->Config & NIN_CFG_SHOW_BG)
 			{
-				// Clear the sides.
-				GRRLIB_Rectangle(0, 0, 80, 480, RGBA(222, 223, 224, i), true);
-				GRRLIB_Rectangle(80+480, 0, 80, 480, RGBA(222, 223, 224, i), true);
+				if (bg_isWidescreen)
+				{
+					// Clear the sides.
+					GRRLIB_Rectangle(0, 0, 80, 480, RGBA(222, 223, 224, i), true);
+					GRRLIB_Rectangle(80+480, 0, 80, 480, RGBA(222, 223, 224, i), true);
+				}
+				GRRLIB_DrawImg(bg_xPos, 0, background, 0, bg_xScale, 1, RGBA(255, 255, 255, i)); // Opacity increases as i does
 			}
-			GRRLIB_DrawImg(bg_xPos, 0, background, 0, bg_xScale, 1, RGBA(255, 255, 255, i)); // Opacity increases as i does
+			else
+			{
+				GRRLIB_Rectangle(0, 0, 640, 480, RGBA(222, 223, 224, i), true);
+			}
 			GRRLIB_Render();
 		}
 		ClearScreen();
@@ -361,13 +368,20 @@ bool LoadNinCFG(void)
 
 inline void ClearScreen()
 {
-	if (bg_isWidescreen)
+	if (ncfg->Config & NIN_CFG_SHOW_BG)
 	{
-		// Clear the sides.
-		GRRLIB_Rectangle(0, 0, 80, 480, RGBA(222, 223, 224, 255), true);
-		GRRLIB_Rectangle(80+480, 0, 80, 480, RGBA(222, 223, 224, 255), true);
+		if (bg_isWidescreen)
+		{
+			// Clear the sides.
+			GRRLIB_Rectangle(0, 0, 80, 480, RGBA(222, 223, 224, 255), true);
+			GRRLIB_Rectangle(80+480, 0, 80, 480, RGBA(222, 223, 224, 255), true);
+		}
+		GRRLIB_DrawImg(bg_xPos, 0, background, 0, bg_xScale, 1, RGBA(255, 255, 255, 255));
 	}
-	GRRLIB_DrawImg(bg_xPos, 0, background, 0, bg_xScale, 1, RGBA(255, 255, 255, 255));
+	else
+	{
+		GRRLIB_Rectangle(0, 0, 640, 480, RGBA(222, 223, 224, 255), true);
+	}
 }
 
 static inline char ascii(char s)
@@ -449,6 +463,12 @@ void UpdateNinCFG()
 		ncfg->Config &= ~NIN_CFG_CC_RUMBLE;
 		ncfg->Config &= ~NIN_CFG_SKIP_IPL;
 		ncfg->Version = 8;
+	}
+	if (ncfg->Version == 8)
+	{
+		// Background can be disabled, enabled by default
+		ncfg->Config |= NIN_CFG_SHOW_BG;
+		ncfg->Version = 9;
 	}
 }
 

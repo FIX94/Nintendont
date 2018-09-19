@@ -1115,7 +1115,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 6))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 7))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1142,7 +1142,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 5;
+				ctx->settings.posX = 6;
 			}
 		}
 
@@ -1374,6 +1374,14 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 
+			    case 6:
+					// Show Background
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_SHOW_BG);
+					ctx->redraw = true;
+					ClearScreen();
+					break;
+
 				default:
 					break;
 			}
@@ -1537,6 +1545,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Skip IPL", (ncfg->Config & (NIN_CFG_SKIP_IPL)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
+		// Show Background
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Show Background", (ncfg->Config & (NIN_CFG_SHOW_BG)) ? "Yes" : "No ");
+		ListLoopIndex++;
+
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {
 			u32 cursor_color = BLACK;
@@ -1558,7 +1571,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 7;
+			int line_num = 8;
 			do {
 				if (**desc != 0)
 				{

@@ -566,6 +566,7 @@ int main(int argc, char **argv)
 	setlocale(LC_ALL,"C.UTF-8");
 
 	memset((void*)ncfg, 0, sizeof(NIN_CFG));
+	ncfg->Config |= NIN_CFG_SHOW_BG;
 	bool argsboot = false;
 	if(argc > 1) //every 0x00 gets counted as one arg so just make sure its more than the path and copy
 	{
