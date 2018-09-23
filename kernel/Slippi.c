@@ -340,12 +340,6 @@ static u32 SlippiHandlerThread(void *arg) {
 		f_sync(&file);
 		writtenByteCount += wrote;
 
-		if ((top_fd >= 0) && (client_sock >= 0)) {
-			// Emit data to client (assuming they've connected already)
-			sendto(top_fd, client_sock, slippi_msg->ioctl.buffer_io, 
-				slippi_msg->ioctl.length_io, 0);
-		}
-
 		if (slippi_msg->ioctl.command == 2) {
 			dbgprintf("Completing File...\r\n");
 			completeFile(&file, writtenByteCount);

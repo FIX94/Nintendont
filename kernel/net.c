@@ -180,7 +180,6 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 	return res;
 }
 
-
 /* For now, just assume that we provide an aligned address and
  * disregard having to allocate heap to do memcpy things */
 s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
@@ -208,9 +207,6 @@ s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
 	return res;
 }
 
-
-
-
 s32 connect(s32 fd, s32 socket, struct address *addr)
 {
 	s32 res;
@@ -233,93 +229,3 @@ s32 connect(s32 fd, s32 socket, struct address *addr)
 	dbgprintf("connect(%d, %p) = %d\r\n", socket, addr, res);
 	return res;
 }
-
-
-static struct sockaddr_in server __attribute__((aligned(32)));
-static int sock __attribute__((aligned(32)));
-
-//static int client_sock __attribute__((aligned(32)));
-//static s32 top_fd __attribute__((aligned(32)));
-int client_sock __attribute__((aligned(32)));
-s32 top_fd __attribute__((aligned(32)));
-
-static u8 message[0x100] __attribute__((aligned(32)));
-
-
-u32 net_handler(void *arg)
-{
-	s32 res;
-	dbgprintf("net_handler TID: %d\r\n", thread_get_id());
-
-	// Sleep 10 seconds. hopefully this helps the game start correctly
-	mdelay(20000);
-
-	while (1)
-	{
-		// Wait for a client to connect
-		mdelay(10);
-		client_sock = accept(top_fd, sock);
-
-		if (client_sock >= 0) {
-			while (1) 
-			{
-
-			// We expect the Slippi thread to send messages
-			// on client_sock here. Just wait until the
-			// socket is closed by the Slippi thread.
-
-				mdelay(100);
-				if (client_sock < 0) break;
-			}
-		}
-
-	}
-	return 0;
-}
-
-
-void net_shutdown(void) { thread_cancel(net_thread, 0); }
-int NetInit(void)
-{
-	s32 res;
-	dbgprintf("setting up state for net_thread ...\r\n");
-
-	char *top_filename = "/dev/net/ip/top";
-	void *name = heap_alloc_aligned(0,32,32);
-	memcpy(name, top_filename, 32);
-	top_fd = IOS_Open(name,0);
-	heap_free(0,name);
-	IOS_Ioctl(top_fd, IOCTL_SO_STARTUP, 0, 0, 0, 0);
-	dbgprintf("top_fd: %d\r\n", top_fd);
-	if (top_fd < 0) return -1;
-
-	sock = socket(top_fd, AF_INET, SOCK_STREAM, IPPROTO_IP);
-	dbgprintf("sock: %d\r\n", sock);
-
-	/* Bind to socket and start listening */
-
-	memset(&server, 0, sizeof(server));
-	server.sin_family = AF_INET;
-	server.sin_port = 666;
-	server.sin_addr.s_addr = INADDR_ANY;
-
-	res = bind(top_fd, sock, (struct sockaddr*)&server);
-	if (res < 0) {
-		close(top_fd, sock);
-		return res;
-	}
-
-	res = listen(top_fd, sock, 1);
-	if (res < 0)  {
-		close(top_fd, sock);
-		return res;
-	}
-
-	dbgprintf("net_thread is starting ...\r\n");
-	net_thread = do_thread_create(net_handler, ((u32*)&__net_stack_addr),
-			((u32)(&__net_stack_size)), 0x78);
-	thread_continue(net_thread);
-
-	return 0;
-}
-
