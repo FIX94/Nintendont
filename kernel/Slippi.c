@@ -5,7 +5,7 @@
 #include "ff_utf8.h"
 #include "DI.h"
 
-#include "net.h"
+#include "SlippiNetwork.h"
 
 #define RECEIVE_BUFFER_SIZE 1000 // Must be longer than the games' transfer buffer (currently 784)
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
@@ -329,6 +329,9 @@ static u32 SlippiHandlerThread(void *arg) {
 				SlippiHandlerThread_Finish(slippi_msg, fileOpenResult);
 				break;
 			}
+
+			// Tell the networking code that we are writting to a new file
+			SlippiNetworkSetNewFile(fileName);
 
 			// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 			writtenByteCount = 0;

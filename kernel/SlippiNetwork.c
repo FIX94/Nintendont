@@ -1,4 +1,6 @@
 #include "SlippiNetwork.h"
+#include "common.h"
+#include "debug.h"
 #include "net.h"
 #include "ff_utf8.h"
 
@@ -14,9 +16,14 @@ int client_sock __attribute__((aligned(32)));
 s32 top_fd __attribute__((aligned(32)));
 
 // File transfer variable
+#define NETWORK_FILE_PATH_LEN 50
+
 FIL currentFile;
-char currentFilePath[50];
+char currentFilePath[NETWORK_FILE_PATH_LEN];
 u32 currentFilePos = 0;
+
+char nextFilePath[NETWORK_FILE_PATH_LEN];
+bool newNextFile = false;
 
 // Defines
 #define CONN_STATUS_UNKNOWN 0
@@ -40,6 +47,9 @@ s32 SlippiNetworkInit()
 	dbgprintf("top_fd: %d\r\n", top_fd);
 	if (top_fd < 0) return -1;
 
+	sock = -1;
+	client_sock = -1;
+
 	dbgprintf("net_thread is starting ...\r\n");
 	SlippiNetwork_Thread = do_thread_create(
 		SlippiNetworkHandlerThread,
@@ -52,9 +62,14 @@ s32 SlippiNetworkInit()
 	return 0;
 }
 
-void SlippiShutdown()
+void SlippiNetworkShutdown()
 {
 	thread_cancel(SlippiNetwork_Thread, 0);
+}
+
+void SlippiNetworkSetNewFile(const char* path) {
+	memcpy(&nextFilePath[0], path, NETWORK_FILE_PATH_LEN);
+	newNextFile = true;
 }
 
 int getConnectionStatus() {
@@ -102,10 +117,17 @@ s32 startServer() {
 		close(top_fd, sock);
 		return res;
 	}
+
+	dbgprintf("Server started!\r\n");
+
+	return 0;
 }
 
 void listenForClient() {
 	client_sock = accept(top_fd, sock);
+	if (client_sock >= 0) {
+		dbgprintf("Client connected!\r\n");
+	}
 }
 
 void handleConnection() {
@@ -120,14 +142,37 @@ void handleConnection() {
 	}
 }
 
-void openFileToTransfer() {
+void openNextFile() {
 	// Figure out when a new file is created and move transfer to that file
-	// TODO: Make sure that previous file is done transfering before moving
-	FRESULT fileOpenResult = f_open_char(&currentFile, currentFilePath, FA_OPEN_EXISTING | FA_READ);
+	if (!newNextFile) {
+		// If there is no new file, we don't need to open anything
+		return;
+	}
 
+	// If we are not at the end of the current file, don't switch yet
+	if (f_eof(&currentFile) == 0) {
+		return;
+	}
+
+	memcpy(&currentFilePath[0], nextFilePath, NETWORK_FILE_PATH_LEN);
+
+	dbgprintf("reading from new file: %s\r\n", currentFilePath);
+
+	// Open file
+	FRESULT fileOpenResult = f_open_char(&currentFile, currentFilePath, FA_OPEN_EXISTING | FA_READ);
 	if (fileOpenResult != FR_OK) {
 		return;
 	}
+
+	// Indicate we have loaded the new file
+	newNextFile = false;
+}
+
+void openFileToTransfer() {
+	//TODO: Add function here to reconnect to file if connection is severed
+
+	// This function will open a new file if there is a next file to deal with
+	openNextFile();
 }
 
 void handleFileTransfer() {
@@ -153,6 +198,8 @@ void handleFileTransfer() {
 		return;
 	}
 
+	dbgprintf("sending data!\r\n");
+
 	// 2) Emit data to client (assuming they've connected already)
 	sendto(top_fd, client_sock, dataBuf, readCount, 0);
 }
@@ -162,6 +209,9 @@ static u32 SlippiNetworkHandlerThread(void *arg) {
 		handleConnection();
 		openFileToTransfer();
 		handleFileTransfer();
+
 		mdelay(100);
 	}
+
+	return 0;
 }
