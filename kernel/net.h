@@ -108,9 +108,19 @@ enum {
 	IOCTL_SO_ICMPCLOSE          // todo
 };
 
+/* NWC, NCD ioctls() used for network initialization */
+
+#define IOCTL_NWC24_STARTUP		0x06
+#define IOCTL_NCD_SETIFCONFIG3		0x03
+#define IOCTL_NCD_SETIFCONFIG4		0x04
+#define IOCTL_NCD_GETLINKSTATUS		0x07
+#define IOCTLV_NCD_GETMACADDRESS	0x08
+
+/* Function declarations */
 
 void net_shutdown(void);
-int NetInit(void);
+int ServerInit(void);
+int NCDInit(void);
 u32 net_handler(void *arg);
 int current_ip_address(s32 fd);
 s32 socket(s32 fd, u32 domain, u32 type, u32 protocol);

@@ -74,6 +74,8 @@ u32 drcAddress = 0;
 u32 drcAddressAligned = 0;
 bool isWiiVC = false;
 bool wiiVCInternal = false;
+u32 network_started = 0;
+u32 server_started = 0;
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
@@ -275,8 +277,8 @@ int _main( int argc, char *argv[] )
 	dbgprintf("Main Thread ID: %d\r\n", thread_get_id());
 	SlippiInit();
 
-	ret = NetInit();
-	dbgprintf("NetInit returned %d\r\n", ret);
+	//ret = NetInit();
+	//dbgprintf("NetInit returned %d\r\n", ret);
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
@@ -289,6 +291,7 @@ int _main( int argc, char *argv[] )
 	sync_after_write((void*)0x1860, 0x20);
 #endif
 	u32 Now = read32(HW_TIMER);
+	u32 NCDTimer = Now;
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
@@ -401,6 +404,7 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
+
 		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 149) /* Read random sector every 2 mins 30 secs */
 		{
 			DIFinishAsync(); //if something is still running
@@ -413,6 +417,43 @@ int _main( int argc, char *argv[] )
 		else /* No device I/O so make sure this stays updated */
 			GetCurrentTime();
 		udelay(20); //wait for other threads
+
+
+		/* Delay network initialization by ~30 seconds. We may need to
+		 * fine tune this, or perhaps, experiment with initializing
+		 * this before Melee boots. However, we have observed that
+		 * very early initialization of networking with libogc in the
+		 * Nintendont loader seems to interfere [often, randomly] with
+		 * Melee at boot-time and causing PPC-land to crash, sometimes
+		 * before OSReport can hand us back output via ndebug.log. The
+		 * hypothesis is that time on-CPU during boot is critical for
+		 * the IOS thread[s] responsible for servicing disc reads.
+		 *
+		 * This is a naive, experimental implementation.
+		 *
+		 * ~meta
+		 */
+
+		// Start up wireless networking and the TCP/IP stack
+		if (network_started == 0)
+		{
+			if (TimerDiffSeconds(NCDTimer) > 30) {
+				NCDInit();
+				network_started = 1;
+			}
+		}
+
+		// Dispatch a thread which binds to a socket and  handles
+		// impinging SYN requests. At the moment, the slippi thread
+		// itself issues send() requests on the socket.
+		if ((network_started == 1) && (server_started == 0))
+		{
+			if (TimerDiffSeconds(NCDTimer) > 35) {
+				ServerInit();
+				server_started = 1;
+			}
+		}
+
 
 		if( WaitForRealDisc == 1 )
 		{

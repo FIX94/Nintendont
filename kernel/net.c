@@ -24,10 +24,89 @@
 #include "debug.h"
 #include "net.h"
 
-static u32 net_thread = 0;
+static u32 server_thread = 0;
 extern char __net_stack_addr, __net_stack_size;
 
-//static char *top_filename ALIGNED(32) = "/dev/net/ip/top";
+static s32 ncd_fd __attribute__((aligned(32)));
+s32 top_fd __attribute__((aligned(32)));
+static s32 kd_fd  __attribute__((aligned(32)));
+int NCDInit(void)
+{
+	s32 res;
+	STACK_ALIGN(ioctlv, vec, 1, 32);
+
+	dbgprintf("entered NCDInit()\n");
+
+	char *ncd_filename = "/dev/net/ncd/manage";
+	char *top_filename = "/dev/net/ip/top";
+	char *kd_filename  = "/dev/net/kd/request";
+
+	void *ncd_name = heap_alloc_aligned(0,32,32);
+	void *top_name = heap_alloc_aligned(0,32,32);
+	void *kd_name  = heap_alloc_aligned(0,32,32);
+
+	memcpy(ncd_name, ncd_filename, 32);
+	memcpy(top_name, top_filename, 32);
+	memcpy(kd_name, kd_filename, 32);
+
+
+	/* Emit NCD_GETLINKSTATUS on /dev/net/ncd/manage.
+	 * Seems like we just take a single 32-byte buffer?
+	 */
+
+	ncd_fd = IOS_Open(ncd_name, 0);
+	dbgprintf("ncd_fd: %i\n", ncd_fd);
+	void *message_buf = heap_alloc_aligned(0,32,32);
+	vec[0].data = message_buf;
+	vec[0].len = 32;
+
+	res = IOS_Ioctlv(ncd_fd, IOCTL_NCD_GETLINKSTATUS, 0, 1, vec);
+	dbgprintf("IOCTL_NCD_GETLINKSTATUS: %d\n", res);
+	IOS_Close(ncd_fd);
+
+	/* Emit NWC32_STARTUP on /dev/net/kd/request.
+	 * According to libogc, some error code should fall out in the
+	 * buffer which indicates some success or failure.
+	 */
+
+	kd_fd = IOS_Open(kd_name, 0);
+	dbgprintf("kd_fd: %i\n", kd_fd);
+	void *nwc_buf = heap_alloc_aligned(0,32,32);
+	res = IOS_Ioctl(kd_fd, IOCTL_NWC24_STARTUP, 0, 0, nwc_buf, 32);
+	dbgprintf("IOCTL_NWC24_STARTUP: %d\n", res);
+
+	// libogc does `memcpy(&some_s32, nwc_buf, sizeof(some_s32))` here.
+	// if (some_s32 == -29), retry?
+	// if (some_s32 == -15), already started?
+
+	IOS_Close(kd_fd);
+
+
+	/* Emit IOCTL_SO_STARTUP on /dev/net/ip/top, and then emit
+	 * IOCTL_SO_GETHOSTID to retrieve some representation of our IP?
+	 */
+
+	top_fd = IOS_Open(top_name, 0);
+	dbgprintf("top_fd: %i\n", top_fd);
+	res = IOS_Ioctl(top_fd, IOCTL_SO_STARTUP, 0, 0, 0, 0);
+	dbgprintf("IOCTL_SO_STARTUP: %d\n", res);
+
+	res = IOS_Ioctl(top_fd, IOCTL_SO_GETHOSTID, 0, 0, 0, 0);
+	dbgprintf("IOCTL_SO_GETHOSTID: 0x%x\n", res);
+
+	// Hold top_fd open (currently treated like some global state and used
+	// in kernel/Slippi.c)
+	//
+	//IOS_Close(top_fd);
+
+	heap_free(0, top_name);
+	heap_free(0, ncd_name);
+	heap_free(0, kd_name);
+	heap_free(0, nwc_buf);
+
+	return 0;
+}
+
 
 /* Returns the current IP address associated with the device.
  * This will block until we recieve an answer from IOS.  */
@@ -60,7 +139,7 @@ s32 socket(s32 fd, u32 domain, u32 type, u32 protocol)
 
 	res = IOS_Ioctl(fd, IOCTL_SO_SOCKET, params, 12, 0, 0);
 
-	dbgprintf("socket(%d, %d, %d, %d) = %d\r\n", 
+	dbgprintf("socket(%d, %d, %d, %d) = %d\r\n",
 			fd, domain, type, protocol, res);
 	return res;
 }
@@ -193,7 +272,7 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
 {
 	s32 res;
-	u8* message_buf = NULL;
+	//u8* message_buf = NULL;
 	STACK_ALIGN(u32, params, 2, 32);
 	STACK_ALIGN(ioctlv, vec, 3, 32);
 
@@ -249,14 +328,12 @@ static int sock __attribute__((aligned(32)));
 //static int client_sock __attribute__((aligned(32)));
 //static s32 top_fd __attribute__((aligned(32)));
 int client_sock __attribute__((aligned(32)));
-s32 top_fd __attribute__((aligned(32)));
 
-static u8 message[0x100] __attribute__((aligned(32)));
+//static u8 message[0x100] __attribute__((aligned(32)));
 
-u32 net_handler(void *arg)
+u32 server_handler(void *arg)
 {
-	s32 res;
-	dbgprintf("net_handler TID: %d\r\n", thread_get_id());
+	dbgprintf("server_handler TID: %d\r\n", thread_get_id());
 
 	while (1)
 	{
@@ -265,7 +342,7 @@ u32 net_handler(void *arg)
 		client_sock = accept(top_fd, sock);
 
 		if (client_sock >= 0) {
-			while (1) 
+			while (1)
 			{
 
 			// We expect the Slippi thread to send messages
@@ -282,20 +359,15 @@ u32 net_handler(void *arg)
 }
 
 
-void net_shutdown(void) { thread_cancel(net_thread, 0); }
-int NetInit(void)
+/* TCP/IP and networking should already be initialized by the time that this
+ * starts, so we should safely be able to bind to top_fd (this is suitable
+ * for a PoC, but we'd like more rigorous guarantees down the road).
+ */
+
+void net_shutdown(void) { thread_cancel(server_thread, 0); }
+int ServerInit(void)
 {
 	s32 res;
-	dbgprintf("setting up state for net_thread ...\r\n");
-
-	char *top_filename = "/dev/net/ip/top";
-	void *name = heap_alloc_aligned(0,32,32);
-	memcpy(name, top_filename, 32);
-	top_fd = IOS_Open(name,0);
-	heap_free(0,name);
-	IOS_Ioctl(top_fd, IOCTL_SO_STARTUP, 0, 0, 0, 0);
-	dbgprintf("top_fd: %d\r\n", top_fd);
-	if (top_fd < 0) return -1;
 
 	sock = socket(top_fd, AF_INET, SOCK_STREAM, IPPROTO_IP);
 	dbgprintf("sock: %d\r\n", sock);
@@ -319,10 +391,10 @@ int NetInit(void)
 		return res;
 	}
 
-	dbgprintf("net_thread is starting ...\r\n");
-	net_thread = do_thread_create(net_handler, ((u32*)&__net_stack_addr),
-			((u32)(&__net_stack_size)), 0x40);
-	thread_continue(net_thread);
+	dbgprintf("server_thread is starting ...\r\n");
+	server_thread = do_thread_create(server_handler, ((u32*)&__net_stack_addr),
+			((u32)(&__net_stack_size)), 0x60);
+	thread_continue(server_thread);
 
 	return 0;
 }
