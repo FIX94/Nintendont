@@ -25,7 +25,6 @@ u32 SlippiServerStarted = 0; // Used by kernel/main.c
 extern FIL currentFile; // use current file from kernel/Slippi.c
 
 char currentFilePath[NETWORK_FILE_PATH_LEN];
-FSIZE_t currentFilePos = 0;
 
 char nextFilePath[NETWORK_FILE_PATH_LEN];
 bool newNextFile = false;
@@ -36,7 +35,8 @@ bool newNextFile = false;
 #define CONN_STATUS_NO_CLIENT 2
 #define CONN_STATUS_CONNECTED 3 
 
-#define NETWORK_TRANSFER_BUF_SIZE 1024
+//#define NETWORK_TRANSFER_BUF_SIZE 1024
+#define NETWORK_TRANSFER_BUF_SIZE 2048
 
 
 /* This should only be dispatched once in kernel/main.c after NCDInit() has
@@ -64,11 +64,6 @@ void SlippiNetworkShutdown()
 	thread_cancel(SlippiNetwork_Thread, 0);
 }
 
-
-void SlippiNetworkSetNewFile(const char* path) {
-	memcpy(&nextFilePath[0], path, NETWORK_FILE_PATH_LEN);
-	newNextFile = true;
-}
 
 /* Return the current status of the connection. 
  * Used to determine what action the server thread should take. 
@@ -124,14 +119,12 @@ s32 startServer() {
 	return 0;
 }
 
-static u8 acceptMsg[4] __attribute__((aligned(32))) = "OK\x00\x00";
 void listenForClient() {
 	if (client_sock < 0) 
 	{
 		client_sock = accept(top_fd, sock);
 		if (client_sock >= 0) {
 			dbgprintf("Client connected!\r\n");
-			sendto(top_fd, client_sock, &acceptMsg[0], 4, 0);
 		}
 	}
 	else 
@@ -155,68 +148,36 @@ void handleConnection() {
 	}
 }
 
-void openNextFile() {
-	// Figure out when a new file is created and move transfer to that file
-	if (!newNextFile) {
-		// If there is no new file, we don't need to open anything
-		return;
-	}
 
-	// If we are not at the end of the current file, don't switch yet
-	if (f_eof(&currentFile) == 0) {
-		return;
-	}
+//static u8 dataBuf[NETWORK_TRANSFER_BUF_SIZE];
 
-	memcpy(&currentFilePath[0], nextFilePath, NETWORK_FILE_PATH_LEN);
+extern void *SlipMem;
+extern u32 SlipMemSize;
+extern u32 SlipMemCursor;
+u32 currentFilePos = 0;
 
-	dbgprintf("reading from new file: %s\r\n", currentFilePath);
-
-	// Open file
-	FRESULT fileOpenResult = f_open_char(&currentFile, currentFilePath, FA_OPEN_EXISTING | FA_READ);
-	if (fileOpenResult != FR_OK) {
-		return;
-	}
-
-	// Indicate we have loaded the new file
-	newNextFile = false;
-}
-
-void openFileToTransfer() {
-	//TODO: Add function here to reconnect to file if connection is severed
-
-	// This function will open a new file if there is a next file to deal with
-	openNextFile();
-}
-
-static u8 dataBuf[NETWORK_TRANSFER_BUF_SIZE];
 void handleFileTransfer() {
 	int status = getConnectionStatus();
+	u32 diff = SlipMemCursor - currentFilePos;
+	u32 chunksize; 
+
+	// sync reset of cursor with SlipMemCursor?
+	// Note that we'd also have to probably deal with cases where the file
+	// is larger than SlipMemSize
+	// ...
 
 	// Do nothing if (a) there's no client, or (b) we're at EOF and need
 	// to wait for the file to grow
-	if ( (status != CONN_STATUS_CONNECTED) || (currentFilePos >= f_size(&currentFile)) )
+	if ( (status != CONN_STATUS_CONNECTED) || (currentFilePos > SlipMemCursor) )
 		return;
 
+	if (diff >= NETWORK_TRANSFER_BUF_SIZE)
+		chunksize = NETWORK_TRANSFER_BUF_SIZE;
+	else if (diff < NETWORK_TRANSFER_BUF_SIZE)
+		chunksize = diff;
 
-	// 1) Load data from file to fill our buffer
-	UINT readCount = 0;
-	//memset(&dataBuf, 0x00, NETWORK_TRANSFER_BUF_SIZE);
-
-	f_lseek(&currentFile, currentFilePos); // Use our cursor
-	FRESULT fileReadResult = f_read(&currentFile, &dataBuf, NETWORK_TRANSFER_BUF_SIZE, &readCount);
-
-	// Nothing to transfer: don't send anything
-	if (fileReadResult != FR_OK || readCount <= 0) {
-		// reset cursor to EOF
-		dbgprintf("handleFileTransfer: not OK\r\n");
-		f_lseek(&currentFile, f_size(&currentFile)); 
-		return;
-	}
-
-	// 2) Emit data to client and increment our offset into the file
-	dbgprintf("sending data!\r\n");
-	sendto(top_fd, client_sock, dataBuf, readCount, 0);
-	currentFilePos += readCount;
+	sendto(top_fd, client_sock, (SlipMem + currentFilePos), chunksize, 0);
+	currentFilePos += chunksize;
 }
 
 static u32 SlippiNetworkHandlerThread(void *arg) {

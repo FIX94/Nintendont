@@ -53,6 +53,12 @@ s32 lastFrame;
 // Payload Sizes
 static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
 
+// Let Slippi use 0x12B80000 - 0x12E80000
+void *SlipMem = (void*)0x12B80000;
+u32 SlipMemSize =  0x00300000;
+u32 SlipMemCursor = 0x00000000;
+void SlipMemInit(void) { memset32(SlipMem, 0, SlipMemSize); }
+
 void SlippiInit()
 {
 	// Set the commands payload to start at length 1. The reason for this
@@ -62,6 +68,9 @@ void SlippiInit()
 
 	Slippi_MessageHeap = malloca(sizeof(void*) * BUFFER_ACCESS_COUNT, 0x20);
 	Slippi_MessageQueue = mqueue_create(Slippi_MessageHeap, BUFFER_ACCESS_COUNT);
+
+	SlipMemInit();
+
 	Slippi_Thread = do_thread_create(SlippiHandlerThread, ((u32*)&__slippi_stack_addr), ((u32)(&__slippi_stack_size)), 0x78);
 	thread_continue(Slippi_Thread);
 }
@@ -165,6 +174,8 @@ void writeHeader(FIL *file) {
 
 	u32 wrote;
 	f_write(file, header, sizeof(header), &wrote);
+	memcpy((SlipMem + SlipMemCursor), header, sizeof(header));
+	SlipMemCursor += sizeof(header);
 	f_sync(file);
 }
 
@@ -216,10 +227,16 @@ void completeFile(FIL *file, u32 writtenByteCount) {
 	// Write footer
 	u32 wrote;
 	f_write(file, footer, writePos, &wrote);
+	memcpy((SlipMem + SlipMemCursor), footer, sizeof(footer));
+	SlipMemCursor += sizeof(footer);
+
 	f_sync(file);
 
+	// This doesn't seem to write to SlipMem correctly?
 	f_lseek(file, 11);
 	f_write(file, &writtenByteCount, 4, &wrote);
+	memcpy((SlipMem + 11), &writtenByteCount, 4);
+
 	f_sync(file);
 }
 
@@ -342,6 +359,9 @@ static u32 SlippiHandlerThread(void *arg) {
 		UINT wrote;
 		f_lseek(&currentFile, f_size(&currentFile));
 		f_write(&currentFile, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
+		memcpy((SlipMem + SlipMemCursor), slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io);
+		SlipMemCursor += slippi_msg->ioctl.length_io;
+
 		f_sync(&currentFile);
 		writtenByteCount += wrote;
 
@@ -349,6 +369,8 @@ static u32 SlippiHandlerThread(void *arg) {
 			dbgprintf("Completing File...\r\n");
 			completeFile(&currentFile, writtenByteCount);
 			f_close(&currentFile);
+			SlipMemCursor = 0;
+			SlipMemInit();
 		}
 
 		SlippiHandlerThread_Finish(slippi_msg, 0);
