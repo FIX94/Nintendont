@@ -5,17 +5,13 @@
 #include "ff_utf8.h"
 #include "DI.h"
 
-#include "net.h"
+#include "SlippiNetwork.h"
 
 #define RECEIVE_BUFFER_SIZE 1000 // Must be longer than the games' transfer buffer (currently 784)
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
 #define WRITE_BUFFER_LENGTH 0x1000
 #define PAYLOAD_SIZES_BUFFER_SIZE 20
 #define FOOTER_BUFFER_LENGTH 200
-
-// Global state from net.c 
-extern int client_sock;
-extern s32 top_fd;
 
 static u32 SlippiHandlerThread(void *arg);
 
@@ -46,6 +42,9 @@ static u32 writeBufferIndex = 0;
 
 // File writing stuff
 static u32 fileIndex = 1;
+
+// File object, shared with the network thread
+FIL currentFile;
 
 // vars for metadata generation
 u32 gameStartTime;
@@ -306,10 +305,11 @@ static void SlippiHandlerThread_Finish(struct ipcmessage *slippi_msg, int retval
 	mqueue_ack(slippi_msg, retval);
 }
 
+
 static u32 SlippiHandlerThread(void *arg) {
 	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
 
-	FIL file;
+	//FIL file;
 	u32 writtenByteCount = 0;
 	struct ipcmessage *slippi_msg;
 	while(1)
@@ -322,7 +322,8 @@ static u32 SlippiHandlerThread(void *arg) {
 
 			dbgprintf("Creating File...\r\n");
 			char* fileName = generateFileName(true);
-			FRESULT fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
+			// Need to open with FA_READ if network thread is going to share &currentFile
+			FRESULT fileOpenResult = f_open_char(&currentFile, fileName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
 
 			if (fileOpenResult != FR_OK) {
 				dbgprintf("Slippi: failed to open file: %s, errno: %d\r\n", fileName, fileOpenResult);
@@ -330,30 +331,24 @@ static u32 SlippiHandlerThread(void *arg) {
 				break;
 			}
 
+			// Tell the networking code that we are writting to a new file
+			//SlippiNetworkSetNewFile(fileName);
+
 			// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 			writtenByteCount = 0;
-			writeHeader(&file);
+			writeHeader(&currentFile);
 		}
 
 		UINT wrote;
-		f_write(&file, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
-		f_sync(&file);
+		f_lseek(&currentFile, f_size(&currentFile));
+		f_write(&currentFile, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
+		f_sync(&currentFile);
 		writtenByteCount += wrote;
-
-		if ((top_fd >= 0) && (client_sock >= 0)) {
-			// Emit data to client (assuming they've connected already)
-			sendto(top_fd, client_sock, slippi_msg->ioctl.buffer_io, 
-				slippi_msg->ioctl.length_io, 0);
-		}
 
 		if (slippi_msg->ioctl.command == 2) {
 			dbgprintf("Completing File...\r\n");
-			completeFile(&file, writtenByteCount);
-			f_close(&file);
-
-			// End connection if file is completed
-			close(top_fd, client_sock);
-			client_sock = -1;
+			completeFile(&currentFile, writtenByteCount);
+			f_close(&currentFile);
 		}
 
 		SlippiHandlerThread_Finish(slippi_msg, 0);

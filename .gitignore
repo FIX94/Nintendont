@@ -11,3 +11,4 @@ nintendont/boot.dol
 fatfs/*.a
 codehandler/*.h
 .vscode/*
+.idea/*

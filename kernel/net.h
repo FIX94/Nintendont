@@ -118,11 +118,7 @@ enum {
 
 /* Function declarations */
 
-void net_shutdown(void);
-int ServerInit(void);
 int NCDInit(void);
-u32 net_handler(void *arg);
-int current_ip_address(s32 fd);
 s32 socket(s32 fd, u32 domain, u32 type, u32 protocol);
 s32 close(s32 fd, s32 socket);
 s32 bind(s32 fd, s32 socket, struct sockaddr *name);

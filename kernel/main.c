@@ -36,7 +36,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "GCAM.h"
 #include "TRI.h"
 #include "Patch.h"
+
 #include "Slippi.h"
+#include "SlippiNetwork.h"
 #include "net.h"
 
 #include "diskio.h"
@@ -74,8 +76,13 @@ u32 drcAddress = 0;
 u32 drcAddressAligned = 0;
 bool isWiiVC = false;
 bool wiiVCInternal = false;
-u32 network_started = 0;
-u32 server_started = 0;
+
+// Global state for network connectivity, from kernel/net.c
+extern u32 NetworkStarted;
+
+// Server status, from kernel/SlippiNetwork.c
+extern u32 SlippiServerStarted;
+
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
@@ -277,8 +284,6 @@ int _main( int argc, char *argv[] )
 	dbgprintf("Main Thread ID: %d\r\n", thread_get_id());
 	SlippiInit();
 
-	//ret = NetInit();
-	//dbgprintf("NetInit returned %d\r\n", ret);
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
@@ -434,23 +439,21 @@ int _main( int argc, char *argv[] )
 		 * ~meta
 		 */
 
-		// Start up wireless networking and the TCP/IP stack
-		if (network_started == 0)
+		// Initialize low-level networking and the TCP/IP stack
+		if (NetworkStarted == 0)
 		{
 			if (TimerDiffSeconds(NCDTimer) > 30) {
 				NCDInit();
-				network_started = 1;
+				NetworkStarted = 1;
 			}
 		}
 
-		// Dispatch a thread which binds to a socket and  handles
-		// impinging SYN requests. At the moment, the slippi thread
-		// itself issues send() requests on the socket.
-		if ((network_started == 1) && (server_started == 0))
+		// Dispatch the Slippi Network thread (the server)
+		if ((NetworkStarted == 1) && (SlippiServerStarted == 0))
 		{
 			if (TimerDiffSeconds(NCDTimer) > 35) {
-				ServerInit();
-				server_started = 1;
+				ret = SlippiNetworkInit();
+				dbgprintf("SlippiNetworkInit returned %d\r\n", ret);
 			}
 		}
 
@@ -597,6 +600,7 @@ int _main( int argc, char *argv[] )
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
 
+	SlippiNetworkShutdown();
 	SlippiShutdown();
 
 	if (ConfigGetConfig(NIN_CFG_LOG))

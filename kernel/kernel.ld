@@ -24,11 +24,11 @@ __intr_stack_addr = __hid_change_stack_addr + __intr_stack_size;
 __blk_stack_size = 0x400;
 __blk_stack_addr = __intr_stack_addr + __blk_stack_size;
 
-__net_stack_size = 0x2000;
-__net_stack_addr = __blk_stack_addr + __net_stack_size;
+__slippi_network_stack_size = 0x2000;
+__slippi_network_stack_addr = __blk_stack_addr + __slippi_network_stack_size;
 
 __slippi_stack_size = 0x2000;
-__slippi_stack_addr = __net_stack_addr + __slippi_stack_size;
+__slippi_stack_addr = __slippi_network_stack_addr + __slippi_stack_size;
 
 MEMORY {
 
