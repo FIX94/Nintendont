@@ -20,6 +20,28 @@
 
 /* Structures describing IOCTL parameters */
 
+struct pollsd {
+	s32 socket;
+	u32 events;
+	u32 revents;
+};
+
+// Poll events (?)
+#define POLLIN				0x0001
+#define POLLPRI				0x0002
+#define POLLOUT				0x0004
+#define POLLERR				0x0008
+#define POLLHUP				0x0010
+#define POLLNVAL			0x0020
+
+struct setsockopt_params {
+	u32 socket;
+	u32 level;
+	u32 optname;
+	u32 optlen;
+	u8 optval[20];
+};
+
 struct in_addr {
 	u32 s_addr;
 };
@@ -126,5 +148,7 @@ s32 listen(s32 fd, s32 socket, u32 backlog);
 s32 accept(s32 fd, s32 socket);
 s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags);
 s32 connect(s32 fd, s32 socket, struct address *addr);
+s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags);
+s32 poll(s32 fd, struct pollsd *sds, s32 nsds, s32 timeout);
 
 #endif
