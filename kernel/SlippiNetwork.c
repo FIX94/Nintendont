@@ -1,5 +1,6 @@
 #include "SlippiNetwork.h"
 #include "common.h"
+#include "string.h"
 #include "debug.h"
 #include "net.h"
 #include "ff_utf8.h"
@@ -12,15 +13,18 @@ static u32 SlippiNetworkHandlerThread(void *arg);
 // Connection variables
 static struct sockaddr_in server __attribute__((aligned(32)));
 static int sock __attribute__((aligned(32)));
-int client_sock __attribute__((aligned(32)));
-s32 top_fd __attribute__((aligned(32)));
+static int client_sock __attribute__((aligned(32)));
+
+// Global network state
+extern s32 top_fd; 
+u32 SlippiServerStarted = 0; // Used by kernel/main.c
 
 // File transfer variable
 #define NETWORK_FILE_PATH_LEN 50
 
-FIL currentFile;
+extern FIL currentFile; // use current file from kernel/Slippi.c
+
 char currentFilePath[NETWORK_FILE_PATH_LEN];
-u32 currentFilePos = 0;
 
 char nextFilePath[NETWORK_FILE_PATH_LEN];
 bool newNextFile = false;
@@ -31,22 +35,14 @@ bool newNextFile = false;
 #define CONN_STATUS_NO_CLIENT 2
 #define CONN_STATUS_CONNECTED 3 
 
-#define NETWORK_TRANSFER_BUF_SIZE 1024
+//#define NETWORK_TRANSFER_BUF_SIZE 1024
+#define NETWORK_TRANSFER_BUF_SIZE 2048
 
+
+/* This should only be dispatched once in kernel/main.c after NCDInit() has
+ * actually brought up the networking stack and we have connectivity. */
 s32 SlippiNetworkInit()
 {
-	s32 res;
-	dbgprintf("setting up state for net_thread ...\r\n");
-
-	char *top_filename = "/dev/net/ip/top";
-	void *name = heap_alloc_aligned(0,32,32);
-	memcpy(name, top_filename, 32);
-	top_fd = IOS_Open(name,0);
-	heap_free(0,name);
-	IOS_Ioctl(top_fd, IOCTL_SO_STARTUP, 0, 0, 0, 0);
-	dbgprintf("top_fd: %d\r\n", top_fd);
-	if (top_fd < 0) return -1;
-
 	sock = -1;
 	client_sock = -1;
 
@@ -58,6 +54,7 @@ s32 SlippiNetworkInit()
 		0x78
 	);
 	thread_continue(SlippiNetwork_Thread);
+	SlippiServerStarted = 1;
 
 	return 0;
 }
@@ -67,39 +64,34 @@ void SlippiNetworkShutdown()
 	thread_cancel(SlippiNetwork_Thread, 0);
 }
 
-void SlippiNetworkSetNewFile(const char* path) {
-	memcpy(&nextFilePath[0], path, NETWORK_FILE_PATH_LEN);
-	newNextFile = true;
-}
 
+/* Return the current status of the connection. 
+ * Used to determine what action the server thread should take. 
+ * States are as follows:
+ *
+ *	0 - unknown state
+ *	1 - server socket is closed
+ *	2 - waiting for client connection
+ *	3 - connected to client
+ */
 int getConnectionStatus() {
-	// This function will return the current status of the connection,
-	// this is used to determine what action to take.
-	// States are as follows:
-	// 0 - unknown state
-	// 1 - server socket is closed
-	// 2 - waiting for client connection
-	// 3 - connected to client
-	if (sock < 0) {
+	if (sock < 0)
 		return CONN_STATUS_NO_SERVER;
-	}
 
-	if (client_sock < 0) {
+	if (client_sock < 0)
 		return CONN_STATUS_NO_CLIENT;
-	} else {
+	else
 		return CONN_STATUS_CONNECTED;
-	}
 
 	return CONN_STATUS_UNKNOWN;
 }
 
+/* Get a new socket, then bind and listen on it */
 s32 startServer() {
 	s32 res;
 
 	sock = socket(top_fd, AF_INET, SOCK_STREAM, IPPROTO_IP);
 	dbgprintf("sock: %d\r\n", sock);
-
-	/* Bind to socket and start listening */
 
 	memset(&server, 0, sizeof(server));
 	server.sin_family = AF_INET;
@@ -109,12 +101,16 @@ s32 startServer() {
 	res = bind(top_fd, sock, (struct sockaddr*)&server);
 	if (res < 0) {
 		close(top_fd, sock);
+		sock = -1;
+		dbgprintf("bind() failed with: %d\r\n", res);
 		return res;
 	}
 
 	res = listen(top_fd, sock, 1);
 	if (res < 0)  {
 		close(top_fd, sock);
+		sock = -1;
+		dbgprintf("listen() failed with: %d\r\n", res);
 		return res;
 	}
 
@@ -124,90 +120,70 @@ s32 startServer() {
 }
 
 void listenForClient() {
-	client_sock = accept(top_fd, sock);
-	if (client_sock >= 0) {
-		dbgprintf("Client connected!\r\n");
+	if (client_sock < 0) 
+	{
+		client_sock = accept(top_fd, sock);
+		if (client_sock >= 0) {
+			dbgprintf("Client connected!\r\n");
+		}
+	}
+	else 
+	{
+		mdelay(10);
 	}
 }
 
 void handleConnection() {
 	int status = getConnectionStatus();
 	switch (status) {
-		case 1:
+		case CONN_STATUS_NO_SERVER:
 			startServer();
 			break;
-		case 2:
+		case CONN_STATUS_NO_CLIENT:
 			listenForClient();
+			break;
+		default:
+			mdelay(10);
 			break;
 	}
 }
 
-void openNextFile() {
-	// Figure out when a new file is created and move transfer to that file
-	if (!newNextFile) {
-		// If there is no new file, we don't need to open anything
-		return;
-	}
 
-	// If we are not at the end of the current file, don't switch yet
-	if (f_eof(&currentFile) == 0) {
-		return;
-	}
+//static u8 dataBuf[NETWORK_TRANSFER_BUF_SIZE];
 
-	memcpy(&currentFilePath[0], nextFilePath, NETWORK_FILE_PATH_LEN);
-
-	dbgprintf("reading from new file: %s\r\n", currentFilePath);
-
-	// Open file
-	FRESULT fileOpenResult = f_open_char(&currentFile, currentFilePath, FA_OPEN_EXISTING | FA_READ);
-	if (fileOpenResult != FR_OK) {
-		return;
-	}
-
-	// Indicate we have loaded the new file
-	newNextFile = false;
-}
-
-void openFileToTransfer() {
-	//TODO: Add function here to reconnect to file if connection is severed
-
-	// This function will open a new file if there is a next file to deal with
-	openNextFile();
-}
+extern void *SlipMem;
+extern u32 SlipMemSize;
+extern u32 SlipMemCursor;
+u32 currentFilePos = 0;
 
 void handleFileTransfer() {
 	int status = getConnectionStatus();
-	if (status != CONN_STATUS_CONNECTED) {
-		// Don't do anything if not connected to a client
+	u32 diff = SlipMemCursor - currentFilePos;
+	u32 chunksize; 
+
+	// sync reset of cursor with SlipMemCursor?
+	// Note that we'd also have to probably deal with cases where the file
+	// is larger than SlipMemSize
+	// ...
+
+	// Do nothing if (a) there's no client, or (b) we're at EOF and need
+	// to wait for the file to grow
+	if ( (status != CONN_STATUS_CONNECTED) || (currentFilePos > SlipMemCursor) )
 		return;
-	}
 
-	if (f_eof(&currentFile)) {
-		// Don't do anything if end of file
-		return;
-	}
+	if (diff >= NETWORK_TRANSFER_BUF_SIZE)
+		chunksize = NETWORK_TRANSFER_BUF_SIZE;
+	else if (diff < NETWORK_TRANSFER_BUF_SIZE)
+		chunksize = diff;
 
-	static u8 dataBuf[NETWORK_TRANSFER_BUF_SIZE];
-	u32 dataBufByteCount = 0;
-
-	// 1) Load data from file to fill our buffer
-	UINT readCount;
-	FRESULT fileReadResult = f_read(&currentFile, &dataBuf, NETWORK_TRANSFER_BUF_SIZE, &readCount);
-	if (fileReadResult != FR_OK || readCount <= 0) {
-		// Nothing to transfer
-		return;
-	}
-
-	dbgprintf("sending data!\r\n");
-
-	// 2) Emit data to client (assuming they've connected already)
-	sendto(top_fd, client_sock, dataBuf, readCount, 0);
+	sendto(top_fd, client_sock, (SlipMem + currentFilePos), chunksize, 0);
+	currentFilePos += chunksize;
 }
 
 static u32 SlippiNetworkHandlerThread(void *arg) {
 	while (1) {
 		handleConnection();
-		openFileToTransfer();
+		//openFileToTransfer();
 		handleFileTransfer();
 
 		mdelay(100);

@@ -13,10 +13,6 @@
 #define PAYLOAD_SIZES_BUFFER_SIZE 20
 #define FOOTER_BUFFER_LENGTH 200
 
-// Global state from net.c 
-extern int client_sock;
-extern s32 top_fd;
-
 static u32 SlippiHandlerThread(void *arg);
 
 enum
@@ -47,12 +43,21 @@ static u32 writeBufferIndex = 0;
 // File writing stuff
 static u32 fileIndex = 1;
 
+// File object, shared with the network thread
+FIL currentFile;
+
 // vars for metadata generation
 u32 gameStartTime;
 s32 lastFrame;
 
 // Payload Sizes
 static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
+
+// Let Slippi use 0x12B80000 - 0x12E80000
+void *SlipMem = (void*)0x12B80000;
+u32 SlipMemSize =  0x00300000;
+u32 SlipMemCursor = 0x00000000;
+void SlipMemInit(void) { memset32(SlipMem, 0, SlipMemSize); }
 
 void SlippiInit()
 {
@@ -63,6 +68,9 @@ void SlippiInit()
 
 	Slippi_MessageHeap = malloca(sizeof(void*) * BUFFER_ACCESS_COUNT, 0x20);
 	Slippi_MessageQueue = mqueue_create(Slippi_MessageHeap, BUFFER_ACCESS_COUNT);
+
+	SlipMemInit();
+
 	Slippi_Thread = do_thread_create(SlippiHandlerThread, ((u32*)&__slippi_stack_addr), ((u32)(&__slippi_stack_size)), 0x78);
 	thread_continue(Slippi_Thread);
 }
@@ -166,6 +174,8 @@ void writeHeader(FIL *file) {
 
 	u32 wrote;
 	f_write(file, header, sizeof(header), &wrote);
+	memcpy((SlipMem + SlipMemCursor), header, sizeof(header));
+	SlipMemCursor += sizeof(header);
 	f_sync(file);
 }
 
@@ -217,10 +227,16 @@ void completeFile(FIL *file, u32 writtenByteCount) {
 	// Write footer
 	u32 wrote;
 	f_write(file, footer, writePos, &wrote);
+	memcpy((SlipMem + SlipMemCursor), footer, sizeof(footer));
+	SlipMemCursor += sizeof(footer);
+
 	f_sync(file);
 
+	// This doesn't seem to write to SlipMem correctly?
 	f_lseek(file, 11);
 	f_write(file, &writtenByteCount, 4, &wrote);
+	memcpy((SlipMem + 11), &writtenByteCount, 4);
+
 	f_sync(file);
 }
 
@@ -306,10 +322,11 @@ static void SlippiHandlerThread_Finish(struct ipcmessage *slippi_msg, int retval
 	mqueue_ack(slippi_msg, retval);
 }
 
+
 static u32 SlippiHandlerThread(void *arg) {
 	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
 
-	FIL file;
+	//FIL file;
 	u32 writtenByteCount = 0;
 	struct ipcmessage *slippi_msg;
 	while(1)
@@ -322,7 +339,8 @@ static u32 SlippiHandlerThread(void *arg) {
 
 			dbgprintf("Creating File...\r\n");
 			char* fileName = generateFileName(true);
-			FRESULT fileOpenResult = f_open_char(&file, fileName, FA_CREATE_ALWAYS | FA_WRITE);
+			// Need to open with FA_READ if network thread is going to share &currentFile
+			FRESULT fileOpenResult = f_open_char(&currentFile, fileName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
 
 			if (fileOpenResult != FR_OK) {
 				dbgprintf("Slippi: failed to open file: %s, errno: %d\r\n", fileName, fileOpenResult);
@@ -331,22 +349,28 @@ static u32 SlippiHandlerThread(void *arg) {
 			}
 
 			// Tell the networking code that we are writting to a new file
-			SlippiNetworkSetNewFile(fileName);
+			//SlippiNetworkSetNewFile(fileName);
 
 			// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 			writtenByteCount = 0;
-			writeHeader(&file);
+			writeHeader(&currentFile);
 		}
 
 		UINT wrote;
-		f_write(&file, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
-		f_sync(&file);
+		f_lseek(&currentFile, f_size(&currentFile));
+		f_write(&currentFile, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
+		memcpy((SlipMem + SlipMemCursor), slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io);
+		SlipMemCursor += slippi_msg->ioctl.length_io;
+
+		f_sync(&currentFile);
 		writtenByteCount += wrote;
 
 		if (slippi_msg->ioctl.command == 2) {
 			dbgprintf("Completing File...\r\n");
-			completeFile(&file, writtenByteCount);
-			f_close(&file);
+			completeFile(&currentFile, writtenByteCount);
+			f_close(&currentFile);
+			SlipMemCursor = 0;
+			SlipMemInit();
 		}
 
 		SlippiHandlerThread_Finish(slippi_msg, 0);
