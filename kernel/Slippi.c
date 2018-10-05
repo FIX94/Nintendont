@@ -15,15 +15,7 @@
 
 static u32 SlippiHandlerThread(void *arg);
 
-enum
-{
-	CMD_UNKNOWN = 0x0,
-	CMD_RECEIVE_COMMANDS = 0x35,
-	CMD_RECEIVE_GAME_INFO = 0x36,
-	CMD_RECEIVE_PRE_FRAME_UPDATE = 0x37,
-	CMD_RECEIVE_POST_FRAME_UPDATE = 0x38,
-	CMD_RECEIVE_GAME_END = 0x39,
-};
+
 
 // Thread stuff
 static u32 Slippi_Thread;
@@ -52,12 +44,6 @@ s32 lastFrame;
 
 // Payload Sizes
 static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
-
-// Let Slippi use 0x12B80000 - 0x12E80000
-void *SlipMem = (void*)0x12B80000;
-u32 SlipMemSize =  0x00300000;
-u32 SlipMemCursor = 0x00000000;
-void SlipMemInit(void) { memset32(SlipMem, 0, SlipMemSize); }
 
 void SlippiInit()
 {
@@ -117,33 +103,6 @@ char *generateFileName(bool isNewFile)
 	}
 
 	return pathStr;
-}
-
-u16 getPayloadSize(u8 command)
-{
-	int payloadSizesIndex = command - CMD_RECEIVE_COMMANDS;
-	if (payloadSizesIndex >= PAYLOAD_SIZES_BUFFER_SIZE || payloadSizesIndex < 0)
-	{
-		return 0;
-	}
-
-	return payloadSizes[payloadSizesIndex];
-}
-
-void configureCommands(u8 *payload, u8 length)
-{
-	int i = 1;
-	while (i < length)
-	{
-		// Go through the receive commands payload and set up other commands
-		u8 commandByte = payload[i];
-		u16 commandPayloadSize = payload[i + 1] << 8 | payload[i + 2];
-		payloadSizes[commandByte - CMD_RECEIVE_COMMANDS] = commandPayloadSize;
-
-		// dbgprintf("Index: 0x%02X, Size: 0x%02X\r\n", commandByte - CMD_RECEIVE_COMMANDS, commandPayloadSize);
-
-		i += 3;
-	}
 }
 
 void updateMetadataFields(u8* payload, u32 length) {
@@ -359,7 +318,7 @@ static u32 SlippiHandlerThread(void *arg) {
 		UINT wrote;
 		f_lseek(&currentFile, f_size(&currentFile));
 		f_write(&currentFile, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
-		memcpy((SlipMem + SlipMemCursor), slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io);
+		memcpy(&SlipMem[SlipMemCursor], slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io);
 		SlipMemCursor += slippi_msg->ioctl.length_io;
 
 		f_sync(&currentFile);

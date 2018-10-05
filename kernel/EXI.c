@@ -797,11 +797,6 @@ void EXIUpdateRegistersNEW( void )
 				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-						EXIDeviceMemoryCard(0, ptr, len, mode);
-						break;
-
-#ifdef GCNCARD_ENABLE_SLOT_B
-					case EXI_DEV_MEMCARD_B:
 						if (mode == 1) {
 							SlippiDmaWrite(ptr, len);
 						}
@@ -815,7 +810,26 @@ void EXIUpdateRegistersNEW( void )
 						EXI_IRQ = true;
 						IRQ_Timer = read32(HW_TIMER);
 
-						// EXIDeviceMemoryCard(1, ptr, len, mode);
+						// EXIDeviceMemoryCard(0, ptr, len, mode);
+
+						break;
+
+#ifdef GCNCARD_ENABLE_SLOT_B
+					case EXI_DEV_MEMCARD_B:
+						// if (mode == 1) {
+						// 	SlippiDmaWrite(ptr, len);
+						// }
+
+						// IRQ_Cause[0] = 10;
+
+						// // Write that data has been received
+						// write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
+						// sync_after_write( (void*)EXI_BASE, 0x20 );
+
+						// EXI_IRQ = true;
+						// IRQ_Timer = read32(HW_TIMER);
+
+						EXIDeviceMemoryCard(1, ptr, len, mode);
 						
 						break;
 #endif /* GCNCARD_ENABLE_SLOT_B */
