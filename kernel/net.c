@@ -1,14 +1,12 @@
 /* Functions for network initialization and socket operations -- based on
  * FIX94's experimental bbatest branch in upstream Nintendont, and also on 
- * the libogc articulation of certain interactions with IOS (network_wii.c).
+ * the libogc articulation of networking with IOS (network_wii.c).
  *
- * See scripts/slippi-net-test for an example of dealing with streaming data
- * from the network.
- *
- * NOTES:
- *
- * Recall that, when issuing ioctls, all pointer arguments need to be 
- * 32-byte aligned (or at least, this is what the doctor tells me).
+ * NOTES FOR DEVELOPERS
+ * ====================
+ * Recall that, when issuing ioctls to IOS, all pointer arguments need to be
+ * 32-byte aligned (or at least, this is what the doctor tells me). This is
+ * also the reasoning behind the STACK_ALIGN macro usage.
  *
  * Aspects of low-level network state should probably be managed in this file 
  * and exposed as globals - for instance, after network initialization, the 
@@ -21,6 +19,8 @@
 #include "string.h"
 #include "debug.h"
 #include "net.h"
+
+#include "SlippiDebug.h"
 
 // These are only relevant to NCDInit(), and are closed before returning
 static s32 ncd_fd __attribute__((aligned(32)));
@@ -49,13 +49,13 @@ int NCDInit(void)
 	char *top_filename = "/dev/net/ip/top";
 	char *kd_filename  = "/dev/net/kd/request";
 
-	void *ncd_name = heap_alloc_aligned(0,32,32);
-	void *top_name = heap_alloc_aligned(0,32,32);
-	void *kd_name  = heap_alloc_aligned(0,32,32);
+	void *ncd_name = heap_alloc_aligned(0, 32, 32);
+	void *top_name = heap_alloc_aligned(0, 32, 32);
+	void *kd_name  = heap_alloc_aligned(0, 32, 32);
 
 	memcpy(ncd_name, ncd_filename, 32);
 	memcpy(top_name, top_filename, 32);
-	memcpy(kd_name, kd_filename, 32);
+	memcpy(kd_name,  kd_filename, 32);
 
 	/* Emit NCD_GETLINKSTATUS on /dev/net/ncd/manage.
 	 * Seems like we just take a single 32-byte buffer?
@@ -112,7 +112,7 @@ int NCDInit(void)
 	heap_free(0, nwc_buf);
 
 	NetworkStarted = 1;
-
+	ppc_msg("NETWORK INIT OK\x00", 16);
 	return 0;
 }
 
@@ -133,8 +133,6 @@ s32 socket(s32 fd, u32 domain, u32 type, u32 protocol)
 
 	res = IOS_Ioctl(fd, IOCTL_SO_SOCKET, params, 12, 0, 0);
 
-	dbgprintf("socket(%d, %d, %d, %d) = %d\r\n",
-			fd, domain, type, protocol, res);
 	return res;
 }
 
@@ -148,7 +146,6 @@ s32 close(s32 fd, s32 socket)
 	*params = socket;
 	res = IOS_Ioctl(fd, IOCTL_SO_CLOSE, params, 4, 0, 0);
 
-	dbgprintf("close(%d, %d) = %d\r\n", fd, socket, res);
 	return res;
 }
 
@@ -171,7 +168,6 @@ s32 bind(s32 fd, s32 socket, struct sockaddr *name)//, socklen_t address_len)
 	res = IOS_Ioctl(fd, IOCTL_SO_BIND, params,
 			sizeof(struct bind_params), 0, 0);
 
-	dbgprintf("bind(%d, %d, %p) = %d\r\n", fd, socket, name);
 	return res;
 }
 
@@ -190,7 +186,6 @@ s32 listen(s32 fd, s32 socket, u32 backlog)
 
 	res = IOS_Ioctl(fd, IOCTL_SO_LISTEN, params, 8, 0, 0);
 
-	dbgprintf("listen(%d, %d, %d) = %d\r\n", fd, socket, backlog, res);
 	return res;
 }
 
@@ -211,7 +206,6 @@ s32 accept(s32 fd, s32 socket)
 	addr->sa_family = AF_INET;
 
 	res = IOS_Ioctl(fd, IOCTL_SO_ACCEPT, params, 4, addr, 8);
-	// dbgprintf("accept(%d, %d) = %d\r\n", fd, socket, res);
 
 	return res;
 }
@@ -232,7 +226,6 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 
 	u8 *message_buf = (u8*)heap_alloc_aligned(0, len, 32);
 	if (message_buf == NULL) {
-		dbgprintf("sendto() couldn't heap_alloc_aligned() - uh oh\r\n");
 		return -1;
 	}
 
@@ -254,9 +247,6 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 
 	if (message_buf != NULL)
 		heap_free(0, message_buf);
-
-	dbgprintf("sendto(%d, %d, %p, %d, %d) = %d\r\n",
-			fd, socket, data, len, flags);
 
 	return res;
 }
@@ -307,7 +297,52 @@ s32 connect(s32 fd, s32 socket, struct address *addr)
 	res = IOS_Ioctl(fd, IOCTL_SO_CONNECT, &params,
 			sizeof(struct connect_params), 0, 0);
 
-	dbgprintf("connect(%d, %p) = %d\r\n", socket, addr, res);
 	return res;
 }
 
+/* Set options on some socket. Implementation not tested yet. */
+s32 setsockopt(s32 fd, s32 socket, u32 level, u32 optname, void *optval, u32 optlen)
+{
+	s32 res;
+	STACK_ALIGN(struct setsockopt_params, params, 1, 32);
+
+	if (fd < 0) return -62;
+
+	memset(&params, 0, sizeof(struct setsockopt_params));
+	params->socket = socket;
+	params->level = level;
+	params->optname = optname;
+	params->optlen = optlen;
+	if (optval && optlen)
+		memcpy(params->optval, optval, optlen);
+	res = IOS_Ioctl(fd, IOCTL_SO_SETSOCKOPT, &params,
+			sizeof(struct setsockopt_params), 0, 0);
+}
+
+/* Implementation not tested yet. */
+static union ullc { u64 ull; u32 ul[2]; };
+s32 poll(s32 fd, struct pollsd *sds, s32 nsds, s32 timeout)
+{
+
+	STACK_ALIGN(u64, params, 1, 32);
+	union ullc outv;
+	s32 res;
+
+	if (fd < 0) return -62;
+	if (sds <= 0) return -28;
+	if (nsds <= 0) return -28;
+
+	struct pollsd *psds = (struct pollsd*)heap_alloc_aligned(0,
+			(nsds * sizeof(struct pollsd)), 32);
+
+	outv.ul[0] = 0;
+	outv.ul[1] = timeout;
+	params[0] = outv.ull;
+
+	memcpy(psds, sds, (nsds*sizeof(struct pollsd)));
+	res = IOS_Ioctl(fd, IOCTL_SO_POLL, params, 8, psds, (nsds * sizeof(struct pollsd)));
+	memcpy(sds, psds, (nsds*sizeof(struct pollsd)));
+
+	heap_free(0, psds);
+	return res;
+}

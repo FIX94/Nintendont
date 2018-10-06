@@ -1,11 +1,12 @@
-#include "Slippi.h"
+#include "SlippiFileWriter.h"
+#include "SlippiMemory.h"
 #include "alloc.h"
 #include "debug.h"
 #include "string.h"
 #include "ff_utf8.h"
 #include "DI.h"
 
-#include "SlippiNetwork.h"
+#include "SlippiDebug.h"
 
 #define RECEIVE_BUFFER_SIZE 1000 // Must be longer than the games' transfer buffer (currently 784)
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
@@ -15,22 +16,9 @@
 
 static u32 SlippiHandlerThread(void *arg);
 
-
-
 // Thread stuff
 static u32 Slippi_Thread;
-static void *Slippi_MessageHeap;
-static u32 Slippi_MessageQueue;
 extern char __slippi_stack_addr, __slippi_stack_size;
-
-typedef struct BufferAccess {
-	u8 buffer[WRITE_BUFFER_LENGTH]; // Data to write
-	struct ipcmessage message;
-} bufferAccess;
-
-#define BUFFER_ACCESS_COUNT 35 // need lots of buffers for 4 ICs. 37 is max
-static bufferAccess accessManager[BUFFER_ACCESS_COUNT];
-static u32 writeBufferIndex = 0;
 
 // File writing stuff
 static u32 fileIndex = 1;
@@ -45,26 +33,18 @@ s32 lastFrame;
 // Payload Sizes
 static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
 
-void SlippiInit()
+void SlippiFileWriterInit()
 {
-	// Set the commands payload to start at length 1. The reason for this
-	// is that the game will pass in all the command sizes but if
-	// it starts at 0 then the command is ignored and nothing ever happens
-	payloadSizes[0] = 1;
-
-	Slippi_MessageHeap = malloca(sizeof(void*) * BUFFER_ACCESS_COUNT, 0x20);
-	Slippi_MessageQueue = mqueue_create(Slippi_MessageHeap, BUFFER_ACCESS_COUNT);
-
-	SlipMemInit();
-
-	Slippi_Thread = do_thread_create(SlippiHandlerThread, ((u32*)&__slippi_stack_addr), ((u32)(&__slippi_stack_size)), 0x78);
+	Slippi_Thread = do_thread_create(
+		SlippiHandlerThread,
+		((u32 *)&__slippi_stack_addr),
+		((u32)(&__slippi_stack_size)),
+		0x78);
 	thread_continue(Slippi_Thread);
 }
 
-void SlippiShutdown()
+void SlippiFileWriterShutdown()
 {
-	mqueue_destroy(Slippi_MessageQueue);
-	free(Slippi_MessageHeap);
 	thread_cancel(Slippi_Thread, 0);
 }
 
@@ -95,25 +75,23 @@ char *generateFileName(bool isNewFile)
 
 	_sprintf(
 		&pathStr[0], "usb:/Slippi/Game_%04d%02d%02dT%02d%02d%02d.slp", tmp->tm_year + 1900,
-		tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec
-	);
+		tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 
-	if (isNewFile) {
+	if (isNewFile)
+	{
 		fileIndex += 1;
 	}
 
 	return pathStr;
 }
 
-void updateMetadataFields(u8* payload, u32 length) {
-	if (length <= 0 || payload[0] != CMD_RECEIVE_POST_FRAME_UPDATE) {
+void updateMetadataFields(u8 *payload, u32 length)
+{
+	if (length <= 0 || payload[0] != CMD_RECEIVE_POST_FRAME_UPDATE)
+	{
 		// Only need to update if this is a post frame update
 		return;
 	}
-
-	// TODO: Consider moving this stuff into a message, feels wrong
-	// TODO: using this data in the thread without communicating through
-	// TODO: the buffers
 
 	// Keep track of last frame
 	lastFrame = payload[1] << 24 | payload[2] << 16 | payload[3] << 8 | payload[4];
@@ -128,22 +106,22 @@ void updateMetadataFields(u8* payload, u32 length) {
 	// characterUsage[playerIndex][internalCharacterId] += 1;
 }
 
-void writeHeader(FIL *file) {
-	u8 header[] = { '{', 'U', 3, 'r', 'a', 'w', '[', '$', 'U', '#', 'l', 0, 0, 0, 0 };
+void writeHeader(FIL *file)
+{
+	u8 header[] = {'{', 'U', 3, 'r', 'a', 'w', '[', '$', 'U', '#', 'l', 0, 0, 0, 0};
 
 	u32 wrote;
 	f_write(file, header, sizeof(header), &wrote);
-	memcpy((SlipMem + SlipMemCursor), header, sizeof(header));
-	SlipMemCursor += sizeof(header);
 	f_sync(file);
 }
 
-void completeFile(FIL *file, u32 writtenByteCount) {
+void completeFile(FIL *file, u32 writtenByteCount)
+{
 	u8 footer[FOOTER_BUFFER_LENGTH];
 	u32 writePos = 0;
 
 	// Write opener
-	u8 footerOpener[] = { 'U', 8, 'm', 'e', 't', 'a', 'd', 'a', 't', 'a', '{' };
+	u8 footerOpener[] = {'U', 8, 'm', 'e', 't', 'a', 'd', 'a', 't', 'a', '{'};
 	u8 writeLen = sizeof(footerOpener);
 	memcpy(&footer[writePos], footerOpener, writeLen);
 	writePos += writeLen;
@@ -154,9 +132,8 @@ void completeFile(FIL *file, u32 writtenByteCount) {
 	struct tm *tmp = gmtime(&gameStartTime);
 	_sprintf(
 		&timeStr[0], "%04d-%02d-%02dT%02d:%02d:%02d", tmp->tm_year + 1900,
-		tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec
-	);
-	u8 startAtOpener[] = { 'U', 7, 's', 't', 'a', 'r', 't', 'A', 't', 'S', 'U', (u8)sizeof(timeStr) };
+		tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+	u8 startAtOpener[] = {'U', 7, 's', 't', 'a', 'r', 't', 'A', 't', 'S', 'U', (u8)sizeof(timeStr)};
 	writeLen = sizeof(startAtOpener);
 	memcpy(&footer[writePos], startAtOpener, writeLen);
 	writePos += writeLen;
@@ -165,7 +142,7 @@ void completeFile(FIL *file, u32 writtenByteCount) {
 	writePos += writeLen;
 
 	// Write lastFrame
-	u8 lastFrameOpener[] = { 'U', 9, 'l', 'a', 's', 't', 'F', 'r', 'a', 'm', 'e', 'l' };
+	u8 lastFrameOpener[] = {'U', 9, 'l', 'a', 's', 't', 'F', 'r', 'a', 'm', 'e', 'l'};
 	writeLen = sizeof(lastFrameOpener);
 	memcpy(&footer[writePos], lastFrameOpener, writeLen);
 	writePos += writeLen;
@@ -177,8 +154,7 @@ void completeFile(FIL *file, u32 writtenByteCount) {
 		'U', 7, 'p', 'l', 'a', 'y', 'e', 'r', 's', '{', '}',
 		'U', 8, 'p', 'l', 'a', 'y', 'e', 'd', 'O', 'n', 'S', 'U',
 		10, 'n', 'i', 'n', 't', 'e', 'n', 'd', 'o', 'n', 't',
-		'}', '}'
-	};
+		'}', '}'};
 	writeLen = sizeof(closing);
 	memcpy(&footer[writePos], closing, writeLen);
 	writePos += writeLen;
@@ -186,27 +162,23 @@ void completeFile(FIL *file, u32 writtenByteCount) {
 	// Write footer
 	u32 wrote;
 	f_write(file, footer, writePos, &wrote);
-	memcpy((SlipMem + SlipMemCursor), footer, sizeof(footer));
-	SlipMemCursor += sizeof(footer);
-
 	f_sync(file);
 
-	// This doesn't seem to write to SlipMem correctly?
 	f_lseek(file, 11);
 	f_write(file, &writtenByteCount, 4, &wrote);
-	memcpy((SlipMem + 11), &writtenByteCount, 4);
-
 	f_sync(file);
 }
 
 void processPayload(u8 *payload, u32 length, u8 fileOption)
 {
 	bufferAccess *currentBuffer = &accessManager[writeBufferIndex];
-	if (currentBuffer->message.result == -1) {
+	if (currentBuffer->message.result == -1)
+	{
 		dbgprintf("Slippi: buffer not processed fast enough: %d\r\n", writeBufferIndex);
 	}
 
-	if (fileOption > 0) {
+	if (fileOption > 0)
+	{
 		currentBuffer->message.ioctl.command = fileOption;
 	}
 
@@ -214,7 +186,7 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 	u32 writePos = currentBuffer->message.ioctl.length_io;
 	memcpy(&currentBuffer->buffer[writePos], payload, length);
 	currentBuffer->message.ioctl.length_io += length;
-	
+
 	updateMetadataFields(payload, length);
 
 	// If write buffer is not full yet, don't do anything else
@@ -233,10 +205,11 @@ void processPayload(u8 *payload, u32 length, u8 fileOption)
 	writeBufferIndex = (writeBufferIndex + 1) % BUFFER_ACCESS_COUNT;
 }
 
-void SlippiDmaWrite(const void *buf, u32 len) {
+void SlippiDmaWrite(const void *buf, u32 len)
+{
 	static u8 receiveBuf[RECEIVE_BUFFER_SIZE];
 
-	sync_before_read((void*)buf, len);
+	sync_before_read((void *)buf, len);
 	memcpy(&receiveBuf[0], buf, len);
 
 	// dbgprintf("Received buf with len: %d\r\n", len);
@@ -244,19 +217,22 @@ void SlippiDmaWrite(const void *buf, u32 len) {
 	u32 bufLoc = 0;
 
 	u8 command = receiveBuf[0];
-	if (command == CMD_RECEIVE_COMMANDS) {
+	if (command == CMD_RECEIVE_COMMANDS)
+	{
 		gameStartTime = GetCurrentTime();
 		u8 receiveCommandsLen = receiveBuf[1];
 		configureCommands(&receiveBuf[1], receiveCommandsLen);
 		processPayload(&receiveBuf[0], receiveCommandsLen + 1, 1);
 		bufLoc += receiveCommandsLen + 1;
 	}
-	
+
 	// Handle payloads
-	while (bufLoc < len) {
+	while (bufLoc < len)
+	{
 		command = receiveBuf[bufLoc];
 		u16 payloadLen = getPayloadSize(command);
-		if (payloadLen == 0) {
+		if (payloadLen == 0)
+		{
 			// This should never happen, do something else if it does?
 			return;
 		}
@@ -269,46 +245,35 @@ void SlippiDmaWrite(const void *buf, u32 len) {
 
 		bufLoc += payloadLen + 1;
 	}
-
 }
 
-static void SlippiHandlerThread_Finish(struct ipcmessage *slippi_msg, int retval)
+static u32 SlippiHandlerThread(void *arg)
 {
-	// Prior to setting result, the result of the message is -1
-	slippi_msg->result = retval;
-	slippi_msg->ioctl.command = 0;
-	slippi_msg->ioctl.length_io = 0;
-	mqueue_ack(slippi_msg, retval);
-}
-
-
-static u32 SlippiHandlerThread(void *arg) {
 	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
 
+	static 
 	//FIL file;
 	u32 writtenByteCount = 0;
-	struct ipcmessage *slippi_msg;
-	while(1)
+	while (1)
 	{
 		mqueue_recv(Slippi_MessageQueue, &slippi_msg, 0);
 
-		if (slippi_msg->ioctl.command == 1) {
+		if (slippi_msg->ioctl.command == 1)
+		{
 			// Create folder if it doesn't exist yet
 			f_mkdir_char("usb:/Slippi");
 
 			dbgprintf("Creating File...\r\n");
-			char* fileName = generateFileName(true);
+			char *fileName = generateFileName(true);
 			// Need to open with FA_READ if network thread is going to share &currentFile
 			FRESULT fileOpenResult = f_open_char(&currentFile, fileName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
 
-			if (fileOpenResult != FR_OK) {
+			if (fileOpenResult != FR_OK)
+			{
 				dbgprintf("Slippi: failed to open file: %s, errno: %d\r\n", fileName, fileOpenResult);
 				SlippiHandlerThread_Finish(slippi_msg, fileOpenResult);
 				break;
 			}
-
-			// Tell the networking code that we are writting to a new file
-			//SlippiNetworkSetNewFile(fileName);
 
 			// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 			writtenByteCount = 0;
@@ -318,18 +283,24 @@ static u32 SlippiHandlerThread(void *arg) {
 		UINT wrote;
 		f_lseek(&currentFile, f_size(&currentFile));
 		f_write(&currentFile, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
-		memcpy(&SlipMem[SlipMemCursor], slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io);
-		SlipMemCursor += slippi_msg->ioctl.length_io;
+
+		// Copy data into SlipMem
+		memcpy((SlipMem + SlipMemWriteCursor), slippi_msg->ioctl.buffer_io,
+			   slippi_msg->ioctl.length_io);
+		sync_after_write(SlipMem, slippi_msg->ioctl.length_io);
+
+		// Increment our cursor into SlipMem - used by kernel/SlippiNetwork.c
+		SlipMemWriteCursor = (SlipMemWriteCursor + slippi_msg->ioctl.length_io) % SlipMemSize;
+		sync_after_write(&SlipMemWriteCursor, 4);
 
 		f_sync(&currentFile);
 		writtenByteCount += wrote;
 
-		if (slippi_msg->ioctl.command == 2) {
+		if (slippi_msg->ioctl.command == 2)
+		{
 			dbgprintf("Completing File...\r\n");
 			completeFile(&currentFile, writtenByteCount);
 			f_close(&currentFile);
-			SlipMemCursor = 0;
-			SlipMemInit();
 		}
 
 		SlippiHandlerThread_Finish(slippi_msg, 0);

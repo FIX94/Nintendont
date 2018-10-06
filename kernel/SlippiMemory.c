@@ -3,11 +3,11 @@
 #include "debug.h"
 
 // Memory Settings: Let Slippi use 0x12B80000 - 0x12E80000
+#define SlipMemClear() memset32(SlipMem, 0, SlipMemSize)
 u8 *SlipMem = (u8 *)0x12B80000;
 u32 SlipMemSize = 0x00300000;
 volatile u32 OverflowPosition = 0x00300000;
 volatile u32 SlipMemCursor = 0x00000000;
-void SlipMemInit(void) { memset32(SlipMem, 0, SlipMemSize); }
 
 u16 getPayloadSize(SlpGame *game, u8 command);
 
@@ -15,7 +15,7 @@ u16 getPayloadSize(SlpGame *game, u8 command);
  * actually brought up the networking stack and we have connectivity. */
 void SlippiMemoryInit()
 {
-	SlipMemInit();
+	SlipMemClear();
 }
 
 void SlippiMemoryWrite(const u8 *buf, u32 len)
@@ -76,7 +76,8 @@ SlpMemError SlippiMemoryRead(SlpGame *game, const u8 *buf, u32 bufLen, u32 readP
 		if ((bytesRead + bytesToRead) > bufLen)
 			break;
 
-		// Copy payload data into buffer
+		// Copy payload data into buffer. We don't need to sync_after_write because
+		// the memory will be read from the ARM side
 		memcpy(&buf[bytesRead], &SlipMem[readPos], bytesToRead);
 
 		// Increment both read positions

@@ -82,6 +82,8 @@ extern u32 NetworkStarted;
 
 // Server status, from kernel/SlippiNetwork.c
 extern u32 SlippiServerStarted;
+static char slippiinitmsg[] = "SLIPPI INITIALIZING...\x00";
+static int SlippiDbgStringInit = 0;
 
 int _main( int argc, char *argv[] )
 {
@@ -438,6 +440,13 @@ int _main( int argc, char *argv[] )
 		 *
 		 * ~meta
 		 */
+
+		// Initialize 8040a5a8 with a string to print w/ UnclePunch Gecko code
+		if ( (TimerDiffSeconds(NCDTimer) > 3) && (SlippiDbgStringInit == 0) ) {
+			memcpy(0x0040a5a8, slippiinitmsg, sizeof(slippiinitmsg));
+			sync_after_write(0x0040a5a8, 0x80);
+			SlippiDbgStringInit = 1;
+		}
 
 		// Initialize low-level networking and the TCP/IP stack
 		if (NetworkStarted == 0)
