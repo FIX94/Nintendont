@@ -6,6 +6,7 @@
 #include "DI.h"
 
 #include "SlippiNetwork.h"
+#include "SlippiDebug.h"
 
 #define RECEIVE_BUFFER_SIZE 1000 // Must be longer than the games' transfer buffer (currently 784)
 #define FRAME_PAYLOAD_BUFFER_SIZE 0x80
@@ -53,11 +54,10 @@ s32 lastFrame;
 // Payload Sizes
 static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
 
-// Let Slippi use 0x12B80000 - 0x12E80000
-void *SlipMem = (void*)0x12B80000;
-u32 SlipMemSize =  0x00300000;
-u32 SlipMemCursor = 0x00000000;
-void SlipMemInit(void) { memset32(SlipMem, 0, SlipMemSize); }
+#define SlipMemClear()			memset32(SlipMem, 0, SlipMemSize)
+void *SlipMem = (void*)0x12B80000;	// start of region
+u32 SlipMemSize = 0x00300000;		// region size
+u32 SlipMemWriteCursor = 0;		// producer's cursor into SlipMem
 
 void SlippiInit()
 {
@@ -68,10 +68,14 @@ void SlippiInit()
 
 	Slippi_MessageHeap = malloca(sizeof(void*) * BUFFER_ACCESS_COUNT, 0x20);
 	Slippi_MessageQueue = mqueue_create(Slippi_MessageHeap, BUFFER_ACCESS_COUNT);
+	SlipMemClear();
 
-	SlipMemInit();
-
-	Slippi_Thread = do_thread_create(SlippiHandlerThread, ((u32*)&__slippi_stack_addr), ((u32)(&__slippi_stack_size)), 0x78);
+	Slippi_Thread = do_thread_create(
+		SlippiHandlerThread,
+		((u32*)&__slippi_stack_addr),
+		((u32)(&__slippi_stack_size)),
+		0x78
+	);
 	thread_continue(Slippi_Thread);
 }
 
@@ -174,8 +178,6 @@ void writeHeader(FIL *file) {
 
 	u32 wrote;
 	f_write(file, header, sizeof(header), &wrote);
-	memcpy((SlipMem + SlipMemCursor), header, sizeof(header));
-	SlipMemCursor += sizeof(header);
 	f_sync(file);
 }
 
@@ -227,16 +229,10 @@ void completeFile(FIL *file, u32 writtenByteCount) {
 	// Write footer
 	u32 wrote;
 	f_write(file, footer, writePos, &wrote);
-	memcpy((SlipMem + SlipMemCursor), footer, sizeof(footer));
-	SlipMemCursor += sizeof(footer);
-
 	f_sync(file);
 
-	// This doesn't seem to write to SlipMem correctly?
 	f_lseek(file, 11);
 	f_write(file, &writtenByteCount, 4, &wrote);
-	memcpy((SlipMem + 11), &writtenByteCount, 4);
-
 	f_sync(file);
 }
 
@@ -348,9 +344,6 @@ static u32 SlippiHandlerThread(void *arg) {
 				break;
 			}
 
-			// Tell the networking code that we are writting to a new file
-			//SlippiNetworkSetNewFile(fileName);
-
 			// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
 			writtenByteCount = 0;
 			writeHeader(&currentFile);
@@ -359,8 +352,15 @@ static u32 SlippiHandlerThread(void *arg) {
 		UINT wrote;
 		f_lseek(&currentFile, f_size(&currentFile));
 		f_write(&currentFile, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
-		memcpy((SlipMem + SlipMemCursor), slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io);
-		SlipMemCursor += slippi_msg->ioctl.length_io;
+
+		// Copy data into SlipMem
+		memcpy((SlipMem + SlipMemWriteCursor), slippi_msg->ioctl.buffer_io,
+				slippi_msg->ioctl.length_io);
+		sync_after_write(SlipMem, slippi_msg->ioctl.length_io);
+
+		// Increment our cursor into SlipMem - used by kernel/SlippiNetwork.c
+		SlipMemWriteCursor = (SlipMemWriteCursor + slippi_msg->ioctl.length_io) % SlipMemSize;
+		sync_after_write(&SlipMemWriteCursor, 4);
 
 		f_sync(&currentFile);
 		writtenByteCount += wrote;
@@ -369,8 +369,6 @@ static u32 SlippiHandlerThread(void *arg) {
 			dbgprintf("Completing File...\r\n");
 			completeFile(&currentFile, writtenByteCount);
 			f_close(&currentFile);
-			SlipMemCursor = 0;
-			SlipMemInit();
 		}
 
 		SlippiHandlerThread_Finish(slippi_msg, 0);
