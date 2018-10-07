@@ -37,7 +37,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "TRI.h"
 #include "Patch.h"
 
-#include "Slippi.h"
+#include "SlippiMemory.h"
+#include "SlippiFileWriter.h"
 #include "SlippiNetwork.h"
 #include "net.h"
 
@@ -284,8 +285,8 @@ int _main( int argc, char *argv[] )
 	PatchInit();
 
 	dbgprintf("Main Thread ID: %d\r\n", thread_get_id());
-	SlippiInit();
-
+	SlippiMemoryInit();
+	SlippiFileWriterInit();
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
@@ -443,8 +444,8 @@ int _main( int argc, char *argv[] )
 
 		// Initialize 8040a5a8 with a string to print w/ UnclePunch Gecko code
 		if ( (TimerDiffSeconds(NCDTimer) > 3) && (SlippiDbgStringInit == 0) ) {
-			memcpy(0x0040a5a8, slippiinitmsg, sizeof(slippiinitmsg));
-			sync_after_write(0x0040a5a8, 0x80);
+			memcpy((void *)0x0040a5a8, slippiinitmsg, sizeof(slippiinitmsg));
+			sync_after_write((void *)0x0040a5a8, 0x80);
 			SlippiDbgStringInit = 1;
 		}
 
@@ -610,7 +611,7 @@ int _main( int argc, char *argv[] )
 		EXIShutdown();
 
 	SlippiNetworkShutdown();
-	SlippiShutdown();
+	SlippiFileWriterShutdown();
 
 	if (ConfigGetConfig(NIN_CFG_LOG))
 		closeLog();

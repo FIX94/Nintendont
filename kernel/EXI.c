@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "debug.h"
 #include "SRAM.h"
-#include "Slippi.h"
+#include "SlippiMemory.h"
 
 #include "ff_utf8.h"
 
@@ -797,13 +797,10 @@ void EXIUpdateRegistersNEW( void )
 				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-						EXIDeviceMemoryCard(0, ptr, len, mode);
-						break;
-
-#ifdef GCNCARD_ENABLE_SLOT_B
-					case EXI_DEV_MEMCARD_B:
 						if (mode == 1) {
-							SlippiDmaWrite(ptr, len);
+							// Write data received by DMA to SlippiMemory
+							sync_before_read((void *)ptr, len);
+							SlippiMemoryWrite(ptr, len);
 						}
 
 						IRQ_Cause[0] = 10;
@@ -814,6 +811,30 @@ void EXIUpdateRegistersNEW( void )
 
 						EXI_IRQ = true;
 						IRQ_Timer = read32(HW_TIMER);
+
+						// EXIDeviceMemoryCard(0, ptr, len, mode);
+
+						break;
+
+#ifdef GCNCARD_ENABLE_SLOT_B
+					case EXI_DEV_MEMCARD_B:
+						// if (mode == 1) {
+						// 	dbgprintf("Before sync...\n");
+						// 	// Write data received by DMA to SlippiMemory
+						// 	sync_before_read((void *)ptr, len);
+						// 	dbgprintf("Command: 0x%02X...\n", ptr[0]);
+						// 	SlippiMemoryWrite(ptr, len);
+						// 	dbgprintf("Done writing...\n");
+						// }
+
+						// IRQ_Cause[0] = 10;
+
+						// // Write that data has been received
+						// write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
+						// sync_after_write( (void*)EXI_BASE, 0x20 );
+
+						// EXI_IRQ = true;
+						// IRQ_Timer = read32(HW_TIMER);
 
 						// EXIDeviceMemoryCard(1, ptr, len, mode);
 						
