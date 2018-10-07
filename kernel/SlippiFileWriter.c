@@ -164,7 +164,10 @@ static u32 SlippiHandlerThread(void *arg)
 		// Read from memory and write to file
 		SlpMemError err = SlippiMemoryRead(&reader, readBuf, READ_BUF_SIZE, memReadPos);
 		if (err)
+		{
 			mdelay(1000);
+			continue;
+		}
 
 		if (reader.lastReadResult.isNewGame)
 		{
@@ -191,6 +194,8 @@ static u32 SlippiHandlerThread(void *arg)
 
 		if (reader.lastReadResult.bytesRead == 0)
 			continue;
+
+		// dbgprintf("Bytes read: %d\r\n", reader.lastReadResult.bytesRead);
 
 		UINT wrote;
 		f_write(&currentFile, readBuf, reader.lastReadResult.bytesRead, &wrote);

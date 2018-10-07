@@ -819,8 +819,12 @@ void EXIUpdateRegistersNEW( void )
 #ifdef GCNCARD_ENABLE_SLOT_B
 					case EXI_DEV_MEMCARD_B:
 						// if (mode == 1) {
+						// 	dbgprintf("Before sync...\n");
+						// 	// Write data received by DMA to SlippiMemory
 						// 	sync_before_read((void *)ptr, len);
+						// 	dbgprintf("Command: 0x%02X...\n", ptr[0]);
 						// 	SlippiMemoryWrite(ptr, len);
+						// 	dbgprintf("Done writing...\n");
 						// }
 
 						// IRQ_Cause[0] = 10;
@@ -832,7 +836,7 @@ void EXIUpdateRegistersNEW( void )
 						// EXI_IRQ = true;
 						// IRQ_Timer = read32(HW_TIMER);
 
-						EXIDeviceMemoryCard(1, ptr, len, mode);
+						// EXIDeviceMemoryCard(1, ptr, len, mode);
 						
 						break;
 #endif /* GCNCARD_ENABLE_SLOT_B */

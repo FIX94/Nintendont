@@ -33,6 +33,7 @@ void SlippiMemoryWrite(const u8 *buf, u32 len)
 	}
 
 	memcpy(&SlipMem[SlipMemCursor], buf, len);
+	SlipMemCursor += len;
 }
 
 SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u32 readPos)
@@ -147,6 +148,10 @@ void setPayloadSizes(SlpGameReader *reader, u32 readPos)
 	u8 *payload = &SlipMem[readPos + 1];
 	u8 length = payload[0];
 
+	// Indicate the length of the SLP_CMD_RECEIVE_COMMANDS payload
+	// Will always be index zero
+	reader->payloadSizes[0] = length;
+
 	int i = 1;
 	while (i < length)
 	{
@@ -155,7 +160,7 @@ void setPayloadSizes(SlpGameReader *reader, u32 readPos)
 		u16 commandPayloadSize = payload[i + 1] << 8 | payload[i + 2];
 		reader->payloadSizes[commandByte - SLP_CMD_RECEIVE_COMMANDS] = commandPayloadSize;
 
-		// dbgprintf("Index: 0x%02X, Size: 0x%02X\r\n", commandByte - CMD_RECEIVE_COMMANDS, commandPayloadSize);
+		// dbgprintf("Index: 0x%02X, Size: 0x%02X\r\n", commandByte - SLP_CMD_RECEIVE_COMMANDS, commandPayloadSize);
 
 		i += 3;
 	}
