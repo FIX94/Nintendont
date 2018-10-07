@@ -4,7 +4,6 @@
 #include "debug.h"
 #include "string.h"
 #include "ff_utf8.h"
-#include "DI.h"
 
 #include "SlippiDebug.h"
 
@@ -30,7 +29,6 @@ FIL currentFile;
 
 // vars for metadata generation
 u32 gameStartTime;
-s32 lastFrame;
 
 void SlippiFileWriterInit()
 {
@@ -173,6 +171,8 @@ static u32 SlippiHandlerThread(void *arg)
 			// Create folder if it doesn't exist yet
 			f_mkdir_char("usb:/Slippi");
 
+			gameStartTime = GetCurrentTime();
+			
 			dbgprintf("Creating File...\r\n");
 			char *fileName = generateFileName(true);
 			// Need to open with FA_READ if network thread is going to share &currentFile

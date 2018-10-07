@@ -11,6 +11,8 @@ volatile u32 SlipMemCursor = 0x00000000;
 
 u16 getPayloadSize(SlpGameReader *reader, u8 command);
 void setPayloadSizes(SlpGameReader *reader, u32 readPos);
+void resetMetadata(SlpGameReader *reader);
+void updateMetadata(SlpGameReader *reader, u8 *message, u32 messageLength);
 
 /* This should only be dispatched once in kernel/main.c after NCDInit() has
  * actually brought up the networking stack and we have connectivity. */
