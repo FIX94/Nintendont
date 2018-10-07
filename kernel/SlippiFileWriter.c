@@ -8,10 +8,12 @@
 
 #include "SlippiDebug.h"
 
-#define RECEIVE_BUFFER_SIZE 1000 // Must be longer than the games' transfer buffer (currently 784)
-#define FRAME_PAYLOAD_BUFFER_SIZE 0x80
-#define WRITE_BUFFER_LENGTH 0x1000
-#define PAYLOAD_SIZES_BUFFER_SIZE 20
+// Game can transfer at most 784 bytes / frame
+// That means 4704 bytes every 100 ms. Let's aim to handle
+// double that, making our read buffer 10000 bytes
+#define READ_BUF_SIZE 10000
+#define THREAD_CYCLE_TIME_MS 100
+
 #define FOOTER_BUFFER_LENGTH 200
 
 static u32 SlippiHandlerThread(void *arg);
@@ -23,15 +25,12 @@ extern char __slippi_stack_addr, __slippi_stack_size;
 // File writing stuff
 static u32 fileIndex = 1;
 
-// File object, shared with the network thread
+// File object
 FIL currentFile;
 
 // vars for metadata generation
 u32 gameStartTime;
 s32 lastFrame;
-
-// Payload Sizes
-static u16 payloadSizes[PAYLOAD_SIZES_BUFFER_SIZE];
 
 void SlippiFileWriterInit()
 {
@@ -83,27 +82,6 @@ char *generateFileName(bool isNewFile)
 	}
 
 	return pathStr;
-}
-
-void updateMetadataFields(u8 *payload, u32 length)
-{
-	if (length <= 0 || payload[0] != CMD_RECEIVE_POST_FRAME_UPDATE)
-	{
-		// Only need to update if this is a post frame update
-		return;
-	}
-
-	// Keep track of last frame
-	lastFrame = payload[1] << 24 | payload[2] << 16 | payload[3] << 8 | payload[4];
-
-	// TODO: Add character usage
-	// Keep track of character usage
-	// u8 playerIndex = payload[5];
-	// u8 internalCharacterId = payload[7];
-	// if (!characterUsage.count(playerIndex) || !characterUsage[playerIndex].count(internalCharacterId)) {
-	// 	characterUsage[playerIndex][internalCharacterId] = 0;
-	// }
-	// characterUsage[playerIndex][internalCharacterId] += 1;
 }
 
 void writeHeader(FIL *file)
@@ -169,96 +147,28 @@ void completeFile(FIL *file, u32 writtenByteCount)
 	f_sync(file);
 }
 
-void processPayload(u8 *payload, u32 length, u8 fileOption)
-{
-	bufferAccess *currentBuffer = &accessManager[writeBufferIndex];
-	if (currentBuffer->message.result == -1)
-	{
-		dbgprintf("Slippi: buffer not processed fast enough: %d\r\n", writeBufferIndex);
-	}
-
-	if (fileOption > 0)
-	{
-		currentBuffer->message.ioctl.command = fileOption;
-	}
-
-	// Copy data to write buffer
-	u32 writePos = currentBuffer->message.ioctl.length_io;
-	memcpy(&currentBuffer->buffer[writePos], payload, length);
-	currentBuffer->message.ioctl.length_io += length;
-
-	updateMetadataFields(payload, length);
-
-	// If write buffer is not full yet, don't do anything else
-	bool isBufferFull = currentBuffer->message.ioctl.length_io >= WRITE_BUFFER_LENGTH - FRAME_PAYLOAD_BUFFER_SIZE;
-	bool isGameComplete = fileOption == 2;
-	bool isGameStart = payload[0] == CMD_RECEIVE_GAME_INFO;
-	bool shouldWrite = isBufferFull || isGameComplete || isGameStart;
-	if (!shouldWrite)
-		return;
-
-	// The cast on the next line is only to make the compiler happy
-	currentBuffer->message.ioctl.buffer_io = (unsigned int *)currentBuffer->buffer;
-	currentBuffer->message.result = -1;
-	mqueue_send(Slippi_MessageQueue, &currentBuffer->message, 1);
-
-	writeBufferIndex = (writeBufferIndex + 1) % BUFFER_ACCESS_COUNT;
-}
-
-void SlippiDmaWrite(const void *buf, u32 len)
-{
-	static u8 receiveBuf[RECEIVE_BUFFER_SIZE];
-
-	sync_before_read((void *)buf, len);
-	memcpy(&receiveBuf[0], buf, len);
-
-	// dbgprintf("Received buf with len: %d\r\n", len);
-
-	u32 bufLoc = 0;
-
-	u8 command = receiveBuf[0];
-	if (command == CMD_RECEIVE_COMMANDS)
-	{
-		gameStartTime = GetCurrentTime();
-		u8 receiveCommandsLen = receiveBuf[1];
-		configureCommands(&receiveBuf[1], receiveCommandsLen);
-		processPayload(&receiveBuf[0], receiveCommandsLen + 1, 1);
-		bufLoc += receiveCommandsLen + 1;
-	}
-
-	// Handle payloads
-	while (bufLoc < len)
-	{
-		command = receiveBuf[bufLoc];
-		u16 payloadLen = getPayloadSize(command);
-		if (payloadLen == 0)
-		{
-			// This should never happen, do something else if it does?
-			return;
-		}
-
-		// dbgprintf("Processing buf at %d with len %d and command 0x%02X\r\n", bufLoc, payloadLen, command);
-
-		// process this payload and close file if this is a game end command
-		u8 fileOption = command == CMD_RECEIVE_GAME_END ? 2 : 0;
-		processPayload(&receiveBuf[bufLoc], payloadLen + 1, fileOption);
-
-		bufLoc += payloadLen + 1;
-	}
-}
-
 static u32 SlippiHandlerThread(void *arg)
 {
 	dbgprintf("Slippi Thread ID: %d\r\n", thread_get_id());
 
-	static 
-	//FIL file;
+	static SlpGameReader reader;
+	static u8 readBuf[READ_BUF_SIZE];
+	static u32 memReadPos = 0;
+
 	u32 writtenByteCount = 0;
 	while (1)
 	{
-		mqueue_recv(Slippi_MessageQueue, &slippi_msg, 0);
+		// Cycle time, look at const definition for more info
+		mdelay(THREAD_CYCLE_TIME_MS);
 
-		if (slippi_msg->ioctl.command == 1)
+		// TODO: Ensure connection to USB is correct
+
+		// Read from memory and write to file
+		SlpMemError err = SlippiMemoryRead(&reader, readBuf, READ_BUF_SIZE, memReadPos);
+		if (err)
+			mdelay(1000);
+
+		if (reader.lastReadResult.isNewGame)
 		{
 			// Create folder if it doesn't exist yet
 			f_mkdir_char("usb:/Slippi");
@@ -267,12 +177,11 @@ static u32 SlippiHandlerThread(void *arg)
 			char *fileName = generateFileName(true);
 			// Need to open with FA_READ if network thread is going to share &currentFile
 			FRESULT fileOpenResult = f_open_char(&currentFile, fileName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-
 			if (fileOpenResult != FR_OK)
 			{
 				dbgprintf("Slippi: failed to open file: %s, errno: %d\r\n", fileName, fileOpenResult);
-				SlippiHandlerThread_Finish(slippi_msg, fileOpenResult);
-				break;
+				mdelay(1000);
+				continue;
 			}
 
 			// dbgprintf("Bytes written: %d/%d...\r\n", wrote, currentBuffer->len);
@@ -280,30 +189,27 @@ static u32 SlippiHandlerThread(void *arg)
 			writeHeader(&currentFile);
 		}
 
+		if (reader.lastReadResult.bytesRead == 0)
+			continue;
+
 		UINT wrote;
-		f_lseek(&currentFile, f_size(&currentFile));
-		f_write(&currentFile, slippi_msg->ioctl.buffer_io, slippi_msg->ioctl.length_io, &wrote);
-
-		// Copy data into SlipMem
-		memcpy((SlipMem + SlipMemWriteCursor), slippi_msg->ioctl.buffer_io,
-			   slippi_msg->ioctl.length_io);
-		sync_after_write(SlipMem, slippi_msg->ioctl.length_io);
-
-		// Increment our cursor into SlipMem - used by kernel/SlippiNetwork.c
-		SlipMemWriteCursor = (SlipMemWriteCursor + slippi_msg->ioctl.length_io) % SlipMemSize;
-		sync_after_write(&SlipMemWriteCursor, 4);
-
+		f_write(&currentFile, readBuf, reader.lastReadResult.bytesRead, &wrote);
 		f_sync(&currentFile);
+
+		if (wrote == 0)
+			continue;
+
+		// Only increment mem read position when the data is correctly written
+		memReadPos += wrote;
 		writtenByteCount += wrote;
 
-		if (slippi_msg->ioctl.command == 2)
+		if (reader.lastReadResult.isGameEnd)
 		{
 			dbgprintf("Completing File...\r\n");
 			completeFile(&currentFile, writtenByteCount);
 			f_close(&currentFile);
 		}
-
-		SlippiHandlerThread_Finish(slippi_msg, 0);
 	}
+
 	return 0;
 }

@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "debug.h"
 #include "SRAM.h"
-#include "Slippi.h"
+#include "SlippiMemory.h"
 
 #include "ff_utf8.h"
 
@@ -798,7 +798,9 @@ void EXIUpdateRegistersNEW( void )
 				{
 					case EXI_DEV_MEMCARD_A:
 						if (mode == 1) {
-							SlippiDmaWrite(ptr, len);
+							// Write data received by DMA to SlippiMemory
+							sync_before_read((void *)ptr, len);
+							SlippiMemoryWrite(ptr, len);
 						}
 
 						IRQ_Cause[0] = 10;
@@ -817,7 +819,8 @@ void EXIUpdateRegistersNEW( void )
 #ifdef GCNCARD_ENABLE_SLOT_B
 					case EXI_DEV_MEMCARD_B:
 						// if (mode == 1) {
-						// 	SlippiDmaWrite(ptr, len);
+						// 	sync_before_read((void *)ptr, len);
+						// 	SlippiMemoryWrite(ptr, len);
 						// }
 
 						// IRQ_Cause[0] = 10;
