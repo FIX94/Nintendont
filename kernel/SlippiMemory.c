@@ -7,8 +7,7 @@
 #define SlipMemClear() memset32(SlipMem, 0, SlipMemSize)
 u8 *SlipMem = (u8 *)0x12B80000;
 u32 SlipMemSize = 0x00300000;
-volatile u32 OverflowPosition = 0x00300000;
-volatile u32 SlipMemCursor = 0x00000000;
+volatile u64 SlipMemCursor = 0x0000000000000000;
 
 u16 getPayloadSize(SlpGameReader *reader, u8 command);
 void setPayloadSizes(SlpGameReader *reader, u32 readPos);
@@ -24,19 +23,30 @@ void SlippiMemoryInit()
 
 void SlippiMemoryWrite(const u8 *buf, u32 len)
 {
+	u32 normalizedCursor = SlipMemCursor % SlipMemSize;
+
 	// Handle overflow logic. Once we are going to overflow, wrap around to start
 	// of memory region
-	if ((SlipMemCursor + len) > SlipMemSize)
+	if ((normalizedCursor + len) > SlipMemSize)
 	{
-		OverflowPosition = SlipMemCursor;
-		SlipMemCursor = 0;
+		// dbgprintf("Write overflow detected...\r\n");
+
+		// First, fill out the remaining memory
+		u32 fillMemLen = SlipMemSize - normalizedCursor;
+		memcpy(&SlipMem[normalizedCursor], buf, fillMemLen);
+
+		// Second, write the rest that hasn't been written to the start
+		memcpy(SlipMem, &buf[fillMemLen], len - fillMemLen);
+
+		SlipMemCursor += len;
+		return;
 	}
 
-	memcpy(&SlipMem[SlipMemCursor], buf, len);
+	memcpy(&SlipMem[normalizedCursor], buf, len);
 	SlipMemCursor += len;
 }
 
-SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u32 readPos)
+SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u64 readPos)
 {
 	// Reset previous read result
 	reader->lastReadResult.bytesRead = 0;
@@ -45,10 +55,15 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u32 rea
 
 	SlpMemError errCode = SLP_MEM_OK;
 
+	// TODO: Return error code on overflow read
+
 	u32 bytesRead = 0;
 	while (readPos != SlipMemCursor)
 	{
-		u8 command = SlipMem[readPos];
+		u32 normalizedReadPos = readPos % SlipMemSize;
+		// dbgprintf("Read position: 0x%X\r\n", normalizedReadPos);
+
+		u8 command = SlipMem[normalizedReadPos];
 
 		// Special case handling: Unnexpected new game message - shouldn't happen
 		if (bytesRead > 0 && command == SLP_CMD_RECEIVE_COMMANDS)
@@ -63,7 +78,7 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u32 rea
 		{
 			reader->lastReadResult.isNewGame = true;
 			resetMetadata(reader);
-			setPayloadSizes(reader, readPos);
+			setPayloadSizes(reader, normalizedReadPos);
 		}
 
 		u16 payloadSize = getPayloadSize(reader, command);
@@ -82,9 +97,23 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u32 rea
 		if ((bytesRead + bytesToRead) > bufLen)
 			break;
 
-		// Copy payload data into buffer. We don't need to sync_after_write because
-		// the memory will be read from the ARM side
-		memcpy(&buf[bytesRead], &SlipMem[readPos], bytesToRead);
+		if ((normalizedReadPos + bytesToRead) > SlipMemSize)
+		{
+			// This is the overflow case, here we need to do two memcpy calls
+			// dbgprintf("Read overflow detected...\r\n");
+			// First, fill out the remaining memory
+			u32 fillMemLen = SlipMemSize - normalizedReadPos;
+			memcpy(&buf[bytesRead], &SlipMem[normalizedReadPos], fillMemLen);
+
+			// Second, write the rest that hasn't been written to the start
+			memcpy(&buf[bytesRead + fillMemLen], SlipMem, bytesToRead - fillMemLen);
+		}
+		else
+		{
+			// Copy payload data into buffer. We don't need to sync_after_write because
+			// the memory will be read from the ARM side
+			memcpy(&buf[bytesRead], &SlipMem[normalizedReadPos], bytesToRead);
+		}
 
 		// Handle updating metadata
 		updateMetadata(reader, &buf[bytesRead], bytesToRead);
@@ -99,10 +128,6 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u32 rea
 			reader->lastReadResult.isGameEnd = true;
 			break;
 		}
-
-		// Handle overflow. If readPos is at OverflowPosition, loop to start
-		if (readPos >= OverflowPosition)
-			readPos = 0;
 	}
 
 	reader->lastReadPos = readPos;

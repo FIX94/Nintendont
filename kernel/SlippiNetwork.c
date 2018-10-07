@@ -107,7 +107,7 @@ s32 handleFileTransfer()
 {
 	static SlpGameReader reader;
 	static u8 readBuf[READ_BUF_SIZE];
-	static u32 memReadPos = 0;
+	static u64 memReadPos = 0;
 
 	SlpMemError err = SlippiMemoryRead(&reader, readBuf, READ_BUF_SIZE, memReadPos);
 	if (err)

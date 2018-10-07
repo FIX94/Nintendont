@@ -151,7 +151,7 @@ static u32 SlippiHandlerThread(void *arg)
 
 	static SlpGameReader reader;
 	static u8 readBuf[READ_BUF_SIZE];
-	static u32 memReadPos = 0;
+	static u64 memReadPos = 0;
 
 	u32 writtenByteCount = 0;
 	while (1)
