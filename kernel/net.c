@@ -317,6 +317,8 @@ s32 setsockopt(s32 fd, s32 socket, u32 level, u32 optname, void *optval, u32 opt
 		memcpy(params->optval, optval, optlen);
 	res = IOS_Ioctl(fd, IOCTL_SO_SETSOCKOPT, &params,
 			sizeof(struct setsockopt_params), 0, 0);
+
+	return res;
 }
 
 /* Implementation not tested yet. */

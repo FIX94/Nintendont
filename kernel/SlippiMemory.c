@@ -1,6 +1,7 @@
 #include "SlippiMemory.h"
 #include "common.h"
 #include "debug.h"
+#include "string.h"
 
 // Memory Settings: Let Slippi use 0x12B80000 - 0x12E80000
 #define SlipMemClear() memset32(SlipMem, 0, SlipMemSize)
@@ -34,7 +35,7 @@ void SlippiMemoryWrite(const u8 *buf, u32 len)
 	memcpy(&SlipMem[SlipMemCursor], buf, len);
 }
 
-SlpMemError SlippiMemoryRead(SlpGameReader *reader, const u8 *buf, u32 bufLen, u32 readPos)
+SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u32 readPos)
 {
 	// Reset previous read result
 	reader->lastReadResult.bytesRead = 0;
@@ -112,7 +113,7 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, const u8 *buf, u32 bufLen, u
 void resetMetadata(SlpGameReader *reader)
 {
 	// TODO: Test this
-	SlpMetadata freshMetadata;
+	SlpMetadata freshMetadata = {0};
 	reader->metadata = freshMetadata;
 }
 

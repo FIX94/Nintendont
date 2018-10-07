@@ -91,7 +91,7 @@ void writeHeader(FIL *file)
 	f_sync(file);
 }
 
-void completeFile(FIL *file, u32 writtenByteCount)
+void completeFile(FIL *file, SlpGameReader *reader, u32 writtenByteCount)
 {
 	u8 footer[FOOTER_BUFFER_LENGTH];
 	u32 writePos = 0;
@@ -122,7 +122,7 @@ void completeFile(FIL *file, u32 writtenByteCount)
 	writeLen = sizeof(lastFrameOpener);
 	memcpy(&footer[writePos], lastFrameOpener, writeLen);
 	writePos += writeLen;
-	memcpy(&footer[writePos], &lastFrame, 4);
+	memcpy(&footer[writePos], &reader->metadata.lastFrame, 4);
 	writePos += 4;
 
 	// Write closing
@@ -172,7 +172,7 @@ static u32 SlippiHandlerThread(void *arg)
 			f_mkdir_char("usb:/Slippi");
 
 			gameStartTime = GetCurrentTime();
-			
+
 			dbgprintf("Creating File...\r\n");
 			char *fileName = generateFileName(true);
 			// Need to open with FA_READ if network thread is going to share &currentFile
@@ -206,7 +206,7 @@ static u32 SlippiHandlerThread(void *arg)
 		if (reader.lastReadResult.isGameEnd)
 		{
 			dbgprintf("Completing File...\r\n");
-			completeFile(&currentFile, writtenByteCount);
+			completeFile(&currentFile, &reader, writtenByteCount);
 			f_close(&currentFile);
 		}
 	}

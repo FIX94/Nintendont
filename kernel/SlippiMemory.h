@@ -48,6 +48,6 @@ void SlippiMemoryWrite(const u8 *buf, u32 len);
 
 // The same game object should be passed to this function every call. This function
 // will always read full payloads into the buffer, partial payloads will not be loaded
-SlpMemError SlippiMemoryRead(SlpGameReader *reader, const u8 *buf, u32 bufLen, u32 readPos);
+SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u32 readPos);
 
 #endif
