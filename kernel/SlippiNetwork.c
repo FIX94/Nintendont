@@ -29,8 +29,8 @@ static int client_sock __attribute__((aligned(32)));
 static u32 client_alive_ts;
 
 // Global network state
-extern s32 top_fd;			 // from kernel/net.c
-u32 SlippiServerStarted = 0; // used by kernel/main.c
+extern s32 top_fd;		// from kernel/net.c
+u32 SlippiServerStarted = 0;	// used by kernel/main.c
 
 /* Dispatch the server thread. This should only be run once in kernel/main.c
  * after NCDInit() has actually brought up the networking stack and we have
@@ -102,6 +102,7 @@ void listenForClient()
 	}
 }
 
+
 static u8 readBuf[READ_BUF_SIZE];
 static u64 memReadPos = 0;
 static SlpGameReader reader;
@@ -119,7 +120,6 @@ s32 handleFileTransfer()
 		close(top_fd, client_sock);
 		client_sock = -1;
 		return -1;
-		//mdelay(1000);
 	}
 
 	u32 bytesRead = reader.lastReadResult.bytesRead;
@@ -188,19 +188,28 @@ s32 checkAlive(void)
 	return 0;
 }
 
+// Pointer to the top of Melee's stack region
+static void *dump_cur = (void*)MELEE_STACK_TOP;
+static u32 dump_off = 0;
+void send_stack_dump(void)
+{
+	if (dump_off <= MELEE_STACK_SIZE) {
+		sendto(top_fd, client_sock, (dump_cur + dump_off), 2048, 0);
+		dump_off += 2048;
+	}
+	else {
+		close(top_fd, client_sock);
+	}
+}
 
-//804d7420 - global power on (no reset)
-//80479d60 - resets on scene change
-static void *frame_ctr = (void*)0x004d7420;
-static u32 last_frame = 0;
-static u32 crash_ts;
-static u8 framemsg[] = "FRAME\x00\x00\x00";
+static u32 crash_ts = 0;		// timer for crash handler 
+static u32 last_frame = 0;		// latest saved value
 static u8 crashmsg[] = "CRASHED\x00";
 int checkCrash(void)
 {
 	u32 current_frame;
 	if (TimerDiffSeconds(crash_ts) > 20) {
-		current_frame = read32(frame_ctr);
+		current_frame = read32(MELEE_FRAME_CTR);
 
 		if (current_frame != last_frame) {
 			last_frame = current_frame;
@@ -217,64 +226,7 @@ int checkCrash(void)
 	}
 }
 
-// 804dec00 is the base of 1.02's stack region 
-static void *dump_cur = (void*)0x004dec00;
-static u32 dump_off = 0;
-static int crash_sock __attribute__((aligned(32)));
-void handleCrash(void)
-{
-	if (dump_off <= 0x10000) {
-		sendto(top_fd, client_sock, (dump_cur + dump_off), 2048, 0);
-		dump_off += 2048;
-	}
-}
 
-
-/* @UnclePunch_
- * 1. Read the byte at 80479d30 (current major scene ID)
- * 2. Read the byte at 80479d33 (current minor scene ID)
- * 3. Iterate through the table at 803daca4 (0x14-byte members). 
- *    Find the member where (byte at offset 0x1 == current major scene ID)
- *    and save the minor scene pointer at offset 0x10.
- * 4. if ((minor scene pointer + (current minor scene ID * 0x18) + 0xC) == 0x8),
- *    then we're currently on some CSS.
- */
-void *majorSceneTable = (void*)0x003daca4;
-int checkCSS(void)
-{
-	int e;
-
-	sync_before_read((void*)0x00479d20, 0x20);
-	u8 currentMajorScene = *(u8*)0x00479d30;
-	u8 currentMinorScene = *(u8*)0x00479d33;
-
-	void *minorSceneTable = NULL;
-	void *entry = majorSceneTable;
-	for (e = 0; e < 46; entry += 0x14) {
-		if (*(u8*)(entry + 0xc) == currentMajorScene) {
-			minorSceneTable = (void*)(*(u32*)(entry + 0x10));
-			break;
-		}
-		e++;
-	}
-	if (minorSceneTable == NULL)
-		return 0;
-	if (*(u8*)(minorSceneTable + (currentMinorScene * 0x18) + 0xc) == 0x8)
-		return 1;
-	else
-		return 0;
-}
-
-int vsCheckCSS(void)
-{
-	u32 min_scene;
-	sync_before_read((void*)0x00479d20, 0x20);
-	min_scene = read32(0x00479d30) & 0x000000ff;
-	if (min_scene == 0x00)
-		return 1;
-	else 
-		return 0;
-}
 
 /* This is the main loop for the server.
  *   - Only transmit when there's some data left in SlipMem
@@ -301,7 +253,7 @@ static u32 SlippiNetworkHandlerThread(void *arg)
 		case CONN_STATUS_CONNECTED:
 			if (crashed == 1) 
 			{
-				handleCrash();
+				send_stack_dump();
 				break;
 			}
 			else 

@@ -448,10 +448,16 @@ int _main( int argc, char *argv[] )
 			SlippiDbgStringInit = 1;
 		}
 
-		// Initialize low-level networking and the TCP/IP stack
+		/* Initialize low-level networking and the TCP/IP stack, then
+		 * dispatch the Slippi network thread. 
+		 *
+		 * 1 and 3 seconds seems a low enough delay, although it seems
+		 * to initialize before Melee boots (too early for ppc_msg calls
+		 * to do anything)
+		 */
 		if (NetworkStarted == 0)
 		{
-			if (TimerDiffSeconds(NCDTimer) > 20) {
+			if (TimerDiffSeconds(NCDTimer) > 2) {
 				NCDInit();
 				NetworkStarted = 1;
 			}
@@ -460,7 +466,7 @@ int _main( int argc, char *argv[] )
 		// Dispatch the Slippi Network thread (the server)
 		if ((NetworkStarted == 1) && (SlippiServerStarted == 0))
 		{
-			if (TimerDiffSeconds(NCDTimer) > 25) {
+			if (TimerDiffSeconds(NCDTimer) > 5) {
 				ret = SlippiNetworkInit();
 				dbgprintf("SlippiNetworkInit returned %d\r\n", ret);
 			}
