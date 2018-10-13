@@ -799,7 +799,6 @@ void EXIUpdateRegistersNEW( void )
 					case EXI_DEV_MEMCARD_A:
 						if (mode == 1) {
 							// Write data received by DMA to SlippiMemory
-							sync_before_read((void *)ptr, len);
 							SlippiMemoryWrite(ptr, len);
 						}
 

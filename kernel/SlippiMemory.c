@@ -1,4 +1,5 @@
 #include "SlippiMemory.h"
+#include "SlippiDebug.h"
 #include "common.h"
 #include "debug.h"
 #include "string.h"
@@ -25,24 +26,30 @@ void SlippiMemoryWrite(const u8 *buf, u32 len)
 {
 	u32 normalizedCursor = SlipMemCursor % SlipMemSize;
 
+	// make sure we read through
+	sync_before_read((void *)buf, len);
+
 	// Handle overflow logic. Once we are going to overflow, wrap around to start
 	// of memory region
 	if ((normalizedCursor + len) > SlipMemSize)
 	{
-		// dbgprintf("Write overflow detected...\r\n");
+
 
 		// First, fill out the remaining memory
 		u32 fillMemLen = SlipMemSize - normalizedCursor;
 		memcpy(&SlipMem[normalizedCursor], buf, fillMemLen);
+		sync_after_write(&SlipMem[normalizedCursor], fillMemLen);
 
 		// Second, write the rest that hasn't been written to the start
 		memcpy(SlipMem, &buf[fillMemLen], len - fillMemLen);
+		sync_after_write(SlipMem, (len-fillMemLen));
 
 		SlipMemCursor += len;
 		return;
 	}
 
 	memcpy(&SlipMem[normalizedCursor], buf, len);
+	sync_after_write(&SlipMem[normalizedCursor], len);
 	SlipMemCursor += len;
 }
 
@@ -69,6 +76,7 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u64 rea
 		if (bytesRead > 0 && command == SLP_CMD_RECEIVE_COMMANDS)
 		{
 			dbgprintf("WARN: Unnexpected new game message\r\n");
+			ppc_msg("SLP UNEXP MSG\x00", 14);
 			errCode = SLP_MEM_UNNEX_NG;
 			break;
 		}
@@ -79,6 +87,7 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u64 rea
 			reader->lastReadResult.isNewGame = true;
 			resetMetadata(reader);
 			setPayloadSizes(reader, normalizedReadPos);
+			ppc_msg("SLP NEWGAME\x00", 12);
 		}
 
 		u16 payloadSize = getPayloadSize(reader, command);
@@ -125,6 +134,7 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u64 rea
 		// Special case handling: game end message processed
 		if (command == SLP_CMD_RECEIVE_GAME_END)
 		{
+			ppc_msg("SLP GAME END\x00", 13);
 			reader->lastReadResult.isGameEnd = true;
 			break;
 		}

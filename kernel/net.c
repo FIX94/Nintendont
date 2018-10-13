@@ -112,7 +112,7 @@ int NCDInit(void)
 	heap_free(0, nwc_buf);
 
 	NetworkStarted = 1;
-	ppc_msg("NETWORK INIT OK\x00", 16);
+	ppc_msg("NCDINIT OK\x00", 11);
 	return 0;
 }
 
