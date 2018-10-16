@@ -409,6 +409,11 @@ void ISOSetupCache()
 		}
 		DCCache += MemCardSize; //memcard is before cache
 		DCacheLimit -= MemCardSize;
+
+		/* Avoid overlapping this cache with Slippi's memory region 
+		 * that we've stolen from the Triforce DIMM implementation.
+		 * Leave 0x100000 bytes of padding between them. */
+		DCacheLimit -= 0x400000;
 	}
 	memset32(DC, 0, sizeof(DataCache)* CACHE_MAX);
 
