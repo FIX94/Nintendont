@@ -412,9 +412,10 @@ void ISOSetupCache()
 
 		/* Avoid overlapping this cache with Slippi's memory region 
 		 * that we've stolen from the Triforce DIMM implementation.
-		 * Leave 0x100000 bytes of padding between them. */
-		DCacheLimit -= 0x400000;
+		 * Leave 0x10000 bytes of padding between them. */
+		DCacheLimit -= 0x310000;
 	}
+	dbgprintf("DCCache: %X, DCacheLimit: %X\r\n", DCCache, DCacheLimit);
 	memset32(DC, 0, sizeof(DataCache)* CACHE_MAX);
 
 	DataCacheOffset = 0;

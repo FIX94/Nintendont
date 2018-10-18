@@ -117,7 +117,7 @@ s32 handleFileTransfer()
 	{
 		_sprintf(memerr, "SLPMEMERR: %d\x00", err);
 		ppc_msg(memerr, 13);
-		
+
 		if (err == SLP_READ_OVERFLOW)
 		{
 			memReadPos = SlippiRestoreReadPos();
@@ -233,9 +233,8 @@ int checkCrash(void)
 			return 1;
 		}
 	}
-	else {
-		return 0;
-	}
+	
+	return 0;
 }
 
 
