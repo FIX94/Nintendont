@@ -26,30 +26,22 @@ void SlippiMemoryWrite(const u8 *buf, u32 len)
 {
 	u32 normalizedCursor = SlipMemCursor % SlipMemSize;
 
-	// make sure we read through
-	sync_before_read((void *)buf, len);
-
 	// Handle overflow logic. Once we are going to overflow, wrap around to start
 	// of memory region
 	if ((normalizedCursor + len) > SlipMemSize)
 	{
-
-
 		// First, fill out the remaining memory
 		u32 fillMemLen = SlipMemSize - normalizedCursor;
 		memcpy(&SlipMem[normalizedCursor], buf, fillMemLen);
-		sync_after_write(&SlipMem[normalizedCursor], fillMemLen);
 
 		// Second, write the rest that hasn't been written to the start
 		memcpy(SlipMem, &buf[fillMemLen], len - fillMemLen);
-		sync_after_write(SlipMem, (len-fillMemLen));
 
 		SlipMemCursor += len;
 		return;
 	}
 
 	memcpy(&SlipMem[normalizedCursor], buf, len);
-	sync_after_write(&SlipMem[normalizedCursor], len);
 	SlipMemCursor += len;
 }
 
