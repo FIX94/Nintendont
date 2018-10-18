@@ -165,8 +165,12 @@ static u32 SlippiHandlerThread(void *arg)
 		SlpMemError err = SlippiMemoryRead(&reader, readBuf, READ_BUF_SIZE, memReadPos);
 		if (err)
 		{
+			if (err == SLP_READ_OVERFLOW)
+				memReadPos = SlippiRestoreReadPos();
+				
 			mdelay(1000);
-			continue;
+			
+			// For specific errors, bytes will still be read. Not continueing to deal with those
 		}
 
 		if (reader.lastReadResult.isNewGame)

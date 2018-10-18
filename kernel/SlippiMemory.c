@@ -62,7 +62,10 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u64 rea
 
 	SlpMemError errCode = SLP_MEM_OK;
 
-	// TODO: Return error code on overflow read
+	// Return error code on overflow read
+	u64 posDiff = SlipMemCursor - readPos;
+	if (posDiff >= SlipMemSize)
+		return SLP_READ_OVERFLOW;
 
 	u32 bytesRead = 0;
 	while (readPos != SlipMemCursor)
@@ -95,7 +98,7 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u64 rea
 		// Special case handling: Payload size not found for command - shouldn't happen
 		if (payloadSize == 0)
 		{
-			dbgprintf("WARN: Payload size not detected\r\n");
+			dbgprintf("WARN: Payload size not detected. Read: %02X, ReadPos: %X\r\n", command, readPos);
 			errCode = SLP_PL_MISSING;
 			break;
 		}
@@ -144,6 +147,11 @@ SlpMemError SlippiMemoryRead(SlpGameReader *reader, u8 *buf, u32 bufLen, u64 rea
 	reader->lastReadResult.bytesRead = bytesRead;
 
 	return errCode;
+}
+
+u64 SlippiRestoreReadPos()
+{
+	return SlipMemCursor;
 }
 
 void resetMetadata(SlpGameReader *reader)

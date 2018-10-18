@@ -97,6 +97,7 @@ void listenForClient()
 	client_sock = accept(top_fd, server_sock);
 	if (client_sock >= 0)
 	{
+		dbgprintf("Client connection detected\r\n");
 		ppc_msg("CLIENT OK\x00", 10);
 		client_alive_ts = read32(HW_TIMER);
 	}
@@ -116,10 +117,16 @@ s32 handleFileTransfer()
 	{
 		_sprintf(memerr, "SLPMEMERR: %d\x00", err);
 		ppc_msg(memerr, 13);
-		client_alive_ts = 0;
-		close(top_fd, client_sock);
-		client_sock = -1;
-		return -1;
+		
+		if (err == SLP_READ_OVERFLOW)
+		{
+			memReadPos = SlippiRestoreReadPos();
+			dbgprintf("WARN: Overflow read error detected. Reset to: %X\r\n", memReadPos);
+		}
+
+		mdelay(1000);
+
+		// For specific errors, bytes will still be read. Not returning to deal with those
 	}
 
 	u32 bytesRead = reader.lastReadResult.bytesRead;
@@ -131,12 +138,16 @@ s32 handleFileTransfer()
 	// Naive client hangup detection
 	if (res < 0)
 	{
+		dbgprintf("Client disconnect detected\r\n");
 		close(top_fd, client_sock);
 		client_sock = -1;
 		client_alive_ts = 0;
 		ppc_msg("CLIENT HUP\x00", 11);
 		return res;
 	}
+
+	// Indicate client still active
+	client_alive_ts = read32(HW_TIMER);
 
 	// Only update read position if transfer was successful
 	memReadPos += bytesRead;
@@ -178,6 +189,7 @@ s32 checkAlive(void)
 	}
 	else if (res <= 0)
 	{
+		dbgprintf("Client disconnect detected\r\n");
 		client_alive_ts = 0;
 		close(top_fd, client_sock);
 		client_sock = -1;
