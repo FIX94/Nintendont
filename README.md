@@ -1,3 +1,8 @@
+This is a fork of [FIX94/Nintendont](https://github.com/FIX94/Nintendont) specifically
+used for supporting Project Slippi. [See documentation in SLIPPI.md for more information](SLIPPI.md).
+
+-------------------------------------------
+
 ### Nintendont
 A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 
