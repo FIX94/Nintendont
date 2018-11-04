@@ -185,6 +185,10 @@ s32 checkAlive(void)
 	if (res == sizeof(alive_msg))
 	{
 		client_alive_ts = read32(HW_TIMER);
+		// 250 ms wait. The goal here is that the keep alive message
+		// will be sent by itself without anything following it
+		mdelay(250);
+
 		return 0;
 	}
 	else if (res <= 0)
@@ -246,13 +250,9 @@ int checkCrash(void)
  */
 static u32 SlippiNetworkHandlerThread(void *arg)
 {
-	int status;
-	int crashed = 0;
-	crash_ts = read32(HW_TIMER);
-
 	while (1)
 	{
-		status = getConnectionStatus();
+		int status = getConnectionStatus();
 		switch (status)
 		{
 		case CONN_STATUS_NO_SERVER:
@@ -262,23 +262,16 @@ static u32 SlippiNetworkHandlerThread(void *arg)
 			listenForClient();
 			break;
 		case CONN_STATUS_CONNECTED:
-			if (crashed == 1) 
+			if (checkCrash()) 
 			{
 				send_stack_dump();
-				break;
+				return -1;
 			}
-			else 
-			{
-				crashed = checkCrash();
-				handleFileTransfer();
-				if (vsCheckCSS() == 1) {
-					ppc_msg("IN CSS\x00", 7);
-					checkAlive();
-				}
-				break;
-			}
+			
+			handleFileTransfer();
+			checkAlive();
+			break;
 		}
-
 
 		mdelay(THREAD_CYCLE_TIME_MS);
 	}
