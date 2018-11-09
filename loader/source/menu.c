@@ -799,6 +799,18 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 
 				const u32 color = DiscFormatColors[gi->Flags & GIFLAG_FORMAT_MASK];
 				PrintFormat(DEFAULT_SIZE, color, x, MENU_POS_Y + 20*4+5, "%s", gi->Path);
+
+				if (strncmp(gi->ID, "GALE01", 6) != 0) {
+					PrintFormat(MENU_SIZE, ORANGE, MENU_POS_X, SettingY(5),"[!] WARNING, PLEASE READ ");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(6), "Project Slippi Nintendont");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(7), "supports the NTSC v1.02");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(8), "version of Melee (GALE01).");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(9), "");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(10), "This game may not behave");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(11), "correctly. Please use the");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(12), "vanilla Nintendont build");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(13), "for the best experience.");
+				}
 			}
 		}
 		else
@@ -1877,10 +1889,10 @@ void PrintInfo(void)
 	const char *consoleType = (isWiiVC ? (IsWiiUFastCPU() ? "WiiVC 5x CPU" : "Wii VC") : (IsWiiUFastCPU() ? "WiiU 5x CPU" : (IsWiiU() ? "Wii U" : "Wii")));
 #ifdef NIN_SPECIAL_VERSION
 	// "Special" version with customizations. (Not mainline!)
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u" NIN_SPECIAL_VERSION " (%s)",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Project Slippi Nintendont v%u.%u" NIN_SPECIAL_VERSION " (%s)",
 		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #else
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u (%s)",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Project Slippi Nintendont v%u.%u (%s)",
 		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #endif
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);
