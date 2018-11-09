@@ -44,6 +44,11 @@ u32 GAME_ID	= 0;
 u16 GAME_ID6 = 0;
 u32 TITLE_ID = 0;
 
+// First 0x100 bytes of the ISO title string
+extern char GAME_TITLENAME[];
+
+static const char TITLE_20XX[] = "Super Smash Bros Melee 20XX 4.07";
+
 #define PATCH_OFFSET_START (0x3000 - (sizeof(u32) * 3))
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 static u32 POffset = PATCH_OFFSET_ENTRY;
@@ -72,6 +77,9 @@ extern vu32 TRIGame;
 #define SONICRIDERS_HOOK_NTSCU	0x555214
 #define SONICRIDERS_HOOK_NTSCJ	0x5551A8
 #define SONICRIDERS_HOOK_PAL	0x5554E8
+
+#define CODELIST_TOURNAMENT_BASE 0x001910E0
+#define CODELIST_TOURNAMENT_END  0x0019AF4C
 
 u32 PatchState = PATCH_STATE_NONE;
 u32 PSOHack    = PSO_STATE_NONE;
@@ -3185,6 +3193,11 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	if(cheatsWanted || debuggerWanted)
 	{
+
+		u32 cheats_start;
+		u32 cheats_area;
+		u32 codelist_addr;
+
 		//setup jump to codehandler stub
 		if(OSSleepThreadHook || PADHook)
 		{
@@ -3192,7 +3205,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			if(OSSleepThreadHook) PatchB( codehandler_stub_offset, OSSleepThreadHook );
 			if(PADHook) PatchB( codehandler_stub_offset, PADHook );
 		}
-		u32 cheats_start;
 		if(debuggerWanted)
 		{
 			//copy into dedicated space
@@ -3200,21 +3212,56 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			//copy game id for debugger
 			memcpy((void*)0x1800, (void*)0, 8);
 			//main code area start
-			cheats_start = 0x1000 + codehandler_size - 8;
+			cheats_start  = 0x1000 + codehandler_size - 8;
+			codelist_addr = 0x1000 + codehandler_size - 12;
 		}
 		else
 		{
 			//copy into dedicated space
 			memcpy( (void*)0x1000, codehandleronly, codehandleronly_size );
 			//main code area start
-			cheats_start = 0x1000 + codehandleronly_size - 8;
+			cheats_start  = 0x1000 + codehandleronly_size - 8;
+			codelist_addr = 0x1000 + codehandleronly_size - 12;
 		}
-		u32 cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
-		if(cheats_area > 0)
-		{
+		cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
+
+		/* Ishiiruka uses the tournament mode region [0x801910e0-0x8019af4c] for
+		 * extra codehandler space when booting Melee. Note that the codehandler
+		 * must be patched to deal with this. Additionally, in order for this to
+		 * work, we need to always make sure that 0x8022d638 is patched to redirect
+		 * the menu somewhere else. In case the user provides a GCT without this
+		 * patch, apply it here to avoid crashes.
+		 *
+		 * 20XX builds use this region for storing custom data/code, so just revert
+		 * to the standard codelist address if the user is booting some 20XX ISO, or
+		 * if the user chooses to boot any other non-GALE01 ISO.
+		 */
+
+		if (TITLE_ID == 0x47414C) {
+			// If this is *not* a 20XX ISO, use tournament region and apply patch
+			if (strncmp(GAME_TITLENAME, TITLE_20XX, sizeof(TITLE_20XX)) != 0)
+			{
+				// Patch to redirect tournament mode menu to debug menu
+				write32(0x0022d6e8, 0x38000006);
+				dbgprintf("Patch:Redirect Melee tournament mode to debug menu\r\n");
+
+				cheats_start = CODELIST_TOURNAMENT_BASE;
+				cheats_area = CODELIST_TOURNAMENT_END - CODELIST_TOURNAMENT_BASE;
+			}
+			else
+			{
+				dbgprintf("Patch:Detected 20XX ISO, using default codehandler behaviour\r\n");
+			}
+		}
+
+		// The pointer to the codelist should always be at (<codehandler size> - 0xC)
+		if (cheats_area > 0) {
 			dbgprintf("Possible Code Size: %08x\r\n", cheats_area);
+			dbgprintf("Codelist at 0x%08x\r\n", (cheats_start | 0x80000000));
 			memset((void*)cheats_start, 0, cheats_area);
+			write32(codelist_addr, (cheats_start | 0x80000000));
 		}
+
 		//copy in gct file if requested
 		if( cheatsWanted && TRIGame != TRI_SB && useipl == 0 )
 		{

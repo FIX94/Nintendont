@@ -56,6 +56,8 @@ static FIL GameFile;
 static u64 LastOffset64 = ~0ULL;
 bool Datel = false;
 
+char GAME_TITLENAME[0x100];
+
 // CISO: On-disc structure.
 // Temporarily loaded into cache memory.
 #define CISO_MAGIC	0x4349534F /* "CISO" */
@@ -350,6 +352,10 @@ bool ISOInit()
 	/* Get BI2.bin region code */
 	ISOReadDirect(isoTmpBuf, sizeof(BI2region), 0x458 + ISOShift64);
 	memcpy(&BI2region, isoTmpBuf, sizeof(BI2region));
+
+	// Save ISO game string (we can distinguish between ISOs if necessary)
+	ISOReadDirect(&GAME_TITLENAME, 0x100, 0x20 + ISOShift64);
+
 	/* Reset Cache */
 	CacheInited = 0;
 

@@ -771,8 +771,11 @@ _packetdivide:
 
 _codehandler:
 	mflr	r29
-	lis r15, codelist@h
-	ori	r15, r15, codelist@l
+
+	# Expect the kernel to write the codelist pointer
+	lis	r13, codelist_addr@h
+	ori	r13, r13, codelist_addr@l
+	lwz	r15, 0(r13)
 
 	ori	r7, r31, cheatdata@l	# set pointer for storing data (before the codelist)
 
@@ -1675,6 +1678,11 @@ regbuffer:
 .space 72*4
 
 .align 3
+
+# Expect the kernel write a pointer to the codelist that we should use
+.global codelist_addr
+codelist_addr:
+.long 0
 
 codelist:
 .space 2*4
