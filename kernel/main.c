@@ -250,6 +250,8 @@ int _main( int argc, char *argv[] )
 		SDisInit = 1;  // Looks okay after threading fix
 	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
 
+	u32 UseNetwork = ConfigGetConfig(NIN_CFG_NETWORK);
+
 	BootStatus(8, s_size, s_cnt);
 
 	memset32((void*)RESET_STATUS, 0, 0x20);
@@ -455,7 +457,8 @@ int _main( int argc, char *argv[] )
 		 * to initialize before Melee boots (too early for ppc_msg calls
 		 * to do anything)
 		 */
-		if (NetworkStarted == 0)
+
+		if ((UseNetwork == 1) && (NetworkStarted == 0))
 		{
 			if (TimerDiffSeconds(NCDTimer) > 2) {
 				NCDInit();
@@ -464,7 +467,7 @@ int _main( int argc, char *argv[] )
 		}
 
 		// Dispatch the Slippi Network thread (the server)
-		if ((NetworkStarted == 1) && (SlippiServerStarted == 0))
+		if ((UseNetwork == 1) && (NetworkStarted == 1) && (SlippiServerStarted == 0))
 		{
 			if (TimerDiffSeconds(NCDTimer) > 5) {
 				ret = SlippiNetworkInit();

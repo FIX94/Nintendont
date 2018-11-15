@@ -1070,6 +1070,17 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_skip_ipl;
 			}
+			case 6: {
+				// Networking
+				static const char *desc_networking[] = {
+					"Enable Slippi networking.",
+					"Wii network settings must",
+					"be configured in order to",
+					"use this feature.",
+					NULL
+				};
+				return desc_networking;
+			}
 
 			default:
 				break;
@@ -1127,7 +1138,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 6))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 7))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1154,7 +1165,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 5;
+				ctx->settings.posX = 6;
 			}
 		}
 
@@ -1385,6 +1396,12 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ncfg->Config ^= (NIN_CFG_SKIP_IPL);
 					ctx->redraw = true;
 					break;
+				case 6:
+					// Networking
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_NETWORK);
+					ctx->redraw = true;
+					break;
 
 				default:
 					break;
@@ -1549,6 +1566,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Skip IPL", (ncfg->Config & (NIN_CFG_SKIP_IPL)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
+		// Networking
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Slippi Networking", (ncfg->Config & (NIN_CFG_NETWORK)) ? "Yes" : "No ");
+		ListLoopIndex++;
+
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {
 			u32 cursor_color = BLACK;
@@ -1570,7 +1592,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 7;
+			int line_num = 8;
 			do {
 				if (**desc != 0)
 				{
