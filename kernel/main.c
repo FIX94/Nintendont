@@ -251,6 +251,7 @@ int _main( int argc, char *argv[] )
 	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
 
 	u32 UseNetwork = ConfigGetConfig(NIN_CFG_NETWORK);
+	u32 SlippiUsb = ConfigGetConfig(NIN_CFG_SLIPPI_USB);
 
 	BootStatus(8, s_size, s_cnt);
 
@@ -287,8 +288,11 @@ int _main( int argc, char *argv[] )
 	PatchInit();
 
 	dbgprintf("Main Thread ID: %d\r\n", thread_get_id());
+
 	SlippiMemoryInit();
-	SlippiFileWriterInit();
+
+	if (SlippiUsb == 1)
+		SlippiFileWriterInit();
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);

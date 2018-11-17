@@ -51,6 +51,7 @@ enum ninconfigbitpos
 	NIN_CFG_BIT_CC_RUMBLE	= (17),
 	NIN_CFG_BIT_SKIP_IPL	= (18),
 	NIN_CFG_BIT_NETWORK	= (19),
+	NIN_CFG_BIT_SLIPPI_USB	= (20),
 
 	// Internal kernel settings.
 	NIN_CFG_BIT_MC_SLOTB	= (31),	// Slot B image is loaded
@@ -80,6 +81,7 @@ enum ninconfig
 	NIN_CFG_CC_RUMBLE	= (1<<NIN_CFG_BIT_CC_RUMBLE),
 	NIN_CFG_SKIP_IPL	= (1<<NIN_CFG_BIT_SKIP_IPL),
 	NIN_CFG_NETWORK 	= (1<<NIN_CFG_BIT_NETWORK),
+	NIN_CFG_SLIPPI_USB 	= (1<<NIN_CFG_BIT_SLIPPI_USB),
 
 	NIN_CFG_MC_SLOTB	= (1<<NIN_CFG_BIT_MC_SLOTB),
 };

@@ -1081,6 +1081,18 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_networking;
 			}
+			case 7: {
+				// Slippi USB
+				static const char *desc_slippi_usb[] = {
+					"Write Slippi replays to a",
+					"USB storage device. You",
+					"Must have a folder named",
+					"'Slippi/' in the root of",
+					"your USB drive.",
+					NULL
+				};
+				return desc_slippi_usb;
+			}
 
 			default:
 				break;
@@ -1138,7 +1150,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 7))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 8))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1402,6 +1414,12 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ncfg->Config ^= (NIN_CFG_NETWORK);
 					ctx->redraw = true;
 					break;
+				case 7:
+					// Slippi USB
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_SLIPPI_USB);
+					ctx->redraw = true;
+					break;
 
 				default:
 					break;
@@ -1571,6 +1589,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Slippi Networking", (ncfg->Config & (NIN_CFG_NETWORK)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
+		// Slippi USB
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Slippi USB", (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? "Yes" : "No ");
+		ListLoopIndex++;
+
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {
 			u32 cursor_color = BLACK;
@@ -1592,7 +1615,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 8;
+			int line_num = 9;
 			do {
 				if (**desc != 0)
 				{
