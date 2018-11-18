@@ -451,8 +451,9 @@ sendcheats:
 
 	lwz	r16, 0(r12)
 
-	lis r12, codelist@h
-	ori	r12, r12, codelist@l
+	lis	r13, codelist_addr@h
+	ori	r13, r13, codelist_addr@l
+	lwz	r12, 0(r13)
 
 	b	upload
 
