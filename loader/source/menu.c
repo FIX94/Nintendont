@@ -771,6 +771,21 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 					    gi->Name, discNumber+1, gi->ID,
 					    i == ctx->games.posX ? ARROW_LEFT : " ");
 			}
+
+			// Render current Slippi settings if a Melee ISO is selected
+			if ((strncmp(gi->ID, "GALE01", 6) == 0) && (i == ctx->games.posX)) {
+				gamelist_y += 20;
+
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+340, gamelist_y, "Slippi: ");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+340+(9*10), gamelist_y, "NET ");
+				PrintFormat(DEFAULT_SIZE, (ncfg->Config & (NIN_CFG_NETWORK)) ? GREEN : RED, 
+					MENU_POS_X+340+(13*10), gamelist_y, "%-3s", (ncfg->Config & (NIN_CFG_NETWORK)) ? "ON" : "OFF");
+
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+340+(17*10), gamelist_y, "USB ");
+				PrintFormat(DEFAULT_SIZE, (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? GREEN : RED, MENU_POS_X+340+(21*10),
+						gamelist_y, "%-3s", (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? "ON" : "OFF");
+			}
+
 		}
 
 		if(ctx->games.gamecount && (ctx->games.scrollX + ctx->games.posX) >= 0 
@@ -801,15 +816,15 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 				PrintFormat(DEFAULT_SIZE, color, x, MENU_POS_Y + 20*4+5, "%s", gi->Path);
 
 				if (strncmp(gi->ID, "GALE01", 6) != 0) {
-					PrintFormat(MENU_SIZE, ORANGE, MENU_POS_X, SettingY(5),"[!] WARNING, PLEASE READ ");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(6), "Project Slippi Nintendont");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(7), "supports the NTSC v1.02");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(8), "version of Melee (GALE01).");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(9), "");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(10), "This game may not behave");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(11), "correctly. Please use the");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(12), "vanilla Nintendont build");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(13), "for the best experience.");
+					PrintFormat(MENU_SIZE, ORANGE, MENU_POS_X, SettingY(11),"[!] WARNING, PLEASE READ ");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(12), "Project Slippi Nintendont");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(13), "supports the NTSC v1.02");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(14), "version of Melee (GALE01).");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(15), "");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(16), "This game may not behave");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(17), "correctly. Please use the");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(18), "vanilla Nintendont build");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(19), "for the best experience.");
 				}
 			}
 		}
@@ -1693,8 +1708,8 @@ static int SelectGame(void)
 
 	// Initialize ctx.games.
 	ctx.games.listMax = gamecount;
-	if (ctx.games.listMax > 15) {
-		ctx.games.listMax = 15;
+	if (ctx.games.listMax > 12) {
+		ctx.games.listMax = 12;
 	}
 	ctx.games.gi = gi;
 	ctx.games.gamecount = gamecount;
