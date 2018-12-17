@@ -966,7 +966,9 @@ static bool DemoNeedsHookPatch()
 		(DOLSize == 2177508 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2FDCE0 &&
 		read32(0x1D2A00) == 0x62696F68 && read32(0x1D2A04) == 0x617A6172) || //Resident Evil 4 USA
 		(DOLSize == 1118820 && DOLMinOff == 0x3100 && DOLMaxOff == 0x3C4C40 &&
-		read32(0x0E1CD0) == 0x4D617269 && read32(0x0E1CD4) == 0x6F426173) )  //Mario Baseball USA
+		read32(0x0E1CD0) == 0x4D617269 && read32(0x0E1CD4) == 0x6F426173) || //Mario Baseball USA
+		(DOLSize == 1854724 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2097E0 &&
+		read32(0x11A1A8) == 0x47414D45 && read32(0x11A1AC) == 0x2F496E66) )  //One Piece Treasure Battle JAP
 	{
 		dbgprintf("Patch:Known Problematic Demo, using ARStartDMA_Hook\r\n");
 		return true;
