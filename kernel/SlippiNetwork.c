@@ -111,6 +111,11 @@ static char memerr[64];
 /* Deal with sending Slippi data over the network. */
 s32 handleFileTransfer()
 {
+	int status = getConnectionStatus();
+	if (status != CONN_STATUS_CONNECTED) {
+		// Do nothing if we aren't connected to a client
+		return 0;
+	}
 
 	SlpMemError err = SlippiMemoryRead(&reader, readBuf, READ_BUF_SIZE, memReadPos);
 	if (err)
@@ -173,6 +178,13 @@ int getConnectionStatus()
 static char alive_msg[] __attribute__((aligned(32))) = "HELO";
 s32 checkAlive(void)
 {
+	int status = getConnectionStatus();
+	if (status != CONN_STATUS_CONNECTED) {
+		// Do nothing if we aren't connected to a client
+		// the handleFileTransfer function caused a disconnect
+		return 0;
+	}
+
 	if (TimerDiffSeconds(client_alive_ts) < 3)
 	{
 		// Only check alive if we haven't detected any communication
