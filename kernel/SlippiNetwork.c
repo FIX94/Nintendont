@@ -181,7 +181,7 @@ s32 checkAlive(void)
 	int status = getConnectionStatus();
 	if (status != CONN_STATUS_CONNECTED) {
 		// Do nothing if we aren't connected to a client
-		// the handleFileTransfer function caused a disconnect
+		// the handleFileTransfer could sometimes cause a disconnect
 		return 0;
 	}
 
