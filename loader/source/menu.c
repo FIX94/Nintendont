@@ -58,6 +58,12 @@ typedef enum {
 } DevState;
 static u8 devState = DEV_OK;
 
+// Info about free space on USB
+extern u32 usb_free_kib;
+extern u32 usb_total_kib;
+extern u32 usb_replays_left;
+extern u32 usb_attached;
+
 // Disc format colors.
 const u32 DiscFormatColors[8] =
 {
@@ -784,6 +790,20 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+340+(17*10), gamelist_y, "USB ");
 				PrintFormat(DEFAULT_SIZE, (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? GREEN : RED, MENU_POS_X+340+(21*10),
 						gamelist_y, "%-3s", (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? "ON" : "OFF");
+
+				// Warn the user if they're running low on USB disk space
+				if ((usb_attached == 1) && (ncfg->Config & (NIN_CFG_SLIPPI_USB)))
+				{
+					if ((usb_replays_left < 500) && (usb_replays_left > 50))
+						PrintFormat(MENU_SIZE, ORANGE, MENU_POS_X, SettingY(11),"[!] WARNING, LOW USB SPACE");
+					if (usb_replays_left <= 50)
+						PrintFormat(MENU_SIZE, RED, MENU_POS_X, SettingY(11),"[!] WARNING, LOW USB SPACE");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(12), "Your USB drive is running");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(13), "low on free space. There ");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(14), "should be enough space for");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(15), "about %d more replays.", usb_replays_left);
+				}
+
 			}
 
 		}
@@ -1873,6 +1893,9 @@ bool SelectDevAndGame(void)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
+
+
+
 			redraw = false;
 
 			// Render the screen here to prevent a blank frame
