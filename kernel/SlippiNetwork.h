@@ -15,4 +15,6 @@ s32 SlippiNetworkInit();
 void SlippiNetworkShutdown();
 void SlippiNetworkSetNewFile(const char* path);
 
+int getConnectionStatus();
+
 #endif

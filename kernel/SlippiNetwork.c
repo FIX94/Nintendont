@@ -11,6 +11,8 @@
 #include "net.h"
 #include "ff_utf8.h"
 
+#include "SlippiNetworkBroadcast.h"
+
 // Game can transfer at most 784 bytes / frame
 // That means 4704 bytes every 100 ms. Let's aim to handle
 // double that, making our read buffer 10000 bytes
@@ -88,12 +90,11 @@ s32 startServer()
 /* Accept a client */
 void listenForClient()
 {
+	// We already have a client
 	if (client_sock >= 0)
-	{
-		// We already have a client
 		return;
-	}
 
+	// Try to accept a client
 	client_sock = accept(top_fd, server_sock);
 	if (client_sock >= 0)
 	{
@@ -209,6 +210,7 @@ s32 checkAlive(void)
 		client_alive_ts = 0;
 		close(top_fd, client_sock);
 		client_sock = -1;
+		reset_broadcast_timer();
 		ppc_msg("CLIENT HUP\x00", 11);
 		return -1;
 	}

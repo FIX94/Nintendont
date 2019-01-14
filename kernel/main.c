@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SlippiMemory.h"
 #include "SlippiFileWriter.h"
 #include "SlippiNetwork.h"
+#include "SlippiNetworkBroadcast.h"
 #include "SlippiDebug.h"
 #include "net.h"
 
@@ -476,6 +477,8 @@ int _main( int argc, char *argv[] )
 			if (TimerDiffSeconds(NCDTimer) > 5) {
 				ret = SlippiNetworkInit();
 				dbgprintf("SlippiNetworkInit returned %d\r\n", ret);
+				ret = SlippiNetworkBroadcastInit();
+				dbgprintf("SlippiNetworkBroadcastInit returned %d\r\n", ret);
 			}
 		}
 
