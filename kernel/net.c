@@ -278,23 +278,21 @@ s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
 }
 
 /* Connect to some remote server */
-s32 connect(s32 fd, s32 socket, struct address *addr)
+s32 connect(s32 fd, s32 socket, struct sockaddr *name)
 {
 	s32 res;
 	STACK_ALIGN(struct connect_params, params, 1, 32);
 
 	if (fd < 0) return -62;
 
-	// Might wanna assume this to avoid the extra writes
-	addr->len = 8;
-	addr->family = AF_INET;
+	name->sa_len = 8;
 
-	memset(&params, 0, sizeof(struct connect_params));
+	memset(params, 0, sizeof(struct connect_params));
 	params->socket = socket;
 	params->has_addr = 1;
-	memcpy(&params->addr, addr, 8); // always 8 I think?
+	memcpy(params->name, name, 8); // always 8 I think?
 
-	res = IOS_Ioctl(fd, IOCTL_SO_CONNECT, &params,
+	res = IOS_Ioctl(fd, IOCTL_SO_CONNECT, params,
 			sizeof(struct connect_params), 0, 0);
 
 	return res;
@@ -308,14 +306,14 @@ s32 setsockopt(s32 fd, s32 socket, u32 level, u32 optname, void *optval, u32 opt
 
 	if (fd < 0) return -62;
 
-	memset(&params, 0, sizeof(struct setsockopt_params));
+	memset(params, 0, sizeof(struct setsockopt_params));
 	params->socket = socket;
 	params->level = level;
 	params->optname = optname;
 	params->optlen = optlen;
 	if (optval && optlen)
 		memcpy(params->optval, optval, optlen);
-	res = IOS_Ioctl(fd, IOCTL_SO_SETSOCKOPT, &params,
+	res = IOS_Ioctl(fd, IOCTL_SO_SETSOCKOPT, params,
 			sizeof(struct setsockopt_params), 0, 0);
 
 	return res;

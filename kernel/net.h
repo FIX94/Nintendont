@@ -2,8 +2,12 @@
 #define _NET_H_
 
 #define INADDR_ANY	0
+
 #define IPPROTO_IP	0
+
 #define SOCK_STREAM	1
+#define SOCK_DGRAM	2
+
 #define AF_INET		2
 
 /* From marcan - see git://git.bootmii.org/var/git/mini.git
@@ -60,25 +64,16 @@ struct sockaddr {
 	u8 sa_data[14];
 } __attribute__((packed));
 
-struct address {
-	unsigned char len;
-	unsigned char family;
-	unsigned short port;
-	unsigned int name;
-	unsigned char unused[20];
-};
-
 struct bind_params {
 	u32 socket;
 	u32 has_name;
 	u8 name[28];
-	//struct address name;
 };
 
 struct connect_params {
 	unsigned int socket;
 	unsigned int has_addr;
-	struct address addr;
+	u8 name[28];
 };
 
 struct sendto_params {
@@ -147,7 +142,7 @@ s32 bind(s32 fd, s32 socket, struct sockaddr *name);
 s32 listen(s32 fd, s32 socket, u32 backlog);
 s32 accept(s32 fd, s32 socket);
 s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags);
-s32 connect(s32 fd, s32 socket, struct address *addr);
+s32 connect(s32 fd, s32 socket, struct sockaddr *name);
 s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags);
 s32 poll(s32 fd, struct pollsd *sds, s32 nsds, s32 timeout);
 
