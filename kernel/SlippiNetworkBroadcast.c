@@ -6,7 +6,7 @@
 
 #include "SlippiNetwork.h"
 
-#define THREAD_CYCLE_TIME_MS	100
+#define THREAD_CYCLE_TIME_MS	5000
 
 // Measured in seconds
 #define BROADCAST_PERIOD	10
@@ -18,9 +18,7 @@ static u32 SlippiNetworkBroadcastHandlerThread(void *arg);
 
 extern s32 top_fd;		// from kernel/net.c
 
-// UDP message contents to-be-sent to the broadcast address
 static char ready_msg[10] ALIGNED(32) = "SLIP_READY";
-
 static int discover_sock ALIGNED(32);
 static struct sockaddr_in discover ALIGNED(32);
 
@@ -38,8 +36,6 @@ s32 SlippiNetworkBroadcastInit()
 	thread_continue(SlippiNetworkBroadcast_Thread);
 	return 0;
 }
-
-
 
 /* Set up a socket and connect() to the local broadcast address. */ 
 s32 startBroadcast()
@@ -64,7 +60,7 @@ s32 startBroadcast()
 	return res;
 }
 
-
+/* Broadcast a SLIP_READY message */
 s32 do_broadcast(void)
 {
 	s32 res;
@@ -74,12 +70,10 @@ s32 do_broadcast(void)
 
 	res = sendto(top_fd, discover_sock, ready_msg, sizeof(ready_msg), 0);
 	broadcast_ts = read32(HW_TIMER);
-
 	return res;
 }
 
-
-
+/* Main loop for this thread */
 static u32 SlippiNetworkBroadcastHandlerThread(void *arg)
 {
 	int status;
@@ -90,10 +84,7 @@ static u32 SlippiNetworkBroadcastHandlerThread(void *arg)
 		status = getConnectionStatus();
 		if (status != CONN_STATUS_CONNECTED)
 			do_broadcast();
-
 		mdelay(THREAD_CYCLE_TIME_MS);
 	}
-
 	return 0;
 }
-
