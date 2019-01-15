@@ -448,6 +448,10 @@ void UpdateNinCFG()
 		// don't skip IPL by default.
 		ncfg->Config &= ~NIN_CFG_CC_RUMBLE;
 		ncfg->Config &= ~NIN_CFG_SKIP_IPL;
+
+		// Use Slippi on port B by default
+		ncfg->Config &= ~NIN_CFG_SLIPPI_PORT_A;
+
 		ncfg->Version = 8;
 	}
 }

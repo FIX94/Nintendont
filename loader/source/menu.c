@@ -1128,6 +1128,16 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_slippi_usb;
 			}
+			case 8: {
+				// Slippi on Port A
+				static const char *desc_slippi_port_a[] = {
+					"When enabled, emulate Slippi",
+					"on Port A instead of Port B.",
+					" (DEBUGGING FEATURE) ",
+					NULL
+				};
+				return desc_slippi_port_a;
+			}
 
 			default:
 				break;
@@ -1185,7 +1195,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 8))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 9))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1455,8 +1465,13 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ncfg->Config ^= (NIN_CFG_SLIPPI_USB);
 					ctx->redraw = true;
 					break;
-
-				default:
+				case 8:
+					// Use Slippi on Port A
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_SLIPPI_PORT_A);
+					ctx->redraw = true;
+					break;
+			default:
 					break;
 			}
 		}
@@ -1629,6 +1644,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Slippi USB", (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
+		// Slippi Port A
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Slippi on Port A", (ncfg->Config & (NIN_CFG_SLIPPI_PORT_A)) ? "Yes" : "No ");
+		ListLoopIndex++;
+
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {
 			u32 cursor_color = BLACK;
@@ -1650,7 +1670,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 9;
+			int line_num = 10;
 			do {
 				if (**desc != 0)
 				{

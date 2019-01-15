@@ -115,10 +115,14 @@ static u32 EXI2IRQStatus	= 0;
 
 static u8 *ambbBackupMem;
 
+static u32 Slippi_UsePortA = 0;
+
 void EXIInit(void)
 {
 	dbgprintf("EXIInit Start\r\n");
 	dbgprintf("This should work stream!\r\n");
+
+	Slippi_UsePortA = ConfigGetConfig(NIN_CFG_SLIPPI_PORT_A);
 
 	//some important memory for triforce
 	ambbBackupMem = malloca(0x10000, 0x40);
@@ -797,48 +801,50 @@ void EXIUpdateRegistersNEW( void )
 				switch (EXI_DEVICE_NUMBER(chn, EXIDeviceSelect[chn&3]))
 				{
 					case EXI_DEV_MEMCARD_A:
-						if (mode == 1) {
-							// Write data received by DMA to SlippiMemory
-							// Sync is necessary because data was written from PPC
-							sync_before_read((void *)ptr, len);
-							SlippiMemoryWrite(ptr, len);
+
+						if (Slippi_UsePortA == 1)
+						{
+							if (mode == 1) {
+								// Write data received by DMA to SlippiMemory
+								// Sync is necessary because data was written from PPC
+								sync_before_read((void *)ptr, len);
+								SlippiMemoryWrite(ptr, len);
+							}
+
+							IRQ_Cause[0] = 10;
+
+							// Write that data has been received
+							write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
+							sync_after_write( (void*)EXI_BASE, 0x20 );
+
+							EXI_IRQ = true;
+							IRQ_Timer = read32(HW_TIMER);
+							// EXIDeviceMemoryCard(0, ptr, len, mode);
 						}
-
-						IRQ_Cause[0] = 10;
-
-						// Write that data has been received
-						write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
-						sync_after_write( (void*)EXI_BASE, 0x20 );
-
-						EXI_IRQ = true;
-						IRQ_Timer = read32(HW_TIMER);
-
-						// EXIDeviceMemoryCard(0, ptr, len, mode);
-
 						break;
 
 #ifdef GCNCARD_ENABLE_SLOT_B
 					case EXI_DEV_MEMCARD_B:
-						// if (mode == 1) {
-						// 	dbgprintf("Before sync...\n");
-						// 	// Write data received by DMA to SlippiMemory
-						// 	sync_before_read((void *)ptr, len);
-						// 	dbgprintf("Command: 0x%02X...\n", ptr[0]);
-						// 	SlippiMemoryWrite(ptr, len);
-						// 	dbgprintf("Done writing...\n");
-						// }
 
-						// IRQ_Cause[0] = 10;
+						if (Slippi_UsePortA == 0)
+						{
+							if (mode == 1) {
+								// Write data received by DMA to SlippiMemory
+								// Sync is necessary because data was written from PPC
+								sync_before_read((void *)ptr, len);
+								SlippiMemoryWrite(ptr, len);
+							}
 
-						// // Write that data has been received
-						// write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
-						// sync_after_write( (void*)EXI_BASE, 0x20 );
+							IRQ_Cause[0] = 10;
 
-						// EXI_IRQ = true;
-						// IRQ_Timer = read32(HW_TIMER);
+							// Write that data has been received
+							write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
+							sync_after_write( (void*)EXI_BASE, 0x20 );
 
-						// EXIDeviceMemoryCard(1, ptr, len, mode);
-						
+							EXI_IRQ = true;
+							IRQ_Timer = read32(HW_TIMER);
+							// EXIDeviceMemoryCard(1, ptr, len, mode);
+						}
 						break;
 #endif /* GCNCARD_ENABLE_SLOT_B */
 
