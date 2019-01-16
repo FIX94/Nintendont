@@ -794,14 +794,20 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 				// Warn the user if they're running low on USB disk space
 				if ((usb_attached == 1) && (ncfg->Config & (NIN_CFG_SLIPPI_USB)))
 				{
-					if ((usb_replays_left < 500) && (usb_replays_left > 50))
+					int lowUsbWarnThreshold = 500;
+					int lowUsbErrorThreshold = 50;
+
+					if ((usb_replays_left < lowUsbWarnThreshold) && (usb_replays_left > lowUsbErrorThreshold))
 						PrintFormat(MENU_SIZE, ORANGE, MENU_POS_X, SettingY(11),"[!] WARNING, LOW USB SPACE");
-					if (usb_replays_left <= 50)
+					if (usb_replays_left <= lowUsbErrorThreshold)
 						PrintFormat(MENU_SIZE, RED, MENU_POS_X, SettingY(11),"[!] WARNING, LOW USB SPACE");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(12), "Your USB drive is running");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(13), "low on free space. There ");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(14), "should be enough space for");
-					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(15), "about %d more replays.", usb_replays_left);
+
+					if (usb_replays_left < lowUsbWarnThreshold) {
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(12), "Your USB drive is running");
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(13), "low on free space. There ");
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(14), "should be enough space for");
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(15), "about %d more replays.", usb_replays_left);
+					}
 				}
 
 			}
@@ -1163,6 +1169,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		ctx->redraw = 1;
 	}
 
+	int col2Length = 9;
+
 	if (FPAD_Down_Repeat(ctx))
 	{
 		// Down: Move the cursor down by 1 setting.
@@ -1195,7 +1203,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 9))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= col2Length))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1222,7 +1230,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 6;
+				ctx->settings.posX = col2Length - 1;
 			}
 		}
 

@@ -802,16 +802,15 @@ void EXIUpdateRegistersNEW( void )
 				{
 					case EXI_DEV_MEMCARD_A:
 
-						if (!Slippi_UsePortA)
-							break;
-
-						if (mode == 1) {
+						if (Slippi_UsePortA && mode == 1) {
 							// Write data received by DMA to SlippiMemory
 							// Sync is necessary because data was written from PPC
 							sync_before_read((void *)ptr, len);
 							SlippiMemoryWrite(ptr, len);
 						}
 
+						// The following code will simply ACK the message from the PowerPC side
+						// and allow the code execution to continue
 						IRQ_Cause[0] = 10;
 
 						// Write that data has been received
@@ -820,6 +819,10 @@ void EXIUpdateRegistersNEW( void )
 
 						EXI_IRQ = true;
 						IRQ_Timer = read32(HW_TIMER);
+
+						// I belive this line of code is used for using emulated memory cards
+						// would be nice if we could somehow use hardware devices in the 
+						// non-Slippi port
 						// EXIDeviceMemoryCard(0, ptr, len, mode);
 
 						break;
@@ -827,16 +830,15 @@ void EXIUpdateRegistersNEW( void )
 #ifdef GCNCARD_ENABLE_SLOT_B
 					case EXI_DEV_MEMCARD_B:
 
-						if (Slippi_UsePortA)
-							break;
-
-						if (mode == 1) {
+						if (!Slippi_UsePortA && mode == 1) {
 							// Write data received by DMA to SlippiMemory
 							// Sync is necessary because data was written from PPC
 							sync_before_read((void *)ptr, len);
 							SlippiMemoryWrite(ptr, len);
 						}
 
+						// The following code will simply ACK the message from the PowerPC side
+						// and allow the code execution to continue
 						IRQ_Cause[0] = 10;
 
 						// Write that data has been received
@@ -845,6 +847,8 @@ void EXIUpdateRegistersNEW( void )
 
 						EXI_IRQ = true;
 						IRQ_Timer = read32(HW_TIMER);
+
+						// See SlotA to understand this commented line
 						// EXIDeviceMemoryCard(1, ptr, len, mode);
 
 						break;
