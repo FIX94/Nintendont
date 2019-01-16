@@ -66,6 +66,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define TEAL				0x008080FF
 #define WHITE				0xFFFFFFFF
 #define YELLOW				0xFFFF00FF
+#define ORANGE				0xFF9800FF
 
 #define		HW_REG_BASE		0xCD800000
 #define		HW_RESETS		(HW_REG_BASE + 0x194)

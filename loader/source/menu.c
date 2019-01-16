@@ -58,6 +58,12 @@ typedef enum {
 } DevState;
 static u8 devState = DEV_OK;
 
+// Info about free space on USB
+extern u32 usb_free_kib;
+extern u32 usb_total_kib;
+extern u32 usb_replays_left;
+extern u32 usb_attached;
+
 // Disc format colors.
 const u32 DiscFormatColors[8] =
 {
@@ -771,6 +777,41 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 					    gi->Name, discNumber+1, gi->ID,
 					    i == ctx->games.posX ? ARROW_LEFT : " ");
 			}
+
+			// Render current Slippi settings if a Melee ISO is selected
+			if ((strncmp(gi->ID, "GALE01", 6) == 0) && (i == ctx->games.posX)) {
+				gamelist_y += 20;
+
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+340, gamelist_y, "Slippi: ");
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+340+(9*10), gamelist_y, "NET ");
+				PrintFormat(DEFAULT_SIZE, (ncfg->Config & (NIN_CFG_NETWORK)) ? GREEN : RED, 
+					MENU_POS_X+340+(13*10), gamelist_y, "%-3s", (ncfg->Config & (NIN_CFG_NETWORK)) ? "ON" : "OFF");
+
+				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+340+(17*10), gamelist_y, "USB ");
+				PrintFormat(DEFAULT_SIZE, (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? GREEN : RED, MENU_POS_X+340+(21*10),
+						gamelist_y, "%-3s", (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? "ON" : "OFF");
+
+				// Warn the user if they're running low on USB disk space
+				if ((usb_attached == 1) && (ncfg->Config & (NIN_CFG_SLIPPI_USB)))
+				{
+					int lowUsbWarnThreshold = 500;
+					int lowUsbErrorThreshold = 50;
+
+					if ((usb_replays_left < lowUsbWarnThreshold) && (usb_replays_left > lowUsbErrorThreshold))
+						PrintFormat(MENU_SIZE, ORANGE, MENU_POS_X, SettingY(11),"[!] WARNING, LOW USB SPACE");
+					if (usb_replays_left <= lowUsbErrorThreshold)
+						PrintFormat(MENU_SIZE, RED, MENU_POS_X, SettingY(11),"[!] WARNING, LOW USB SPACE");
+
+					if (usb_replays_left < lowUsbWarnThreshold) {
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(12), "Your USB drive is running");
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(13), "low on free space. There ");
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(14), "should be enough space for");
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(15), "about %d more replays.", usb_replays_left);
+					}
+				}
+
+			}
+
 		}
 
 		if(ctx->games.gamecount && (ctx->games.scrollX + ctx->games.posX) >= 0 
@@ -799,6 +840,18 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 
 				const u32 color = DiscFormatColors[gi->Flags & GIFLAG_FORMAT_MASK];
 				PrintFormat(DEFAULT_SIZE, color, x, MENU_POS_Y + 20*4+5, "%s", gi->Path);
+
+				if (strncmp(gi->ID, "GALE01", 6) != 0) {
+					PrintFormat(MENU_SIZE, ORANGE, MENU_POS_X, SettingY(11),"[!] WARNING, PLEASE READ ");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(12), "Project Slippi Nintendont");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(13), "supports the NTSC v1.02");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(14), "version of Melee (GALE01).");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(15), "");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(16), "This game may not behave");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(17), "correctly. Please use the");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(18), "vanilla Nintendont build");
+					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X,SettingY(19), "for the best experience.");
+				}
 			}
 		}
 		else
@@ -1058,6 +1111,39 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_skip_ipl;
 			}
+			case 6: {
+				// Networking
+				static const char *desc_networking[] = {
+					"Enable Slippi networking.",
+					"Wii network settings must",
+					"be configured in order to",
+					"use this feature.",
+					NULL
+				};
+				return desc_networking;
+			}
+			case 7: {
+				// Slippi USB
+				static const char *desc_slippi_usb[] = {
+					"Write Slippi replays to a",
+					"USB storage device. You",
+					"Must have a folder named",
+					"'Slippi/' in the root of",
+					"your USB drive.",
+					NULL
+				};
+				return desc_slippi_usb;
+			}
+			case 8: {
+				// Slippi on Port A
+				static const char *desc_slippi_port_a[] = {
+					"When enabled, emulate Slippi",
+					"on Port A instead of Port B.",
+					" (DEBUGGING FEATURE) ",
+					NULL
+				};
+				return desc_slippi_port_a;
+			}
 
 			default:
 				break;
@@ -1082,6 +1168,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		UpdateNintendont();
 		ctx->redraw = 1;
 	}
+
+	int col2Length = 9;
 
 	if (FPAD_Down_Repeat(ctx))
 	{
@@ -1115,7 +1203,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 6))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= col2Length))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1142,7 +1230,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 5;
+				ctx->settings.posX = col2Length - 1;
 			}
 		}
 
@@ -1373,8 +1461,25 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ncfg->Config ^= (NIN_CFG_SKIP_IPL);
 					ctx->redraw = true;
 					break;
-
-				default:
+				case 6:
+					// Networking
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_NETWORK);
+					ctx->redraw = true;
+					break;
+				case 7:
+					// Slippi USB
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_SLIPPI_USB);
+					ctx->redraw = true;
+					break;
+				case 8:
+					// Use Slippi on Port A
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_SLIPPI_PORT_A);
+					ctx->redraw = true;
+					break;
+			default:
 					break;
 			}
 		}
@@ -1537,6 +1642,21 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Skip IPL", (ncfg->Config & (NIN_CFG_SKIP_IPL)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
+		// Networking
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Slippi Networking", (ncfg->Config & (NIN_CFG_NETWORK)) ? "Yes" : "No ");
+		ListLoopIndex++;
+
+		// Slippi USB
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Slippi USB", (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? "Yes" : "No ");
+		ListLoopIndex++;
+
+		// Slippi Port A
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Slippi on Port A", (ncfg->Config & (NIN_CFG_SLIPPI_PORT_A)) ? "Yes" : "No ");
+		ListLoopIndex++;
+
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {
 			u32 cursor_color = BLACK;
@@ -1558,7 +1678,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 7;
+			int line_num = 10;
 			do {
 				if (**desc != 0)
 				{
@@ -1636,8 +1756,8 @@ static int SelectGame(void)
 
 	// Initialize ctx.games.
 	ctx.games.listMax = gamecount;
-	if (ctx.games.listMax > 15) {
-		ctx.games.listMax = 15;
+	if (ctx.games.listMax > 12) {
+		ctx.games.listMax = 12;
 	}
 	ctx.games.gi = gi;
 	ctx.games.gamecount = gamecount;
@@ -1801,6 +1921,9 @@ bool SelectDevAndGame(void)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
+
+
+
 			redraw = false;
 
 			// Render the screen here to prevent a blank frame
@@ -1877,10 +2000,10 @@ void PrintInfo(void)
 	const char *consoleType = (isWiiVC ? (IsWiiUFastCPU() ? "WiiVC 5x CPU" : "Wii VC") : (IsWiiUFastCPU() ? "WiiU 5x CPU" : (IsWiiU() ? "Wii U" : "Wii")));
 #ifdef NIN_SPECIAL_VERSION
 	// "Special" version with customizations. (Not mainline!)
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u" NIN_SPECIAL_VERSION " (%s)",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Project Slippi Nintendont v%u.%u" NIN_SPECIAL_VERSION " (%s)",
 		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #else
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u (%s)",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Project Slippi Nintendont v%u.%u (%s)",
 		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #endif
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);

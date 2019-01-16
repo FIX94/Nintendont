@@ -448,6 +448,10 @@ void UpdateNinCFG()
 		// don't skip IPL by default.
 		ncfg->Config &= ~NIN_CFG_CC_RUMBLE;
 		ncfg->Config &= ~NIN_CFG_SKIP_IPL;
+
+		// Use Slippi on port B by default
+		ncfg->Config &= ~NIN_CFG_SLIPPI_PORT_A;
+
 		ncfg->Version = 8;
 	}
 }
@@ -495,6 +499,15 @@ int CreateNewFile(const char *Path, unsigned int size)
 /** Device mount/unmount. **/
 // 0 == SD, 1 == USB
 FATFS *devices[2];
+
+FATFS *usb_info;
+u32 usb_free_clusters;
+u32 usb_total_sectors;
+u32 usb_free_sectors;
+u32 usb_free_kib;
+u32 usb_total_kib;
+u32 usb_replays_left;
+u32 usb_attached;
 
 // Device initialization data.
 typedef struct _devInitInfo_t
@@ -549,6 +562,21 @@ const WCHAR *MountDevice(BYTE pdrv)
 		if (f_mount(devices[pdrv], devInitInfo[pdrv].devNameFF, 1) == FR_OK)
 		{
 			gprintf("Mounted %s!\n", devInitInfo[pdrv].devNameDisplay);
+
+
+			/* When we mount a USB drive, get the total/free FAT32 space in KiB.
+			 * Calculate the approximate number of replays we could store, assuming
+			 * a replay is somewhere around 1.5MB (1464KiB) */
+			if (pdrv == DEV_USB) 
+			{
+				f_getfree(devInitInfo[pdrv].devNameFF, &usb_free_clusters, &usb_info);
+				usb_total_sectors = (usb_info->n_fatent - 2) * usb_info->csize;
+				usb_free_sectors = usb_free_clusters * usb_info->csize;
+				usb_total_kib = usb_total_sectors / 2;
+				usb_free_kib = usb_free_sectors / 2; 
+				usb_replays_left = usb_free_kib / 1464;
+				usb_attached = 1;
+			}
 		}
 		else
 		{

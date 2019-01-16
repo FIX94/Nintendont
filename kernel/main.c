@@ -36,7 +36,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "GCAM.h"
 #include "TRI.h"
 #include "Patch.h"
-#include "Slippi.h"
+
+#include "SlippiMemory.h"
+#include "SlippiFileWriter.h"
+#include "SlippiNetwork.h"
+#include "SlippiNetworkBroadcast.h"
+#include "SlippiDebug.h"
+#include "net.h"
 
 #include "diskio.h"
 #include "usbstorage.h"
@@ -73,6 +79,14 @@ u32 drcAddress = 0;
 u32 drcAddressAligned = 0;
 bool isWiiVC = false;
 bool wiiVCInternal = false;
+
+// Global state for network connectivity, from kernel/net.c
+extern u32 NetworkStarted;
+
+// Server status, from kernel/SlippiNetwork.c
+extern u32 SlippiServerStarted;
+static int SlippiDbgStringInit = 0;
+
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
@@ -237,6 +251,9 @@ int _main( int argc, char *argv[] )
 		SDisInit = 1;  // Looks okay after threading fix
 	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
 
+	u32 UseNetwork = ConfigGetConfig(NIN_CFG_NETWORK);
+	u32 SlippiUsb = ConfigGetConfig(NIN_CFG_SLIPPI_USB);
+
 	BootStatus(8, s_size, s_cnt);
 
 	memset32((void*)RESET_STATUS, 0, 0x20);
@@ -272,7 +289,11 @@ int _main( int argc, char *argv[] )
 	PatchInit();
 
 	dbgprintf("Main Thread ID: %d\r\n", thread_get_id());
-	SlippiInit();
+
+	SlippiMemoryInit();
+
+	if (SlippiUsb == 1)
+		SlippiFileWriterInit();
 
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
@@ -285,6 +306,7 @@ int _main( int argc, char *argv[] )
 	sync_after_write((void*)0x1860, 0x20);
 #endif
 	u32 Now = read32(HW_TIMER);
+	u32 NCDTimer = Now;
 	u32 PADTimer = Now;
 	u32 DiscChangeTimer = Now;
 	u32 ResetTimer = Now;
@@ -397,6 +419,7 @@ int _main( int argc, char *argv[] )
 				SaveCard = false;
 			}
 		}
+
 		else if(UseUSB && TimerDiffSeconds(USBReadTimer) > 149) /* Read random sector every 2 mins 30 secs */
 		{
 			DIFinishAsync(); //if something is still running
@@ -409,6 +432,56 @@ int _main( int argc, char *argv[] )
 		else /* No device I/O so make sure this stays updated */
 			GetCurrentTime();
 		udelay(20); //wait for other threads
+
+
+		/* Delay network initialization by ~30 seconds. We may need to
+		 * fine tune this, or perhaps, experiment with initializing
+		 * this before Melee boots. However, we have observed that
+		 * very early initialization of networking with libogc in the
+		 * Nintendont loader seems to interfere [often, randomly] with
+		 * Melee at boot-time and causing PPC-land to crash, sometimes
+		 * before OSReport can hand us back output via ndebug.log. The
+		 * hypothesis is that time on-CPU during boot is critical for
+		 * the IOS thread[s] responsible for servicing disc reads.
+		 *
+		 * This is a naive, experimental implementation.
+		 *
+		 * ~meta
+		 */
+
+		// Initialize 8040a5a8 with a string to print w/ UnclePunch Gecko code
+		if ( (TimerDiffSeconds(NCDTimer) > 3) && (SlippiDbgStringInit == 0) ) {
+			ppc_msg("SLIPPI BUP\x00", 11);
+			SlippiDbgStringInit = 1;
+		}
+
+		/* Initialize low-level networking and the TCP/IP stack, then
+		 * dispatch the Slippi network thread. 
+		 *
+		 * 1 and 3 seconds seems a low enough delay, although it seems
+		 * to initialize before Melee boots (too early for ppc_msg calls
+		 * to do anything)
+		 */
+
+		if ((UseNetwork == 1) && (NetworkStarted == 0))
+		{
+			if (TimerDiffSeconds(NCDTimer) > 2) {
+				NCDInit();
+				NetworkStarted = 1;
+			}
+		}
+
+		// Dispatch the Slippi Network thread (the server)
+		if ((UseNetwork == 1) && (NetworkStarted == 1) && (SlippiServerStarted == 0))
+		{
+			if (TimerDiffSeconds(NCDTimer) > 5) {
+				ret = SlippiNetworkInit();
+				dbgprintf("SlippiNetworkInit returned %d\r\n", ret);
+				ret = SlippiNetworkBroadcastInit();
+				dbgprintf("SlippiNetworkBroadcastInit returned %d\r\n", ret);
+			}
+		}
+
 
 		if( WaitForRealDisc == 1 )
 		{
@@ -552,7 +625,8 @@ int _main( int argc, char *argv[] )
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
 
-	SlippiShutdown();
+	SlippiNetworkShutdown();
+	SlippiFileWriterShutdown();
 
 	if (ConfigGetConfig(NIN_CFG_LOG))
 		closeLog();
