@@ -10,6 +10,10 @@
 
 #define AF_INET		2
 
+// Socket options for TCP
+#define IPPROTO_TCP  6
+#define TCP_NODELAY  0x2001	   /* don't delay send to coalesce packets */
+
 /* From marcan - see git://git.bootmii.org/var/git/mini.git
  * Looks like this is also used in libogc code */
 
@@ -144,6 +148,7 @@ s32 accept(s32 fd, s32 socket);
 s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags);
 s32 connect(s32 fd, s32 socket, struct sockaddr *name);
 s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags);
+s32 setsockopt(s32 fd, s32 socket, u32 level, u32 optname, void *optval, u32 optlen);
 s32 poll(s32 fd, struct pollsd *sds, s32 nsds, s32 timeout);
 
 #endif

@@ -15,9 +15,12 @@
 
 // Game can transfer at most 784 bytes / frame
 // That means 4704 bytes every 100 ms. Let's aim to handle
-// double that, making our read buffer 10000 bytes
-#define READ_BUF_SIZE 10000
-#define THREAD_CYCLE_TIME_MS 100
+// double that, making our read buffer 10000 bytes for 100 ms.
+// The cycle time was lowered to 11 ms (sendto takes about 10ms
+// on average), Because of this I lowered the buffer from what
+// it needed to be at 100 ms
+#define READ_BUF_SIZE 2500
+#define THREAD_CYCLE_TIME_MS 1
 
 // Thread stuff
 static u32 SlippiNetwork_Thread;
@@ -61,6 +64,7 @@ s32 startServer()
 	s32 res;
 
 	server_sock = socket(top_fd, AF_INET, SOCK_STREAM, IPPROTO_IP);
+
 	dbgprintf("server_sock: %d\r\n", server_sock);
 
 	memset(&server, 0, sizeof(server));
@@ -76,6 +80,7 @@ s32 startServer()
 		dbgprintf("bind() failed with: %d\r\n", res);
 		return res;
 	}
+	
 	res = listen(top_fd, server_sock, 1);
 	if (res < 0)
 	{
@@ -98,6 +103,10 @@ void listenForClient()
 	client_sock = accept(top_fd, server_sock);
 	if (client_sock >= 0)
 	{
+		int flags = 1;
+		s32 optRes = setsockopt(top_fd, client_sock, IPPROTO_TCP, TCP_NODELAY, (void *)&flags, sizeof(flags));
+		dbgprintf("[TCP_NODELAY] Client setsockopt result: %d\r\n", optRes);
+
 		dbgprintf("Client connection detected\r\n");
 		ppc_msg("CLIENT OK\x00", 10);
 		client_alive_ts = read32(HW_TIMER);
@@ -108,7 +117,7 @@ void listenForClient()
 static u8 readBuf[READ_BUF_SIZE];
 static u64 memReadPos = 0;
 static SlpGameReader reader;
-static char memerr[64];
+//static char memerr[64];
 /* Deal with sending Slippi data over the network. */
 s32 handleFileTransfer()
 {
@@ -121,8 +130,9 @@ s32 handleFileTransfer()
 	SlpMemError err = SlippiMemoryRead(&reader, readBuf, READ_BUF_SIZE, memReadPos);
 	if (err)
 	{
-		_sprintf(memerr, "SLPMEMERR: %d\x00", err);
-		ppc_msg(memerr, 13);
+		//_sprintf(memerr, "SLPMEMERR: %d\x00", err);
+		//dbgprintf("Slippi ERROR: %d\r\n", memerr);
+		//ppc_msg(memerr, 13);
 
 		if (err == SLP_READ_OVERFLOW)
 		{
@@ -135,10 +145,13 @@ s32 handleFileTransfer()
 		// For specific errors, bytes will still be read. Not returning to deal with those
 	}
 
+	// dbgprintf("Checking if there's data to transfer...\r\n");
+
 	u32 bytesRead = reader.lastReadResult.bytesRead;
 	if (bytesRead == 0)
 		return 0;
 
+	// sendto takes an average of around 10 ms to return. Seems to range from 3-30 ms or so
 	s32 res = sendto(top_fd, client_sock, readBuf, bytesRead, 0);
 
 	// Naive client hangup detection
