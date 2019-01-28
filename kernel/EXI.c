@@ -807,6 +807,14 @@ void EXIUpdateRegistersNEW( void )
 							// Sync is necessary because data was written from PPC
 							sync_before_read((void *)ptr, len);
 							SlippiMemoryWrite(ptr, len);
+
+							// Code to do some timing comparisons
+							// sync_before_read((void *)ptr, len);
+							// u8 actionIndex = ptr[0];
+
+							// u32 ticks = GetTicks();
+							// u32 ms = TicksToMs(ticks);
+							// dbgprintf("Received action. Index: %d | Time: %dms\r\n", actionIndex, ms);
 						}
 
 						// The following code will simply ACK the message from the PowerPC side
@@ -816,7 +824,7 @@ void EXIUpdateRegistersNEW( void )
 						// Write that data has been received
 						write32( EXI_CMD_0, 0 ); //exit EXIDMA / EXIImm
 						sync_after_write( (void*)EXI_BASE, 0x20 );
-
+						
 						EXI_IRQ = true;
 						IRQ_Timer = read32(HW_TIMER);
 
@@ -835,6 +843,14 @@ void EXIUpdateRegistersNEW( void )
 							// Sync is necessary because data was written from PPC
 							sync_before_read((void *)ptr, len);
 							SlippiMemoryWrite(ptr, len);
+
+							// Code to do some timing comparisons
+							// sync_before_read((void *)ptr, len);
+							// u8 actionIndex = ptr[0];
+
+							// u32 ticks = GetTicks();
+							// u32 ms = TicksToMs(ticks);
+							// dbgprintf("Received action. Index: %d | Time: %dms", actionIndex, ms);
 						}
 
 						// The following code will simply ACK the message from the PowerPC side

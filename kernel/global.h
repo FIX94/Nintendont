@@ -297,11 +297,22 @@ static inline u32 clear32(u32 addr, u32 clear)
 	return data;
 }
 
+static inline u32 GetTicks()
+{
+	return read32(HW_TIMER);
+}
+
 static inline u32 TicksToSecs(u32 time)
 {
 	//really accurate, it reports the first second is over about 0.5ms early and
 	//with a full 37.7 minutes difference its off by only about 0.7ms
 	return ((time >> 9)*283)>>20;
+}
+
+static inline u32 TicksToMs(u32 time)
+{
+	// Tick time from https://wiibrew.org/wiki/Hardware/Starlet_Timer
+	return time * 0.0005267;
 }
 
 static inline u32 TimerDiffTicks(u32 time)
@@ -316,6 +327,12 @@ static inline u32 TimerDiffSeconds(u32 time)
 	u32 curtime = read32(HW_TIMER);
 	if(time > curtime) return UINT_MAX; //wrapped, return UINT_MAX to reset
 	return TicksToSecs(curtime - time);
+}
+
+static inline u32 TimerDiffMs(u32 time)
+{
+	u32 diff = TimerDiffTicks(time);
+	return TicksToMs(diff);
 }
 
 static inline u32 IsGCGame(u32 Buffer)
