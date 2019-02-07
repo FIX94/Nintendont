@@ -29,6 +29,10 @@ static s32 kd_fd  __attribute__((aligned(32)));
 // This is global state, used elsewhere when dealing with sockets [for now]
 s32 top_fd __attribute__((aligned(32)));
 
+// Global state - Wi-Fi MAC address and current IP address
+u8 wifi_mac_address[6] ALIGNED(32) = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+u32 current_ip_address ALIGNED(32) = 0x00000000;
+
 // Used by kernel/main.c
 u32 NetworkStarted; 
 
@@ -41,7 +45,7 @@ u32 NetworkStarted;
 int NCDInit(void)
 {
 	s32 res;
-	STACK_ALIGN(ioctlv, vec, 1, 32);
+	STACK_ALIGN(ioctlv, mac_vec, 2, 32);
 
 	dbgprintf("entered NCDInit()\n");
 
@@ -64,12 +68,29 @@ int NCDInit(void)
 	ncd_fd = IOS_Open(ncd_name, 0);
 	dbgprintf("ncd_fd: %i\n", ncd_fd);
 
-	void *message_buf = heap_alloc_aligned(0,32,32);
-	vec[0].data = message_buf;
-	vec[0].len = 32;
+	/* This is unused code? 
+	 *
+	 * void *message_buf = heap_alloc_aligned(0,32,32);
+	 * vec[0].data = message_buf;
+	 * vec[0].len = 32;
+	 * res = IOS_Ioctlv(ncd_fd, IOCTL_NCD_GETLINKSTATUS, 0, 1, vec);
+	 * dbgprintf("IOCTL_NCD_GETLINKSTATUS: %d\n", res);
+	 * heap_free(0, message_buf);
+	 */
 
-	res = IOS_Ioctlv(ncd_fd, IOCTL_NCD_GETLINKSTATUS, 0, 1, vec);
-	dbgprintf("IOCTL_NCD_GETLINKSTATUS: %d\n", res);
+	memset(&wifi_mac_address, 0 , 6);
+	void *ncd_buf = heap_alloc_aligned(0, 32, 32);
+	mac_vec[0].data = ncd_buf;
+	mac_vec[0].len = 32;
+	mac_vec[1].data = &wifi_mac_address;
+	mac_vec[1].len = 6;
+
+	res = IOS_Ioctlv(ncd_fd, IOCTLV_NCD_GETMACADDRESS, 0, 2, mac_vec);
+	int i = 0;
+
+	for (i = 0; i < 6; i++)
+		dbgprintf("%02x ", wifi_mac_address[i]);
+	dbgprintf("\r\n");
 
 	IOS_Close(ncd_fd);
 
@@ -81,7 +102,7 @@ int NCDInit(void)
 	kd_fd = IOS_Open(kd_name, 0);
 	dbgprintf("kd_fd: %i\n", kd_fd);
 
-	void *nwc_buf = heap_alloc_aligned(0,32,32);
+	void *nwc_buf = heap_alloc_aligned(0, 32, 32);
 	res = IOS_Ioctl(kd_fd, IOCTL_NWC24_STARTUP, 0, 0, nwc_buf, 32);
 	dbgprintf("IOCTL_NWC24_STARTUP: %d\n", res);
 
@@ -103,8 +124,8 @@ int NCDInit(void)
 	dbgprintf("IOCTL_SO_STARTUP: %d\n", res);
 
 	// Ideally we sit in a loop here until we can validate our IP?
-	res = IOS_Ioctl(top_fd, IOCTL_SO_GETHOSTID, 0, 0, 0, 0);
-	dbgprintf("IOCTL_SO_GETHOSTID: 0x%x\n", res);
+	current_ip_address = IOS_Ioctl(top_fd, IOCTL_SO_GETHOSTID, 0, 0, 0, 0);
+	dbgprintf("IOCTL_SO_GETHOSTID: 0x%x\n", current_ip_address);
 
 	heap_free(0, top_name);
 	heap_free(0, ncd_name);

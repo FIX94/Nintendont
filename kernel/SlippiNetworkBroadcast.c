@@ -16,9 +16,20 @@ extern char __slippi_network_broadcast_stack_addr;
 extern char __slippi_network_broadcast_stack_size;
 static u32 SlippiNetworkBroadcastHandlerThread(void *arg);
 
-extern s32 top_fd;		// from kernel/net.c
+// From kernel/net.c
+extern s32 top_fd;
+extern u8 wifi_mac_address[6];
 
-static char ready_msg[10] ALIGNED(32) = "SLIP_READY";
+
+struct broadcast_msg
+{
+	char message[10];
+	u8 mac_addr[6];
+} __attribute__((packed));
+
+const char slip_ready[10] ALIGNED(32) = "SLIP_READY";
+static struct broadcast_msg ready_msg ALIGNED(32);
+
 static int discover_sock ALIGNED(32);
 static struct sockaddr_in discover ALIGNED(32);
 
@@ -42,6 +53,10 @@ s32 startBroadcast()
 {
 	s32 res;
 
+	// Prepare broadcast message buffer
+	memcpy(&ready_msg.message, &slip_ready, sizeof(slip_ready));
+	memcpy(&ready_msg.mac_addr, &wifi_mac_address, sizeof(wifi_mac_address));
+
 	discover_sock = socket(top_fd, AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	memset(&discover, 0, sizeof(struct sockaddr_in));
 	discover.sin_family = AF_INET;
@@ -52,7 +67,7 @@ s32 startBroadcast()
 	// Start indicating our status to clients on the local network
 	//res = connect(top_fd, discover_sock, (struct address *)&discover);
 	res = connect(top_fd, discover_sock, (struct sockaddr *)&discover);
-	sendto(top_fd, discover_sock, ready_msg, sizeof(ready_msg), 0);
+	sendto(top_fd, discover_sock, &ready_msg, sizeof(ready_msg), 0);
 
 	// Update the broadcast message timer
 	broadcast_ts = read32(HW_TIMER);
@@ -68,7 +83,7 @@ s32 do_broadcast(void)
 	if (TimerDiffSeconds(broadcast_ts) < BROADCAST_PERIOD)
 		return 0;
 
-	res = sendto(top_fd, discover_sock, ready_msg, sizeof(ready_msg), 0);
+	res = sendto(top_fd, discover_sock, &ready_msg, sizeof(ready_msg), 0);
 	broadcast_ts = read32(HW_TIMER);
 	return res;
 }
