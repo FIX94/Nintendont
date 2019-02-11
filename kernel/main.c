@@ -157,30 +157,42 @@ int _main( int argc, char *argv[] )
 	//get config from loader
 	ConfigSyncBeforeRead();
 
-	u32 UseUSB = ConfigGetUseUSB();
+	u32 SlippiUsb = ConfigGetConfig(NIN_CFG_SLIPPI_USB);
+	u32 UseUSB = ConfigGetUseUSB(); // Returns 0 for SD, 1 for USB
 	SetDiskFunctions(UseUSB);
 
 	BootStatus(2, 0, 0);
-	ret = USBStorage_Startup();
-	dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
-	if(ret != 1)
-	{
-		dbgprintf("USB Device Init failed:%d\r\n", ret );
-		BootStatusError(-2, ret);
-		mdelay(4000);
-		Shutdown();
-	}
 
-	s_size = PAGE_SIZE512; //manually set s_size
-	ret = SDHCInit();
-	if(ret != 1)
+	bool shouldBootUsb = SlippiUsb || UseUSB;
+	bool shouldBootSd = !UseUSB;
+
+	// Boot up USB if it is being used for writing slp files OR booting a game
+	if (shouldBootUsb)
 	{
-		dbgprintf("SD Device Init failed:%d\r\n", ret );
-		BootStatusError(-2, ret);
-		mdelay(4000);
-		Shutdown();
+		ret = USBStorage_Startup();
+		dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
+		if(ret != 1)
+		{
+			dbgprintf("USB Device Init failed:%d\r\n", ret );
+			BootStatusError(-2, ret);
+			mdelay(4000);
+			Shutdown();
+		}
 	}
 	
+	// Boot up SD if it is being used to boot a game
+	if (shouldBootSd)
+	{
+		s_size = PAGE_SIZE512; //manually set s_size
+		ret = SDHCInit();
+		if(ret != 1)
+		{
+			dbgprintf("SD Device Init failed:%d\r\n", ret );
+			BootStatusError(-2, ret);
+			mdelay(4000);
+			Shutdown();
+		}
+	}
 
 	//Verification if we can read from disc
 	if(memcmp(ConfigGetGamePath(), "di", 3) == 0)
@@ -191,26 +203,34 @@ int _main( int argc, char *argv[] )
 			RealDI_Init();
 	}
 	BootStatus(3, 0, 0);
-	devices[0] = (FATFS*)malloca( sizeof(FATFS), 32 );
 
-	s32 res = f_mount( devices[0], fatSdName, 1 );
-	if( res != FR_OK )
+	s32 res;
+	// Mount SD card
+	if (shouldBootSd)
 	{
-		dbgprintf("ES:f_mount() failed:%d\r\n", res );
-		BootStatusError(-3, res);
-		mdelay(4000);
-		Shutdown();
+		devices[0] = (FATFS*)malloca( sizeof(FATFS), 32 );
+		res = f_mount( devices[0], fatSdName, 1 );
+		if( res != FR_OK )
+		{
+			dbgprintf("ES:f_mount() failed:%d\r\n", res );
+			BootStatusError(-3, res);
+			mdelay(4000);
+			Shutdown();
+		}
 	}
 
-	devices[1] = (FATFS*)malloca( sizeof(FATFS), 32 );
-
-	res = f_mount( devices[1], fatUsbName, 1 );
-	if( res != FR_OK )
+	// Mount USB drive
+	if (shouldBootUsb)
 	{
-		dbgprintf("ES:f_mount() failed:%d\r\n", res );
-		BootStatusError(-3, res);
-		mdelay(4000);
-		Shutdown();
+		devices[1] = (FATFS*)malloca( sizeof(FATFS), 32 );
+		res = f_mount( devices[1], fatUsbName, 1 );
+		if( res != FR_OK )
+		{
+			dbgprintf("ES:f_mount() failed:%d\r\n", res );
+			BootStatusError(-3, res);
+			mdelay(4000);
+			Shutdown();
+		}
 	}
 	
 	BootStatus(4, 0, 0);
@@ -251,7 +271,6 @@ int _main( int argc, char *argv[] )
 	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
 
 	u32 UseNetwork = ConfigGetConfig(NIN_CFG_NETWORK);
-	u32 SlippiUsb = ConfigGetConfig(NIN_CFG_SLIPPI_USB);
 
 	BootStatus(8, s_size, s_cnt);
 
@@ -291,7 +310,9 @@ int _main( int argc, char *argv[] )
 
 	SlippiMemoryInit();
 
-	if (SlippiUsb == 1)
+	// If we are using USB for writting slp files and USB is not the
+	// primary device, initialize the file writer
+	if (SlippiUsb == 1 && !UseUSB)
 		SlippiFileWriterInit();
 
 //Tell PPC side we are ready!
@@ -625,17 +646,23 @@ int _main( int argc, char *argv[] )
 	BTE_Shutdown();
 #endif
 
-	//unmount FAT device
-	f_mount(NULL, fatSdName, 1);
-	free(devices[0]);
-	devices[0] = NULL;
-
-	f_mount(NULL, fatUsbName, 1);
-	free(devices[1]);
-	devices[1] = NULL;
-
-	USBStorage_Shutdown();
-	SDHCShutdown();
+	// unmount SD card
+	if (shouldBootSd)
+	{
+		f_mount(NULL, fatSdName, 1);
+		free(devices[0]);
+		devices[0] = NULL;
+		SDHCShutdown();
+	}
+	
+	// unmount USB drive
+	if (shouldBootUsb)
+	{
+		f_mount(NULL, fatUsbName, 1);
+		free(devices[1]);
+		devices[1] = NULL;
+		USBStorage_Shutdown();
+	}
 
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);
