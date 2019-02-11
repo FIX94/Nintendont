@@ -44,11 +44,6 @@ u32 GAME_ID	= 0;
 u16 GAME_ID6 = 0;
 u32 TITLE_ID = 0;
 
-// First 0x100 bytes of the ISO title string
-extern char GAME_TITLENAME[];
-
-static const char TITLE_20XX[] = "Super Smash Bros Melee 20XX 4.07";
-
 #define PATCH_OFFSET_START (0x3000 - (sizeof(u32) * 3))
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 static u32 POffset = PATCH_OFFSET_ENTRY;
@@ -77,9 +72,6 @@ extern vu32 TRIGame;
 #define SONICRIDERS_HOOK_NTSCU	0x555214
 #define SONICRIDERS_HOOK_NTSCJ	0x5551A8
 #define SONICRIDERS_HOOK_PAL	0x5554E8
-
-#define CODELIST_TOURNAMENT_BASE 0x001910E0
-#define CODELIST_TOURNAMENT_END  0x0019AF4C
 
 u32 PatchState = PATCH_STATE_NONE;
 u32 PSOHack    = PSO_STATE_NONE;
@@ -111,6 +103,65 @@ extern u32 RealDiscCMD;
 extern u32 drcAddress;
 extern u32 drcAddressAligned;
 u32 IsN64Emu = 0;
+
+/* ----------------------------------------------------------------------------
+ * Functions, macro definitions, and variable declarations specific to dealing
+ * with Super Smash Bros. Melee should go here.
+ */
+
+#include "PatchMelee.h"
+
+#define CODELIST_TOURNAMENT_BASE	0x001910E0
+#define CODELIST_TOURNAMENT_END		0x0019AF4C
+
+// First 0x100 bytes of the ISO title string, filled out in kernel/ISO.c
+extern char GAME_TITLENAME[0x100];
+static const char TITLE_20XX[] = "Super Smash Bros Melee 20XX";
+
+#define MELEE_VERSION_NONE		0
+#define MELEE_VERSION_NTSC_0		1
+#define MELEE_VERSION_NTSC_1		2
+#define MELEE_VERSION_NSTC_2		3
+#define MELEE_VERSION_PAL		4
+#define MELEE_VERSION_20XX		5
+
+static u32 GetMeleeVersion(void)
+{
+	if (TITLE_ID != 0x47414C)
+		return MELEE_VERSION_NONE;
+
+	// Check the Game ID, fall through if NTSC-{U,J}
+	switch(GAME_ID) 
+	{
+		case 0x47414C45: // GALE
+		case 0x47414C4A: // GALJ
+			break;
+		case 0x47414C50: // GALP
+			return MELEE_VERSION_PAL;
+		default:
+			return MELEE_VERSION_NONE;
+	}
+
+	// Presumably, most instances of 20XX will be NTSC v1.02
+	if (strncmp(GAME_TITLENAME, TITLE_20XX, sizeof(TITLE_20XX)) == 0)
+		return MELEE_VERSION_20XX;
+
+	// For NTSC images, check the revision/version number
+	sync_before_read((void*)0x00000000, 0x20);
+	u8 gameVers = *(u8*)0x00000007;
+	switch (gameVers)
+	{
+		case 0:
+			return MELEE_VERSION_NTSC_0;
+		case 1:
+			return MELEE_VERSION_NTSC_1;
+		default:
+			return MELEE_VERSION_NSTC_2;
+	}
+}
+
+/* ------------------------------------------------------------------------- */
+
 
 // SHA-1 hashes of known DSP modules.
 static const unsigned char DSPHashes[][20] =
@@ -1595,7 +1646,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 	}
 	DisableEXIPatch = false;
-	DisableSIPatch = (!IsWiiU() && TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_NATIVE_SI));
+
+	// Always disable SI patches (always use native SI)
+	DisableSIPatch = true;
 
 	bool PatchWide = ConfigGetConfig(NIN_CFG_FORCE_WIDE);
 	if(PatchWide && PatchStaticWidescreen(TITLE_ID, GAME_ID & 0xFF)) //if further patching is needed
@@ -3142,7 +3195,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 	}
 	// Not really Triforce Arcade. Just borrowing the config. Replaces GBA games on AGP disc.
-	if (Datel && ConfigGetConfig(NIN_CFG_ARCADE_MODE))
+	//if (Datel && ConfigGetConfig(NIN_CFG_ARCADE_MODE))
+	if (Datel)
 	{
 		if(write32A(0x00098044, 0x08900000, 0x09900000, 0))
 			printpatchfound("Absolute Zed", "Bounty Hunter", 0x00098044);
@@ -3225,36 +3279,30 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 		cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
 
-		/* Ishiiruka uses the tournament mode region [0x801910e0-0x8019af4c] for
-		 * extra codehandler space when booting Melee. Note that the codehandler
-		 * must be patched to deal with this. Additionally, in order for this to
-		 * work, we need to always make sure that 0x8022d638 is patched to redirect
-		 * the menu somewhere else. In case the user provides a GCT without this
-		 * patch, apply it here to avoid crashes.
-		 *
-		 * 20XX builds use this region for storing custom data/code, so just revert
-		 * to the standard codelist address if the user is booting some 20XX ISO, or
-		 * if the user chooses to boot any other non-GALE01 ISO.
+		/* Replace Melee's "Tournament Mode" region [0x801910e0-0x8019af4c] with the 
+		 * Gecko codelist region. The instruction at 0x8022d638 must be patched to 
+		 * redirect the Tournament mode menu. This depends on patches to the default 
+		 * Nintendont codehandler (see codehandler/codehandler.s).
 		 */
 
-		if (TITLE_ID == 0x47414C) {
-			// If this is *not* a 20XX ISO, use tournament region and apply patch
-			if (strncmp(GAME_TITLENAME, TITLE_20XX, sizeof(TITLE_20XX)) != 0)
+		u32 MeleeVersion = GetMeleeVersion();
+		if (MeleeVersion)
+		{
+			// 20XX itself uses the tournament mode region; skip this patch
+			if (MeleeVersion == MELEE_VERSION_20XX)
+				dbgprintf("Patch:Detected 20XX, using default codehandler\r\n");
+			else
 			{
 				// Patch to redirect tournament mode menu to debug menu
 				write32(0x0022d6e8, 0x38000006);
 				dbgprintf("Patch:Redirect Melee tournament mode to debug menu\r\n");
 
 				cheats_start = CODELIST_TOURNAMENT_BASE;
-				cheats_area = CODELIST_TOURNAMENT_END - CODELIST_TOURNAMENT_BASE;
-			}
-			else
-			{
-				dbgprintf("Patch:Detected 20XX ISO, using default codehandler behaviour\r\n");
+				cheats_area  = CODELIST_TOURNAMENT_END - CODELIST_TOURNAMENT_BASE;
 			}
 		}
 
-		// The pointer to the codelist should always be at (<codehandler size> - 0xC)
+		// Fill out the pointer to the codelist region within the codehandler
 		if (cheats_area > 0) {
 			dbgprintf("Possible Code Size: %08x\r\n", cheats_area);
 			dbgprintf("Codelist at 0x%08x\r\n", (cheats_start | 0x80000000));
@@ -3262,7 +3310,54 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			write32(codelist_addr, (cheats_start | 0x80000000));
 		}
 
-		//copy in gct file if requested
+		/* TODO: Apply Melee patches specific to Project Slippi. 
+		 *
+		 * ...
+		 */
+
+
+//		/* If the user has any toggleable codesets enabled, check the version of
+//		 * Melee we're booting, and then apply them to the codelist region.
+//		 */
+//
+//		if (ConfigGetConfig(NIN_CFG_UCF) && MeleeVersion) 
+//		{
+//			u32 ucf_size = sizeof(UCF_CODES_1_02);
+//			const u32* ucf_code = 0;
+//			switch (MeleeVersion)
+//			{
+//				case MELEE_VERSION_NTSC_0:
+//					ucf_code = UCF_CODES_1_00;
+//					break;
+//				case MELEE_VERSION_NTSC_1:
+//					ucf_code = UCF_CODES_1_01;
+//					break;
+//				case MELEE_VERSION_NSTC_2:
+//					ucf_code = UCF_CODES_1_02;
+//					break;
+//				case MELEE_VERSION_PAL:
+//					ucf_code = UCF_CODES_PAL;
+//					break;
+//			}
+//			if (ucf_code)
+//			{
+//				memcpy((void*)cheats_start, ucf_code, ucf_size);
+//				sync_after_write((void*)cheats_start, ucf_size);
+//				cheats_start += ucf_size - 8;
+//				cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
+//			}
+//			else
+//			{
+//				dbgprintf("Patch:Couldn't apply UCF patches to this version of Melee\r\n");
+//			}
+//		}
+
+
+		/* Copy Gecko codes from the user-provided GCT into the codelist region.
+		 * This should happen *after* we apply Project Slippi patches and/or 
+		 * any toggleable codesets.
+		 */
+
 		if( cheatsWanted && TRIGame != TRI_SB && useipl == 0 )
 		{
 			FIL CodeFD;
@@ -3865,19 +3960,6 @@ void PatchGame()
 s32 Check_Cheats()
 {
 #ifdef CHEATS
-	if( ConfigGetConfig(NIN_CFG_CHEAT_PATH) )
-	{
-		const char *cpath = ConfigGetCheatPath();
-		if (cpath[0] != 0)
-		{
-			if( fileExist(cpath) )
-			{
-				memcpy(cheatPath, cpath, 255);
-				return 0;
-			}
-		}
-	}
-
 	u32 i;
 	const char* DiscName = ConfigGetGamePath();
 	//search the string backwards for '/'

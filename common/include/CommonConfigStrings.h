@@ -9,23 +9,17 @@ const char* OptionStrings[] =
 	"Debugger",
 	"Debugger Wait",
 	"Memcard Emulation",
-	"Cheat Path",
 	"Force Widescreen",
 	"Force Progressive",
-	"Auto Boot",
 	"Unlock Read Speed",
 	"OSReport",
-	"WiiU Widescreen", //Replaces USB
-	"Drive Access LED",
 	"Log",
 	
-	"MaxPads",
 	"Language",
 	"Video",
 	"Videomode",
 	"Memcard Blocks",
 	"Memcard Multi",
-	"Native Control",
 };
 
 const char* LanguageStrings[] =

@@ -20,7 +20,7 @@ void ConfigInit( void )
 	if (ncfg->Magicbytes != 0x01070CF6)
 	{
 		dbgprintf("Cfg not in memory, trying file\r\n");
-		if (f_open_char(&cfg, "/nincfg.bin", FA_OPEN_EXISTING | FA_READ) != FR_OK)
+		if (f_open_char(&cfg, "/slippi_nincfg.bin", FA_OPEN_EXISTING | FA_READ) != FR_OK)
 		{
 			dbgprintf("CFG:Failed to open config\r\n");
 			Shutdown();
@@ -36,15 +36,6 @@ void ConfigInit( void )
 			Shutdown();
 		}
 		ConfigSyncBeforeRead();
-	}
-
-	if( IsWiiU() )
-	{
-		//ncfg->Config |= NIN_CFG_HID;
-		ncfg->MaxPads = 0;
-
-		// Disable debugging and the drive access LED.
-		ncfg->Config &= ~(NIN_CFG_DEBUGGER | NIN_CFG_DEBUGWAIT | NIN_CFG_LED);
 	}
 
 	//if( (read32(0) >> 8) == 0x47504F )	// PSO 1&2 disable cheats/debugging

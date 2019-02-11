@@ -722,12 +722,8 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 
 	if (clearCheats)
 	{
-		if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
-		{
-			// If a cheat path being used, clear it because it
-			// can't be correct for a different game.
-			ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
-		}
+		if ((ncfg->Config & NIN_CFG_CHEATS))
+			ncfg->Config = ncfg->Config & ~NIN_CFG_CHEATS;
 	}
 
 	if (ctx->redraw)
@@ -806,7 +802,8 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(12), "Your USB drive is running");
 						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(13), "low on free space. There ");
 						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(14), "should be enough space for");
-						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(15), "about %d more replays.", usb_replays_left);
+						PrintFormat(MENU_SIZE, BLACK, MENU_POS_X, SettingY(15), "about %d more replays.", 
+								(int)usb_replays_left);
 					}
 				}
 
@@ -877,10 +874,18 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 	{
 		switch (ctx->settings.posX)
 		{
-			case NIN_CFG_BIT_CHEATS:
-			case NIN_CFG_BIT_DEBUGGER:
-			case NIN_CFG_BIT_DEBUGWAIT:
-				break;
+			case NIN_CFG_BIT_CHEATS: {
+				static const char *desc_cheats[] = {
+					"Read and use Gecko codes from",
+					"a .gct file on your USB/SD.",
+					"",
+					"WARNING: This may interfere",
+					"with Slippi and toggleable",
+					"codes (UCF/PAL toggle).",
+					NULL
+				};
+				return desc_cheats;
+			}
 
 			case NIN_CFG_BIT_MEMCARDEMU: {
 				static const char *desc_mcemu[] = {
@@ -894,9 +899,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_mcemu;
 			}
-
-			case NIN_CFG_BIT_CHEAT_PATH:
-				break;
 
 			case NIN_CFG_BIT_FORCE_WIDE: {
 				static const char *const desc_force_wide[] = {
@@ -926,9 +928,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_force_prog;
 			}
 
-			case NIN_CFG_BIT_AUTO_BOOT:
-				break;
-
 			case NIN_CFG_BIT_REMLIMIT: {
 				static const char *desc_remlimit[] = {
 					"Disc read speed is normally",
@@ -946,64 +945,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_remlimit;
 			}
 
-			case NIN_CFG_BIT_OSREPORT:
-				break;
-
-			case NIN_CFG_BIT_USB: {	// WiiU Widescreen
-				static const char *desc_wiiu_widescreen[] = {
-					"On Wii U, Nintendont sets the",
-					"display to 4:3, which results",
-					"in bars on the sides of the",
-					"screen. If playing a game that",
-					"supports widescreen, enable",
-					"this option to set the display",
-					"back to 16:9.",
-					"",
-					"This option has no effect on",
-					"original Wii systems.",
-					NULL
-				};
-				return desc_wiiu_widescreen;
-			}
-
-			case NIN_CFG_BIT_LED: {
-				static const char *desc_led[] = {
-					"Use the drive slot LED as a",
-					"disk activity indicator.",
-					"",
-					"The LED will be turned on",
-					"when reading from or writing",
-					"to the storage device.",
-					"",
-					"This option has no effect on",
-					"Wii U, since the Wii U does",
-					"not have a drive slot LED.",
-					NULL
-				};
-				return desc_led;
-			}
-
-			case NIN_CFG_BIT_LOG:
-				break;
-
-			case NIN_SETTINGS_MAX_PADS: {
-				static const char *desc_max_pads[] = {
-					"Set the maximum number of",
-					"native GameCube controller",
-					"ports to use.",
-					"",
-					"This should usually be kept",
-					"at 4 to enable all ports",
-					"",
-					"This option has no effect on",
-					"Wii U and Wii Family Edition",
-					"systems, since they don't",
-					"have native controller ports.",
-					NULL
-				};
-				return desc_max_pads;
-			}
-
 			case NIN_SETTINGS_LANGUAGE: {
 				static const char *desc_language[] = {
 					"Set the system language.",
@@ -1016,10 +957,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_language;
 			}
-
-			case NIN_SETTINGS_VIDEO:
-			case NIN_SETTINGS_VIDEOMODE:
-				break;
 
 			case NIN_SETTINGS_MEMCARDBLOCKS: {
 				static const char *desc_memcard_blocks[] = {
@@ -1050,58 +987,14 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_memcard_multi;
 			}
 
-			case NIN_SETTINGS_NATIVE_SI: {
-				static const char *desc_native_si[] = {
-					"Native Control allows use of",
-					"GBA link cables on original",
-					"Wii systems.",
-					"",
-					"NOTE: Enabling Native Control",
-					"will disable Bluetooth and",
-					"USB HID controllers.",
-					"",
-					"This option is not available",
-					"on Wii U, since it does not",
-					"have built-in GameCube",
-					"controller ports.",
-					NULL
-				};
-				return desc_native_si;
-			}
-
 			default:
 				break;
 		}
-	} else /*if (ctx->settings.settingPart == 1)*/ {
+	} else {
 		switch (ctx->settings.posX)
 		{
+
 			case 3: {
-				// Triforce Arcade Mode
-				static const char *desc_tri_arcade[] = {
-					"Arcade Mode re-enables the",
-					"coin slot functionality of",
-					"Triforce games.",
-					"",
-					"To insert a coin, move the",
-					"C stick in any direction.",
-					NULL
-				};
-				return desc_tri_arcade;
-			}
-
-			case 4: {
-				// Wiimote CC Rumble
-				static const char *desc_cc_rumble[] = {
-					"Enable rumble on Wii Remotes",
-					"when using the Wii Classic",
-					"Controller or Wii Classic",
-					"Controller Pro.",
-					NULL
-				};
-				return desc_cc_rumble;
-			}
-
-			case 5: {
 				// Skip IPL
 				static const char *desc_skip_ipl[] = {
 					"Skip loading the GameCube",
@@ -1111,7 +1004,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_skip_ipl;
 			}
-			case 6: {
+			case 4: {
 				// Networking
 				static const char *desc_networking[] = {
 					"Enable Slippi networking.",
@@ -1122,7 +1015,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_networking;
 			}
-			case 7: {
+			case 5: {
 				// Slippi USB
 				static const char *desc_slippi_usb[] = {
 					"Write Slippi replays to a",
@@ -1134,7 +1027,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_slippi_usb;
 			}
-			case 8: {
+			case 6: {
 				// Slippi on Port A
 				static const char *desc_slippi_port_a[] = {
 					"When enabled, emulate Slippi",
@@ -1143,6 +1036,16 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 					NULL
 				};
 				return desc_slippi_port_a;
+			}
+			case 7: {
+				// UCF
+				static const char *desc_ucf[] = {
+					"Universal Controller Fix:",
+					"Fix dash-back and shield-drop",
+					"behaviour on all controllers.",
+					NULL
+				};
+				return desc_ucf;
 			}
 
 			default:
@@ -1162,14 +1065,17 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
  */
 static bool UpdateSettingsMenu(MenuCtx *ctx)
 {
-	if(FPAD_X(0))
-	{
-		// Start the updater.
-		UpdateNintendont();
-		ctx->redraw = 1;
-	}
+	// NOTE: Disable the vanilla Nintendont update features, for now
+	//if(FPAD_X(0))
+	//{
+	//	// Start the updater.
+	//	UpdateNintendont();
+	//	ctx->redraw = 1;
+	//}
 
-	int col2Length = 9;
+	// Number of entries in the right settings column. Remember to change this
+	// when adding any toggleable settings to the right-hand part of the menu.
+	int col2Length = 4;
 
 	if (FPAD_Down_Repeat(ctx))
 	{
@@ -1201,7 +1107,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			}
 		}
 
-		// Check for wraparound.
+		// Check for wraparound, move to opposite column
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
 		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= col2Length))
 		{
@@ -1237,35 +1143,30 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		if (ctx->settings.settingPart == 0)
 		{
 			// Some items are hidden if certain values aren't set.
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) &&
-			    (ctx->settings.posX == NIN_SETTINGS_MEMCARDMULTI))
-			{
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (ctx->settings.posX == NIN_SETTINGS_MEMCARDMULTI))
 				ctx->settings.posX--;
-			}
-			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) &&
-			    (ctx->settings.posX == NIN_SETTINGS_MEMCARDBLOCKS))
-			{
+			if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) && (ctx->settings.posX == NIN_SETTINGS_MEMCARDBLOCKS))
 				ctx->settings.posX--;
-			}
-			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) &&
-			    (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
-			{
+			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
 				ctx->settings.posX--;
-			}
 		}
 
 		ctx->redraw = true;
 	}
 
+
+	/* Increment (right) or decrement (left) some option in the right 
+	 * column 
+	 */
 	if (FPAD_Left_Repeat(ctx))
 	{
 		// Left: Decrement a setting. (Right column only.)
-		if (ctx->settings.settingPart == 1)
+		if (ctx->settings.settingPart == 0)
 		{
 			ctx->saveSettings = true;
 			switch (ctx->settings.posX)
 			{
-				case 0:
+				case NIN_SETTINGS_VIDEO_WIDTH:
 					// Video width.
 					if (ncfg->VideoScale == 0) {
 						ncfg->VideoScale = 120;
@@ -1279,7 +1180,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 
-				case 1:
+				case NIN_SETTINGS_SCREEN_POSITION:
 					// Screen position.
 					ncfg->VideoOffset--;
 					if (ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20) {
@@ -1297,12 +1198,12 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 	else if (FPAD_Right_Repeat(ctx))
 	{
 		// Right: Increment a setting. (Right column only.)
-		if (ctx->settings.settingPart == 1)
+		if (ctx->settings.settingPart == 0)
 		{
 			ctx->saveSettings = true;
 			switch (ctx->settings.posX)
 			{
-				case 0:
+				case NIN_SETTINGS_VIDEO_WIDTH:
 					// Video width.
 					if(ncfg->VideoScale == 0) {
 						ncfg->VideoScale = 40;
@@ -1316,7 +1217,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 
-				case 1:
+				case NIN_SETTINGS_SCREEN_POSITION:
 					// Screen position.
 					ncfg->VideoOffset++;
 					if (ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20) {
@@ -1332,34 +1233,28 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		}
 	}
 
+
+
+	/* Handle an 'A' button press for some option.
+	 * Adjust whatever setting the cursor is on.
+	 */
+
 	if( FPAD_OK(0) )
 	{
-		// A: Adjust the setting.
 		if (ctx->settings.settingPart == 0)
 		{
 			// Left column.
 			ctx->saveSettings = true;
 			if (ctx->settings.posX < NIN_CFG_BIT_LAST)
 			{
-				// Standard boolean setting.
-				if (ctx->settings.posX == NIN_CFG_BIT_USB) {
-					// USB option is replaced with Wii U widescreen.
-					ncfg->Config ^= NIN_CFG_WIIU_WIDE;
-				} else {
+				// NOTE: Disable memcard emulation for now
+				if (ctx->settings.posX == NIN_CFG_BIT_MEMCARDEMU)
+					ncfg->Config &= ~NIN_CFG_BIT_MEMCARDEMU;
+				else
 					ncfg->Config ^= (1 << ctx->settings.posX);
-				}
 			}
 			else switch (ctx->settings.posX)
 			{
-				case NIN_SETTINGS_MAX_PADS:
-					// Maximum native controllers.
-					// Not available on Wii U.
-					ncfg->MaxPads++;
-					if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
-						ncfg->MaxPads = 0;
-					}
-					break;
-
 				case NIN_SETTINGS_LANGUAGE:
 					ncfg->Language++;
 					if (ncfg->Language > NIN_LAN_DUTCH) {
@@ -1414,8 +1309,17 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ncfg->Config ^= (NIN_CFG_MC_MULTI);
 					break;
 
-				case NIN_SETTINGS_NATIVE_SI:
-					ncfg->Config ^= (NIN_CFG_NATIVE_SI);
+				case NIN_SETTINGS_PAL50_PATCH:
+					// PAL50 patch.
+					//ctx->saveSettings = true;
+					ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
+					//ctx->redraw = true;
+					break;
+				case NIN_SETTINGS_SKIP_IPL:
+					// Skip IPL
+					//ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_SKIP_IPL);
+					//ctx->redraw = true;
 					break;
 
 				default:
@@ -1434,90 +1338,55 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		{
 			// Right column.
 			switch (ctx->settings.posX) {
-				case 2:
-					// PAL50 patch.
-					ctx->saveSettings = true;
-					ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
-					ctx->redraw = true;
-					break;
-
-				case 3:
-					// Triforce Arcade Mode.
-					ctx->saveSettings = true;
-					ncfg->Config ^= (NIN_CFG_ARCADE_MODE);
-					ctx->redraw = true;
-					break;
-
-				case 4:
-					// Wiimote CC Rumble
-					ctx->saveSettings = true;
-					ncfg->Config ^= (NIN_CFG_CC_RUMBLE);
-					ctx->redraw = true;
-					break;
-
-				case 5:
-					// Skip IPL
-					ctx->saveSettings = true;
-					ncfg->Config ^= (NIN_CFG_SKIP_IPL);
-					ctx->redraw = true;
-					break;
-				case 6:
+				case 0:
 					// Networking
 					ctx->saveSettings = true;
 					ncfg->Config ^= (NIN_CFG_NETWORK);
 					ctx->redraw = true;
 					break;
-				case 7:
+				case 1:
 					// Slippi USB
 					ctx->saveSettings = true;
 					ncfg->Config ^= (NIN_CFG_SLIPPI_USB);
 					ctx->redraw = true;
 					break;
-				case 8:
+				case 2:
 					// Use Slippi on Port A
 					ctx->saveSettings = true;
 					ncfg->Config ^= (NIN_CFG_SLIPPI_PORT_A);
 					ctx->redraw = true;
 					break;
-			default:
+				case 3:
+					// UCF
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_UCF);
+					ctx->redraw = true;
+					break;
+				default:
 					break;
 			}
 		}
 	}
 
+
+	/* Redraw the settings menu after handling input */
+
 	if (ctx->redraw)
 	{
-		// Redraw the settings menu.
 		u32 ListLoopIndex = 0;
 
 		// Standard boolean settings.
-		for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
+		for (; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
 		{
-			if (ListLoopIndex == NIN_CFG_BIT_USB) {
-				// USB option is replaced with Wii U widescreen.
-				PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+50, SettingY(ListLoopIndex),
-					    "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_WIIU_WIDE)) ? "On " : "Off");
-			} else {
-				u32 item_color = BLACK;
-				if (IsWiiU() &&
-				    (ListLoopIndex == NIN_CFG_BIT_DEBUGGER ||
-				     ListLoopIndex == NIN_CFG_BIT_DEBUGWAIT ||
-				     ListLoopIndex == NIN_CFG_BIT_LED))
-				{
-					// These options are only available on Wii.
-					item_color = DARK_GRAY;
-				}
-				PrintFormat(MENU_SIZE, item_color, MENU_POS_X+50, SettingY(ListLoopIndex),
-					    "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
-			}
-		}
+			u32 item_color = BLACK;
 
-		// Maximum number of emulated controllers.
-		// Not available on Wii U.
-		// TODO: Disable on RVL-101?
-		PrintFormat(MENU_SIZE, (!IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+50, SettingY(ListLoopIndex),
-			    "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
-		ListLoopIndex++;
+			// NOTE: Gray out memcard emulation for now
+			if (ListLoopIndex == NIN_CFG_BIT_MEMCARDEMU)
+				item_color = GRAY;
+
+			PrintFormat(MENU_SIZE, item_color, MENU_POS_X+50, SettingY(ListLoopIndex),
+				    "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
+		}
 
 		// Language setting.
 		u32 LanIndex = ncfg->Language;
@@ -1590,15 +1459,15 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		}
 		ListLoopIndex+=2;
 
-		// Native controllers. (Required for GBA link; disables Bluetooth and USB HID.)
-		// TODO: Gray out on RVL-101?
-		PrintFormat(MENU_SIZE, (IsWiiU() ? DARK_GRAY : BLACK), MENU_POS_X + 50, SettingY(ListLoopIndex),
-			    "%-18s:%-4s", OptionStrings[ListLoopIndex],
-			    (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
+		// Patch PAL50.
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Patch PAL50", (ncfg->VideoMode & (NIN_VID_PATCH_PAL50)) ? "On " : "Off");
 		ListLoopIndex++;
 
-		/** Right column **/
-		ListLoopIndex = 0; //reset on other side
+		// Skip GameCube IPL
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Skip IPL", (ncfg->Config & (NIN_CFG_SKIP_IPL)) ? "Yes" : "No ");
+		ListLoopIndex++;
 
 		// Video width.
 		char vidWidth[10];
@@ -1615,32 +1484,19 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		}
 		snprintf(vidOffset, sizeof(vidOffset), "%i", ncfg->VideoOffset);
 
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex),
 			    "%-18s:%-4s", "Video Width", vidWidth);
 		ListLoopIndex++;
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(ListLoopIndex),
 			    "%-18s:%-4s", "Screen Position", vidOffset);
 		ListLoopIndex++;
 
-		// Patch PAL60.
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-			    "%-18s:%-4s", "Patch PAL50", (ncfg->VideoMode & (NIN_VID_PATCH_PAL50)) ? "On " : "Off");
-		ListLoopIndex++;
 
-		// Triforce Arcade Mode.
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-			    "%-18s:%-4s", "TRI Arcade Mode", (ncfg->Config & (NIN_CFG_ARCADE_MODE)) ? "On " : "Off");
-		ListLoopIndex++;
+		/* -----------------------------------
+		 * Redraw options in the right column 
+		 */
 
-		// Wiimote CC Rumble
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-			    "%-18s:%-4s", "Wiimote CC Rumble", (ncfg->Config & (NIN_CFG_CC_RUMBLE)) ? "On " : "Off");
-		ListLoopIndex++;
-
-		// Skip GameCube IPL
-		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-			    "%-18s:%-4s", "Skip IPL", (ncfg->Config & (NIN_CFG_SKIP_IPL)) ? "Yes" : "No ");
-		ListLoopIndex++;
+		ListLoopIndex = 0; //reset on other side
 
 		// Networking
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
@@ -1657,16 +1513,14 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Slippi on Port A", (ncfg->Config & (NIN_CFG_SLIPPI_PORT_A)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
+		// UCF Toggle
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+				"%-18s:%-4s", "UCF", (ncfg->Config & (NIN_CFG_UCF)) ? "On" : "Off");
+		ListLoopIndex++;
+
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {
 			u32 cursor_color = BLACK;
-			if ((!IsWiiU() && ctx->settings.posX == NIN_CFG_BIT_USB) ||
-			     (IsWiiU() && ctx->settings.posX == NIN_CFG_NATIVE_SI))
-			{
-				// Setting is not usable on this platform.
-				// Gray out the cursor, too.
-				cursor_color = DARK_GRAY;
-			}
 			PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 30, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		} else {
 			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
@@ -1914,15 +1768,13 @@ bool SelectDevAndGame(void)
 
 		if (redraw)
 		{
-			UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
+			UseSD = (ncfg->UseUSB) == 0;
 			PrintInfo();
 			PrintButtonActions("Exit", "Select", NULL, NULL);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
-
-
 
 			redraw = false;
 
@@ -1946,12 +1798,14 @@ bool SelectDevAndGame(void)
 		}
 		else if (FPAD_Down(0))
 		{
-			ncfg->Config = ncfg->Config | NIN_CFG_USB;
+			//ncfg->Config = ncfg->Config | NIN_CFG_USB;
+			ncfg->UseUSB = 1;
 			redraw = true;
 		}
 		else if (FPAD_Up(0))
 		{
-			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
+			//ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
+			ncfg->UseUSB = 0;
 			redraw = true;
 		}
 	}

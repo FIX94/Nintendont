@@ -82,7 +82,8 @@ u32 arcadeMode = 0;
 void TRIInit()
 {
 	GCAMInit();
-	arcadeMode = ConfigGetConfig(NIN_CFG_ARCADE_MODE);
+	//arcadeMode = ConfigGetConfig(NIN_CFG_ARCADE_MODE);
+	arcadeMode = 0;
 }
 
 void TRIReset()

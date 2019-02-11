@@ -174,7 +174,6 @@ void ClearRealDiscBuffer(void)
 	sync_after_write(DISC_DRIVE_BUFFER, DISC_DRIVE_BUFFER_LENGTH);
 }
 
-extern bool access_led;
 extern u64 ISOShift64;
 const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 {
@@ -210,9 +209,6 @@ const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 		while(WaitForWrite == 1)
 			udelay(20);
 	}
-
-	//turn on drive led
-	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	if (TmpLen > DISC_DRIVE_BUFFER_LENGTH - ReadDiff)
 	{
@@ -262,9 +258,6 @@ const u8 *ReadRealDisc(u32 *Length, u32 Offset, bool NeedSync)
 		write32(DIP_STATUS, 0x54); //mask and clear interrupts
 		udelay(70);
 	}
-
-	//turn off drive led
-	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	if(RealDiscCMD == DIP_CMD_DVDR)
 	{

@@ -94,8 +94,6 @@ void SIUpdateRegisters()
 		u32 chan = (cur_control >> 1) & 0x3;
 		u32 ChanBuff = PAD_BUFF + (chan * 0xC);
 		bool PadGood = !!(read32(0x13003024) & (1<<chan));
-		if (chan >= ConfigGetMaxPads())
-			PadGood = false;
 		switch ((read32(SI_IO_BUF) >> 24) & 0xFF)
 		{
 			case 0x00: // Get Type

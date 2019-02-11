@@ -17,7 +17,6 @@
 #include "alloc.h"
 #include "common.h"
 
-extern bool access_led;
 u32 s_size;	// Sector size.
 u32 s_cnt;	// Sector count.
 
@@ -61,9 +60,6 @@ DRESULT disk_read_sd (
 {
 	s32 Retry=10;
 
-	//turn on drive led
-	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
-
 	while(1)
 	{
 		if( sdio_ReadSectors( sector, count, buff ) )
@@ -72,14 +68,9 @@ DRESULT disk_read_sd (
 		Retry--;
 		if( Retry < 0 )
 		{
-			//turn off drive led
-			if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 			return RES_ERROR;
 		}
 	}
-
-	//turn off drive led
-	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }
@@ -97,18 +88,10 @@ DRESULT disk_write_sd (
 	UINT count			/* Number of sectors to write */
 )
 {
-	//turn on drive led
-	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
-
 	if( sdio_WriteSectors( sector, count, buff ) < 0 )
 	{
-		//turn off drive led
-		if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 		return RES_ERROR;
 	}
-
-	//turn off drive led
-	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }
@@ -126,19 +109,11 @@ DRESULT disk_read_usb (
 	UINT count		/* Number of sectors to read */
 )
 {
-	//turn on drive led
-	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
-
 	if(USBStorage_ReadSectors(sector, count, buff) != 1)
 	{
-		//turn off drive led
-		if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 		dbgprintf("USB:Failed to read from USB device... Sector: %d Count: %d dst: %p\r\n", sector, count, buff);
 		return RES_ERROR;
 	}
-
-	//turn off drive led
-	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }
@@ -156,20 +131,11 @@ DRESULT disk_write_usb (
 	UINT count			/* Number of sectors to write */
 )
 {
-	//turn on drive led
-	if (access_led) set32(HW_GPIO_OUT, GPIO_SLOT_LED);
-
 	if(USBStorage_WriteSectors(sector, count, buff) != 1)
 	{
-		//turn off drive led
-		if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
-
 		dbgprintf("USB: Failed to write to USB device... Sector: %d Count: %d dst: %p\r\n", sector, count, buff);
 		return RES_ERROR;
 	}
-
-	//turn off drive led
-	if (access_led) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 	return RES_OK;
 }

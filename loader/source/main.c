@@ -571,14 +571,6 @@ int main(int argc, char **argv)
 	{
 		memcpy(ncfg, argv[1], sizeof(NIN_CFG));
 		UpdateNinCFG(); //support for old versions with this
-		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD)
-		{
-			if(ncfg->Config & NIN_CFG_AUTO_BOOT)
-			{	//do NOT remove, this can be used to see if nintendont knows args
-				gprintf(ARGSBOOT_STR);
-				argsboot = true;
-			}
-		}
 	}
 
 	//Meh, doesnt do anything anymore anyways
@@ -798,33 +790,13 @@ int main(int argc, char **argv)
 			ncfg->Magicbytes = 0x01070CF6;
 			ncfg->Version = NIN_CFG_VERSION;
 			ncfg->Language = NIN_LAN_AUTO;
-			ncfg->MaxPads = NIN_CFG_MAXPAD;
 			ncfg->MemCardBlocks = 0x2;//251 blocks
 		}
-
-		// Prevent autobooting if B is pressed
-		int i = 0;
-		while((ncfg->Config & NIN_CFG_AUTO_BOOT) && i < 1000000) // wait for wiimote re-synch
-		{
-			if (i == 0) {
-				PrintInfo();
-				PrintFormat(DEFAULT_SIZE, BLACK, 320 - 90, MENU_POS_Y + 20*10, "B: Cancel Autoboot");
-				GRRLIB_Render();
-				ClearScreen();
-			}
-			
-			FPAD_Update();
-
-			if (FPAD_Cancel(0)) {
-				ncfg->Config &= ~NIN_CFG_AUTO_BOOT;
-				break;
-			}
-
-			i++;
-		}
 	}
+
 	ReconfigVideo(rmode);
-	UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
+	//UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
+	UseSD = (ncfg->UseUSB) == 0;
 
 	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
 	if(progressive) //important to prevent blackscreens
@@ -833,20 +805,9 @@ int main(int argc, char **argv)
 		ncfg->VideoMode &= ~NIN_VID_PROG;
 
 	bool SaveSettings = false;
-	if(!(ncfg->Config & NIN_CFG_AUTO_BOOT))
-	{
-		// Not autobooting.
-		// Prompt the user to select a device and game.
-		SaveSettings = SelectDevAndGame();
-	}
-	else
-	{
-		// Autobooting.
-		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
-		PrintInfo();
-		GRRLIB_Render();
-		ClearScreen();
-	}
+
+	// Prompt the user to select a device and game.
+	SaveSettings = SelectDevAndGame();
 
 //Init DI and set correct ID if needed
 	u32 CurDICMD = 0;
@@ -927,14 +888,14 @@ int main(int argc, char **argv)
 
 		// Write config to the boot device, which is loaded on next launch.
 		FIL cfg;
-		if (f_open_char(&cfg, "/nincfg.bin", FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
+		if (f_open_char(&cfg, "/slippi_nincfg.bin", FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
 			// Reserve space in the file.
 			if (f_size(&cfg) < sizeof(NIN_CFG)) {
 				f_expand(&cfg, sizeof(NIN_CFG), 1);
 			}
 
-			// Write nincfg.bin.
+			// Write slippi_nincfg.bin
 			UINT wrote;
 			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);
@@ -942,7 +903,7 @@ int main(int argc, char **argv)
 
 		// Write config to the game device, used by the Nintendont kernel.
 		char ConfigPath[20];
-		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/nincfg.bin", GetRootDevice());
+		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/slippi_nincfg.bin", GetRootDevice());
 		if (f_open_char(&cfg, ConfigPath, FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{
 			// Reserve space in the file.
@@ -950,7 +911,7 @@ int main(int argc, char **argv)
 				f_expand(&cfg, sizeof(NIN_CFG), 1);
 			}
 
-			// Write nincfg.bin.
+			// Write slippi_nincfg.bin
 			UINT wrote;
 			f_write(&cfg, ncfg, sizeof(NIN_CFG), &wrote);
 			f_close(&cfg);
@@ -1122,74 +1083,42 @@ int main(int argc, char **argv)
 	bool useipl = false;
 	bool useipltri = false;
 
-	//Check if game is Triforce game
-	u32 IsTRIGame = 0;
-
-	/* Just disable TRI Arcade things; let Slippi use the memory instead
-	 * ~meta
-	 */
-
-	//if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
-	//	IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
-
 	if (!(ncfg->Config & (NIN_CFG_SKIP_IPL)))
 	{
-		if(IsTRIGame == 0)
+		// Attempt to load the GameCube IPL.
+		char iplchar[32];
+		iplchar[0] = 0;
+		switch (BI2region)
 		{
-			// Attempt to load the GameCube IPL.
-			char iplchar[32];
-			iplchar[0] = 0;
-			switch (BI2region)
-			{
-				case BI2_REGION_USA:
-					snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
-					break;
+			case BI2_REGION_USA:
+				snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
+				break;
 
-				case BI2_REGION_JAPAN:
-				case BI2_REGION_SOUTH_KOREA:
-				default:
-					snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
-					break;
+			case BI2_REGION_JAPAN:
+			case BI2_REGION_SOUTH_KOREA:
+			default:
+				snprintf(iplchar, sizeof(iplchar), "%s:/ipljap.bin", GetRootDevice());
+				break;
 
-				case BI2_REGION_PAL:
-					// FIXME: PAL IPL is broken on Wii U.
-					if (!IsWiiU())
-						snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
-					break;
-			}
-
-			FIL f;
-			if (iplchar[0] != 0 &&
-			    f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
-			{
-				if (f.obj.objsize == GCN_IPL_SIZE)
-				{
-					iplbuf = malloc(GCN_IPL_SIZE);
-					UINT read;
-					f_read(&f, iplbuf, GCN_IPL_SIZE, &read);
-					useipl = (read == GCN_IPL_SIZE);
-				}
-				f_close(&f);
-			}
+			case BI2_REGION_PAL:
+				// FIXME: PAL IPL is broken on Wii U.
+				if (!IsWiiU())
+					snprintf(iplchar, sizeof(iplchar), "%s:/iplpal.bin", GetRootDevice());
+				break;
 		}
-		else
+
+		FIL f;
+		if (iplchar[0] != 0 &&
+		    f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 		{
-			// Attempt to load the Triforce IPL. (segaboot)
-			char iplchar[32];
-			snprintf(iplchar, sizeof(iplchar), "%s:/segaboot.bin", GetRootDevice());
-			FIL f;
-			if (f_open_char(&f, iplchar, FA_READ|FA_OPEN_EXISTING) == FR_OK)
+			if (f.obj.objsize == GCN_IPL_SIZE)
 			{
-				if (f.obj.objsize == TRI_IPL_SIZE)
-				{
-					f_lseek(&f, 0x20);
-					void *iplbuf = (void*)0x92A80000;
-					UINT read;
-					f_read(&f, iplbuf, TRI_IPL_SIZE - 0x20, &read);
-					useipltri = (read == (TRI_IPL_SIZE - 0x20));
-				}
-				f_close(&f);
+				iplbuf = malloc(GCN_IPL_SIZE);
+				UINT read;
+				f_read(&f, iplbuf, GCN_IPL_SIZE, &read);
+				useipl = (read == GCN_IPL_SIZE);
 			}
+			f_close(&f);
 		}
 	}
 
@@ -1211,8 +1140,7 @@ int main(int argc, char **argv)
 	}
 
 	//before flushing do game specific patches
-	if(ncfg->Config & NIN_CFG_FORCE_PROG &&
-			ncfg->GameID == 0x47584745)
+	if(ncfg->Config & NIN_CFG_FORCE_PROG && ncfg->GameID == 0x47584745)
 	{	//Mega Man X Collection does progressive ingame so
 		//forcing it would mess with the interal game setup
 		gprintf("Disabling Force Progressive for this game\r\n");
@@ -1294,62 +1222,6 @@ int main(int argc, char **argv)
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config...");
 			if(abs(STATUS_LOADING) > 7 && abs(STATUS_LOADING) < 20)
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*13, "Loading config... Done!");
-			/*if(STATUS_LOADING == 8)
-			{
-				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... ");
-				if ( STATUS_ERROR == 1)
-				{
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "          Make sure the Controller is plugged in");
-				}
-				else
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*15, "%50s", " ");
-			}
-			if(abs(STATUS_LOADING) > 8 && abs(STATUS_LOADING) < 20)
-			{
-				if (ncfg->Config & NIN_CFG_NATIVE_SI)
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using ONLY NATIVE Gamecube Ports");
-				else if ((ncfg->MaxPads == 1) && (ncfg->Config & NIN_CFG_HID))
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube and HID Ports");
-				else if ((ncfg->MaxPads > 0) && (ncfg->Config & NIN_CFG_HID))
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube, HID, and BT Ports");
-				else if (ncfg->MaxPads > 0)
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Gamecube and BT Ports");
-				else if (ncfg->Config & NIN_CFG_HID)
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using HID and Bluetooth Ports");
-				else
-					PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Using Bluetooth Ports... Done!");
-			}
-			if(STATUS_LOADING == -8)
-			{
-				PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*14, "Init HID devices... Failed! Shutting down");
-				switch (STATUS_ERROR)
-				{
-					case -1:
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "No Controller plugged in! %25s", " ");
-						break;
-					case -2:
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Missing %s:/controller.ini %20s", GetRootDevice(), " ");
-						break;
-					case -3:
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Controller does not match %s:/controller.ini %6s", GetRootDevice(), " ");
-						break;
-					case -4:
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Invalid Polltype in %s:/controller.ini %12s", GetRootDevice(), " ");
-						break;
-					case -5:
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Invalid DPAD value in %s:/controller.ini %9s", GetRootDevice(), " ");
-						break;
-					case -6:
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "PS3 controller init error %25s", " ");
-						break;
-					case -7:
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Gamecube adapter for Wii u init error %13s", " ");
-						break;
-					default:
-						PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*15, "Unknown error %d %35s", STATUS_ERROR, " ");
-						break;
-				}
-			}*/
 			if(STATUS_LOADING == 9)
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*14, "Init DI... %40s", " ");
 			if(abs(STATUS_LOADING) > 9 && abs(STATUS_LOADING) < 20)

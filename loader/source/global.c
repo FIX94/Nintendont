@@ -325,7 +325,7 @@ bool LoadNinCFG(void)
 {
 	bool ConfigLoaded = true;
 	FIL cfg;
-	if (f_open_char(&cfg, "/nincfg.bin", FA_READ|FA_OPEN_EXISTING) != FR_OK)
+	if (f_open_char(&cfg, "/slippi_nincfg.bin", FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		return false;
 
 	// Read the configuration file into memory.
@@ -352,10 +352,7 @@ bool LoadNinCFG(void)
 
 	if (ncfg->Version != NIN_CFG_VERSION)
 		ConfigLoaded = false;
-
-	if (ncfg->MaxPads > NIN_CFG_MAXPAD)
-		ConfigLoaded = false;
-
+	
 	return ConfigLoaded;
 }
 
@@ -430,7 +427,6 @@ void UpdateNinCFG()
 	}
 	if (ncfg->Version == 4)
 	{	//Option got changed so not confuse it
-		ncfg->Config &= ~NIN_CFG_HID;
 		ncfg->Version = 5;
 	}
 	if (ncfg->Version == 5)
@@ -440,13 +436,12 @@ void UpdateNinCFG()
 	}
 	if (ncfg->Version == 6)
 	{	//New flag, disabled by default
-		ncfg->Config &= ~NIN_CFG_ARCADE_MODE;
 		ncfg->Version = 7;
 	}
 	if (ncfg->Version == 7)
 	{	// Wiimote CC Rumble, disabled by default;
 		// don't skip IPL by default.
-		ncfg->Config &= ~NIN_CFG_CC_RUMBLE;
+		//ncfg->Config &= ~NIN_CFG_CC_RUMBLE;
 		ncfg->Config &= ~NIN_CFG_SKIP_IPL;
 
 		// Use Slippi on port B by default

@@ -52,7 +52,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //#define USE_OSREPORTDM 1
 
 //#undef DEBUG
-bool access_led = false;
 u32 USBReadTimer = 0;
 extern u32 s_size;
 extern u32 s_cnt;
@@ -158,7 +157,7 @@ int _main( int argc, char *argv[] )
 	//get config from loader
 	ConfigSyncBeforeRead();
 
-	u32 UseUSB = ConfigGetConfig(NIN_CFG_USB);
+	u32 UseUSB = ConfigGetUseUSB();
 	SetDiskFunctions(UseUSB);
 
 	BootStatus(2, 0, 0);
@@ -319,15 +318,6 @@ int _main( int argc, char *argv[] )
 	u32 Reset = 0;
 	bool SaveCard = false;
 
-	//enable ios led use
-	access_led = ConfigGetConfig(NIN_CFG_LED);
-	if(access_led)
-	{
-		set32(HW_GPIO_ENABLE, GPIO_SLOT_LED);
-		clear32(HW_GPIO_DIR, GPIO_SLOT_LED);
-		clear32(HW_GPIO_OWNER, GPIO_SLOT_LED);
-	}
-
 	set32(HW_GPIO_ENABLE, GPIO_SENSOR_BAR);
 	clear32(HW_GPIO_DIR, GPIO_SENSOR_BAR);
 	clear32(HW_GPIO_OWNER, GPIO_SENSOR_BAR);
@@ -361,9 +351,9 @@ int _main( int argc, char *argv[] )
 	if (IsWiiU())
 	{
 		ori_widesetting = read32(0xd8006a0);
-		if( ConfigGetConfig(NIN_CFG_WIIU_WIDE) )
-			write32(0xd8006a0, 0x30000004);
-		else
+		//if( ConfigGetConfig(NIN_CFG_WIIU_WIDE) )
+		//	write32(0xd8006a0, 0x30000004);
+		//else
 			write32(0xd8006a0, 0x30000002);
 		mask32(0xd8006a8, 0, 2);
 	}
@@ -646,9 +636,6 @@ int _main( int argc, char *argv[] )
 
 	USBStorage_Shutdown();
 	SDHCShutdown();
-
-//make sure drive led is off before quitting
-	if( access_led ) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
 
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);
