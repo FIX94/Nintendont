@@ -518,7 +518,7 @@ typedef struct _devInitInfo_t
 static const devInitInfo_t devInitInfo[2] =
 {
 	{{'s', 'd', ':', 0}, "SD", 0},
-	{{'u', 's', 'b', ':', 0}, "USB", 10}
+	{{'u', 's', 'b', ':', 0}, "USB", 4}
 };
 
 /**
