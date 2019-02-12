@@ -1676,11 +1676,13 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		FPATCH_OSSleepThread | FPATCH_GXBegin | FPATCH_GXDrawDone;
 #ifdef CHEATS
 	u32 cheatsWanted = 0, debuggerWanted = 0;
+	u32 MeleeVersion = GetMeleeVersion();
+
 	if(ConfigGetConfig(NIN_CFG_CHEATS))
 		cheatsWanted = 1;
 	if(!IsWiiU() && ConfigGetConfig(NIN_CFG_DEBUGGER))
 		debuggerWanted = 1;
-	if(cheatsWanted || debuggerWanted)
+	if(cheatsWanted || debuggerWanted || MeleeVersion)
 		PatchCount &= ~FPATCH_OSSleepThread;
 	/* So this can be used but for now we just use PADRead */
 	/*if( (IsWiiU() && ConfigGetConfig(NIN_CFG_CHEATS)) ||
@@ -2537,7 +2539,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						case FCODE_OSExceptionInit:
 						case FCODE_OSExceptionInit_DBG:
 						{
-							if(cheatsWanted || debuggerWanted)
+							if(cheatsWanted || debuggerWanted || MeleeVersion)
 							{
 								u32 patchOffset = (CurPatterns[j].PatchLength == FCODE_OSExceptionInit ? 0x1D4 : 0x1F0);
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + patchOffset);
@@ -3276,15 +3278,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	 *	    we don't need to support this, but I *think* it should work with these changes.
 	 */
 
-	u32 MeleeVersion = GetMeleeVersion();
 	bool use_codehandler = (cheatsWanted || debuggerWanted || MeleeVersion);
 
-	u32 cheats_start;
-	u32 cheats_area;
-	u32 codelist_addr;
+	u32 gct_cursor;
+	u32 max_gct_size;
+	u32 gct_base_addr;
 
 	if(use_codehandler)
 	{
+		dbgprintf("Patch:Installing gecko codehandler ..\r\n");
 
 		//setup jump to codehandler stub
 		if(OSSleepThreadHook || PADHook)
@@ -3300,8 +3302,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			//copy game id for debugger
 			memcpy((void*)0x1800, (void*)0, 8);
 			//main code area start
-			cheats_start  = 0x1000 + codehandler_size - 8;
-			codelist_addr = 0x1000 + codehandler_size - 12;
+			gct_cursor  = 0x1000 + codehandler_size - 8;
+			gct_base_addr = 0x1000 + codehandler_size - 12;
 
 			// Debug Wait setting.
 			vu32 *debug_wait = (vu32*)(P2C(*(vu32*)0x1000));
@@ -3327,10 +3329,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			//copy into dedicated space
 			memcpy( (void*)0x1000, codehandleronly, codehandleronly_size );
 			//main code area start
-			cheats_start  = 0x1000 + codehandleronly_size - 8;
-			codelist_addr = 0x1000 + codehandleronly_size - 12;
+			gct_cursor  = 0x1000 + codehandleronly_size - 8;
+			gct_base_addr = 0x1000 + codehandleronly_size - 12;
 		}
-		cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
+		max_gct_size = (POffset < gct_cursor) ? 0 : (POffset - gct_cursor);
 
 		// Use tournament mode region if we're booting NTSC v1.02
 		if (MeleeVersion == MELEE_VERSION_NTSC_2)
@@ -3338,16 +3340,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			// Patch to redirect tournament mode menu to debug menu
 			write32(0x0022d6e8, 0x38000006);
 			dbgprintf("Patch:Redirect Melee tournament mode to debug menu\r\n");
-			cheats_start = CODELIST_TOURNAMENT_BASE;
-			cheats_area  = CODELIST_TOURNAMENT_END - CODELIST_TOURNAMENT_BASE;
+			gct_cursor = CODELIST_TOURNAMENT_BASE;
+			max_gct_size  = CODELIST_TOURNAMENT_END - CODELIST_TOURNAMENT_BASE;
 		}
 
 		// Fill out the pointer to the codelist region within the codehandler
-		if (cheats_area > 0) {
-			dbgprintf("Possible Code Size: %08x\r\n", cheats_area);
-			dbgprintf("Codelist at 0x%08x\r\n", (cheats_start | 0x80000000));
-			memset((void*)cheats_start, 0, cheats_area);
-			write32(codelist_addr, (cheats_start | 0x80000000));
+		if (max_gct_size > 0) {
+			dbgprintf("Possible Code Size: %08x\r\n", max_gct_size);
+			dbgprintf("Codelist at 0x%08x\r\n", (gct_cursor | 0x80000000));
+			memset((void*)gct_cursor, 0, max_gct_size);
+			write32(gct_base_addr, (gct_cursor | 0x80000000));
 		}
 	}
 
@@ -3364,15 +3366,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if (Check_Cheats() == 0 && f_open_main_drive(&CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ) == FR_OK)
 		{
 			gct_len = CodeFD.obj.objsize;
-			if (CodeFD.obj.objsize > cheats_area)
-				dbgprintf("Patch:GCT exceeds region size (%i bytes)\r\n", cheats_area);
+			if (CodeFD.obj.objsize > max_gct_size)
+				dbgprintf("Patch:GCT exceeds region size (%i bytes)\r\n", max_gct_size);
 			else {
 				void *CMem = malloc(CodeFD.obj.objsize);
 				if( f_read(&CodeFD, CMem, CodeFD.obj.objsize, &read) == FR_OK )
 				{
-					memcpy((void*)cheats_start, CMem, CodeFD.obj.objsize);
-					sync_after_write((void*)cheats_start, CodeFD.obj.objsize);
-					dbgprintf("Patch:Copied %s to memory at 0x%08x\r\n", cheatPath, cheats_start);
+					memcpy((void*)gct_cursor, CMem, CodeFD.obj.objsize);
+					sync_after_write((void*)gct_cursor, CodeFD.obj.objsize);
+					dbgprintf("Patch:Copied %s to memory at 0x%08x\r\n", cheatPath, gct_cursor);
 					copied_gct = true;
 				}
 				else { dbgprintf("Patch:Failed to read %s\r\n", cheatPath); }
@@ -3396,39 +3398,44 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	{
 		if (copied_gct)
 		{
-			cheats_start += gct_len - 8;
+			gct_cursor += gct_len - 8;
 		}
 		else
 		{
-			memcpy((void*)cheats_start, GCT_HEADER, sizeof(GCT_HEADER));
-			sync_after_write((void*)cheats_start, sizeof(GCT_HEADER));
-			cheats_start += sizeof(GCT_HEADER);
+			memcpy((void*)gct_cursor, GCT_HEADER, sizeof(GCT_HEADER));
+			sync_after_write((void*)gct_cursor, sizeof(GCT_HEADER));
+			gct_cursor += sizeof(GCT_HEADER);
 		}
+		dbgprintf("Patch:Apply Slippi core at 0x%08x\r\n", gct_cursor);
 
 		// Always apply core Slippi patches when running Melee
-		memcpy((void*)cheats_start, g_core, g_core_size);
-		sync_after_write((void*)cheats_start, g_core_size);
-		cheats_start += g_core_size;
+		memcpy((void*)gct_cursor, g_core, g_core_size);
+		sync_after_write((void*)gct_cursor, g_core_size);
+		gct_cursor += g_core_size;
+
+		dbgprintf("Patch:Apply toggleables at 0x%08x\r\n", gct_cursor);
 
 		// Optionally apply user-toggleable patches
 		if (ConfigGetConfig(NIN_CFG_MELEE_PAL))
 		{
-			memcpy((void*)cheats_start, g_pal, g_pal_size);
-			sync_after_write((void*)cheats_start, g_pal_size);
-			cheats_start += g_pal_size;
+			memcpy((void*)gct_cursor, g_pal, g_pal_size);
+			sync_after_write((void*)gct_cursor, g_pal_size);
+			gct_cursor += g_pal_size;
 		}
 		if (ConfigGetConfig(NIN_CFG_MELEE_QOL))
 		{
-			memcpy((void*)cheats_start, g_qol, g_qol_size);
-			sync_after_write((void*)cheats_start, g_qol_size);
-			cheats_start += g_qol_size;
+			memcpy((void*)gct_cursor, g_qol, g_qol_size);
+			sync_after_write((void*)gct_cursor, g_qol_size);
+			gct_cursor += g_qol_size;
 		}
 		if (ConfigGetConfig(NIN_CFG_MELEE_SPAWN))
 		{
-			memcpy((void*)cheats_start, g_spawns, g_spawns_size);
-			sync_after_write((void*)cheats_start, g_spawns_size);
-			cheats_start += g_spawns_size;
+			memcpy((void*)gct_cursor, g_spawns, g_spawns_size);
+			sync_after_write((void*)gct_cursor, g_spawns_size);
+			gct_cursor += g_spawns_size;
 		}
+
+		dbgprintf("Patch:Apply controller fix at 0x%08x\r\n", gct_cursor);
 
 		// Optionally apply user-toggleable controller-fix
 		u32 melee_controllerfix = ConfigGetMeleeControllerFix();
@@ -3450,16 +3457,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 		if (controller_patch)
 		{
-			memcpy((void*)cheats_start, controller_patch, controller_patch_len);
+			memcpy((void*)gct_cursor, controller_patch, controller_patch_len);
 			sync_after_write((void*)controller_patch, controller_patch_len);
-			cheats_start += controller_patch_len;
+			gct_cursor += controller_patch_len;
 		}
 
+		dbgprintf("Patch:Apply GCT footer 0x%08x\r\n", gct_cursor);
+
 		// Apply GCT footer
-		memcpy((void*)cheats_start, GCT_FOOTER, sizeof(GCT_FOOTER));
-		sync_after_write((void*)cheats_start, sizeof(GCT_FOOTER));
-		cheats_start += sizeof(GCT_FOOTER);
-		cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
+		memcpy((void*)gct_cursor, GCT_FOOTER, sizeof(GCT_FOOTER));
+		sync_after_write((void*)gct_cursor, sizeof(GCT_FOOTER));
+		gct_cursor += sizeof(GCT_FOOTER);
 	}
 
 
