@@ -106,4 +106,9 @@ static inline u32 ConfigGetUseUSB(void)
 	return ncfg->UseUSB;
 }
 
+static inline u32 ConfigGetMeleeControllerFix(void)
+{
+	return ncfg->MeleeControllerFix;
+}
+
 #endif

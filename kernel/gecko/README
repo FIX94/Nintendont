@@ -1,0 +1,3 @@
+# README
+Binaries [from `project-slippi/slippi-ssbm-asm`] are dropped in this directory 
+and rendered into headers used to patching Melee just before boot-time. 

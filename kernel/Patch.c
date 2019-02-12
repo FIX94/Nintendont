@@ -107,12 +107,24 @@ u32 IsN64Emu = 0;
 /* ----------------------------------------------------------------------------
  * Functions, macro definitions, and variable declarations specific to dealing
  * with Super Smash Bros. Melee should go here.
+ *
+ * atm, we expect `kernel/gecko` to be populated with .bin files corresponding
+ * to these header filenames (headers rendered via bin2h before compile-time).
  */
 
-#include "PatchMelee.h"
+#include "gecko/g_core.h"	// Core Slippi codeset
+#include "gecko/g_ucf.h"	// UCF codeset
+#include "gecko/g_toggles.h"	// Player-toggleable None/UCF/Dween at CSS
+#include "gecko/g_spawns.h"	// Force neutral spawns
+#include "gecko/g_pal.h"	// Convert NTSC to PAL
+#include "gecko/g_qol.h"	// Salty runback/KO star indicates previous winner
 
+// Boundaries of the tournament mode region in NTSC-U v1.02
 #define CODELIST_TOURNAMENT_BASE	0x001910E0
 #define CODELIST_TOURNAMENT_END		0x0019AF4C
+
+static const char GCT_HEADER[8] = { 0x00, 0xd0, 0xc0, 0xde, 0x00, 0xd0, 0xc0, 0xde, };
+static const char GCT_FOOTER[8] = { 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, };
 
 // First 0x100 bytes of the ISO title string, filled out in kernel/ISO.c
 extern char GAME_TITLENAME[0x100];
@@ -121,7 +133,7 @@ static const char TITLE_20XX[] = "Super Smash Bros Melee 20XX";
 #define MELEE_VERSION_NONE		0
 #define MELEE_VERSION_NTSC_0		1
 #define MELEE_VERSION_NTSC_1		2
-#define MELEE_VERSION_NSTC_2		3
+#define MELEE_VERSION_NTSC_2		3
 #define MELEE_VERSION_PAL		4
 #define MELEE_VERSION_20XX		5
 
@@ -130,33 +142,35 @@ static u32 GetMeleeVersion(void)
 	if (TITLE_ID != 0x47414C)
 		return MELEE_VERSION_NONE;
 
-	// Check the Game ID, fall through if NTSC-{U,J}
+	// Check the game ID [and fall through if we support it]
 	switch(GAME_ID) 
 	{
 		case 0x47414C45: // GALE
 		case 0x47414C4A: // GALJ
 			break;
-		case 0x47414C50: // GALP
-			return MELEE_VERSION_PAL;
+		//case 0x47414C50: // GALP
+		//	return MELEE_VERSION_PAL;
 		default:
 			return MELEE_VERSION_NONE;
 	}
 
-	// Presumably, most instances of 20XX will be NTSC v1.02
-	if (strncmp(GAME_TITLENAME, TITLE_20XX, sizeof(TITLE_20XX)) == 0)
-		return MELEE_VERSION_20XX;
+	// NOTE: Do we actually support 20XX?
+	//if (strncmp(GAME_TITLENAME, TITLE_20XX, sizeof(TITLE_20XX)) == 0)
+	//	return MELEE_VERSION_20XX;
 
-	// For NTSC images, check the revision/version number
+	// For supported NTSC images, check revision/version number
 	sync_before_read((void*)0x00000000, 0x20);
 	u8 gameVers = *(u8*)0x00000007;
 	switch (gameVers)
 	{
-		case 0:
-			return MELEE_VERSION_NTSC_0;
-		case 1:
-			return MELEE_VERSION_NTSC_1;
-		default:
-			return MELEE_VERSION_NSTC_2;
+		//case 0:
+		//	return MELEE_VERSION_NTSC_0;
+		//case 1:
+		//	return MELEE_VERSION_NTSC_1;
+		case 2:
+			return MELEE_VERSION_NTSC_2;
+		default: 
+			return MELEE_VERSION_NONE;
 	}
 }
 
@@ -1525,7 +1539,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	/* Datels own timer */
 	u32 DatelTimerAddr = Datel ? PatchCopy(DatelTimer, DatelTimer_size) : 0;
 
-	TRISetupGames();
+	// NOTE: Ignore TRI Arcade setup (prune this code sometime)
+	//TRISetupGames();
+
 	if(TRIGame == TRI_NONE)
 	{
 		if(( TITLE_ID == 0x475858 ) || ( TITLE_ID == 0x474336 ) // Colosseum and XD
@@ -3245,12 +3261,30 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchWideMulti(MTXLightPerspectiveOffset + 0x24, 27);
 		}
 	}
-	if(cheatsWanted || debuggerWanted)
-	{
 
-		u32 cheats_start;
-		u32 cheats_area;
-		u32 codelist_addr;
+
+	/* Configure the codehandler.
+	 *
+	 *	(a) Use NTSC v1.02 Melee's "Tournament Mode" region [0x801910e0-0x8019af4c]
+	 *	    for codehandler. The instruction at 0x8022d638 *must* be patched to redirect
+	 *	    the Tournament mode menu, otherwise we crash when entering Tournament mode.
+	 *
+	 *	    Currently, using the tournament mode region depends on patches to the default 
+	 *	    Nintendont codehandler (see codehandler/codehandler.s).
+	 *
+	 *	(b) I'm not sure how Gecko debugger interacts with this code; we're assuming that
+	 *	    we don't need to support this, but I *think* it should work with these changes.
+	 */
+
+	u32 MeleeVersion = GetMeleeVersion();
+	bool use_codehandler = (cheatsWanted || debuggerWanted || MeleeVersion);
+
+	u32 cheats_start;
+	u32 cheats_area;
+	u32 codelist_addr;
+
+	if(use_codehandler)
+	{
 
 		//setup jump to codehandler stub
 		if(OSSleepThreadHook || PADHook)
@@ -3268,6 +3302,25 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			//main code area start
 			cheats_start  = 0x1000 + codehandler_size - 8;
 			codelist_addr = 0x1000 + codehandler_size - 12;
+
+			// Debug Wait setting.
+			vu32 *debug_wait = (vu32*)(P2C(*(vu32*)0x1000));
+			if( IsWiiU() )
+			{
+				// Debugger is not supported on Wii U.
+				*debug_wait = 0;
+			}
+			else
+			{
+				if (ConfigGetConfig(NIN_CFG_DEBUGWAIT)) {
+					*debug_wait = 1;
+				} else {
+					*debug_wait = 0;
+				}
+			}
+			//if(DebuggerHook) PatchB( codehandler_stub_offset, DebuggerHook );
+			//if(DebuggerHook2) PatchB( codehandler_stub_offset, DebuggerHook2 );
+			//if(DebuggerHook3) PatchB( codehandler_stub_offset, DebuggerHook3 );
 		}
 		else
 		{
@@ -3279,27 +3332,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 		cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
 
-		/* Replace Melee's "Tournament Mode" region [0x801910e0-0x8019af4c] with the 
-		 * Gecko codelist region. The instruction at 0x8022d638 must be patched to 
-		 * redirect the Tournament mode menu. This depends on patches to the default 
-		 * Nintendont codehandler (see codehandler/codehandler.s).
-		 */
-
-		u32 MeleeVersion = GetMeleeVersion();
-		if (MeleeVersion)
+		// Use tournament mode region if we're booting NTSC v1.02
+		if (MeleeVersion == MELEE_VERSION_NTSC_2)
 		{
-			// 20XX itself uses the tournament mode region; skip this patch
-			if (MeleeVersion == MELEE_VERSION_20XX)
-				dbgprintf("Patch:Detected 20XX, using default codehandler\r\n");
-			else
-			{
-				// Patch to redirect tournament mode menu to debug menu
-				write32(0x0022d6e8, 0x38000006);
-				dbgprintf("Patch:Redirect Melee tournament mode to debug menu\r\n");
-
-				cheats_start = CODELIST_TOURNAMENT_BASE;
-				cheats_area  = CODELIST_TOURNAMENT_END - CODELIST_TOURNAMENT_BASE;
-			}
+			// Patch to redirect tournament mode menu to debug menu
+			write32(0x0022d6e8, 0x38000006);
+			dbgprintf("Patch:Redirect Melee tournament mode to debug menu\r\n");
+			cheats_start = CODELIST_TOURNAMENT_BASE;
+			cheats_area  = CODELIST_TOURNAMENT_END - CODELIST_TOURNAMENT_BASE;
 		}
 
 		// Fill out the pointer to the codelist region within the codehandler
@@ -3309,106 +3349,120 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			memset((void*)cheats_start, 0, cheats_area);
 			write32(codelist_addr, (cheats_start | 0x80000000));
 		}
-
-		/* TODO: Apply Melee patches specific to Project Slippi. 
-		 *
-		 * ...
-		 */
+	}
 
 
-//		/* If the user has any toggleable codesets enabled, check the version of
-//		 * Melee we're booting, and then apply them to the codelist region.
-//		 */
-//
-//		if (ConfigGetConfig(NIN_CFG_UCF) && MeleeVersion) 
-//		{
-//			u32 ucf_size = sizeof(UCF_CODES_1_02);
-//			const u32* ucf_code = 0;
-//			switch (MeleeVersion)
-//			{
-//				case MELEE_VERSION_NTSC_0:
-//					ucf_code = UCF_CODES_1_00;
-//					break;
-//				case MELEE_VERSION_NTSC_1:
-//					ucf_code = UCF_CODES_1_01;
-//					break;
-//				case MELEE_VERSION_NSTC_2:
-//					ucf_code = UCF_CODES_1_02;
-//					break;
-//				case MELEE_VERSION_PAL:
-//					ucf_code = UCF_CODES_PAL;
-//					break;
-//			}
-//			if (ucf_code)
-//			{
-//				memcpy((void*)cheats_start, ucf_code, ucf_size);
-//				sync_after_write((void*)cheats_start, ucf_size);
-//				cheats_start += ucf_size - 8;
-//				cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
-//			}
-//			else
-//			{
-//				dbgprintf("Patch:Couldn't apply UCF patches to this version of Melee\r\n");
-//			}
-//		}
+	/* If the user has "Cheats" enabled, copy a GCT into RAM.
+	 * Try to save the GCT length for later, in case we're booting Melee.
+	 */
 
-
-		/* Copy Gecko codes from the user-provided GCT into the codelist region.
-		 * This should happen *after* we apply Project Slippi patches and/or 
-		 * any toggleable codesets.
-		 */
-
-		if( cheatsWanted && TRIGame != TRI_SB && useipl == 0 )
+	u32 gct_len = 0;
+	bool copied_gct	= false;
+	if (cheatsWanted && useipl == 0 )
+	{
+		FIL CodeFD;
+		if (Check_Cheats() == 0 && f_open_main_drive(&CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ) == FR_OK)
 		{
-			FIL CodeFD;
-			if( Check_Cheats() == 0 && f_open_main_drive( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
-			{
-				if( CodeFD.obj.objsize > cheats_area )
+			gct_len = CodeFD.obj.objsize;
+			if (CodeFD.obj.objsize > cheats_area)
+				dbgprintf("Patch:GCT exceeds region size (%i bytes)\r\n", cheats_area);
+			else {
+				void *CMem = malloc(CodeFD.obj.objsize);
+				if( f_read(&CodeFD, CMem, CodeFD.obj.objsize, &read) == FR_OK )
 				{
-					dbgprintf("Patch:Cheatfile is too large, it must not be larger than %i bytes!\r\n", cheats_area);
+					memcpy((void*)cheats_start, CMem, CodeFD.obj.objsize);
+					sync_after_write((void*)cheats_start, CodeFD.obj.objsize);
+					dbgprintf("Patch:Copied %s to memory at 0x%08x\r\n", cheatPath, cheats_start);
+					copied_gct = true;
 				}
-				else
-				{
-					void *CMem = malloc(CodeFD.obj.objsize);
-					if( f_read( &CodeFD, CMem, CodeFD.obj.objsize, &read ) == FR_OK )
-					{
-						memcpy((void*)cheats_start, CMem, CodeFD.obj.objsize);
-						sync_after_write((void*)cheats_start, CodeFD.obj.objsize);
-						dbgprintf("Patch:Copied %s to memory\r\n", cheatPath);
-					}
-					else
-					{
-						dbgprintf("Patch:Failed to read %s\r\n", cheatPath);
-					}
-					free( CMem );
-				}
-				f_close( &CodeFD );
+				else { dbgprintf("Patch:Failed to read %s\r\n", cheatPath); }
+				free( CMem );
 			}
-			else
-			{
-				dbgprintf("Patch:Failed to open/find cheat file:\"%s\"\r\n", cheatPath );
-			}
+			f_close( &CodeFD );
 		}
+		else { dbgprintf("Patch:Failed to open/find GCT:\"%s\"\r\n", cheatPath ); }
+	}
 
-		// Debug Wait setting.
-		vu32 *debug_wait = (vu32*)(P2C(*(vu32*)0x1000));
-		if( IsWiiU() )
+
+	/* When booting Melee, deal with Slippi patches and Gecko codes toggled by users.
+	 *
+	 *	(a) If we copied a GCT, move our cursor onto the footer.
+	 *	    Otherwise, build a GCT header in RAM before copying codes.
+	 *	(b) Copy over Slippi core patches
+	 *	(c) Apply any user-toggleable Gecko codes
+	 */
+
+	if (MeleeVersion)
+	{
+		if (copied_gct)
 		{
-			// Debugger is not supported on Wii U.
-			*debug_wait = 0;
+			cheats_start += gct_len - 8;
 		}
 		else
 		{
-			if (ConfigGetConfig(NIN_CFG_DEBUGWAIT)) {
-				*debug_wait = 1;
-			} else {
-				*debug_wait = 0;
-			}
+			memcpy((void*)cheats_start, GCT_HEADER, sizeof(GCT_HEADER));
+			sync_after_write((void*)cheats_start, sizeof(GCT_HEADER));
+			cheats_start += sizeof(GCT_HEADER);
 		}
-		//if(DebuggerHook) PatchB( codehandler_stub_offset, DebuggerHook );
-		//if(DebuggerHook2) PatchB( codehandler_stub_offset, DebuggerHook2 );
-		//if(DebuggerHook3) PatchB( codehandler_stub_offset, DebuggerHook3 );
+
+		// Always apply core Slippi patches when running Melee
+		memcpy((void*)cheats_start, g_core, g_core_size);
+		sync_after_write((void*)cheats_start, g_core_size);
+		cheats_start += g_core_size;
+
+		// Optionally apply user-toggleable patches
+		if (ConfigGetConfig(NIN_CFG_MELEE_PAL))
+		{
+			memcpy((void*)cheats_start, g_pal, g_pal_size);
+			sync_after_write((void*)cheats_start, g_pal_size);
+			cheats_start += g_pal_size;
+		}
+		if (ConfigGetConfig(NIN_CFG_MELEE_QOL))
+		{
+			memcpy((void*)cheats_start, g_qol, g_qol_size);
+			sync_after_write((void*)cheats_start, g_qol_size);
+			cheats_start += g_qol_size;
+		}
+		if (ConfigGetConfig(NIN_CFG_MELEE_SPAWN))
+		{
+			memcpy((void*)cheats_start, g_spawns, g_spawns_size);
+			sync_after_write((void*)cheats_start, g_spawns_size);
+			cheats_start += g_spawns_size;
+		}
+
+		// Optionally apply user-toggleable controller-fix
+		u32 melee_controllerfix = ConfigGetMeleeControllerFix();
+		u32 controller_patch_len = 0;
+		const unsigned char *controller_patch = 0;
+		switch (melee_controllerfix)
+		{
+			case NIN_CFG_MELEE_UCF:
+				controller_patch	= g_ucf;
+				controller_patch_len	= g_ucf_size;
+				break;
+			case NIN_CFG_MELEE_IGTOGGLE:
+				controller_patch	= g_toggles;
+				controller_patch_len	= g_toggles_size;
+				break;
+			case NIN_CFG_MELEE_NOFIX:
+			default:
+				break;
+		}
+		if (controller_patch)
+		{
+			memcpy((void*)cheats_start, controller_patch, controller_patch_len);
+			sync_after_write((void*)controller_patch, controller_patch_len);
+			cheats_start += controller_patch_len;
+		}
+
+		// Apply GCT footer
+		memcpy((void*)cheats_start, GCT_FOOTER, sizeof(GCT_FOOTER));
+		sync_after_write((void*)cheats_start, sizeof(GCT_FOOTER));
+		cheats_start += sizeof(GCT_FOOTER);
+		cheats_area = (POffset < cheats_start) ? 0 : (POffset - cheats_start);
 	}
+
+
 	free(hash);
 	free(SHA1i);
 

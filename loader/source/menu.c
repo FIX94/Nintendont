@@ -994,16 +994,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 		switch (ctx->settings.posX)
 		{
 
-			// case 3: {
-			// 	// Skip IPL
-			// 	static const char *desc_skip_ipl[] = {
-			// 		"Skip loading the GameCube",
-			// 		"IPL, even if it's present",
-			// 		"on the storage device.",
-			// 		NULL
-			// 	};
-			// 	return desc_skip_ipl;
-			// }
 			case 0: {
 				// Networking
 				static const char *desc_networking[] = {
@@ -1037,14 +1027,22 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_slippi_port_a;
 			}
 			case 3: {
-				// UCF
-				static const char *desc_ucf[] = {
-					"Universal Controller Fix:",
-					"Fix dash-back and shield-drop",
-					"behaviour on all controllers.",
+				// Melee PAL
+				static const char *desc_melee_pal[] = {
+					"Melee PAL Toggle:",
+					"This is a description.",
 					NULL
 				};
-				return desc_ucf;
+				return desc_melee_pal;
+			}
+			case 4: {
+				// Melee QOL
+				static const char *desc_melee_qol[] = {
+					"Melee QOL Toggle:",
+					"This is also a description.",
+					NULL
+				};
+				return desc_melee_qol;
 			}
 
 			default:
@@ -1074,7 +1072,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 	// Number of entries in the right settings column. Remember to change this
 	// when adding any toggleable settings to the right-hand part of the menu.
-	int col2Length = 4;
+	int col2Length = 5;
 
 	if (FPAD_Down_Repeat(ctx))
 	{
@@ -1356,9 +1354,15 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 				case 3:
-					// UCF
+					// PAL
 					ctx->saveSettings = true;
-					ncfg->Config ^= (NIN_CFG_UCF);
+					ncfg->Config ^= (NIN_CFG_MELEE_PAL);
+					ctx->redraw = true;
+					break;
+				case 4:
+					// QOL
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_MELEE_QOL);
 					ctx->redraw = true;
 					break;
 				default:
@@ -1512,10 +1516,16 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Slippi on Port A", (ncfg->Config & (NIN_CFG_SLIPPI_PORT_A)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
-		// UCF Toggle
+		// PAL Toggle
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-				"%-18s:%-4s", "UCF", (ncfg->Config & (NIN_CFG_UCF)) ? "On" : "Off");
+				"%-18s:%-4s", "Melee PAL codes", (ncfg->Config & (NIN_CFG_MELEE_PAL)) ? "On" : "Off");
 		ListLoopIndex++;
+
+		// QOL Toggle
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+				"%-18s:%-4s", "Melee QOL codes", (ncfg->Config & (NIN_CFG_MELEE_QOL)) ? "On" : "Off");
+		ListLoopIndex++;
+
 
 		// Draw the cursor.
 		if (ctx->settings.settingPart == 0) {

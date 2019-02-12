@@ -23,7 +23,16 @@ typedef struct NIN_CFG
 	signed char		VideoOffset;
 	unsigned char		Unused;
 	unsigned int		UseUSB;			// 0 for SD, 1 for USB
+	unsigned int		MeleeControllerFix;
 } NIN_CFG;
+
+// Possible values for Melee-specific "controller fix" patches
+enum ninmeleecontrollerfix
+{
+	NIN_CFG_MELEE_NOFIX,	// Nothing
+	NIN_CFG_MELEE_UCF,	// UCF, always on
+	NIN_CFG_MELEE_IGTOGGLE, // In-game toggle between UCF/Dween/etc.
+};
 
 enum ninconfigbitpos
 {
@@ -43,7 +52,11 @@ enum ninconfigbitpos
 	NIN_CFG_BIT_NETWORK	= (11),
 	NIN_CFG_BIT_SLIPPI_FILE_WRITE	= (12),
 	NIN_CFG_BIT_SLIPPI_PORT_A = (13),
-	NIN_CFG_BIT_UCF		= (14),
+
+	// "On" or "Off" Melee patches
+        NIN_CFG_BIT_MELEE_PAL	= (14),
+        NIN_CFG_BIT_MELEE_QOL	= (15),
+        NIN_CFG_BIT_MELEE_SPAWN	= (16),
 
 	// Internal kernel settings.
 	NIN_CFG_BIT_MC_SLOTB	= (31),	// Slot B image is loaded
@@ -66,7 +79,10 @@ enum ninconfig
 	NIN_CFG_NETWORK 	= (1<<NIN_CFG_BIT_NETWORK),
 	NIN_CFG_SLIPPI_FILE_WRITE 	= (1<<NIN_CFG_BIT_SLIPPI_FILE_WRITE),
 	NIN_CFG_SLIPPI_PORT_A 	= (1<<NIN_CFG_BIT_SLIPPI_PORT_A),
-	NIN_CFG_UCF		= (1<<NIN_CFG_BIT_UCF),
+
+	NIN_CFG_MELEE_PAL	= (1<<NIN_CFG_BIT_MELEE_PAL),
+	NIN_CFG_MELEE_QOL	= (1<<NIN_CFG_BIT_MELEE_QOL),
+	NIN_CFG_MELEE_SPAWN	= (1<<NIN_CFG_BIT_MELEE_SPAWN),
 
 	NIN_CFG_MC_SLOTB	= (1<<NIN_CFG_BIT_MC_SLOTB),
 };

@@ -44,13 +44,31 @@ ZIPFILE	:= ../loader/data/kernel.zip
 # Bluetooth stack
 OBJECTS	+= lwbt/bte.o lwbt/btmemb.o lwbt/btmemr.o lwbt/btpbuf.o lwbt/hci.o lwbt/l2cap.o lwbt/physbusif.o BT.o
 
-.PHONY: FORCE
+#---------------------------------------------------------------------------------
+# For pulling in built-in Gecko codes
+ifeq ($(OS),Windows_NT)
+	BIN2H 	= ./bin2h/bin2h.exe
+else
+	BIN2H 	= ./bin2h/bin2h
+endif
 
+GECKO_DIR 	:= gecko
+GECKO		:= $(wildcard gecko/*.bin)
+GECKO_H		:= $(GECKO:%.bin=%.h)
+
+$(GECKO_DIR)/%.h: $(GECKO_DIR)/%.bin
+	@echo "BIN2H    $<"
+	@$(BIN2H) $<
+
+
+#---------------------------------------------------------------------------------
+.PHONY: FORCE
 all: $(TARGET)
 
 -include $(OBJECTS:.o=.d)
 
-$(TARGET): kernel.ld $(OBJECTS)
+
+$(TARGET): $(GECKO_H) kernel.ld $(OBJECTS)
 	@echo  "LD	$@"
 	@$(LD) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $@
 	@$(OBJCOPY) -S -O binary kernel.elf kernel.bin
@@ -70,4 +88,4 @@ $(TARGET): kernel.ld $(OBJECTS)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) -c -MMD -MP -MF $(@:.o=.d) -o $@ $<
 
 clean:
-	-$(RM) -f $(ZIPFILE) *.elf *.o *.bin *.d *.map lwbt/*.d lwbt/*.o option/*.d option/*.o
+	-$(RM) -f $(ZIPFILE) *.elf *.o *.bin *.d *.map lwbt/*.d lwbt/*.o option/*.d option/*.o gecko/*.h
