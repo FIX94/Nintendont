@@ -784,11 +784,11 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 					MENU_POS_X+340+(13*10), gamelist_y, "%-3s", (ncfg->Config & (NIN_CFG_NETWORK)) ? "ON" : "OFF");
 
 				PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+340+(17*10), gamelist_y, "USB ");
-				PrintFormat(DEFAULT_SIZE, (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? GREEN : RED, MENU_POS_X+340+(21*10),
-						gamelist_y, "%-3s", (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? "ON" : "OFF");
+				PrintFormat(DEFAULT_SIZE, (ncfg->Config & (NIN_CFG_SLIPPI_FILE_WRITE)) ? GREEN : RED, MENU_POS_X+340+(21*10),
+						gamelist_y, "%-3s", (ncfg->Config & (NIN_CFG_SLIPPI_FILE_WRITE)) ? "ON" : "OFF");
 
 				// Warn the user if they're running low on USB disk space
-				if ((usb_attached == 1) && (ncfg->Config & (NIN_CFG_SLIPPI_USB)))
+				if ((usb_attached == 1) && (ncfg->Config & (NIN_CFG_SLIPPI_FILE_WRITE)))
 				{
 					int lowUsbWarnThreshold = 500;
 					int lowUsbErrorThreshold = 50;
@@ -994,17 +994,17 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 		switch (ctx->settings.posX)
 		{
 
-			case 3: {
-				// Skip IPL
-				static const char *desc_skip_ipl[] = {
-					"Skip loading the GameCube",
-					"IPL, even if it's present",
-					"on the storage device.",
-					NULL
-				};
-				return desc_skip_ipl;
-			}
-			case 4: {
+			// case 3: {
+			// 	// Skip IPL
+			// 	static const char *desc_skip_ipl[] = {
+			// 		"Skip loading the GameCube",
+			// 		"IPL, even if it's present",
+			// 		"on the storage device.",
+			// 		NULL
+			// 	};
+			// 	return desc_skip_ipl;
+			// }
+			case 0: {
 				// Networking
 				static const char *desc_networking[] = {
 					"Enable Slippi networking.",
@@ -1015,19 +1015,18 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_networking;
 			}
-			case 5: {
-				// Slippi USB
-				static const char *desc_slippi_usb[] = {
-					"Write Slippi replays to a",
-					"USB storage device. You",
-					"Must have a folder named",
-					"'Slippi/' in the root of",
-					"your USB drive.",
+			case 1: {
+				// Slippi File Write
+				static const char *desc_slippi_file_write[] = {
+					"Write Slippi replays to",
+					"secondary storage device.",
+					"Requires both a USB and",
+					"SD device plugged in.",
 					NULL
 				};
-				return desc_slippi_usb;
+				return desc_slippi_file_write;
 			}
-			case 6: {
+			case 2: {
 				// Slippi on Port A
 				static const char *desc_slippi_port_a[] = {
 					"When enabled, emulate Slippi",
@@ -1037,7 +1036,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_slippi_port_a;
 			}
-			case 7: {
+			case 3: {
 				// UCF
 				static const char *desc_ucf[] = {
 					"Universal Controller Fix:",
@@ -1347,7 +1346,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				case 1:
 					// Slippi USB
 					ctx->saveSettings = true;
-					ncfg->Config ^= (NIN_CFG_SLIPPI_USB);
+					ncfg->Config ^= (NIN_CFG_SLIPPI_FILE_WRITE);
 					ctx->redraw = true;
 					break;
 				case 2:
@@ -1505,7 +1504,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Slippi USB
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-			    "%-18s:%-4s", "Slippi USB", (ncfg->Config & (NIN_CFG_SLIPPI_USB)) ? "Yes" : "No ");
+			    "%-18s:%-4s", "Slippi File Write", (ncfg->Config & (NIN_CFG_SLIPPI_FILE_WRITE)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
 		// Slippi Port A

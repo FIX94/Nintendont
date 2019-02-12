@@ -902,7 +902,7 @@ int main(int argc, char **argv)
 		}
 
 		// Write config to the game device, used by the Nintendont kernel.
-		char ConfigPath[20];
+		char ConfigPath[35];
 		snprintf(ConfigPath, sizeof(ConfigPath), "%s:/slippi_nincfg.bin", GetRootDevice());
 		if (f_open_char(&cfg, ConfigPath, FA_WRITE|FA_OPEN_ALWAYS) == FR_OK)
 		{

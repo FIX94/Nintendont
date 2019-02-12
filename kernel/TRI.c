@@ -112,7 +112,7 @@ void TRIBackupSettings()
 		dbgprintf("TRI:Writing Settings\r\n");
 		memcpy(OUR_SETTINGS_LOC, GameSettingsLoc, TRISettingsSize);
 		FIL backup;
-		if(f_open_char(&backup, TRISettingsName, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
+		if(f_open_main_drive(&backup, TRISettingsName, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
 		{
 			u32 wrote;
 			f_write(&backup, OUR_SETTINGS_LOC, TRISettingsSize, &wrote);
@@ -128,7 +128,7 @@ void TRIReadSettings()
 	if(TRISettingsName == (char*)0 || TRISettingsSize == 0)
 		return;
 	FIL backup;
-	if (f_open_char(&backup, TRISettingsName, FA_OPEN_EXISTING | FA_READ) == FR_OK)
+	if (f_open_main_drive(&backup, TRISettingsName, FA_OPEN_EXISTING | FA_READ) == FR_OK)
 	{
 		if(backup.obj.objsize == TRISettingsSize)
 		{

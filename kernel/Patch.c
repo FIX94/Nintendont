@@ -1201,7 +1201,7 @@ static int GotoFuncEnd(int i, u32 Buffer)
 static bool fileExist(const char *path)
 {
 	FIL fd;
-	if (f_open_char(&fd, path, FA_READ|FA_OPEN_EXISTING) == FR_OK)
+	if (f_open_main_drive(&fd, path, FA_READ|FA_OPEN_EXISTING) == FR_OK)
 	{
 		f_close(&fd);
 		return true;
@@ -3361,7 +3361,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if( cheatsWanted && TRIGame != TRI_SB && useipl == 0 )
 		{
 			FIL CodeFD;
-			if( Check_Cheats() == 0 && f_open_char( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
+			if( Check_Cheats() == 0 && f_open_main_drive( &CodeFD, cheatPath, FA_OPEN_EXISTING|FA_READ ) == FR_OK )
 			{
 				if( CodeFD.obj.objsize > cheats_area )
 				{

@@ -355,7 +355,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 							{
 								DIFinishAsync(); //DONT ever try todo file i/o async
 								FIL fi;
-								if( f_open_char( &fi, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
+								if( f_open_main_drive( &fi, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 								{
 									if( fi.obj.objsize > 0 && fi.obj.objsize <= 0xD0 )
 									{
@@ -420,7 +420,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 
 							DIFinishAsync(); //DONT ever try todo file i/o async
 							FIL cf;
-							if( f_open_char( &cf, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
+							if( f_open_main_drive( &cf, GCAMGetCARDName(), FA_READ|FA_OPEN_EXISTING ) == FR_OK )
 							{
 								if( cf.obj.objsize > 0 && cf.obj.objsize <= 0xD0 )
 								{
@@ -489,7 +489,7 @@ void GCAMCARDCommand( char *DataIn, char *DataOut )
 							{
 								DIFinishAsync(); //DONT ever try todo file i/o async
 								FIL cf;
-								if( f_open_char( &cf, GCAMGetCARDName(), FA_WRITE|FA_CREATE_ALWAYS ) == FR_OK )
+								if( f_open_main_drive( &cf, GCAMGetCARDName(), FA_WRITE|FA_CREATE_ALWAYS ) == FR_OK )
 								{
 									u32 wrote;
 									f_write( &cf, CARDMemory, CARDMemorySize, &wrote );

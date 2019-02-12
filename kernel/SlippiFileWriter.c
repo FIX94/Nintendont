@@ -71,7 +71,7 @@ char *generateFileName(bool isNewFile)
 	struct tm *tmp = gmtime(&gameStartTime);
 
 	_sprintf(
-		&pathStr[0], "usb:/Slippi/Game_%04d%02d%02dT%02d%02d%02d.slp", tmp->tm_year + 1900,
+		&pathStr[0], "/Slippi/Game_%04d%02d%02dT%02d%02d%02d.slp", tmp->tm_year + 1900,
 		tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 
 	if (isNewFile)
@@ -176,14 +176,14 @@ static u32 SlippiHandlerThread(void *arg)
 		if (reader.lastReadResult.isNewGame)
 		{
 			// Create folder if it doesn't exist yet
-			f_mkdir_char("usb:/Slippi");
+			f_mkdir_secondary_drive("/Slippi");
 
 			gameStartTime = GetCurrentTime();
 
 			dbgprintf("Creating File...\r\n");
 			char *fileName = generateFileName(true);
 			// Need to open with FA_READ if network thread is going to share &currentFile
-			FRESULT fileOpenResult = f_open_char(&currentFile, fileName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+			FRESULT fileOpenResult = f_open_secondary_drive(&currentFile, fileName, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
 			if (fileOpenResult != FR_OK)
 			{
 				dbgprintf("Slippi: failed to open file: %s, errno: %d\r\n", fileName, fileOpenResult);

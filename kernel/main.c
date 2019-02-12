@@ -157,14 +157,14 @@ int _main( int argc, char *argv[] )
 	//get config from loader
 	ConfigSyncBeforeRead();
 
-	u32 SlippiUsb = ConfigGetConfig(NIN_CFG_SLIPPI_USB);
+	u32 SlippiFileWrite = ConfigGetConfig(NIN_CFG_SLIPPI_FILE_WRITE);
 	u32 UseUSB = ConfigGetUseUSB(); // Returns 0 for SD, 1 for USB
 	SetDiskFunctions(UseUSB);
 
 	BootStatus(2, 0, 0);
 
-	bool shouldBootUsb = SlippiUsb || UseUSB;
-	bool shouldBootSd = !UseUSB;
+	bool shouldBootUsb = UseUSB || SlippiFileWrite;
+	bool shouldBootSd = !UseUSB || SlippiFileWrite;
 
 	// Boot up USB if it is being used for writing slp files OR booting a game
 	if (shouldBootUsb)
@@ -237,8 +237,13 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(5, 0, 0);
 
+	dbgprintf("About to load bladie\r\n");
+
 	FIL fp;
-	s32 fres = f_open_char(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
+	s32 fres = f_open_main_drive(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
+
+	dbgprintf("Loaded bladie: %d\r\n", fres);
+
 	switch (fres)
 	{
 		case FR_OK:
@@ -312,7 +317,7 @@ int _main( int argc, char *argv[] )
 
 	// If we are using USB for writting slp files and USB is not the
 	// primary device, initialize the file writer
-	if (SlippiUsb == 1 && !UseUSB)
+	if (SlippiFileWrite == 1)
 		SlippiFileWriterInit();
 
 //Tell PPC side we are ready!

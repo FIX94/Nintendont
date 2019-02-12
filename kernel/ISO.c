@@ -272,7 +272,7 @@ bool ISOInit()
 	}
 	else
 	{
-		s32 ret = f_open_char( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
+		s32 ret = f_open_main_drive( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
 		if( ret != FR_OK )
 			return false;
 

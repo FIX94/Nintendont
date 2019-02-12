@@ -231,3 +231,55 @@ u32 GetCurrentTime()
 	timeStarlet = curtime;
 	return timeBase + TicksToSecs(timeStarlet);
 }
+
+char* getMainDrivePath(const char* path)
+{
+	// Hope there's no paths longer than this. Also hope this doesn't have any issues with
+	// regards to multi-threading
+	static char pathWithPrefix[100];
+
+	u32 isUsbPrimary = ConfigGetUseUSB(); // Returns 0 for SD, 1 for USB
+
+	if (isUsbPrimary) _sprintf(&pathWithPrefix[0], "usb:%s", path);
+	else _sprintf(&pathWithPrefix[0], "sd:%s", path);
+
+	return pathWithPrefix;
+}
+
+char* getSecondaryDrivePath(const char* path)
+{
+	// Hope there's no paths longer than this. Also hope this doesn't have any issues with
+	// regards to multi-threading. I kept these functions separate to avoid this
+	static char pathWithPrefix[100];
+
+	u32 isUsbPrimary = ConfigGetUseUSB(); // Returns 0 for SD, 1 for USB
+	
+	if (isUsbPrimary) _sprintf(&pathWithPrefix[0], "sd:%s", path);
+	else _sprintf(&pathWithPrefix[0], "usb:%s", path);
+
+	return pathWithPrefix;
+}
+
+FRESULT f_open_main_drive(FIL* fp, const char* path, BYTE mode)
+{
+	const char* pathWithPrefix = getMainDrivePath(path);
+	return f_open_char(fp, pathWithPrefix, mode);
+}
+
+FRESULT f_open_secondary_drive(FIL* fp, const char* path, BYTE mode)
+{
+	const char* pathWithPrefix = getSecondaryDrivePath(path);
+	return f_open_char(fp, pathWithPrefix, mode);
+}
+
+FRESULT f_mkdir_main_drive(const char* path)
+{
+	const char* pathWithPrefix = getMainDrivePath(path);
+	return f_mkdir_char(pathWithPrefix);
+}
+
+FRESULT f_mkdir_secondary_drive(const char* path)
+{
+	const char* pathWithPrefix = getSecondaryDrivePath(path);
+	return f_mkdir_char(pathWithPrefix);
+}
