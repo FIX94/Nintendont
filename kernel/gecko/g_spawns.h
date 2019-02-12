@@ -1,6 +1,6 @@
 /*
 	Filename    : g_spawns.bin
-	Date created: Tue Feb 12 01:36:59 2019
+	Date created: Tue Feb 12 09:41:24 2019
 */
 
 #define g_spawns_size 0x260

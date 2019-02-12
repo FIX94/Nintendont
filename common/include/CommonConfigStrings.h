@@ -5,7 +5,7 @@
 //Strings must match order in CommonConfig.h
 const char* OptionStrings[] =
 {
-	"Cheats",
+	"Custom Cheats",
 	"Debugger",
 	"Debugger Wait",
 	"Memcard Emulation",

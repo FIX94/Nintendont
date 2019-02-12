@@ -1863,10 +1863,10 @@ void PrintInfo(void)
 	const char *consoleType = (isWiiVC ? (IsWiiUFastCPU() ? "WiiVC 5x CPU" : "Wii VC") : (IsWiiUFastCPU() ? "WiiU 5x CPU" : (IsWiiU() ? "Wii U" : "Wii")));
 #ifdef NIN_SPECIAL_VERSION
 	// "Special" version with customizations. (Not mainline!)
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Project Slippi Nintendont v%u.%u" NIN_SPECIAL_VERSION " (%s)",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont" NIN_SPECIAL_VERSION " v%u.%u (%s)",
 		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #else
-	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Project Slippi Nintendont v%u.%u (%s)",
+	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont v%u.%u (%s)",
 		    NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #endif
 	PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*1, "Built   : " __DATE__ " " __TIME__);

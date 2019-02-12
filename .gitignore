@@ -12,3 +12,4 @@ fatfs/*.a
 codehandler/*.h
 .vscode/*
 .idea/*
+!kernel/gecko/*.bin
