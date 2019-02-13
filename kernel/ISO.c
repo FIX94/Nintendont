@@ -56,6 +56,7 @@ static FIL GameFile;
 static u64 LastOffset64 = ~0ULL;
 bool Datel = false;
 
+// Used by kernel/Patch.c
 char GAME_TITLENAME[0x100];
 
 // CISO: On-disc structure.
@@ -271,7 +272,7 @@ bool ISOInit()
 	}
 	else
 	{
-		s32 ret = f_open_char( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
+		s32 ret = f_open_main_drive( &GameFile, ConfigGetGamePath(), FA_READ|FA_OPEN_EXISTING );
 		if( ret != FR_OK )
 			return false;
 
@@ -353,7 +354,7 @@ bool ISOInit()
 	ISOReadDirect(isoTmpBuf, sizeof(BI2region), 0x458 + ISOShift64);
 	memcpy(&BI2region, isoTmpBuf, sizeof(BI2region));
 
-	// Save ISO game string (we can distinguish between ISOs if necessary)
+	// Save ISO game string; we use this to distinguish Melee images from 20XX images
 	ISOReadDirect(&GAME_TITLENAME, 0x100, 0x20 + ISOShift64);
 
 	/* Reset Cache */

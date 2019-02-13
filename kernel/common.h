@@ -1,7 +1,7 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#include "ff.h"
+#include "ff_utf8.h"
 
 #define SEEK_CUR    1
 #define SEEK_END    2
@@ -57,5 +57,10 @@ static inline void W16(u32 Address, u16 Data)
 void wait_for_ppc(u8 multi);
 void InitCurrentTime();
 u32 GetCurrentTime();
+
+FRESULT f_open_main_drive(FIL* fp, const char* path, BYTE mode);
+FRESULT f_open_secondary_drive(FIL* fp, const char* path, BYTE mode);
+FRESULT f_mkdir_main_drive(const char* path);
+FRESULT f_mkdir_secondary_drive(const char* path);
 
 #endif

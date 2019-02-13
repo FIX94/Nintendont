@@ -88,7 +88,7 @@ u32 FSTInit( const char *GamePath )
 	FSTable = NULL;
 	
 	_sprintf( Path, "%ssys/boot.bin", GamePath );
-	if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+	if( f_open_main_drive( &fd, Path, FA_READ ) != FR_OK )
 	{
 		dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
 		return 0;
@@ -136,7 +136,7 @@ u32 FSTInit( const char *GamePath )
 
 	// Load the BI2 region code.
 	_sprintf( Path, "%ssys/bi2.bin", GamePath );
-	if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+	if( f_open_main_drive( &fd, Path, FA_READ ) != FR_OK )
 	{
 		dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
 		return 0;
@@ -272,7 +272,7 @@ const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 
 						//dbgprintf("DIP:[%s]\r\n", Path+strlen(GamePath)+5 );
 
-						f_open_char( &(FC[FCEntry].File), Path, FA_READ );
+						f_open_main_drive( &(FC[FCEntry].File), Path, FA_READ );
 
 						FC[FCEntry].Size	= fe[i].FileLength;
 						FC[FCEntry].Offset	= fe[i].FileOffset;
@@ -292,7 +292,7 @@ const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 		Offset -= FSTableOffset;
 		
 		_sprintf( Path, "%ssys/fst.bin", GamePath );
-		if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+		if( f_open_main_drive( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
 			return DI_READ_BUFFER;
@@ -311,7 +311,7 @@ const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 		Offset -= dolOffset;
 		
 		_sprintf( Path, "%ssys/main.dol", GamePath );
-		if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+		if( f_open_main_drive( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
 			return DI_READ_BUFFER;
@@ -330,7 +330,7 @@ const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 		Offset -= 0x2440;
 		
 		_sprintf( Path, "%ssys/apploader.img", GamePath );
-		if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+		if( f_open_main_drive( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
 			return DI_READ_BUFFER;
@@ -349,7 +349,7 @@ const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 		Offset -= 0x440;
 		
 		_sprintf( Path, "%ssys/bi2.bin", GamePath );
-		if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+		if( f_open_main_drive( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
 			return DI_READ_BUFFER;
@@ -365,7 +365,7 @@ const u8* FSTRead(const char *GamePath, u32* Length, u32 Offset)
 
 	} else {
 		_sprintf( Path, "%ssys/boot.bin", GamePath );
-		if( f_open_char( &fd, Path, FA_READ ) != FR_OK )
+		if( f_open_main_drive( &fd, Path, FA_READ ) != FR_OK )
 		{
 			dbgprintf( "DIP:[%s] Failed to open!\r\n", Path );
 			return DI_READ_BUFFER;

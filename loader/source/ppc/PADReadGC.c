@@ -104,11 +104,7 @@ u32 _start(u32 calledByGame)
 	PADStatus *Pad = (PADStatus*)(0x93003100); //PadBuff
 	u32 MaxPads;
 	if(calledByGame)
-	{
-		MaxPads = ((NIN_CFG*)0x93004000)->MaxPads;
-		if (MaxPads > NIN_CFG_MAXPAD)
-			MaxPads = NIN_CFG_MAXPAD;
-	}
+		MaxPads = NIN_CFG_MAXPAD;
 	else //this file is only used for hid in the loader
 		MaxPads = 0;
 

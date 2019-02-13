@@ -224,7 +224,7 @@ void DIinit( bool FirstTime )
 				{
 					strcpy(TempDiscName+slash_pos, disc_filenames[i]);
 					FIL ExistsFile;
-					s32 ret = f_open_char(&ExistsFile, TempDiscName, FA_READ);
+					s32 ret = f_open_main_drive(&ExistsFile, TempDiscName, FA_READ);
 					if (ret == FR_OK)
 					{
 						// Found the other disc image.

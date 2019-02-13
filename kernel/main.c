@@ -52,7 +52,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //#define USE_OSREPORTDM 1
 
 //#undef DEBUG
-bool access_led = false;
 u32 USBReadTimer = 0;
 extern u32 s_size;
 extern u32 s_cnt;
@@ -158,30 +157,42 @@ int _main( int argc, char *argv[] )
 	//get config from loader
 	ConfigSyncBeforeRead();
 
-	u32 UseUSB = ConfigGetConfig(NIN_CFG_USB);
+	u32 SlippiFileWrite = ConfigGetConfig(NIN_CFG_SLIPPI_FILE_WRITE);
+	u32 UseUSB = ConfigGetUseUSB(); // Returns 0 for SD, 1 for USB
 	SetDiskFunctions(UseUSB);
 
 	BootStatus(2, 0, 0);
-	ret = USBStorage_Startup();
-	dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
-	if(ret != 1)
-	{
-		dbgprintf("USB Device Init failed:%d\r\n", ret );
-		BootStatusError(-2, ret);
-		mdelay(4000);
-		Shutdown();
-	}
 
-	s_size = PAGE_SIZE512; //manually set s_size
-	ret = SDHCInit();
-	if(ret != 1)
+	bool shouldBootUsb = UseUSB || SlippiFileWrite;
+	bool shouldBootSd = !UseUSB || SlippiFileWrite;
+
+	// Boot up USB if it is being used for writing slp files OR booting a game
+	if (shouldBootUsb)
 	{
-		dbgprintf("SD Device Init failed:%d\r\n", ret );
-		BootStatusError(-2, ret);
-		mdelay(4000);
-		Shutdown();
+		ret = USBStorage_Startup();
+		dbgprintf("USB:Drive size: %dMB SectorSize:%d\r\n", s_cnt / 1024 * s_size / 1024, s_size);
+		if(ret != 1)
+		{
+			dbgprintf("USB Device Init failed:%d\r\n", ret );
+			BootStatusError(-2, ret);
+			mdelay(4000);
+			Shutdown();
+		}
 	}
 	
+	// Boot up SD if it is being used to boot a game
+	if (shouldBootSd)
+	{
+		s_size = PAGE_SIZE512; //manually set s_size
+		ret = SDHCInit();
+		if(ret != 1)
+		{
+			dbgprintf("SD Device Init failed:%d\r\n", ret );
+			BootStatusError(-2, ret);
+			mdelay(4000);
+			Shutdown();
+		}
+	}
 
 	//Verification if we can read from disc
 	if(memcmp(ConfigGetGamePath(), "di", 3) == 0)
@@ -192,34 +203,47 @@ int _main( int argc, char *argv[] )
 			RealDI_Init();
 	}
 	BootStatus(3, 0, 0);
-	devices[0] = (FATFS*)malloca( sizeof(FATFS), 32 );
 
-	s32 res = f_mount( devices[0], fatSdName, 1 );
-	if( res != FR_OK )
+	s32 res;
+	// Mount SD card
+	if (shouldBootSd)
 	{
-		dbgprintf("ES:f_mount() failed:%d\r\n", res );
-		BootStatusError(-3, res);
-		mdelay(4000);
-		Shutdown();
+		devices[0] = (FATFS*)malloca( sizeof(FATFS), 32 );
+		res = f_mount( devices[0], fatSdName, 1 );
+		if( res != FR_OK )
+		{
+			dbgprintf("ES:f_mount() failed:%d\r\n", res );
+			BootStatusError(-3, res);
+			mdelay(4000);
+			Shutdown();
+		}
 	}
 
-	devices[1] = (FATFS*)malloca( sizeof(FATFS), 32 );
-
-	res = f_mount( devices[1], fatUsbName, 1 );
-	if( res != FR_OK )
+	// Mount USB drive
+	if (shouldBootUsb)
 	{
-		dbgprintf("ES:f_mount() failed:%d\r\n", res );
-		BootStatusError(-3, res);
-		mdelay(4000);
-		Shutdown();
+		devices[1] = (FATFS*)malloca( sizeof(FATFS), 32 );
+		res = f_mount( devices[1], fatUsbName, 1 );
+		if( res != FR_OK )
+		{
+			dbgprintf("ES:f_mount() failed:%d\r\n", res );
+			BootStatusError(-3, res);
+			mdelay(4000);
+			Shutdown();
+		}
 	}
 	
 	BootStatus(4, 0, 0);
 
 	BootStatus(5, 0, 0);
 
+	dbgprintf("About to load bladie\r\n");
+
 	FIL fp;
-	s32 fres = f_open_char(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
+	s32 fres = f_open_main_drive(&fp, "/bladie", FA_READ|FA_OPEN_EXISTING);
+
+	dbgprintf("Loaded bladie: %d\r\n", fres);
+
 	switch (fres)
 	{
 		case FR_OK:
@@ -252,7 +276,6 @@ int _main( int argc, char *argv[] )
 	dbgprintf("Game path: %s\r\n", ConfigGetGamePath());
 
 	u32 UseNetwork = ConfigGetConfig(NIN_CFG_NETWORK);
-	u32 SlippiUsb = ConfigGetConfig(NIN_CFG_SLIPPI_USB);
 
 	BootStatus(8, s_size, s_cnt);
 
@@ -292,7 +315,9 @@ int _main( int argc, char *argv[] )
 
 	SlippiMemoryInit();
 
-	if (SlippiUsb == 1)
+	// If we are using USB for writting slp files and USB is not the
+	// primary device, initialize the file writer
+	if (SlippiFileWrite == 1)
 		SlippiFileWriterInit();
 
 //Tell PPC side we are ready!
@@ -318,15 +343,6 @@ int _main( int argc, char *argv[] )
 	USBReadTimer = Now;
 	u32 Reset = 0;
 	bool SaveCard = false;
-
-	//enable ios led use
-	access_led = ConfigGetConfig(NIN_CFG_LED);
-	if(access_led)
-	{
-		set32(HW_GPIO_ENABLE, GPIO_SLOT_LED);
-		clear32(HW_GPIO_DIR, GPIO_SLOT_LED);
-		clear32(HW_GPIO_OWNER, GPIO_SLOT_LED);
-	}
 
 	set32(HW_GPIO_ENABLE, GPIO_SENSOR_BAR);
 	clear32(HW_GPIO_DIR, GPIO_SENSOR_BAR);
@@ -361,9 +377,9 @@ int _main( int argc, char *argv[] )
 	if (IsWiiU())
 	{
 		ori_widesetting = read32(0xd8006a0);
-		if( ConfigGetConfig(NIN_CFG_WIIU_WIDE) )
-			write32(0xd8006a0, 0x30000004);
-		else
+		//if( ConfigGetConfig(NIN_CFG_WIIU_WIDE) )
+		//	write32(0xd8006a0, 0x30000004);
+		//else
 			write32(0xd8006a0, 0x30000002);
 		mask32(0xd8006a8, 0, 2);
 	}
@@ -635,20 +651,23 @@ int _main( int argc, char *argv[] )
 	BTE_Shutdown();
 #endif
 
-	//unmount FAT device
-	f_mount(NULL, fatSdName, 1);
-	free(devices[0]);
-	devices[0] = NULL;
-
-	f_mount(NULL, fatUsbName, 1);
-	free(devices[1]);
-	devices[1] = NULL;
-
-	USBStorage_Shutdown();
-	SDHCShutdown();
-
-//make sure drive led is off before quitting
-	if( access_led ) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);
+	// unmount SD card
+	if (shouldBootSd)
+	{
+		f_mount(NULL, fatSdName, 1);
+		free(devices[0]);
+		devices[0] = NULL;
+		SDHCShutdown();
+	}
+	
+	// unmount USB drive
+	if (shouldBootUsb)
+	{
+		f_mount(NULL, fatUsbName, 1);
+		free(devices[1]);
+		devices[1] = NULL;
+		USBStorage_Shutdown();
+	}
 
 //make sure we set that back to the original
 	write32(HW_PPCSPEED, ori_ppcspeed);

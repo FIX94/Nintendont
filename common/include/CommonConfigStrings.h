@@ -5,27 +5,21 @@
 //Strings must match order in CommonConfig.h
 const char* OptionStrings[] =
 {
-	"Cheats",
+	"Custom Cheats",
 	"Debugger",
 	"Debugger Wait",
 	"Memcard Emulation",
-	"Cheat Path",
 	"Force Widescreen",
 	"Force Progressive",
-	"Auto Boot",
 	"Unlock Read Speed",
 	"OSReport",
-	"WiiU Widescreen", //Replaces USB
-	"Drive Access LED",
 	"Log",
 	
-	"MaxPads",
 	"Language",
 	"Video",
 	"Videomode",
 	"Memcard Blocks",
 	"Memcard Multi",
-	"Native Control",
 };
 
 const char* LanguageStrings[] =
@@ -55,6 +49,14 @@ const char* VideoModeStrings[] =
 	"PAL60",
 	"NTSC",
 	"MPAL",
+};
+
+// This should match `enum ninmeleecontrollerfix` in `CommonConfig.h`
+const char *MeleeControllerFixStrings[] =
+{
+	"None",
+	"UCF",
+	"Toggle",
 };
 
 #endif

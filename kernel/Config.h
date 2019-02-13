@@ -55,11 +55,6 @@ static inline char *ConfigGetGamePath(void)
 	return ncfg->GamePath;
 }
 
-static inline const char *ConfigGetCheatPath(void)
-{
-	return ncfg->CheatPath;
-}
-
 static inline bool ConfigGetConfig(u32 Config)
 {
 	return !!(ncfg->Config&Config);
@@ -73,11 +68,6 @@ static inline u32 ConfigGetVideoMode(void)
 static inline u32 ConfigGetLanguage(void)
 {
 	return ncfg->Language;
-}
-
-static inline u32 ConfigGetMaxPads(void)
-{
-	return ncfg->MaxPads;
 }
 
 static inline u32 ConfigGetGameID(void)
@@ -109,6 +99,16 @@ static inline void ConfigSetMemcardBlocks(u32 MemCardBlocks)
 {
 	ncfg->MemCardBlocks = MemCardBlocks;
 	sync_after_write(&(ncfg->MemCardBlocks), sizeof(ncfg->MemCardBlocks));
+}
+
+static inline u32 ConfigGetUseUSB(void)
+{
+	return ncfg->UseUSB;
+}
+
+static inline u32 ConfigGetMeleeControllerFix(void)
+{
+	return ncfg->MeleeControllerFix;
 }
 
 #endif
