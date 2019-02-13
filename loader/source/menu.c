@@ -1026,20 +1026,50 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_slippi_port_a;
 			}
-			case 3: {
-				// Melee PAL
+			case 5: {
+				// Controller Fix
 				static const char *desc_melee_pal[] = {
-					"Melee PAL Toggle:",
-					"This is a description.",
+					"Controller fix options. UCF",
+					"option will turn on UCF for all",
+					"players. In-Game Toggle will",
+					"allow players to select None,",
+					"UCF, or Dween on CSS",
 					NULL
 				};
 				return desc_melee_pal;
 			}
-			case 4: {
-				// Melee QOL
+			case 6: {
+				// PAL
 				static const char *desc_melee_qol[] = {
-					"Melee QOL Toggle:",
-					"This is also a description.",
+					"Includes all character balances",
+					"Samus Cannot Bomb Jump Out of",
+					"Zair, Remove Extender, DK Keeps", 
+					"Charge When Hit During Up B,", 
+					"Detection Bubbles Do Not Skip",
+					"Hurtbox Collision Check, Freeze",
+					"Glitch Fix, PAL Stock Icons and",
+					"PAL CSS Indicator",
+					NULL
+				};
+				return desc_melee_qol;
+			}
+			case 7: {
+				// Neutral Spawns
+				static const char *desc_melee_pal[] = {
+					"Turning this on will force",
+					"players to spawn in neutral",
+					"locations",
+					NULL
+				};
+				return desc_melee_pal;
+			}
+			case 8: {
+				// Quality of Life
+				static const char *desc_melee_qol[] = {
+					"Quality of life changes.",
+					"• Salty Runback (Hold A+B)",
+					"• Skip Results Screen",
+					"• KO Star indicates winner",
 					NULL
 				};
 				return desc_melee_qol;
@@ -1072,7 +1102,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 	// Number of entries in the right settings column. Remember to change this
 	// when adding any toggleable settings to the right-hand part of the menu.
-	int col2Length = 5;
+	int col2Length = 9;
 
 	if (FPAD_Down_Repeat(ctx))
 	{
@@ -1104,6 +1134,17 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			}
 		}
 
+		if (ctx->settings.settingPart == 1)
+		{
+			// Handle right side special cases
+			
+			if (ctx->settings.posX == 3 || ctx->settings.posX == 4)
+			{
+				// Settings 3 and 4 are skipped
+				ctx->settings.posX = 5;
+			}
+		}
+
 		// Check for wraparound, move to opposite column
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
 		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= col2Length))
@@ -1111,6 +1152,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
 		}
+
+		
 	
 		ctx->redraw = true;
 
@@ -1146,6 +1189,17 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				ctx->settings.posX--;
 			if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
 				ctx->settings.posX--;
+		}
+
+		if (ctx->settings.settingPart == 1)
+		{
+			// Handle right side special cases
+
+			if (ctx->settings.posX == 3 || ctx->settings.posX == 4)
+			{
+				// Settings 3 and 4 are skipped
+				ctx->settings.posX = 2;
+			}
 		}
 
 		ctx->redraw = true;
@@ -1353,13 +1407,19 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ncfg->Config ^= (NIN_CFG_SLIPPI_PORT_A);
 					ctx->redraw = true;
 					break;
-				case 3:
+				case 6:
 					// PAL
 					ctx->saveSettings = true;
 					ncfg->Config ^= (NIN_CFG_MELEE_PAL);
 					ctx->redraw = true;
 					break;
-				case 4:
+				case 7:
+					// Neutral Spawns
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_BIT_MELEE_SPAWN);
+					ctx->redraw = true;
+					break;
+				case 8:
 					// QOL
 					ctx->saveSettings = true;
 					ncfg->Config ^= (NIN_CFG_MELEE_QOL);
@@ -1514,16 +1574,29 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		// Slippi Port A
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
 			    "%-18s:%-4s", "Slippi on Port A", (ncfg->Config & (NIN_CFG_SLIPPI_PORT_A)) ? "Yes" : "No ");
+		ListLoopIndex += 2;
+
+		PrintFormat(14, DARK_BLUE, MENU_POS_X + 320, SettingY(ListLoopIndex), "MELEE CODES");
+		ListLoopIndex++;
+
+		// Controller Fix Toggle
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+				"%-18s:%-4s", "Controller Fix", (ncfg->Config & (NIN_CFG_MELEE_PAL)) ? "On" : "Off");
 		ListLoopIndex++;
 
 		// PAL Toggle
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-				"%-18s:%-4s", "Melee PAL codes", (ncfg->Config & (NIN_CFG_MELEE_PAL)) ? "On" : "Off");
+				"%-18s:%-4s", "PAL", (ncfg->Config & (NIN_CFG_MELEE_PAL)) ? "On" : "Off");
+		ListLoopIndex++;
+
+		// Neutral Spawns Toggle
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+				"%-18s:%-4s", "Neutral Spawns", (ncfg->Config & (NIN_CFG_BIT_MELEE_SPAWN)) ? "On" : "Off");
 		ListLoopIndex++;
 
 		// QOL Toggle
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-				"%-18s:%-4s", "Melee QOL codes", (ncfg->Config & (NIN_CFG_MELEE_QOL)) ? "On" : "Off");
+				"%-18s:%-4s", "Quality of Life", (ncfg->Config & (NIN_CFG_MELEE_QOL)) ? "On" : "Off");
 		ListLoopIndex++;
 
 
