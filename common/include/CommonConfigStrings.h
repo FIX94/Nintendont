@@ -56,7 +56,7 @@ const char *MeleeControllerFixStrings[] =
 {
 	"None",
 	"UCF",
-	"In-Game Toggle",
+	"Toggle",
 };
 
 #endif

@@ -1408,6 +1408,15 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ncfg->Config ^= (NIN_CFG_SLIPPI_PORT_A);
 					ctx->redraw = true;
 					break;
+
+				case 5:
+					ncfg->MeleeControllerFix++;
+					if (ncfg->MeleeControllerFix > NIN_CFG_MELEE_CONTROLLER_IGTOGGLE) {
+						ncfg->MeleeControllerFix = NIN_CFG_MELEE_CONTROLLER_NOFIX;
+					}
+					ctx->redraw = true;
+					break;
+
 				case 6:
 					// PAL
 					ctx->saveSettings = true;
@@ -1417,7 +1426,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				case 7:
 					// Neutral Spawns
 					ctx->saveSettings = true;
-					ncfg->Config ^= (NIN_CFG_BIT_MELEE_SPAWN);
+					ncfg->Config ^= (NIN_CFG_MELEE_SPAWN);
 					ctx->redraw = true;
 					break;
 				case 8:
@@ -1581,8 +1590,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		ListLoopIndex++;
 
 		// Controller Fix Toggle
+		u32 ControllerPatchIdx = ncfg->MeleeControllerFix;
+		if (ControllerPatchIdx < NIN_CFG_MELEE_CONTROLLER_NOFIX || ControllerPatchIdx >= NIN_CFG_MELEE_CONTROLLER_IGTOGGLE)
+			ControllerPatchIdx = NIN_CFG_MELEE_CONTROLLER_IGTOGGLE;
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-				"%-18s:%-4s", "Controller Fix", (ncfg->Config & (NIN_CFG_MELEE_PAL)) ? "On" : "Off");
+				"%-18s:%-4s", "Controller Fix", MeleeControllerFixStrings[ControllerPatchIdx]);
 		ListLoopIndex++;
 
 		// PAL Toggle
@@ -1592,7 +1604,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Neutral Spawns Toggle
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
-				"%-18s:%-4s", "Neutral Spawns", (ncfg->Config & (NIN_CFG_BIT_MELEE_SPAWN)) ? "On" : "Off");
+				"%-18s:%-4s", "Neutral Spawns", (ncfg->Config & (NIN_CFG_MELEE_SPAWN)) ? "On" : "Off");
 		ListLoopIndex++;
 
 		// QOL Toggle

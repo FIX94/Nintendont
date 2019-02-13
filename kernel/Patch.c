@@ -3443,15 +3443,15 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		const unsigned char *controller_patch = 0;
 		switch (melee_controllerfix)
 		{
-			case NIN_CFG_MELEE_UCF:
+			case NIN_CFG_MELEE_CONTROLLER_UCF:
 				controller_patch	= g_ucf;
 				controller_patch_len	= g_ucf_size;
 				break;
-			case NIN_CFG_MELEE_IGTOGGLE:
+			case NIN_CFG_MELEE_CONTROLLER_IGTOGGLE:
 				controller_patch	= g_toggles;
 				controller_patch_len	= g_toggles_size;
 				break;
-			case NIN_CFG_MELEE_NOFIX:
+			case NIN_CFG_MELEE_CONTROLLER_NOFIX:
 			default:
 				break;
 		}

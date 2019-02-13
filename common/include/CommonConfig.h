@@ -29,9 +29,10 @@ typedef struct NIN_CFG
 // Possible values for Melee-specific "controller fix" patches
 enum ninmeleecontrollerfix
 {
-	NIN_CFG_MELEE_NOFIX,	// Nothing
-	NIN_CFG_MELEE_UCF,	// UCF, always on
-	NIN_CFG_MELEE_IGTOGGLE, // In-game toggle between UCF/Dween/etc.
+	NIN_CFG_MELEE_CONTROLLER_NOFIX		= 0,
+	NIN_CFG_MELEE_CONTROLLER_UCF		= 1,
+	NIN_CFG_MELEE_CONTROLLER_IGTOGGLE	= 2,
+	NIN_CFG_MELEE_CONTROLLER_LAST		= 2,
 };
 
 enum ninconfigbitpos
