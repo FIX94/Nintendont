@@ -1070,6 +1070,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 					"• Salty Runback (Hold A+B)",
 					"• Skip Results Screen",
 					"• KO Star indicates winner",
+					"• CSS Cursor Position fix",
 					NULL
 				};
 				return desc_melee_qol;
@@ -1137,7 +1138,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		if (ctx->settings.settingPart == 1)
 		{
 			// Handle right side special cases
-			
+
 			if (ctx->settings.posX == 3 || ctx->settings.posX == 4)
 			{
 				// Settings 3 and 4 are skipped
