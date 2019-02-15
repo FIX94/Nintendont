@@ -20,13 +20,20 @@ SUBPROJECTS := multidol kernel/asm resetstub \
 all: loader
 forced: clean all
 
+# Force MacOS/Linux users to compile their own copy of bin2h
+bin2h: bin2h
+	@echo " "
+	@echo "Building bin2h"
+	@echo " "
+	$(MAKE) -C kernel/bin2h
+
 multidol:
 	@echo " "
 	@echo "Building Multi-DOL loader"
 	@echo " "
 	$(MAKE) -C multidol
 
-kernel/asm:
+kernel/asm: bin2h
 	@echo " "
 	@echo "Building asm files"
 	@echo " "
@@ -50,13 +57,13 @@ fatfs/libfat-ppc.a:
 	@echo " "
 	$(MAKE) -C fatfs -f Makefile.ppc
 
-codehandler:
+codehandler: bin2h
 	@echo " "
 	@echo "Building Nintendont code handler"
 	@echo " "
 	$(MAKE) -C codehandler
 
-kernel: kernel/asm fatfs/libfat-arm.a codehandler
+kernel: kernel/asm fatfs/libfat-arm.a codehandler bin2h
 	@echo " "
 	@echo "Building Nintendont kernel"
 	@echo " "
