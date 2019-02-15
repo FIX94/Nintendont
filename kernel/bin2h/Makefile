@@ -28,18 +28,22 @@ ifeq ($(PLATFORM),none)
 	$(error Couldnt detect platform - failed to compile bin2h)
 endif
 
+ifeq ($(PLATFORM),windows)
+	TARGET := bin2h.exe
+endif
+
+
 # -----------------------------------------------------------------------------
 # Targets
 
 .PHONY: all clean
 all: $(TARGET)
-$(TARGET): main.c
-	ifeq ($(OS),windows)
-		@echo "Using prebuilt bin2h.exe ..."
-	else
-		@echo "Building bin2h ..."
-		gcc $< $(CFLAGS) -o $@
-	endif
+
+bin2h: main.c
+	@echo "CC      $<"
+	@gcc $< $(CFLAGS) -o $@
+bin2h.exe: 
+	@echo "Using existing bin2h.exe ..."
 clean:
 	@echo "cleaning bin2h ..."
 	@rm -f $(TARGET)
