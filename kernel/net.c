@@ -1,17 +1,7 @@
-/* Functions for network initialization and socket operations -- based on
- * FIX94's experimental bbatest branch in upstream Nintendont, and also on 
+/* kernel/net.c
+ * Functions for network initialization and socket operations -- based on
+ * FIX94's experimental bbatest branch in upstream Nintendont, and also on
  * the libogc articulation of networking with IOS (network_wii.c).
- *
- * NOTES FOR DEVELOPERS
- * ====================
- * Recall that, when issuing ioctls to IOS, all pointer arguments need to be
- * 32-byte aligned (or at least, this is what the doctor tells me). This is
- * also the reasoning behind the STACK_ALIGN macro usage.
- *
- * Aspects of low-level network state should probably be managed in this file 
- * and exposed as globals - for instance, after network initialization, the 
- * file descriptor associated with /dev/net/ip/top can simply be used by other 
- * threads by extern-ing `s32 top_fd` [for now].
  */
 
 #include "global.h"
@@ -22,11 +12,7 @@
 
 #include "SlippiDebug.h"
 
-// These are only relevant to NCDInit(), and are closed before returning
-static s32 ncd_fd __attribute__((aligned(32)));
-static s32 kd_fd  __attribute__((aligned(32)));
-
-// This is global state, used elsewhere when dealing with sockets [for now]
+// File descriptor for the IOS socket driver, shared by all Slippi threads
 s32 top_fd __attribute__((aligned(32)));
 
 // Global state - Wi-Fi MAC address and current IP address
@@ -34,87 +20,67 @@ u8 wifi_mac_address[6] ALIGNED(32) = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 u32 current_ip_address ALIGNED(32) = 0x00000000;
 
 // Used by kernel/main.c
-u32 NetworkStarted; 
+u32 NetworkStarted;
+
+// Device filenames bound to different IOS drivers
+static const char  kd_name[19] ALIGNED(32) = "/dev/net/kd/request";
+static const char ncd_name[19] ALIGNED(32) = "/dev/net/ncd/manage";
+static const char top_name[15] ALIGNED(32) = "/dev/net/ip/top";
 
 
-/* NCDInit() handles IOS network initialization, and needs to complete before 
- * any other attempt to deal with sockets. It should ultimately prepare top_fd
- * for use in dedicated Slippi thread/s. 
+/* NCDInit()
+ * Handles IOS network initialization, and needs to complete before any other
+ * attempt to deal with sockets. It should ultimately prepare top_fd for use
+ * in dedicated Slippi networking thread/s.
  */
-
 int NCDInit(void)
 {
 	s32 res;
 	STACK_ALIGN(ioctlv, mac_vec, 2, 32);
-
 	dbgprintf("entered NCDInit()\n");
 
-	char *ncd_filename = "/dev/net/ncd/manage";
-	char *top_filename = "/dev/net/ip/top";
-	char *kd_filename  = "/dev/net/kd/request";
-
-	void *ncd_name = heap_alloc_aligned(0, 32, 32);
-	void *top_name = heap_alloc_aligned(0, 32, 32);
-	void *kd_name  = heap_alloc_aligned(0, 32, 32);
-
-	memcpy(ncd_name, ncd_filename, 32);
-	memcpy(top_name, top_filename, 32);
-	memcpy(kd_name,  kd_filename, 32);
-
-	/* Emit NCD_GETLINKSTATUS on /dev/net/ncd/manage.
-	 * Seems like we just take a single 32-byte buffer?
+	/* Fetch the MAC address of the Wi-Fi interface for use later when we
+	 * broadcast messages to potential Slippi clients.
 	 */
 
-	ncd_fd = IOS_Open(ncd_name, 0);
+	s32 ncd_fd = IOS_Open(ncd_name, 0);
+	void *ncd_buf = heap_alloc_aligned(0, 32, 32);
 	dbgprintf("ncd_fd: %i\n", ncd_fd);
 
-	/* This is unused code? 
-	 *
-	 * void *message_buf = heap_alloc_aligned(0,32,32);
-	 * vec[0].data = message_buf;
-	 * vec[0].len = 32;
-	 * res = IOS_Ioctlv(ncd_fd, IOCTL_NCD_GETLINKSTATUS, 0, 1, vec);
-	 * dbgprintf("IOCTL_NCD_GETLINKSTATUS: %d\n", res);
-	 * heap_free(0, message_buf);
-	 */
-
-	memset(&wifi_mac_address, 0 , 6);
-	void *ncd_buf = heap_alloc_aligned(0, 32, 32);
-	mac_vec[0].data = ncd_buf;
-	mac_vec[0].len = 32;
-	mac_vec[1].data = &wifi_mac_address;
-	mac_vec[1].len = 6;
+	mac_vec[0].data	= ncd_buf;
+	mac_vec[0].len	= 32;
+	mac_vec[1].data	= &wifi_mac_address;
+	mac_vec[1].len	= 6;
 
 	res = IOS_Ioctlv(ncd_fd, IOCTLV_NCD_GETMACADDRESS, 0, 2, mac_vec);
-	int i = 0;
-
-	for (i = 0; i < 6; i++)
-		dbgprintf("%02x ", wifi_mac_address[i]);
-	dbgprintf("\r\n");
-
 	IOS_Close(ncd_fd);
+	heap_free(0, ncd_buf);
 
-	/* Emit NWC32_STARTUP on /dev/net/kd/request.
-	 * According to libogc, some error code should fall out in the
-	 * buffer which indicates some success or failure.
+
+	/* NWC24 initialization. This happens in libogc, but do we actually
+	 * *need* to do this? Is NWC24 state somehow tied to whether or not
+	 * we can use the socket driver?
+	 *
+	 * NOTE: libogc checks the return value of this in order to determine
+	 * if NWC24 has started up correctly:
+	 *
+	 *	memcpy(&some_s32, nwc_buf, sizeof(some_s32));
+	 *	if (some_s32 == -29) retry;
+	 *	if (some_s32 == -15) already_started;
 	 */
 
-	kd_fd = IOS_Open(kd_name, 0);
+	s32 kd_fd = IOS_Open(kd_name, 0);
+	void *nwc_buf = heap_alloc_aligned(0, 32, 32);
 	dbgprintf("kd_fd: %i\n", kd_fd);
 
-	void *nwc_buf = heap_alloc_aligned(0, 32, 32);
 	res = IOS_Ioctl(kd_fd, IOCTL_NWC24_STARTUP, 0, 0, nwc_buf, 32);
 	dbgprintf("IOCTL_NWC24_STARTUP: %d\n", res);
-
-	// libogc does `memcpy(&some_s32, nwc_buf, sizeof(some_s32))` here.
-	// if (some_s32 == -29), retry?
-	// if (some_s32 == -15), already started?
-
 	IOS_Close(kd_fd);
+	heap_free(0, nwc_buf);
 
 
-	/* Emit IOCTL_SO_STARTUP on /dev/net/ip/top, and then emit
-	 * IOCTL_SO_GETHOSTID to retrieve some representation of our IP?
+	/* Get a file descriptor for the IOS socket driver [to share with all
+	 * Slippi threads], then initialize the IOS socket driver.
 	 */
 
 	top_fd = IOS_Open(top_name, 0);
@@ -123,14 +89,8 @@ int NCDInit(void)
 	res = IOS_Ioctl(top_fd, IOCTL_SO_STARTUP, 0, 0, 0, 0);
 	dbgprintf("IOCTL_SO_STARTUP: %d\n", res);
 
-	// Ideally we sit in a loop here until we can validate our IP?
 	current_ip_address = IOS_Ioctl(top_fd, IOCTL_SO_GETHOSTID, 0, 0, 0, 0);
 	dbgprintf("IOCTL_SO_GETHOSTID: 0x%x\n", current_ip_address);
-
-	heap_free(0, top_name);
-	heap_free(0, ncd_name);
-	heap_free(0, kd_name);
-	heap_free(0, nwc_buf);
 
 	NetworkStarted = 1;
 	ppc_msg("NCDINIT OK\x00", 11);
@@ -138,7 +98,21 @@ int NCDInit(void)
 }
 
 
-/* Return a file descriptor to a new socket */
+/* ----------------------------------------------------------------------------
+ * Socket API functions
+ *
+ * These are wrappers around ioctl() calls used to ask different things of the
+ * IOS socket driver. The implementation here is pretty much the same as in
+ * libogc.
+ *
+ * All of these functions expect a file descriptor to /dev/net/ip/top as the
+ * first argument (in case sometime later we end up having to juggle many FDs).
+ */
+
+
+/* socket()
+ * Returns a file descriptor for a new socket.
+ */
 s32 socket(s32 fd, u32 domain, u32 type, u32 protocol)
 {
 	s32 res;
@@ -157,7 +131,9 @@ s32 socket(s32 fd, u32 domain, u32 type, u32 protocol)
 	return res;
 }
 
-/* Close a socket */
+/* close()
+ * Closes a socket.
+ */
 s32 close(s32 fd, s32 socket)
 {
 	s32 res;
@@ -170,7 +146,9 @@ s32 close(s32 fd, s32 socket)
 	return res;
 }
 
-/* Bind a name to some socket */
+/* bind()
+ * Bind some name to some socket.
+ */
 s32 bind(s32 fd, s32 socket, struct sockaddr *name)//, socklen_t address_len)
 {
 	s32 res;
@@ -192,7 +170,9 @@ s32 bind(s32 fd, s32 socket, struct sockaddr *name)//, socklen_t address_len)
 	return res;
 }
 
-/* Listen for connections on a socket */
+/* listen()
+ * Start listening for connections on a socket.
+ */
 s32 listen(s32 fd, s32 socket, u32 backlog)
 {
 	s32 res;
@@ -210,7 +190,10 @@ s32 listen(s32 fd, s32 socket, u32 backlog)
 	return res;
 }
 
-/* Accept some connection on a socket */
+/* accept()
+ * Accept a connection on some socket.
+ * Returns a file descriptor representing the remote client.
+ */
 s32 accept(s32 fd, s32 socket)
 {
 	s32 res;
@@ -231,7 +214,9 @@ s32 accept(s32 fd, s32 socket)
 	return res;
 }
 
-/* Emit a message on a socket */
+/* sendto()
+ * Emit a message on some socket.
+ */
 s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 {
 	s32 res;
@@ -272,7 +257,9 @@ s32 sendto(s32 fd, s32 socket, void *data, s32 len, u32 flags)
 	return res;
 }
 
-/* Recieve a message from some socket */
+/* recvfrom()
+ * Recieve a message on some socket.
+ */
 s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
 {
 	s32 res;
@@ -298,7 +285,9 @@ s32 recvfrom(s32 fd, s32 socket, void *mem, s32 len, u32 flags)
 	return res;
 }
 
-/* Connect to some remote server */
+/* connect()
+ * Connect to some remote server.
+ */
 s32 connect(s32 fd, s32 socket, struct sockaddr *name)
 {
 	s32 res;
@@ -319,7 +308,9 @@ s32 connect(s32 fd, s32 socket, struct sockaddr *name)
 	return res;
 }
 
-/* Set options on some socket. Implementation not tested yet. */
+/* setsockopt()
+ * Set socket-specific options.
+ */
 s32 setsockopt(s32 fd, s32 socket, u32 level, u32 optname, void *optval, u32 optlen)
 {
 	s32 res;
@@ -341,10 +332,8 @@ s32 setsockopt(s32 fd, s32 socket, u32 level, u32 optname, void *optval, u32 opt
 }
 
 /* Implementation not tested yet. */
-static union ullc { u64 ull; u32 ul[2]; };
 s32 poll(s32 fd, struct pollsd *sds, s32 nsds, s32 timeout)
 {
-
 	STACK_ALIGN(u64, params, 1, 32);
 	union ullc outv;
 	s32 res;

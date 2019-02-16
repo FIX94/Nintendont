@@ -34,6 +34,12 @@ struct pollsd {
 	u32 revents;
 };
 
+union ullc {
+	u64 ull;
+	u32 ul[2];
+};
+
+
 // Poll events (?)
 #define POLLIN				0x0001
 #define POLLPRI				0x0002

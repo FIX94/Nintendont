@@ -1,3 +1,6 @@
+/* kernel/SlippiNetworkBroadcast.c
+ * Slippi thread for handling broadcast messages on the local network.
+ */
 
 #include "global.h"
 #include "common.h"
@@ -11,31 +14,42 @@
 // Measured in seconds
 #define BROADCAST_PERIOD	10
 
+// Thread state
 static u32 SlippiNetworkBroadcast_Thread;
-extern char __slippi_network_broadcast_stack_addr; 
+extern char __slippi_network_broadcast_stack_addr;
 extern char __slippi_network_broadcast_stack_size;
 static u32 SlippiNetworkBroadcastHandlerThread(void *arg);
 
-// From kernel/net.c
+// Global state from kernel/net.c
 extern s32 top_fd;
 extern u8 wifi_mac_address[6];
 
+// String for Slippi console nickname; probably from config?
+unsigned char slippi_nickname[32] ALIGNED(32);
 
-struct broadcast_msg
-{
-	char message[10];
-	u8 mac_addr[6];
-} __attribute__((packed));
-
+// Broadcast message structure
 const char slip_ready[10] ALIGNED(32) = "SLIP_READY";
 static struct broadcast_msg ready_msg ALIGNED(32);
+struct broadcast_msg
+{
+	unsigned char	cmd[10];
+	u8		mac_addr[6];	// Wi-Fi interface MAC address
+	unsigned char	nickname[32];	// Console nickname
+} __attribute__((packed));
 
+// Broadcast socket state
 static int discover_sock ALIGNED(32);
-static struct sockaddr_in discover ALIGNED(32);
-
 static u32 broadcast_ts;
-void reset_broadcast_timer(void) { broadcast_ts = read32(HW_TIMER); }
+static struct sockaddr_in discover ALIGNED(32) = {
+	.sin_family	= AF_INET,
+	.sin_port	= 20582,
+	{
+		.s_addr	= 0xffffffff,
+	},
+};
 
+
+void reset_broadcast_timer(void) { broadcast_ts = read32(HW_TIMER); }
 void SlippiNetworkBroadcastShutdown() { thread_cancel(SlippiNetworkBroadcast_Thread, 0); }
 s32 SlippiNetworkBroadcastInit()
 {
@@ -48,34 +62,34 @@ s32 SlippiNetworkBroadcastInit()
 	return 0;
 }
 
-/* Set up a socket and connect() to the local broadcast address. */ 
+
+/* startBroadcast()
+ * Set up socket, connect to local broadcast address, send first message.
+ */
 s32 startBroadcast()
 {
 	s32 res;
 
-	// Prepare broadcast message buffer
-	memcpy(&ready_msg.message, &slip_ready, sizeof(slip_ready));
+	// Prepare broadcast message buffer with console info
+	memcpy(&ready_msg.cmd, &slip_ready, sizeof(slip_ready));
 	memcpy(&ready_msg.mac_addr, &wifi_mac_address, sizeof(wifi_mac_address));
 
 	discover_sock = socket(top_fd, AF_INET, SOCK_DGRAM, IPPROTO_IP);
-	memset(&discover, 0, sizeof(struct sockaddr_in));
-	discover.sin_family = AF_INET;
-	discover.sin_len = sizeof(struct sockaddr_in);
-	discover.sin_port = 667;
-	discover.sin_addr.s_addr = 0xffffffff;
 
 	// Start indicating our status to clients on the local network
-	//res = connect(top_fd, discover_sock, (struct address *)&discover);
 	res = connect(top_fd, discover_sock, (struct sockaddr *)&discover);
 	sendto(top_fd, discover_sock, &ready_msg, sizeof(ready_msg), 0);
 
-	// Update the broadcast message timer
+	// Initialize the broadcast message timer
 	broadcast_ts = read32(HW_TIMER);
 
 	return res;
 }
 
-/* Broadcast a SLIP_READY message */
+
+/* do_broadcast()
+ * Broadcast a SLIP_READY message on the local network.
+ */
 s32 do_broadcast(void)
 {
 	s32 res;
@@ -88,7 +102,10 @@ s32 do_broadcast(void)
 	return res;
 }
 
-/* Main loop for this thread */
+
+/* SlippiNetworkBroadcastHandlerThread()
+ * Main loop for the broadcast thread.
+ */
 static u32 SlippiNetworkBroadcastHandlerThread(void *arg)
 {
 	int status;

@@ -27,9 +27,17 @@ static u32 SlippiNetwork_Thread;
 extern char __slippi_network_stack_addr, __slippi_network_stack_size;
 static u32 SlippiNetworkHandlerThread(void *arg);
 
-// Connection variables
-static struct sockaddr_in server __attribute__((aligned(32)));
+// Server state
 static int server_sock __attribute__((aligned(32)));
+static struct sockaddr_in server __attribute__((aligned(32))) = {
+	.sin_family	= AF_INET,
+	.sin_port	= 666,
+	{
+		.s_addr	= INADDR_ANY,
+	},
+};
+
+// Client state
 static int client_sock __attribute__((aligned(32)));
 static u32 client_alive_ts;
 
@@ -37,9 +45,12 @@ static u32 client_alive_ts;
 extern s32 top_fd;		// from kernel/net.c
 u32 SlippiServerStarted = 0;	// used by kernel/main.c
 
-/* Dispatch the server thread. This should only be run once in kernel/main.c
+
+/* SlippiNetworkInit()
+ * Dispatch the server thread. This should only be run once in kernel/main.c
  * after NCDInit() has actually brought up the networking stack and we have
- * some connectivity. */
+ * some connectivity.
+ */
 void SlippiNetworkShutdown() { thread_cancel(SlippiNetwork_Thread, 0); }
 s32 SlippiNetworkInit()
 {
@@ -58,19 +69,16 @@ s32 SlippiNetworkInit()
 	return 0;
 }
 
-/* Create a new socket for the server to bind and listen on. */
+
+/* startServer()
+ * Create a new server socket, bind, then start listening.
+ */
 s32 startServer()
 {
 	s32 res;
 
 	server_sock = socket(top_fd, AF_INET, SOCK_STREAM, IPPROTO_IP);
-
 	dbgprintf("server_sock: %d\r\n", server_sock);
-
-	memset(&server, 0, sizeof(server));
-	server.sin_family = AF_INET;
-	server.sin_port = 666;
-	server.sin_addr.s_addr = INADDR_ANY;
 
 	res = bind(top_fd, server_sock, (struct sockaddr *)&server);
 	if (res < 0)
@@ -92,7 +100,10 @@ s32 startServer()
 	return 0;
 }
 
-/* Accept a client */
+
+/* listenForClient()
+ * Check the status of the client socket and potentially accept a client.
+ */
 void listenForClient()
 {
 	// We already have a client
@@ -104,7 +115,8 @@ void listenForClient()
 	if (client_sock >= 0)
 	{
 		int flags = 1;
-		s32 optRes = setsockopt(top_fd, client_sock, IPPROTO_TCP, TCP_NODELAY, (void *)&flags, sizeof(flags));
+		s32 optRes = setsockopt(top_fd, client_sock, IPPROTO_TCP,
+			TCP_NODELAY, (void *)&flags, sizeof(flags));
 		dbgprintf("[TCP_NODELAY] Client setsockopt result: %d\r\n", optRes);
 
 		dbgprintf("Client connection detected\r\n");
@@ -114,11 +126,17 @@ void listenForClient()
 }
 
 
+/* handleFileTransfer()
+ * Deal with sending Slippi data over the network:
+ *
+ *	1. Attempt read from Slippi buffer
+ *	2. If we consume some data from buffer, send it to the client
+ *	3. If sendto() isn't successful, hang up on a client
+ *	4. Update our read cursor in Slippi buffer
+ */
 static u8 readBuf[READ_BUF_SIZE];
 static u64 memReadPos = 0;
 static SlpGameReader reader;
-//static char memerr[64];
-/* Deal with sending Slippi data over the network. */
 s32 handleFileTransfer()
 {
 	int status = getConnectionStatus();
@@ -130,16 +148,11 @@ s32 handleFileTransfer()
 	SlpMemError err = SlippiMemoryRead(&reader, readBuf, READ_BUF_SIZE, memReadPos);
 	if (err)
 	{
-		//_sprintf(memerr, "SLPMEMERR: %d\x00", err);
-		//dbgprintf("Slippi ERROR: %d\r\n", memerr);
-		//ppc_msg(memerr, 13);
-
 		if (err == SLP_READ_OVERFLOW)
 		{
 			memReadPos = SlippiRestoreReadPos();
 			dbgprintf("WARN: Overflow read error detected. Reset to: %X\r\n", memReadPos);
 		}
-
 		mdelay(1000);
 
 		// For specific errors, bytes will still be read. Not returning to deal with those
@@ -147,12 +160,11 @@ s32 handleFileTransfer()
 
 	// dbgprintf("Checking if there's data to transfer...\r\n");
 
-	u32 bytesRead = reader.lastReadResult.bytesRead;
-	if (bytesRead == 0)
+	if (reader.lastReadResult.bytesRead == 0)
 		return 0;
 
 	// sendto takes an average of around 10 ms to return. Seems to range from 3-30 ms or so
-	s32 res = sendto(top_fd, client_sock, readBuf, bytesRead, 0);
+	s32 res = sendto(top_fd, client_sock, readBuf, reader.lastReadResult.bytesRead, 0);
 
 	// Naive client hangup detection
 	if (res < 0)
@@ -169,12 +181,15 @@ s32 handleFileTransfer()
 	client_alive_ts = read32(HW_TIMER);
 
 	// Only update read position if transfer was successful
-	memReadPos += bytesRead;
+	memReadPos += reader.lastReadResult.bytesRead;
 
 	return 0;
 }
 
-/* Return the status of the networking thread. */
+
+/* getConnectionStatus()
+ * Return the status of the networking thread.
+ */
 int getConnectionStatus()
 {
 	if (server_sock < 0)
@@ -187,8 +202,12 @@ int getConnectionStatus()
 	return CONN_STATUS_UNKNOWN;
 }
 
-/* Give some naive indication of client hangup. If sendto() returns some error,
- * this probably indicates that we can stop talking to the current client */
+
+/* checkAlive()
+ * Give some naive indication of whether or not a client has hung up. If our
+ * sendto() here returns some error, this probably indicates that we can stop
+ * talking to the current client and reset the socket.
+ */
 static char alive_msg[] __attribute__((aligned(32))) = "HELO";
 s32 checkAlive(void)
 {
@@ -231,47 +250,12 @@ s32 checkAlive(void)
 	return 0;
 }
 
-// Pointer to the top of Melee's stack region
-static void *dump_cur = (void*)MELEE_STACK_TOP;
-static u32 dump_off = 0;
-void send_stack_dump(void)
-{
-	if (dump_off <= MELEE_STACK_SIZE) {
-		sendto(top_fd, client_sock, (dump_cur + dump_off), 2048, 0);
-		dump_off += 2048;
-	}
-	else {
-		close(top_fd, client_sock);
-	}
-}
 
-static u32 crash_ts = 0;		// timer for crash handler 
-static u32 last_frame = 0;		// latest saved value
-static u8 crashmsg[] = "CRASHED\x00";
-int checkCrash(void)
-{
-	u32 current_frame;
-	if (TimerDiffSeconds(crash_ts) > 20) {
-		current_frame = read32(MELEE_FRAME_CTR);
-
-		if (current_frame != last_frame) {
-			last_frame = current_frame;
-			crash_ts = read32(HW_TIMER);
-			return 0;
-		}
-		else if (current_frame == last_frame) {
-			sendto(top_fd, client_sock, crashmsg, sizeof(crashmsg), 0);
-			return 1;
-		}
-	}
-	
-	return 0;
-}
-
-
-
-/* This is the main loop for the server.
- *   - Only transmit when there's some data left in SlipMem
+/* SlippiNetworkHandlerThread()
+ * This is the main loop for the server.
+ *   - Initialize the server
+ *   - Accept a client (if we aren't already tracking one)
+ *   - Only transmit to client when there's some data left in SlipMem
  *   - When there's no valid data, periodically send some keep-alive
  *     messages to the client so we can determine if they've hung up
  */
@@ -289,12 +273,6 @@ static u32 SlippiNetworkHandlerThread(void *arg)
 			listenForClient();
 			break;
 		case CONN_STATUS_CONNECTED:
-			if (checkCrash()) 
-			{
-				send_stack_dump();
-				return -1;
-			}
-			
 			handleFileTransfer();
 			checkAlive();
 			break;
