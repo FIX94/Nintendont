@@ -1071,6 +1071,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 					"• Skip Results Screen",
 					"• KO Star indicates winner",
 					"• CSS Cursor Position fix",
+					"• Hide tag when invisible",
 					NULL
 				};
 				return desc_melee_qol;
