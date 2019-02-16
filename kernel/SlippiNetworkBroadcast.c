@@ -25,7 +25,7 @@ extern s32 top_fd;
 extern u8 wifi_mac_address[6];
 
 // String for Slippi console nickname; probably from config?
-unsigned char slippi_nickname[32] ALIGNED(32);
+char slippi_nickname[32] ALIGNED(32);
 
 // Broadcast message structure
 const char slip_ready[10] ALIGNED(32) = "SLIP_READY";
@@ -71,8 +71,10 @@ s32 startBroadcast()
 	s32 res;
 
 	// Prepare broadcast message buffer with console info
+	_sprintf(slippi_nickname, "%s", "slippi-console-1");
 	memcpy(&ready_msg.cmd, &slip_ready, sizeof(slip_ready));
 	memcpy(&ready_msg.mac_addr, &wifi_mac_address, sizeof(wifi_mac_address));
+	memcpy(&ready_msg.nickname, &slippi_nickname, sizeof(slippi_nickname));
 
 	discover_sock = socket(top_fd, AF_INET, SOCK_DGRAM, IPPROTO_IP);
 
