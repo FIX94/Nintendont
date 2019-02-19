@@ -7,6 +7,9 @@ used for supporting Project Slippi. [See documentation in SLIPPI.md for more inf
 A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 
 ### Building on Windows
+To build on windows, you need to run the `Incremental Build.bat` file in the Nintendont root.
+
+**Notes**
 * The latest versions of devkitPro will not work for building Nintendont on Windows
 * As of this writing, it is still possible to find the old versions of devkitPPC, libogc, and devkitARM here: https://wii.leseratte10.de/devkitPro/
 * I recommend installing the latest devkitPro and then overwriting the above mentioned folders with the following versions: devkitARM r47, devkitPPC r29-1, libogc 1.8.16
