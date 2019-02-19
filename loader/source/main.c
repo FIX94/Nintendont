@@ -222,7 +222,7 @@ void changeToDefaultDrive()
  * @param BI2region	[out,opt] bi2.bin region code.
  * @return 0 on success; non-zero on error.
  */
-static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2region)
+static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 *BI2region)
 {
 	char GamePath[260];
 
@@ -553,6 +553,7 @@ static u32 CheckForMultiGameAndRegion(u32 CurDICMD, u32 *ISOShift, u32 *BI2regio
 static char dev_es[] ATTRIBUTE_ALIGN(32) = "/dev/es";
 
 extern vu32 FoundVersion;
+extern void _jmp813();
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -810,7 +811,7 @@ int main(int argc, char **argv)
 	SaveSettings = SelectDevAndGame();
 
 //Init DI and set correct ID if needed
-	u32 CurDICMD = 0;
+	unsigned int CurDICMD = 0;
 	if( memcmp(ncfg->GamePath, "di", 3) == 0 )
 	{
 		if(argsboot == false)
@@ -961,7 +962,7 @@ int main(int argc, char **argv)
 					device = "DVD-R";
 					break;
 				default:
-					snprintf(unkdev, sizeof(unkdev), "Unknown (CMD: 0x%02lX)", CurDICMD);
+					snprintf(unkdev, sizeof(unkdev), "Unknown (CMD: 0x%02x)", CurDICMD);
 					device = unkdev;
 					break;
 			}
@@ -1279,7 +1280,8 @@ int main(int argc, char **argv)
 
 		case BI2_REGION_USA:
 			if ((vidForce && vidForceMode == NIN_VID_FORCE_MPAL) ||
-			    (!vidForce && CONF_GetVideo() == CONF_VIDEO_MPAL))
+			    (!vidForce && ((CONF_GetVideo() == CONF_VIDEO_MPAL) 
+					|| (useipl && memcmp(iplbuf+0x55,"MPAL",4) == 0))))
 			{
 				// PAL-M
 				*(vu32*)0x800000CC = 3;
@@ -1469,11 +1471,8 @@ int main(int argc, char **argv)
 		DCFlushRange((void*)0x81300000, multidol_ldr_bin_size);
 		ICInvalidateRange((void*)0x81300000, multidol_ldr_bin_size);
 	}
-	asm volatile (
-		"lis %r3, 0x8130\n"
-		"mtlr %r3\n"
-		"blr\n"
-	);
+	_jmp813();
+
 	//IRQ_Restore(level);
 
 	return 0;

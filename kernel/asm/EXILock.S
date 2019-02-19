@@ -8,5 +8,5 @@
 
 EXILock:
 
-	li		%r3,	1
+	li		r3,	1
 	blr

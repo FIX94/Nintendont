@@ -4,7 +4,6 @@
 #include <gccore.h>
 #include <stdio.h>
 #include <string.h>
-#include <ogcsys.h>
 #include <unistd.h>
 
 #ifdef __cplusplus

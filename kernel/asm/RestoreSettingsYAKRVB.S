@@ -22,14 +22,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .set YAK_DEST,		(0x803D3D0C+0xE8)
 
 RestoreSettingsYAKRVB:
-	lis		%r3,	YAK_BACKUP@h
-	ori		%r3,	%r3,	YAK_BACKUP@l
-	lis		%r4,	YAK_DEST@h
-	ori		%r4,	%r4,	YAK_DEST@l
-	li		%r5,	(0xF5-0xE8)
+	lis		r3,	YAK_BACKUP@h
+	ori		r3,	r3,	YAK_BACKUP@l
+	lis		r4,	YAK_DEST@h
+	ori		r4,	r4,	YAK_DEST@l
+	li		r5,	(0xF5-0xE8)
 memcpy:
-	subic.	%r5,	%r5,	1
-	lbzx	%r0,	%r3,	%r5
-	stbx	%r0,	%r4,	%r5
+	subic.	r5,	r5,	1
+	lbzx	r0,	r3,	r5
+	stbx	r0,	r4,	r5
 	bne		memcpy
 	blr

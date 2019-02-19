@@ -9,24 +9,23 @@
 #	r3	channel
 
 SIGetType:
-	lis		%r4,			PAD_USED_BASE@h
-	ori		%r4,	%r4,	PAD_USED_BASE@l
+	lis		r4,		PAD_USED_BASE@h
+	ori		r4,	r4,	PAD_USED_BASE@l
 
-	li		%r0,	0
 DCInvalidateRange:
-	dcbi	%r0,	%r4
+	dcbi	0,	r4
 	sync
 
-	lwz		%r0,	4(%r4)
-	li		%r4,	1
-	slw		%r4,	%r4,	%r3
-	and		%r4,	%r0,	%r4
-	cmpwi	%r4,	0
+	lwz		r0,	4(r4)
+	li		r4,	1
+	slw		r4,	r4,	r3
+	and		r4,	r0,	r4
+	cmpwi	r4,	0
 	beq		NoPad
 
-	lis		%r3,	SI_GC_CONTROLLER@h
+	lis		r3,	SI_GC_CONTROLLER@h
 	blr
 
 NoPad:
-	li		%r3,	SI_ERROR_NO_RESPONSE@l
+	li		r3,	SI_ERROR_NO_RESPONSE@l
 	blr

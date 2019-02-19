@@ -4,11 +4,11 @@
 
 SonicRidersCopy:
 #original instruction
-	mr		%r31,	%r7
+	mr		r31,	r7
 #7 might be enough too, going safe
-	slwi	%r5,	%r5,	8
+	slwi	r5,	r5,	8
 waitLoop:
-	subi	%r5,	%r5,	1
-	cmplwi	%r5,	0
+	subi	r5,	r5,	1
+	cmplwi	r5,	0
 	bne		waitLoop
 	blr

@@ -1039,7 +1039,9 @@ static bool DemoNeedsHookPatch()
 		(DOLSize == 2177508 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2FDCE0 &&
 		read32(0x1D2A00) == 0x62696F68 && read32(0x1D2A04) == 0x617A6172) || //Resident Evil 4 USA
 		(DOLSize == 1118820 && DOLMinOff == 0x3100 && DOLMaxOff == 0x3C4C40 &&
-		read32(0x0E1CD0) == 0x4D617269 && read32(0x0E1CD4) == 0x6F426173) )  //Mario Baseball USA
+		read32(0x0E1CD0) == 0x4D617269 && read32(0x0E1CD4) == 0x6F426173) || //Mario Baseball USA
+		(DOLSize == 1854724 && DOLMinOff == 0x3100 && DOLMaxOff == 0x2097E0 &&
+		read32(0x11A1A8) == 0x47414D45 && read32(0x11A1AC) == 0x2F496E66) )  //One Piece Treasure Battle JAP
 	{
 		dbgprintf("Patch:Known Problematic Demo, using ARStartDMA_Hook\r\n");
 		return true;
@@ -2814,8 +2816,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								W16(GCAMSendCommandAddr+0x0E, R16(FOffset+0x1E));
 								W16(GCAMSendCommandAddr+0x12, R16(FOffset+0x22));
 								/* Callback */
-								W16(GCAMSendCommandAddr+0x9A, R16(FOffset+0x26));
-								W16(GCAMSendCommandAddr+0x9E, R16(FOffset+0x2A));
+								W16(GCAMSendCommandAddr+0x92, R16(FOffset+0x26));
+								W16(GCAMSendCommandAddr+0x96, R16(FOffset+0x2A));
 								PatchB(GCAMSendCommandAddr, FOffset);
 							}
 							else

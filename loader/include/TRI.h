@@ -21,6 +21,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef _TRI_H_
 #define _TRI_H_
 
-u32 TRISetupGames(char *Path, u32 CurDICMD, u32 ISOShift);
+u32 TRISetupGames(char *Path, unsigned int CurDICMD, u32 ISOShift);
 
 #endif

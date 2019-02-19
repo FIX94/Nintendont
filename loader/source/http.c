@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <ogcsys.h>
 #include <network.h>
 #include <ogc/lwp_watchdog.h>
 

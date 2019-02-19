@@ -22,19 +22,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #r3 gets overwritten later
 
 CheckTestMenu:
-	lis		%r3,	IN_TESTMENU@h
-	cmpwi	%r0,	0
+	lis		r3,	IN_TESTMENU@h
+	cmpwi	r0,	0
 	bne		DoCheck
 	b		end		#No Test Menu, just exit
 DoCheck:	#Test Menu requested, make sure it wasnt loaded
-	lwz		%r0,	IN_TESTMENU@l(%r3)
-	cmpwi	%r0,	0
+	lwz		r0,	IN_TESTMENU@l(r3)
+	cmpwi	r0,	0
 	bne		Disallow
 Allow:	#Not loaded previously, enter test menu
-	li		%r0,	1
+	li		r0,	1
 	b		end
 Disallow:	#Test Menu previously loaded so disallow
-	li		%r0,	0
+	li		r0,	0
 end:	#Always save current status for next time
-	stw		%r0,	IN_TESTMENU@l(%r3)
+	stw		r0,	IN_TESTMENU@l(r3)
 	blr

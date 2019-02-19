@@ -1,6 +1,6 @@
 /*
 	Filename    : g_pal.bin
-	Date created: Sat Feb 16 11:38:17 2019
+	Date created: Tue Feb 19 13:59:15 2019
 */
 
 #define g_pal_size 0x8a8

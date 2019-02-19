@@ -1,6 +1,6 @@
 /*
 	Filename    : g_qol.bin
-	Date created: Sat Feb 16 11:38:17 2019
+	Date created: Tue Feb 19 13:59:15 2019
 */
 
 #define g_qol_size 0x1b8

@@ -20,27 +20,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 .include "constants.inc"
 
 DVDLowAudioBufferConfig:
-	mtctr	%r5
-	lis		%r5,	REAL_STREAMING@h
-	cmpwi	%r3,	0
+	mtctr	r5
+	lis		r5,	REAL_STREAMING@h
+	cmpwi	r3,	0
 	beq		StopStream
 
 StartStream:
-	lhz		%r3,	REAL_STREAMING@l(%r5)
-	cmpwi	%r3,	0x40
+	lhz		r3,	REAL_STREAMING@l(r5)
+	cmpwi	r3,	0x40
 	bne		StartCB		#dont start when not paused before
 
-	li		%r3,	0x20
+	li		r3,	0x20
 	b		SaveValue
 
 StopStream:
-	lhz		%r3,	REAL_STREAMING@l(%r5)
-	cmpwi	%r3,	0x20
+	lhz		r3,	REAL_STREAMING@l(r5)
+	cmpwi	r3,	0x20
 	bne		StartCB		#dont pause when not even streaming
 
-	li		%r3,	0x40
+	li		r3,	0x40
 SaveValue:
-	sth		%r3,	REAL_STREAMING@l(%r5)
+	sth		r3,	REAL_STREAMING@l(r5)
 StartCB:
-	li		%r3,	1		#for the cb that everything resulted ok
+	li		r3,	1		#for the cb that everything resulted ok
 	bctr		#will boot cb then return to original function, saves quite some code
