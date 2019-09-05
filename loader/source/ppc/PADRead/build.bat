@@ -1,9 +1,9 @@
 @echo off
 :: Gets the directory that devkitPPC is installed to
 setlocal
-set devpath=%DEVKITPPC:/=\%\
-set devpath=%devpath:~1,1%:%devpath:~2%
-
+::set devpath=%DEVKITPPC:/=\%\
+::set devpath=%devpath:~1,1%:%devpath:~2%
+set devpath=C:\devkitpro\devkitPPC
 echo PadReadGC.c
 %devpath%\bin\powerpc-eabi-gcc -O1 -Wall -s -nostartfiles -mhard-float -T openstub.ld PADReadGC.c -o ../../../data/PADReadGC.bin
 cd ../../../data

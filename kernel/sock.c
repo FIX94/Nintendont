@@ -1,20 +1,47 @@
+/*
 
+Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
+
+Copyright (C) 2019  FIX94
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+*/
 #include "global.h"
 #include "common.h"
 #include "alloc.h"
 #include "sock.h"
 #include "string.h"
-#include "debug.h"
 #include "EXI.h"
-extern vu32 TRIGame;
-bool SO_IRQ = false;
-extern bool EXI_IRQ;
-int soIrqFd = 0;
-static struct ipcmessage *sockmsg[5] = { NULL, NULL, NULL, NULL, NULL };
 
-vu32 sockintr[5] = { 0, 0, 0, 0, 0 };
-vs32 sockres[5] = { 0, 0, 0, 0, 0 };
-int soBusy[5] = { 0, 0, 0, 0, 0 };
+#ifndef DEBUG_SOCK
+#define dbgprintf(...)
+#else
+extern int dbgprintf( const char *fmt, ...);
+#endif
+
+bool SO_IRQ = false;
+int soIrqFd = -1;
+int soHeap = -1;
+
+static so_struct_arm *sock_entry_arm = (so_struct_arm*)SO_BASE_ARM;
+
+static struct ipcmessage *sockmsg[SO_TOTAL_FDS];
+
+static vs32 sockres[SO_TOTAL_FDS];
+static vu8 sockintr[SO_TOTAL_FDS];
+static vu8 soBusy[SO_TOTAL_FDS];
 static s32 sockqueue = -1;
 
 static u32 SOCKAlarm()
@@ -38,14 +65,6 @@ struct bind_params {
 	u8 name[28];
 };
 
-struct setsockopt_params {
-	u32 socket;
-	u32 level;
-	u32 optname;
-	u32 optlen;
-	u8 optval[20];
-};
-
 struct sendto_params {
 	u32 socket;
 	u32 flags;
@@ -65,451 +84,394 @@ struct newpoll_params {
 	s32 flagsOut;
 };
 
-struct bind_params *bindParams[5] = { NULL, NULL, NULL, NULL, NULL };
-struct setsockopt_params *sockOptParams[5] = { NULL, NULL, NULL, NULL, NULL };
-struct sendto_params *sendParams[5] = { NULL, NULL, NULL, NULL, NULL };
-u32 *SOParams[5] = { NULL, NULL, NULL, NULL, NULL };
-u32 *SOOutParams[5] = { NULL, NULL, NULL, NULL, NULL };
-u32 *SOPollInParams[5] = { NULL, NULL, NULL, NULL, NULL };
-struct oldpoll_params *SOPollOldOutParams[5] = { NULL, NULL, NULL, NULL, NULL };
-struct newpoll_params *SOPollNewOutParams[5] = { NULL, NULL, NULL, NULL, NULL };
-u8 *SOVecResA[5] = { NULL, NULL, NULL, NULL, NULL };
-u8 *SOVecResB[5] = { NULL, NULL, NULL, NULL, NULL };
-u8 *SOVecResC[5] = { NULL, NULL, NULL, NULL, NULL };
-ioctlv *SOVec[5] = { NULL, NULL, NULL, NULL, NULL };
-u8 *SODataBuf[5] = { NULL, NULL, NULL, NULL, NULL };
+static struct bind_params *bindParams[SO_TOTAL_FDS];
+static struct sendto_params *sendParams[SO_TOTAL_FDS];
+static u32 *SOParams[SO_TOTAL_FDS];
+static u32 *SOOutParams[SO_TOTAL_FDS];
+static u8 *SOVecResA[SO_TOTAL_FDS];
+static u8 *SOVecResB[SO_TOTAL_FDS];
+static u8 *SOVecResC[SO_TOTAL_FDS];
+static ioctlv *SOVec[SO_TOTAL_FDS];
 
 static u32 SO_Thread = 0;
-u8 *soheap = NULL;
-extern char __so_stack_addr, __so_stack_size;
-int sockFd, ncdFd;
-u32 sockTimer;
+static u8 *soqueueheap = NULL;
+static u32 *so_stack;
+static int sockFd, nwcFd;
+static int ourCurrentIP;
 void SOCKInit()
 {
+	//give us 128KB, should be plenty
+	soHeap = heap_create((void*)0x13040000, 0x20000);
+	//dbgprintf("%08x\n", soHeap);
 	int i;
-	for(i = 0; i < 5; i++) {
-		bindParams[i] = (struct bind_params*)malloca(sizeof(struct bind_params),32);
-		sockOptParams[i] = (struct setsockopt_params*)malloca(sizeof(struct setsockopt_params),32);
-		sendParams[i] = (struct sendto_params*)malloca(sizeof(struct sendto_params),32);
-		SOParams[i] = (u32*)malloca(32,32);
-		SOOutParams[i] = (u32*)malloca(32,32);
-		SOPollInParams[i] = (u32*)malloca(32,32);
-		SOVecResA[i] = (u8*)malloca(32,32);
-		SOVecResB[i] = (u8*)malloca(32,32);
-		SOVecResC[i] = (u8*)malloca(32,32);
-		SOVec[i] = (ioctlv*)malloca(sizeof(ioctlv)*3,32);
-		sockmsg[i] = (struct ipcmessage*)malloca(sizeof(struct ipcmessage),32);
+	for(i = 0; i < SO_TOTAL_FDS; i++)
+	{
+		bindParams[i] = (struct bind_params*)heap_alloc_aligned(soHeap, sizeof(struct bind_params), 32);
+		sendParams[i] = (struct sendto_params*)heap_alloc_aligned(soHeap, sizeof(struct sendto_params), 32);
+		SOParams[i] = (u32*)heap_alloc_aligned(soHeap, 32, 32);
+		SOOutParams[i] = (u32*)heap_alloc_aligned(soHeap, 32, 32);
+		SOVecResA[i] = (u8*)heap_alloc_aligned(soHeap, 32, 32);
+		SOVecResB[i] = (u8*)heap_alloc_aligned(soHeap, 32, 32);
+		SOVecResC[i] = (u8*)heap_alloc_aligned(soHeap, 32, 32);
+		SOVec[i] = (ioctlv*)heap_alloc_aligned(soHeap, sizeof(ioctlv)*3, 32);
+		sockmsg[i] = (struct ipcmessage*)heap_alloc_aligned(soHeap, sizeof(struct ipcmessage), 32);
 		memset(sockmsg[i], 0, sizeof(struct ipcmessage));
-		SOPollOldOutParams[i] = (struct oldpoll_params*)malloca(sizeof(struct oldpoll_params)*16,32);
-		SOPollNewOutParams[i] = (struct newpoll_params*)malloca(sizeof(struct newpoll_params)*16,32);
 	}
 
-	soheap = (u8*)malloca(32,32);
-	sockqueue = mqueue_create(soheap, 1);
+	soqueueheap = (u8*)heap_alloc_aligned(soHeap, 32, 32);
+	sockqueue = mqueue_create(soqueueheap, 1);
 
-	SO_Thread = thread_create(SOCKAlarm, NULL, ((u32*)&__so_stack_addr), ((u32)(&__so_stack_size)) / sizeof(u32), 0x78, 1);
+	so_stack = (u32*)heap_alloc_aligned(soHeap, 0x400, 32);
+	SO_Thread = thread_create(SOCKAlarm, NULL, so_stack, 0x400 / sizeof(u32), 0x78, 1);
 	thread_continue(SO_Thread);
 
 	char *soDev = "/dev/net/ip/top";
-	char *ncdDev = "/dev/net/ncd/manage";
-	void *name = heap_alloc_aligned(0,32,32);
-	memcpy(name,soDev,32);
-	sockFd = IOS_Open(name,0);
-	memcpy(name,ncdDev,32);
-	ncdFd = IOS_Open(name,0);
-	heap_free(0,name);
+	char *nwcDev = "/dev/net/kd/request";
+	void *name = heap_alloc_aligned(soHeap,32,32);
+	memcpy(name, soDev, 32);
+	sockFd = IOS_Open(name, 0);
+	memcpy(name, nwcDev, 32);
+	nwcFd = IOS_Open(name, 0);
+	heap_free(soHeap, name);
 
-	mdelay(100);
+	ourCurrentIP = 0;
+	//mdelay(100);
 	//dbgprintf("SOInit %08x\n", &soIf[1]);
 }
 
 void SOCKShutdown()
 {
 	IOS_Close(sockFd);
-	IOS_Close(ncdFd);
-}
-
-typedef struct _getsockopt_params {
-	u32 interface;
-	u32 level;
-	u32 optname;
-	u8 optval[8];
-	u32 optlen;
-} getsockopt_params;
-
-extern u32 CurrentTiming;
-u32 SO_IRQ_Timer = 0;
-bool SOCKCheckTimer(void)
-{
-	return 1;//TimerDiffTicks(SO_IRQ_Timer) > 8000;
+	IOS_Close(nwcFd);
+	heap_destroy(soHeap);
+	soHeap = -1;
 }
 
 void SOCKInterrupt(void)
 {
-	/*if(TRIGame != TRI_NONE)
-	{
-		write32( EXI_CAUSE_1, (1<<11) );
-		sync_after_write( (void*)EXI_CAUSE_1, 0x20 );
-	}
-	else
-	{
-		write32( EXI_CAUSE_2, (1<<11) );
-		sync_after_write( (void*)EXI_CAUSE_2, 0x20 );
-	}*/
-	//write32( EXI_CAUSE_0, (1<<11) );
-	//sync_after_write( (void*)EXI_CAUSE_0, 0x20 );
-	write32(EXI_INT, 0x2000); // test HSP IRQ
-	write32(EXI_INT_FD, soIrqFd);
-	sync_after_write( (void*)EXI_INT, 0x20 );
+	write32(HSP_INT, 0x2000 | soIrqFd); // HSP IRQ
+	sync_after_write( (void*)HSP_INT, 0x20 );
 	write32( HW_IPC_ARMCTRL, (1<<0) | (1<<4) ); //throw irq
-	dbgprintf("SOCK Interrupt %i\r\n", soIrqFd);
+	//dbgprintf("SOCK Interrupt %i\r\n", soIrqFd);
 	SO_IRQ = false;
 }
 
 void SOCKUpdateRegisters()
 {
-	if(sockTimer && TimerDiffSeconds(sockTimer) >= 3)
-	{
-		sockTimer = 0;
-		sync_before_read((void*)0x130269A0,0x20);
-		write32(0x130269A0, read32(0x130269A4));
-		sync_after_write((void*)0x130269A0,0x20);
-	}
-	if( EXI_IRQ == true || SO_IRQ == true || (read32(EXI_INT) & 0x2010) ) //still working
+	if( SO_IRQ == true || (read32(HSP_INT) & 0x2000) ) //still working
 		return;
-	int i, j;
-	for(i = 0; i < 5; i++)
+	int i;
+	for(i = 0; i < SO_TOTAL_FDS; i++)
 	{
-		int bPos = (i<<5);
-		sync_before_read((void*)(SO_BASE+bPos), 0x20);
-		u32 ioctl = read32(SO_IOCTL+bPos);
-		u32 optCmd, optLen, pollNum, dataLen;
-		if(ioctl)
+		if(soBusy[i])
 		{
-			if(soBusy[i])
+			if(sockintr[i] == 0) //no result yet
+				continue;
+			dbgprintf("result cmd for %i ioctl %08x\r\n",i,sock_entry_arm[i].ioctl);
+			switch(sock_entry_arm[i].ioctl)
 			{
-				if(sockintr[i] == 0)
-					continue;
-				dbgprintf("result cmd for %i is %i\r\n",i,ioctl);
-				if(ioctl & SO_NCD_CMD)
-				{
-					ioctl &= ~SO_NCD_CMD;
-					switch(ioctl)
+				case so_accept:
+					sock_entry_arm[i].retval = sockres[i];
+					if(sockres[i] >= 0)
 					{
-						case 0x08:
-							memcpy((void*)(SO_CMD_0+bPos),SOVecResB[i],6);
-							break;
-						default:
-							break;
-					}
-				}
-				else if(ioctl == 0x01)
-				{
-					write32(SO_CMD_1+bPos,SOOutParams[i][0]);
-					write32(SO_CMD_2+bPos,SOOutParams[i][1]);
-					write32(SO_RETVAL+bPos, sockres[i]);
-					dbgprintf("Acceptres %08x\r\n",sockres[i]);
-				}
-				else if(ioctl == 0x0B)
-				{
-					pollNum = read32(SO_CMD_3+bPos);
-					if(sockres[i] >= 0 && read32(SO_CMD_2+bPos) && pollNum)
-					{
-						for(j = 0; j < pollNum; j++) {
-							if(((int)SOPollOldOutParams[i][j].socket) < 0) {
-								pollNum = j;
-								break;
-							}
-							//SOPollOldOutParams[i][j].socket = SOPollNewOutParams[i][j].socket;
-							//SOPollOldOutParams[i][j].flagsIn = SOPollNewOutParams[i][j].flagsIn;
-							SOPollOldOutParams[i][j].flagsOut = SOPollNewOutParams[i][j].flagsOut;
-						}
-						if(pollNum)
+						//copy back result
+						if((sock_entry_arm[i].cmd1>>24) == 8)
 						{
-							hexdump(SOPollOldOutParams[i], pollNum*sizeof(struct oldpoll_params));
-							//memcpy((void*)P2C(read32(SO_CMD_2+bPos)), SOPollOldOutParams[i], pollNum*sizeof(struct oldpoll_params));
-							sync_after_write(SOPollOldOutParams[i], pollNum*sizeof(struct oldpoll_params));
-							write32(SO_CMD_1+bPos, ((u32)SOPollOldOutParams[i]) | 0xD0000000);
+							memcpy((void*)&sock_entry_arm[i].cmd1, SOOutParams[i], 8);
+							dbgprintf("[%i] Accept res %08x %08x%08x\r\n",i,sockres[i],sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
 						}
-						write32(SO_CMD_3+bPos, pollNum);
+					}
+					break;
+				case so_poll:
+					sock_entry_arm[i].retval = sockres[i];
+					if(sockres[i] >= 0)
+					{
+						sync_after_write((void*)SOOutParams[i][0], SOOutParams[i][1]);
+						dbgprintf("[%i] Poll res %08x\r\n",i,sockres[i]);
+						#ifdef DEBUG_SOCK
+						hexdump((void*)SOOutParams[i][0], SOOutParams[i][1]);
+						#endif
+					}
+					break;
+				case so_recvfrom:
+					sock_entry_arm[i].retval = sockres[i];
+					if(sockres[i] >= 0)
+					{
+						sync_after_write(SOVec[i][1].data, SOVec[i][1].len);
+						//copy back result
+						if((sock_entry_arm[i].cmd4>>24) == 8)
+						{
+							memcpy((void*)&sock_entry_arm[i].cmd4, SOVecResB[i], 8);
+							//FOR OUR BROADCAST HACK: Prevent loopback
+							if(sock_entry_arm[i].cmd5 == ourCurrentIP)
+							{
+								dbgprintf("[%i] Broadcast Hack: Recv blocking loopback\n", i);
+								sock_entry_arm[i].retval = 0;
+							}
+						}
+						dbgprintf("[%i] Recv res %08x %08x%08x\r\n",i,sockres[i],*(vu32*)(SOVecResB[i]),*(vu32*)(SOVecResB[i]+4));
+						#ifdef DEBUG_SOCK
+						hexdump(SOVec[i][1].data, sockres[i]);
+						#endif
+					}
+					break;
+				case so_getinterfaceopt:
+					sock_entry_arm[i].retval = sockres[i];
+					if(sockres[i] >= 0)
+					{
+						sync_after_write(SOVec[i][1].data, SOVec[i][1].len);
+						dbgprintf("[%i] GetInterfaceOpt %i opt %08x len %i res %08x%08x\r\n",i,sockres[i], 
+							read32((u32)SOVecResA[i]+4), read32((u32)SOVecResC[i]), read32((u32)SOVec[i][1].data), read32((u32)SOVec[i][1].data+4));
+						//FOR OUR BROADCAST HACK: Get comparison IP
+						if(read32((u32)SOVecResA[i]+4) == 0x4003 && read32((u32)SOVec[i][1].data) != 0)
+							ourCurrentIP = read32((u32)SOVec[i][1].data);
+					}
+					break;
+				case nwc_startup:
+					sock_entry_arm[i].retval = read32((u32)SOOutParams[i]);
+					break;
+				case nwc_cleanup:
+					sock_entry_arm[i].retval = read32((u32)SOOutParams[i]);
+					//FOR OUR BROADCAST HACK: Reset comparison IP
+					ourCurrentIP = 0;
+					break;
+				//all the other SO commands
+				case so_bind:
+				case so_close:
+				case so_fcntl:
+				case so_setsockopt:
+				case so_listen:
+				case so_sendto:
+				case so_shutdown:
+				case so_socket:
+				case so_setinterfaceopt:
+				case so_startinterface:
+					sock_entry_arm[i].retval = sockres[i];
+					break;
+				default: //should never happen
+					Shutdown();
+					break;
+			}
+			if(sock_entry_arm[i].retval < 0)
+				dbgprintf("[%i] WARNING: Ret for ioctl %08x was %08x\r\n", i, sock_entry_arm[i].ioctl, sock_entry_arm[i].retval);
+			sock_entry_arm[i].ioctl = 0;
+			sync_after_write(&sock_entry_arm[i], 0x20);
+			soBusy[i] = 0;
+			sockintr[i] = 0;
+			soIrqFd = i;
+			SO_IRQ = true;
+			// break out of loop and do IRQ
+			// before handling more data
+			break;
+		}
+		else
+		{
+			sync_before_read(&sock_entry_arm[i], 0x20);
+			u32 ioctl = sock_entry_arm[i].ioctl;
+			u32 optCmd, optLen;
+			u8 *dataBuf;
+			u64 time;
+			if(ioctl == 0) //no cmd on this fd
+				continue;
+			//dbgprintf("cmd for %i ioctl %08x\r\n",i,ioctl);
+			switch(ioctl)
+			{
+				case so_accept:
+					SOParams[i][0] = sock_entry_arm[i].cmd0;
+					if((sock_entry_arm[i].cmd1>>24) == 8)
+					{
+						memcpy(SOOutParams[i], (void*)&sock_entry_arm[i].cmd1, 8);
+						dbgprintf("[%i] SOAccept %i %08x%08x\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1, sock_entry_arm[i].cmd2);
+						sockmsg[i]->seek.origin = i;
+						IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, SOOutParams[i], 8, sockqueue, sockmsg[i]);
+					}
+					else //no return requested
+					{
+						dbgprintf("[%i] SOAccept %i\r\n", i,sock_entry_arm[i].cmd0);
+						sockmsg[i]->seek.origin = i;
+						IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, NULL, 0, sockqueue, sockmsg[i]);
+					}
+					soBusy[i] = 1;
+					break;
+				case so_bind:
+					memset(bindParams[i], 0, sizeof(struct bind_params));
+					bindParams[i]->socket = sock_entry_arm[i].cmd0;
+					bindParams[i]->has_name = 1;
+					memcpy(bindParams[i]->name, (void*)&sock_entry_arm[i].cmd1, 8);
+					dbgprintf("[%i] SOBind %i %08x%08x\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlAsync(sockFd, ioctl, bindParams[i], sizeof(struct bind_params), NULL, 0, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_close:
+					SOParams[i][0] = sock_entry_arm[i].cmd0;
+					dbgprintf("[%i] SOClose %i\r\n", i,sock_entry_arm[i].cmd0);
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, NULL, 0, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_fcntl:
+					SOParams[i][0] = sock_entry_arm[i].cmd0;
+					SOParams[i][1] = sock_entry_arm[i].cmd1;
+					SOParams[i][2] = sock_entry_arm[i].cmd2;
+					sync_after_write(SOParams[i],0x20);
+					dbgprintf("[%i] SOFcntl %i %i %i\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 12, NULL, 0, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_setsockopt:
+					dataBuf = (void*)(sock_entry_arm[i].cmd0&(~(1<<31)));
+					optLen = sock_entry_arm[i].cmd1;
+					sync_before_read(dataBuf, optLen);
+					dbgprintf("[%i] SOSetSockOpt %08x %08x %08x %08x%08x\r\n", i,
+						read32(((u32)dataBuf)+0x4),read32(((u32)dataBuf)+0x8),read32(((u32)dataBuf)+0xC),read32(((u32)dataBuf)+0x10),read32(((u32)dataBuf)+0x14));
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlAsync(sockFd, ioctl, dataBuf, optLen, NULL, 0, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_listen:
+					memcpy(SOParams[i], (void*)&sock_entry_arm[i].cmd0, 8);
+					dbgprintf("[%i] SOListen %i %i\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1);
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 8, NULL, 0, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_poll:
+					time = (read64((u32)(&sock_entry_arm[i].cmd2)) / 60750ULL);
+					SOParams[i][0] = (u32)(time>>32);
+					SOParams[i][1] = (u32)(time&0xFFFF);
+					SOOutParams[i][0] = sock_entry_arm[i].cmd0&(~(1<<31));
+					SOOutParams[i][1] = sock_entry_arm[i].cmd1;
+					sync_before_read((void*)SOOutParams[i][0], SOOutParams[i][1]);
+					dbgprintf("[%i] SOPoll %i %i\r\n", i,SOParams[i][1],SOOutParams[i][1]);
+					#ifdef DEBUG_SOCK
+					hexdump((void*)SOOutParams[i][0], SOOutParams[i][1]);
+					#endif
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 8, (void*)SOOutParams[i][0], SOOutParams[i][1], sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_recvfrom:
+					memset(SOVec[i],0,sizeof(ioctlv)*3);
+					*(vu32*)(SOVecResA[i]) = sock_entry_arm[i].cmd0;
+					*(vu32*)(SOVecResA[i]+4) = sock_entry_arm[i].cmd3;
+					SOVec[i][0].data = SOVecResA[i];
+					SOVec[i][0].len = 8;
+					SOVec[i][1].data = (void*)(sock_entry_arm[i].cmd1&(~(1<<31)));
+					SOVec[i][1].len = sock_entry_arm[i].cmd2;
+					if((sock_entry_arm[i].cmd4>>24) == 8)
+					{
+						memcpy(SOVecResB[i], (void*)&sock_entry_arm[i].cmd4, 8);
+						SOVec[i][2].data = SOVecResB[i];
+						SOVec[i][2].len = 8;
 					}
 					else
-						write32(SO_CMD_3+bPos, 0);
-					write32(SO_RETVAL+bPos, sockres[i]);
-					dbgprintf("Pollres %08x\r\n",sockres[i]);
-				}
-				else if(ioctl == 0x0C)
-				{
-					if (read32(SO_CMD_4+bPos)) {
-						memcpy((void*)(SO_CMD_2+bPos), SOVecResB[i], 8);
-					}
-					if(sockres[i] > 0) {
-						write32(SO_CMD_0+bPos, ((u32)SODataBuf[i]) | 0xD0000000);
-					}
-					write32(SO_RETVAL+bPos, sockres[i]);
-					dbgprintf("Recvres %08x\r\n",sockres[i]);
-				}
-				else if(ioctl == 0x1C)
-				{
-					if(sockres[i] >= 0) {
-						vu32 len = *(vu32*)(SOVecResC[i]);
-						//dbgprintf("sockres %i opt %i res %08x%08x\r\n",sockres[i],len,*(vu32*)SOVecResB[i],*(vu32*)(SOVecResB[i]+4));
-						write32(SO_RETVAL+bPos, len);
-						if(len > 0)
-							memcpy((void*)(SO_CMD_0+bPos),SOVecResB[i],len);
-					}
-				}
-				else if(ioctl == 0x1F)
-				{
-					dbgprintf("Startup %08x\r\n",sockres[i]);
-					write32(SO_RETVAL+bPos, sockres[i]);
-					if(sockres[i] >= 0) //5 seconds until link start
-						sockTimer = read32(HW_TIMER);
-				}
-				else
-				{
-					//if(ioctl == 2 || ioctl == 3 || ioctl == 9 || ioctl == 0x0F || ioctl == 0x1F)
-						dbgprintf("%08x\r\n",sockres[i]);
-					write32(SO_RETVAL+bPos, sockres[i]);
-				}
-				/*if(ioctl == 0x0C || ioctl == 0x0D) {
-					if(SODataBuf[i] != NULL) {
-						free(SODataBuf[i]);
-						SODataBuf[i] = NULL;
-					}
-				}*/			
-				write32(SO_IOCTL+bPos, 0);
-				sync_after_write((void*)(SO_BASE+bPos), 0x20);
-				soBusy[i] = 0;
-				sockintr[i] = 0;
-				soIrqFd = i;
-				SO_IRQ = true;
-				SO_IRQ_Timer = read32(HW_TIMER);
-			}
-			else
-			{
-				dbgprintf("cmd for %i is %i\r\n",i,ioctl);
-				if(ioctl & SO_NCD_CMD)
-				{
-					ioctl &= ~SO_NCD_CMD;
-					switch(ioctl)
 					{
-						case 0x08:
-							dbgprintf("NCD %08x\r\n", ioctl);
-							memset(SOVec[i],0,sizeof(ioctlv)*3);
-							memset(SOVecResA[i],0,0x20);
-							memset(SOVecResB[i],0,0x20);
-							SOVec[i][0].data = SOVecResA[i];
-							SOVec[i][0].len = 0x20;
-							SOVec[i][1].data = SOVecResB[i];
-							SOVec[i][1].len = 0x06;
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlvAsync(ncdFd, ioctl, 0, 2, SOVec[i], sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						default:
-							break;
+						SOVec[i][2].data = NULL;
+						SOVec[i][2].len = 0;
 					}
-				}
-				else
-				{
-					switch(ioctl)
+					dbgprintf("[%i] SORecvFrom %i %08x %i\r\n", i, sock_entry_arm[i].cmd0, sock_entry_arm[i].cmd1, sock_entry_arm[i].cmd2);
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlvAsync(sockFd, ioctl, 1, 2, SOVec[i], sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_sendto:
+					SOVec[i][0].data = (void*)(sock_entry_arm[i].cmd1&(~(1<<31)));
+					SOVec[i][0].len = sock_entry_arm[i].cmd2;
+					sync_before_read(SOVec[i][0].data, SOVec[i][0].len);
+					sendParams[i]->socket = sock_entry_arm[i].cmd0;
+					sendParams[i]->flags = sock_entry_arm[i].cmd3;
+					if((sock_entry_arm[i].cmd4>>24) == 8)
 					{
-						case 0x01:
-							SOParams[i][0] = read32(SO_CMD_0+bPos);
-							sync_after_write(SOParams[i],0x20);
-							SOOutParams[i][0] = read32(SO_CMD_1+bPos);
-							SOOutParams[i][1] = read32(SO_CMD_2+bPos);
-							sync_after_write(SOOutParams[i],0x20);
-							dbgprintf("SOAccept %i %08x %i\r\n",read32(SO_CMD_0+bPos),read32(SO_CMD_1+bPos), read32(SO_CMD_2+bPos));
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, SOOutParams[i], 8, sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x02:
-							memset(bindParams[i], 0, sizeof(struct bind_params));
-							bindParams[i]->socket = read32(SO_CMD_0+bPos);
-							bindParams[i]->has_name = 1;
-							memcpy(bindParams[i]->name, (void*)(SO_CMD_1+bPos), 8);
-							sync_after_write(bindParams[i],0x40);
-							dbgprintf("SOBind %i %08x %i\r\n",read32(SO_CMD_0+bPos),read32(SO_CMD_1+bPos),read32(SO_CMD_2+bPos));
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlAsync(sockFd, ioctl, bindParams[i], sizeof(struct bind_params), NULL, 0, sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x03:
-							SOParams[i][0] = read32(SO_CMD_0+bPos);
-							sync_after_write(SOParams[i],0x20);
-							dbgprintf("SOClose %i\r\n",read32(SO_CMD_0+bPos));
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, NULL, 0, sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x05:
-							SOParams[i][0] = read32(SO_CMD_0+bPos);
-							SOParams[i][1] = read32(SO_CMD_1+bPos);
-							SOParams[i][2] = read32(SO_CMD_2+bPos);
-							sync_after_write(SOParams[i],0x20);
-							dbgprintf("SOFcntl %i %i %i\r\n",read32(SO_CMD_0+bPos),read32(SO_CMD_1+bPos),read32(SO_CMD_2+bPos));
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 12, NULL, 0, sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x09:
-							memset(sockOptParams[i], 0, sizeof(struct setsockopt_params));
-							sockOptParams[i]->socket = read32(SO_CMD_0+bPos);
-							sockOptParams[i]->level = read32(SO_CMD_1+bPos);
-							sockOptParams[i]->optname = read32(SO_CMD_2+bPos);
-							sockOptParams[i]->optlen = read32(SO_CMD_4+bPos);
-							dbgprintf("SOSetSockOpt %i %i %i %i\r\n",read32(SO_CMD_0+bPos),read32(SO_CMD_1+bPos),read32(SO_CMD_2+bPos),read32(SO_CMD_4+bPos));
-							if(read32(SO_CMD_3+bPos) && read32(SO_CMD_4+bPos))
-							{
-								sync_before_read_align32((void*)P2C(read32(SO_CMD_3+bPos)), sockOptParams[i]->optlen);
-								memcpy(sockOptParams[i]->optval, (void*)P2C(read32(SO_CMD_3+bPos)), sockOptParams[i]->optlen);
-								hexdump(sockOptParams[i]->optval, sockOptParams[i]->optlen);
-							}
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlAsync(sockFd, ioctl, sockOptParams[i], sizeof(struct setsockopt_params), NULL, 0, sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x0A:
-							SOParams[i][0] = read32(SO_CMD_0+bPos);
-							SOParams[i][1] = read32(SO_CMD_1+bPos);
-							sync_after_write(SOParams[i],0x20);
-							dbgprintf("SOListen %i %i\r\n",read32(SO_CMD_0+bPos),read32(SO_CMD_1+bPos));
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 8, NULL, 0, sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x0B:
-							SOPollInParams[i][0] = 0;
-							SOPollInParams[i][1] = (u32)(read64(SO_CMD_0+bPos) / 60750ULL);
-							pollNum = read32(SO_CMD_3+bPos);
-							dbgprintf("SOPoll %i %08x %i\r\n",SOPollInParams[i][1],read32(SO_CMD_2+bPos),pollNum);
-							if(read32(SO_CMD_2+bPos) && pollNum)
-							{
-								sync_before_read_align32((void*)P2C(read32(SO_CMD_2+bPos)), pollNum*sizeof(struct oldpoll_params));
-								memcpy(SOPollOldOutParams[i], (void*)P2C(read32(SO_CMD_2+bPos)), pollNum*sizeof(struct oldpoll_params));
-								for(j = 0; j < pollNum; j++) {
-									SOPollNewOutParams[i][j].socket = SOPollOldOutParams[i][j].socket;
-									SOPollNewOutParams[i][j].flagsIn = SOPollOldOutParams[i][j].flagsIn;
-									//SOPollNewOutParams[i][j].flagsOut = SOPollOldOutParams[i][j].flagsOut;
-									SOPollNewOutParams[i][j].flagsOut = 0;
-								}
-								hexdump(SOPollNewOutParams[i], pollNum*sizeof(struct newpoll_params));
-								sync_after_write(SOPollNewOutParams[i], pollNum*sizeof(struct newpoll_params));
-							}
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlAsync(sockFd, ioctl, SOPollInParams[i], 8, SOPollNewOutParams[i], pollNum*sizeof(struct newpoll_params), sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x0C:
-							memset(SOVec[i],0,sizeof(ioctlv)*3);
-							memset(SOVecResB[i],0,8);
-							*(vu32*)(SOVecResA[i]) = read32(SO_CMD_0+bPos);
-							*(vu32*)(SOVecResA[i]+4) = read32(SO_CMD_3+bPos);
-							SOVec[i][0].data = SOVecResA[i];
-							SOVec[i][0].len = 8;
-							sync_after_write(SOVecResA[i],8);
-							dataLen = read32(SO_CMD_2+bPos);
-							if(SODataBuf[i] != NULL) free(SODataBuf[i]);
-							SODataBuf[i] = malloca(dataLen,32);
-							memset(SODataBuf[i],0,dataLen);
-							sync_after_write(SODataBuf[i],dataLen);
-							SOVec[i][1].data = SODataBuf[i];
-							SOVec[i][1].len = dataLen;
-							if (read32(SO_CMD_4+bPos)) {
-								SOVec[i][2].data = SOVecResB[i];
-								SOVec[i][2].len = 8;
-								SOVecResB[i][0] = 0x08;
-								sync_after_write(SOVecResB[i],8);
-							} else {
-								SOVec[i][2].data = NULL;
-								SOVec[i][2].len = 0;
-							}
-							dbgprintf("SORecvFrom %i %08x %i\r\n", read32(SO_CMD_0+bPos), read32(SO_CMD_1+bPos), dataLen);
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlvAsync(sockFd, ioctl, 1, 2, SOVec[i], sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x0D:
-							memset(SOVec[i],0,sizeof(ioctlv)*2);
-							memset(sendParams[i],0,sizeof(struct sendto_params));
-							dataLen = read32(SO_CMD_1+bPos);
-							if(SODataBuf[i] != NULL) free(SODataBuf[i]);
-							SODataBuf[i] = malloca(dataLen,32);
-							sync_before_read_align32((void*)P2C(read32(SO_CMD_0+bPos)), dataLen);
-							memcpy(SODataBuf[i], (void*)P2C(read32(SO_CMD_0+bPos)), dataLen);
-							SOVec[i][0].data = SODataBuf[i];
-							SOVec[i][0].len = dataLen;
-							sync_after_write(SODataBuf[i],dataLen);
-							sendParams[i]->socket = read32(SO_RETVAL+bPos);
-							sendParams[i]->flags = read32(SO_CMD_2+bPos);
-							if ((read32(SO_CMD_3+bPos) >> 24) == 8) {
-								sendParams[i]->has_destaddr = 1;
-								memcpy(sendParams[i]->destaddr, (void*)SO_CMD_3+bPos, 8);
-								//hexdump(sendParams[i]->destaddr, 8);
-							} else {
-								sendParams[i]->has_destaddr = 0;
-							}
-							SOVec[i][1].data = sendParams[i];
-							SOVec[i][1].len = sizeof(struct sendto_params);
-							sync_after_write(sendParams[i],sizeof(struct sendto_params));
-							dbgprintf("SOSendTo %i %i\r\n", sendParams[i]->socket, dataLen);
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlvAsync(sockFd, ioctl, 0, 2, SOVec[i], sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x0F:
-							SOParams[i][0] = read32(SO_CMD_0+bPos);
-							SOParams[i][1] = read32(SO_CMD_1+bPos);
-							SOParams[i][2] = read32(SO_CMD_2+bPos);
-							sync_after_write(SOParams[i],0x20);
-							dbgprintf("SOSocket %i %i %i\r\n",read32(SO_CMD_0+bPos),read32(SO_CMD_1+bPos),read32(SO_CMD_2+bPos));
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 12, NULL, 0, sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x1C:
-							optCmd = read32(SO_CMD_0+bPos);
-							optLen = read32(SO_CMD_1+bPos);
-							dbgprintf("SOGetInterfaceOpt %i %i\r\n", optCmd, optLen);
-							memset(SOVec[i],0,sizeof(ioctlv)*3);
-							memset(SOVecResB[i],0,0x20);
-							u32 level = 0xFFFE;
-							*(vu32*)(SOVecResA[i]) = level;
-							*(vu32*)(SOVecResA[i]+4) = optCmd;
-							SOVec[i][0].data = SOVecResA[i];
-							SOVec[i][0].len = 8;
-							SOVec[i][1].data = SOVecResB[i];
-							SOVec[i][1].len = optLen;
-							*(vu32*)(SOVecResC[i]) = optLen;
-							SOVec[i][2].data = SOVecResC[i];
-							SOVec[i][2].len = 4;
-							sync_after_write(SOVecResA[i],0x20);
-							sync_after_write(SOVecResB[i],0x20);
-							sync_after_write(SOVecResC[i],0x20);
-							sockmsg[i]->seek.origin = i;
-							IOS_IoctlvAsync(sockFd, ioctl, 1, 2, SOVec[i], sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0x1F:
-							sockmsg[i]->seek.origin = i;
-							dbgprintf("SOStartup\r\n");
-							IOS_IoctlAsync(sockFd, ioctl, NULL, 0, NULL, 0, sockqueue, sockmsg[i]);
-							soBusy[i] = 1;
-							break;
-						case 0xFF:
-							dbgprintf("Ret Addr %08x\r\n",read32(SO_CMD_0+bPos));
-							write32(SO_CMD_0+bPos, 0);
-							write32(SO_IOCTL+bPos, 0);
-							sync_after_write((void*)(SO_BASE+bPos), 0x20);
-						default:
-							break;
+						//FOR OUR BROADCAST HACK: Redirect sends from Multicast IP to Broadcast IP
+						if((sock_entry_arm[i].cmd4&0xFFFF) == 1900 && sock_entry_arm[i].cmd5 == 0xEFFFFFFA)
+						{
+							dbgprintf("[%i] Broadcast Hack: Redirecting Send to Broadcast IP\n", i);
+							sock_entry_arm[i].cmd5 = 0xFFFFFFFF;
+						}
+						sendParams[i]->has_destaddr = 1;
 					}
-				}
+					else //size not 8, so no dest address given
+						sendParams[i]->has_destaddr = 0;
+					memcpy(sendParams[i]->destaddr, (void*)&sock_entry_arm[i].cmd4, 8);
+					SOVec[i][1].data = sendParams[i];
+					SOVec[i][1].len = sizeof(struct sendto_params);
+					dbgprintf("[%i] SOSendTo %i %i %i %08x%08x\r\n", i, sendParams[i]->socket, SOVec[i][0].len, sendParams[i]->has_destaddr,
+						sock_entry_arm[i].cmd4, sock_entry_arm[i].cmd5);
+					#ifdef DEBUG_SOCK
+					hexdump(SOVec[i][0].data, SOVec[i][0].len);
+					#endif
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlvAsync(sockFd, ioctl, 2, 0, SOVec[i], sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_shutdown:
+					memcpy(SOParams[i], (void*)&sock_entry_arm[i].cmd0, 8);
+					dbgprintf("[%i] SOShutdown %i %i\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1);
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 8, NULL, 0, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_socket:
+					memcpy(SOParams[i], (void*)&sock_entry_arm[i].cmd0, 12);
+					dbgprintf("[%i] SOSocket %i %i %i\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 12, NULL, 0, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_getinterfaceopt:
+					optCmd = sock_entry_arm[i].cmd0;
+					optLen = sock_entry_arm[i].cmd2;
+					if(optCmd != 0x1003)
+						dbgprintf("[%i] SOGetInterfaceOpt %08x %i\r\n", i, optCmd, optLen);
+					write32((u32)SOVecResA[i], 0xFFFE);
+					write32((u32)SOVecResA[i]+4, optCmd);
+					SOVec[i][0].data = SOVecResA[i];
+					SOVec[i][0].len = 8;
+					SOVec[i][1].data = (void*)(sock_entry_arm[i].cmd1&(~(1<<31)));
+					SOVec[i][1].len = optLen;
+					memset(SOVec[i][1].data, 0, SOVec[i][1].len);
+					write32((u32)SOVecResC[i], optLen);
+					SOVec[i][2].data = SOVecResC[i];
+					SOVec[i][2].len = 4;
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlvAsync(sockFd, ioctl, 1, 2, SOVec[i], sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_setinterfaceopt:
+					optCmd = sock_entry_arm[i].cmd0;
+					optLen = sock_entry_arm[i].cmd2;
+					dbgprintf("[%i] SOSetInterfaceOpt %08x %i\r\n", i, optCmd, optLen);
+					write32((u32)SOVecResA[i], 0xFFFE);
+					write32((u32)SOVecResA[i]+4, optCmd);
+					SOVec[i][0].data = SOVecResA[i];
+					SOVec[i][0].len = 8;
+					SOVec[i][1].data = (void*)(sock_entry_arm[i].cmd1&(~(1<<31)));
+					SOVec[i][1].len = optLen;
+					sync_before_read(SOVec[i][1].data, SOVec[i][1].len);
+					sockmsg[i]->seek.origin = i;
+					IOS_IoctlvAsync(sockFd, ioctl, 2, 0, SOVec[i], sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case so_startinterface:
+					sockmsg[i]->seek.origin = i;
+					dbgprintf("[%i] SOStartInterface\r\n", i);
+					IOS_IoctlAsync(sockFd, ioctl, NULL, 0, NULL, 0, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				case nwc_startup:
+				case nwc_cleanup:
+					ioctl &= ~SO_NWC_CMD;
+					dbgprintf("[%i] NWC %08x\r\n", i, ioctl);
+					write32((u32)SOOutParams[i], -1);
+					IOS_IoctlAsync(nwcFd, ioctl, NULL, 0, SOOutParams[i], 0x20, sockqueue, sockmsg[i]);
+					soBusy[i] = 1;
+					break;
+				default: //should never happen
+					Shutdown();
+					break;
 			}
-			break;
 		}
 	}
 }

@@ -6,6 +6,7 @@
 .set	DI_INT,		INT_BASE+0x20
 .set	SI_INT,		INT_BASE+0x40
 .set	EXI_INT,	INT_BASE+0x60
+.set	HSP_INT,	INT_BASE+0x80
 
 FakeInterrupt:
 	lwz		%r31,	0x3000(%r3)
@@ -32,7 +33,7 @@ FakeInterrupt:
 	lwz		%r0,	EXI_INT@l(%r3)
 	rlwimi	%r31,	%r0,	0, 27, 27	#0x10
 
-	#SO Fake HSP Interrupt
+	lwz		%r0,	HSP_INT@l(%r3)
 	rlwimi	%r31,	%r0,	0, 18, 18	#0x2000
 
 end:

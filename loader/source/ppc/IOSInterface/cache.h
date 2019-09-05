@@ -12,7 +12,10 @@
 #ifndef __CACHE_H__
 #define __CACHE_H__
 
+typedef unsigned long long u64;
 typedef unsigned int u32;
+typedef unsigned short u16;
+typedef unsigned char u8;
 
 void sync_before_read(void *p, u32 len);
 void sync_after_write(const void *p, u32 len);

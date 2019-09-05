@@ -24,9 +24,6 @@ __intr_stack_addr = __hid_change_stack_addr + __intr_stack_size;
 __blk_stack_size = 0x400;
 __blk_stack_addr = __intr_stack_addr + __blk_stack_size;
 
-__so_stack_size = 0x400;
-__so_stack_addr = __blk_stack_addr + __so_stack_size;
-
 MEMORY {
 
 	code		: ORIGIN = 0x20F00000,	LENGTH = 0x38000

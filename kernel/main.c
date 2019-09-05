@@ -292,13 +292,13 @@ int _main( int argc, char *argv[] )
 		}
 #endif
 		//Does interrupts again if needed
-		sync_before_read((void*)INT_BASE, 0x80);
+		sync_before_read((void*)INT_BASE, 0xA0);
 		if(TimerDiffTicks(InterruptTimer) > 15820) //about 120 times a second
 		{
 			if((read32(RSW_INT) & 2) || (read32(DI_INT) & 4) || 
-				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x2010)) {
+				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10) || (read32(HSP_INT) & 0x2000)) {
 				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
-				dbgprintf("repeat\r\n");
+				//dbgprintf("repeat\r\n");
 			}
 			InterruptTimer = read32(HW_TIMER);
 		}
@@ -309,10 +309,7 @@ int _main( int argc, char *argv[] )
 				EXIInterrupt();
 		}
 		if (SO_IRQ == true)
-		{
-			if(SOCKCheckTimer())
-				SOCKInterrupt();
-		}
+			SOCKInterrupt();
 		#endif
 		if (SI_IRQ != 0)
 		{

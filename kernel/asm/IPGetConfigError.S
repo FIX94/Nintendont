@@ -1,13 +1,9 @@
 #include <asm.h>
 
-#	r3	srcbuf
+.set IPGetConfigErrorAddr,	0x9300604C
 
 IPGetConfigError:
-	cmplwi %r3,0
-	beq noError
-	lwz %r3,8(%r3)
-	b end
-noError:
-	li %r3, 0
-end:
-	blr
+	lis 0, IPGetConfigErrorAddr@h
+	ori 0, 0, IPGetConfigErrorAddr@l
+	mtctr 0
+	bctr

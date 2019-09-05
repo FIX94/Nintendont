@@ -1,15 +1,9 @@
 #include <asm.h>
 
-#	r3	srcbuf
-#	r4	dstbuf
+.set IPGetLinkStateAddr,	0x93006048
 
 IPGetLinkState:
-	cmplwi %r3, 0
-	beq stateOK
-	lwz %r3, 4(%r3)
-	b storeState
-stateOK:
-	li %r3, 1
-storeState:
-	stw %r3, 0(%r4)
-	blr
+	lis 0, IPGetLinkStateAddr@h
+	ori 0, 0, IPGetLinkStateAddr@l
+	mtctr 0
+	bctr
