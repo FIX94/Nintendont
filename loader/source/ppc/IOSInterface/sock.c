@@ -47,7 +47,9 @@ extern void (*OSSleepThread)(void *queue);
 #define OSReport(...)
 #else
 //mario kart ntsc-u
-static void (*OSReport)(char *in, ...) = (void*)0x800E8078;
+//static void (*OSReport)(char *in, ...) = (void*)0x800E8078;
+//kirby air ride ntsc-u
+static void (*OSReport)(char *in, ...) = (void*)0x803D4CE8;
 #endif
 
 int getFreeFD()

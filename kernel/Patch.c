@@ -2948,9 +2948,20 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_SOStartup:
 						{
-							SOStartedOffset = read16(FOffset+0x412); //game startup status offset
-							memcpy((void*)FOffset, SOStartup, SOStartup_size);
-							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							if(read32(FOffset+0x40C) == 0x38000001)
+							{
+								SOStartedOffset = read16(FOffset+0x412); //game startup status offset
+								memcpy((void*)FOffset, SOStartup, SOStartup_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else if(read32(FOffset+0x3E8) == 0x38000001)
+							{
+								SOStartedOffset = read16(FOffset+0x3EE); //game startup status offset
+								memcpy((void*)FOffset, SOStartup, SOStartup_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
 						} break;
 						case FCODE_IPGetMacAddr:
 						{
@@ -3239,7 +3250,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	#endif
 	PatchState = PATCH_STATE_DONE;
 
-	if(TITLE_ID == 0x474D34 && OSSleepThread && OSWakeupThread && SOStartedOffset)
+	if(OSSleepThread && OSWakeupThread && SOStartedOffset && (TITLE_ID == 0x474D34 || TITLE_ID == 0x474B59 || TITLE_ID == 0x475445))
 	{
 		u32 hspAddr = PatchCopy(HSPIntrruptHandler, HSPIntrruptHandler_size);
 		PatchBL(OSWakeupThread, hspAddr+0x28);
@@ -3249,20 +3260,65 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		write16(SO_HSP_LOC+8, SOStartedOffset);
 		dbgprintf("Patch:Inserted HSP Interrupt Handler\r\n");
 		sync_after_write((void*)SO_HSP_LOC, 0x20);
-		if(read32(0x001DD168) == 0x4BEE812D)
+		if(TITLE_ID == 0x474D34)
 		{
-			PatchB(0x001DD184, 0x001DD168);
-			dbgprintf("Patch:Patched Mario Kart NTSC-J BBA Detection\r\n");
+			if(read32(0x001DD168) == 0x4BEE812D)
+			{
+				PatchB(0x001DD184, 0x001DD168);
+				dbgprintf("Patch:Patched Mario Kart NTSC-J BBA Detection\r\n");
+			}
+			else if(read32(0x001DD140) == 0x4BEE8155)
+			{
+				PatchB(0x001DD15C, 0x001DD140);
+				dbgprintf("Patch:Patched Mario Kart NTSC-U BBA Detection\r\n");
+			}
+			else if(read32(0x001DD100) == 0x4BEE8159)
+			{
+				PatchB(0x001DD11C, 0x001DD100);
+				dbgprintf("Patch:Patched Mario Kart PAL BBA Detection\r\n");
+			}
 		}
-		if(read32(0x001DD140) == 0x4BEE8155)
+		else if(TITLE_ID == 0x474B59)
 		{
-			PatchB(0x001DD15C, 0x001DD140);
-			dbgprintf("Patch:Patched Mario Kart NTSC-U BBA Detection\r\n");
+			if(read32(0x00482124) == 0x4BF6473D && read32(0x004821A8) == 0x4BF646B9)
+			{
+				PatchB(0x00482148, 0x00482124);
+				PatchB(0x004821D8, 0x004821A8);
+				dbgprintf("Patch:Patched Kirby Air Ride NTSC-J BBA Detection\r\n");
+			}
+			else if(read32(0x00487204) == 0x4BF6473D && read32(0x00487288) == 0x4BF646B9)
+			{
+				PatchB(0x00487228, 0x00487204);
+				PatchB(0x004872B8, 0x00487288);
+				dbgprintf("Patch:Patched Kirby Air Ride NTSC-U BBA Detection\r\n");
+			}
+			else if(read32(0x0048AF30) == 0x4BF63051 && read32(0x0048AFB4) == 0x4BF62FCD)
+			{
+				PatchB(0x0048AF54, 0x0048AF30);
+				PatchB(0x0048AFE4, 0x0048AFB4);
+				dbgprintf("Patch:Patched Kirby Air Ride PAL BBA Detection\r\n");
+			}
 		}
-		else if(read32(0x001DD100) == 0x4BEE8159)
+		else if(TITLE_ID == 0x475445)
 		{
-			PatchB(0x001DD11C, 0x001DD100);
-			dbgprintf("Patch:Patched Mario Kart PAL BBA Detection\r\n");
+			if(read32(0x00098C84) == 0x480A821D && read32(0x000F22A8) == 0x4804EBF9)
+			{
+				PatchB(0x00098C98, 0x00098C84);
+				PatchB(0x000F22BC, 0x000F22A8);
+				dbgprintf("Patch:1080 Avalanche NTSC-J BBA Detection\r\n");
+			}
+			else if(read32(0x00097C50) == 0x480A549D && read32(0x000EEFC8) == 0x4804E125)
+			{
+				PatchB(0x00097C64, 0x00097C50);
+				PatchB(0x000EEFDC, 0x000EEFC8);
+				dbgprintf("Patch:1080 Avalanche NTSC-U BBA Detection\r\n");
+			}
+			else if(read32(0x00097EB8) == 0x480A5EFD && read32(0x000EF920) == 0x4804E495)
+			{
+				PatchB(0x00097ECC, 0x00097EB8);
+				PatchB(0x000EF934, 0x000EF920);
+				dbgprintf("Patch:1080 Avalanche PAL BBA Detection\r\n");
+			}
 		}
 	}
 

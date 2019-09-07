@@ -12,6 +12,6 @@
 
 // "Special" version.
 // This should only be set in custom builds, i.e. not mainline.
-#define NIN_SPECIAL_VERSION			"BBA Beta 1"
+#define NIN_SPECIAL_VERSION			"BBA Beta 2"
 
 #endif

@@ -164,6 +164,8 @@ enum
 	FGROUP___OSInitAudioSystem,
 	FGROUP_OSExceptionInit,
 	FGROUP_ReadROM,
+	FGROUP_SOStartup,
+	FGROUP_SOCleanup,
 } FPatternGroups;
 
 FuncPattern NormalFPatterns[] =
@@ -403,8 +405,10 @@ FuncPattern PSOFPatterns[] =
 FuncPattern SOPatterns[] =
 {
 	{   0x7C,   11,   4,    5,    2,    2,	NULL,				FCODE_SOInit,				"SOInit",				NULL,		FGROUP_NONE,				0 },
-	{   0x4F8, 118,  32,   30,   41,   24,  NULL,				FCODE_SOStartup,			"SOStartup",			NULL,		FGROUP_NONE,				0 },
-	{   0x344,  72,  11,   32,   24,   10,	SOCleanup,			SOCleanup_size,				"SOCleanup",			NULL,		FGROUP_NONE,				0 },
+	{   0x4F8, 118,  32,   30,   41,   24,  NULL,				FCODE_SOStartup,			"SOStartup",			"A",		FGROUP_SOStartup,			0 },
+	{   0x4D4, 111,  31,   30,   41,   24,  NULL,				FCODE_SOStartup,			"SOStartup",			"B",		FGROUP_SOStartup,			0 },
+	{   0x344,  72,  11,   32,   24,   10,	SOCleanup,			SOCleanup_size,				"SOCleanup",			"A",		FGROUP_SOCleanup,			0 },
+	{   0x30C,  69,  11,   27,   23,   10,	SOCleanup,			SOCleanup_size,				"SOCleanup",			"B",		FGROUP_SOCleanup,			0 },
 	{   0x668, 133,  17,   45,   50,   16,  SOSocket,			SOSocket_size,				"SOSocket",				NULL,		FGROUP_NONE,				0 },
 	{   0x454,  82,  23,   26,   28,   23,	SOClose,			SOClose_size,				"__SOClose",			NULL,		FGROUP_NONE,				0 },
 	{   0x128,  15,   6,    4,   21,    3,	SOListen,			SOListen_size,				"SOListen",				NULL,		FGROUP_NONE,				0 },
