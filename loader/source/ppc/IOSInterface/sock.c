@@ -29,6 +29,8 @@ static so_struct_buf *sock_data_buf = (so_struct_buf*)SO_DATA_BUF;
 static u32 socket_inited = 0;
 static u32 socket_started = 0;
 static u32 interface_started = 0;
+//for optimization purposes
+static int conf_cache = -1, ip_cache = 0, link_cache = 0;
 static u8 used[SO_TOTAL_FDS];
 static u64 *queue = (u64*)SO_BASE_PPC;
 
@@ -47,9 +49,11 @@ extern void (*OSSleepThread)(void *queue);
 #define OSReport(...)
 #else
 //mario kart ntsc-u
-//static void (*OSReport)(char *in, ...) = (void*)0x800E8078;
+static void (*OSReport)(char *in, ...) = (void*)0x800E8078;
 //kirby air ride ntsc-u
-static void (*OSReport)(char *in, ...) = (void*)0x803D4CE8;
+//static void (*OSReport)(char *in, ...) = (void*)0x803D4CE8;
+//1080 avalanche ntsc-u
+//static void (*OSReport)(char *in, ...) = (void*)0x80136174;
 #endif
 
 int getFreeFD()
@@ -103,7 +107,7 @@ void SOInit(void)
 
 int doCall(int call, int fd, int doIRQ)
 {
-	OSReport("doCall start %i %i\n", call, fd);
+	//OSReport("doCall start %i %i\n", call, fd);
 	sock_entry_arm[fd].ioctl = call;
 	sync_after_write(&sock_entry_arm[fd], 0x20);
 	if(doIRQ)
@@ -118,8 +122,16 @@ int doCall(int call, int fd, int doIRQ)
 		}
 	}
 	sync_before_read(&sock_entry_arm[fd], 0x20);
-	OSReport("doCall done %i\n", sock_entry_arm[fd].retval);
+	//OSReport("doCall done %i\n", sock_entry_arm[fd].retval);
 	return sock_entry_arm[fd].retval;
+}
+
+static inline void reset_cache_vals()
+{
+	//reset these
+	conf_cache = -1;
+	ip_cache = 0;
+	link_cache = 0;
 }
 
 int doStartSOInterface(int fd, int doIRQ)
@@ -132,6 +144,7 @@ int doStartSOInterface(int fd, int doIRQ)
 		{
 			int val = disableIRQs();
 			interface_started = 1;
+			reset_cache_vals();
 			restoreIRQs(val);
 			//started interface successfully
 			return 1;
@@ -193,6 +206,7 @@ int SOStartup(void)
 	setSOStartStatus(1);
 	//also enables interface
 	interface_started = 1;
+	reset_cache_vals();
 	restoreIRQs(val);
 	OSReport("SOStartup done\n");
 	return 0;
@@ -216,6 +230,7 @@ int SOCleanup(void)
 	setSOStartStatus(0);
 	//also disables interface
 	interface_started = 0;
+	reset_cache_vals();
 	restoreIRQs(val);
 	OSReport("SOCleanup done\n");
 	return 0;
@@ -547,6 +562,12 @@ void IPGetAddr(char *interface_in, u32 *retval)
 		*retval = *(volatile u32*)(interface_in+0x44);
 		return;
 	}
+	//speedup
+	if(ip_cache)
+	{
+		*retval = ip_cache;
+		return;
+	}
 	//default interface request
 	int fd = getFreeFD();
 	if(doSOGetInterfaceOpt(0x4003, (void*)sock_data_buf[fd].buf, 12, fd, 1)) //read out from IOS address
@@ -554,6 +575,7 @@ void IPGetAddr(char *interface_in, u32 *retval)
 	else //just return 0
 		*retval = 0;
 	freeUpFD(fd);
+	ip_cache = *retval;
 	OSReport("IPGetAddr done %08x\n", *retval);
 }
 
@@ -585,6 +607,12 @@ void IPGetLinkState(char *interface_in, u32 *retval)
 		*retval = *(volatile u32*)(interface_in+4);
 		return;
 	}
+	//speedup
+	if(link_cache)
+	{
+		*retval = link_cache;
+		return;
+	}
 	//default interface request
 	int fd = getFreeFD();
 	//do getlinkstate
@@ -593,6 +621,7 @@ void IPGetLinkState(char *interface_in, u32 *retval)
 	else //just say link down
 		*retval = 0;
 	freeUpFD(fd);
+	link_cache = *retval;
 	OSReport("IPGetLinkState done %08x\n", *retval);
 }
 
@@ -600,6 +629,9 @@ int IPGetConfigError(char *interface_in)
 {
 	if(interface_in)
 		return *(volatile u32*)(interface_in+8);
+	//speedup
+	if(conf_cache == 0)
+		return 0;
 	int ret;
 	//default interface request
 	int fd = getFreeFD();
@@ -609,6 +641,7 @@ int IPGetConfigError(char *interface_in)
 	else //return some negative number I guess
 		ret = -1;
 	freeUpFD(fd);
+	conf_cache = ret;
 	OSReport("IPGetConfigError done %08x\n", ret);
 	return ret;
 }
@@ -625,6 +658,9 @@ int IPSetConfigError(char *interface_in, int err)
 		}
 		return ret; //returns current interface value
 	}
+	//speedup
+	if(ret == 0 && err == 0)
+		return 0;
 	//default interface request
 	int fd = getFreeFD();
 	if(ret == 0)
@@ -635,6 +671,7 @@ int IPSetConfigError(char *interface_in, int err)
 		doSOSetInterfaceOpt(0x1003, (void*)sock_data_buf[fd].buf, 4, fd, 1);
 	}
 	freeUpFD(fd);
+	conf_cache = ret;
 	OSReport("IPSetConfigError done %08x\n", ret);
 	return ret; //returns current interface value
 }
@@ -648,6 +685,9 @@ int IPClearConfigError(char *interface_in)
 		*(volatile u32*)(interface_in+8) = 0;
 		return ret; //returns last interface value
 	}
+	//speedup
+	if(ret == 0)
+		return 0;
 	//default interface request
 	int fd = getFreeFD();
 	//clear out current interface value
@@ -655,6 +695,7 @@ int IPClearConfigError(char *interface_in)
 	//do clearconfigerror
 	doSOSetInterfaceOpt(0x1003, (void*)sock_data_buf[fd].buf, 4, fd, 1);
 	freeUpFD(fd);
+	conf_cache = ret;
 	OSReport("IPClearConfigError done %08x\n", ret);
 	return ret; //returns last interface value
 }

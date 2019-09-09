@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 //#undef DEBUG
 bool access_led = false;
+bool bba_emu = true; //TODO: make into setting
 u32 USBReadTimer = 0;
 extern u32 s_size;
 extern u32 s_cnt;
@@ -230,6 +231,11 @@ int _main( int argc, char *argv[] )
 	mdelay(1000); //wait before hw flag changes
 	dbgprintf("Kernel Start\r\n");
 
+	int delayTime;
+	if(bba_emu)
+		delayTime = 350;
+	else
+		delayTime = 200;
 	//write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
 	//sync_after_write((void*)0x1860, 0x20);
 
@@ -279,6 +285,7 @@ int _main( int argc, char *argv[] )
 			write32(0xd8006a0, 0x30000002);
 		mask32(0xd8006a8, 0, 2);
 	}
+
 	while (1)
 	{
 		_ahbMemFlush(0);
@@ -323,7 +330,7 @@ int _main( int argc, char *argv[] )
 		{
 			if(DiscCheckAsync())
 				DIInterrupt();
-			else
+			else if(!bba_emu)
 				udelay(200); //let the driver load data
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
@@ -345,7 +352,7 @@ int _main( int argc, char *argv[] )
 		}
 		else /* No device I/O so make sure this stays updated */
 			GetCurrentTime();
-		udelay(200); //wait for other threads
+		udelay(delayTime); //wait for other threads
 
 		if( WaitForRealDisc == 1 )
 		{
