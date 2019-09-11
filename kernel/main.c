@@ -52,7 +52,7 @@ static FATFS *fatfs = NULL;
 static const WCHAR fatDevName[2] = { 0x002F, 0x0000 };
 
 extern u32 SI_IRQ;
-extern bool DI_IRQ, EXI_IRQ, SO_IRQ;
+extern bool DI_IRQ, EXI_IRQ;
 extern u32 WaitForRealDisc;
 extern struct ipcmessage DI_CallbackMsg;
 extern u32 DI_MessageQueue;
@@ -233,7 +233,7 @@ int _main( int argc, char *argv[] )
 
 	int delayTime;
 	if(bba_emu)
-		delayTime = 350;
+		delayTime = 300;
 	else
 		delayTime = 200;
 	//write32( 0x1860, 0xdeadbeef );	// Clear OSReport area
@@ -303,7 +303,7 @@ int _main( int argc, char *argv[] )
 		if(TimerDiffTicks(InterruptTimer) > 15820) //about 120 times a second
 		{
 			if((read32(RSW_INT) & 2) || (read32(DI_INT) & 4) || 
-				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10) || (read32(HSP_INT) & 0x2000)) {
+				(read32(SI_INT) & 8) || (read32(EXI_INT) & 0x10)) {
 				write32(HW_IPC_ARMCTRL, (1 << 0) | (1 << 4)); //throw irq
 				//dbgprintf("repeat\r\n");
 			}
@@ -315,8 +315,6 @@ int _main( int argc, char *argv[] )
 			if(EXICheckTimer())
 				EXIInterrupt();
 		}
-		if (SO_IRQ == true)
-			SOCKInterrupt();
 		#endif
 		if (SI_IRQ != 0)
 		{
