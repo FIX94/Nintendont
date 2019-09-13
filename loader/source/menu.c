@@ -584,7 +584,7 @@ static int SelectGame(void)
 						PosX++;
 				}
 				if ((settingPart == 0 && PosX >= ListMax)
-					|| (settingPart == 1 && PosX >= 3))
+					|| (settingPart == 1 && PosX >= 4))
 				{
 					ScrollX = 0;
 					PosX	= 0;
@@ -609,7 +609,7 @@ static int SelectGame(void)
 					if(settingPart == 0)
 						PosX = ListMax - 1;
 					else
-						PosX = 2;
+						PosX = 3;
 				}
 				if(settingPart == 0)
 				{
@@ -769,6 +769,13 @@ static int SelectGame(void)
 						ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
 						redraw = 1;
 					}
+					else if(PosX == 3)
+					{
+						SaveSettings = true;
+						ncfg->NetworkProfile++;
+						ncfg->NetworkProfile &= 3;
+						redraw = 1;
+					}
 				}
 			}
 
@@ -858,12 +865,21 @@ static int SelectGame(void)
 					ncfg->VideoOffset = 0;
 				snprintf(vidOffset, sizeof(vidOffset), "%i", ncfg->VideoOffset);
 
+				char netProfile[5];
+				ncfg->NetworkProfile &= 3;
+				if(ncfg->NetworkProfile == 0)
+					snprintf(netProfile, sizeof(netProfile), "Auto");
+				else
+					snprintf(netProfile, sizeof(netProfile), "%i", ncfg->NetworkProfile);
+
 				ListLoopIndex = 0; //reset on other side
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Video Width", vidWidth);
 				ListLoopIndex++;
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Screen Position", vidOffset);
 				ListLoopIndex++;
 				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Patch PAL50", (ncfg->VideoMode & (NIN_VID_PATCH_PAL50)) ? "On " : "Off");
+				ListLoopIndex++;
+				PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex), "%-18s:%-4s", "Network Profile", netProfile);
 				ListLoopIndex++;
 				if(settingPart == 0)
 					PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 30, SettingY(PosX), ARROW_RIGHT);

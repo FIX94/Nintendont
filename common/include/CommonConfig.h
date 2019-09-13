@@ -23,7 +23,7 @@ typedef struct NIN_CFG
 	unsigned char		MemCardBlocks;
 	signed char			VideoScale;
 	signed char			VideoOffset;
-	unsigned char		Unused;
+	unsigned char		NetworkProfile;
 } NIN_CFG;
 
 enum ninconfigbitpos

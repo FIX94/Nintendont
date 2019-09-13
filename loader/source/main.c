@@ -117,8 +117,8 @@ vu32 KernelLoaded = 0;
 u32 entrypoint = 0;
 char launch_dir[MAXPATHLEN] = {0};
 extern void __exception_closeall();
-static u8 loader_stub[0x1800]; //save internally to prevent overwriting
-static ioctlv IOCTL_Buf ALIGNED(32);
+static u8 loader_stub[0x1C00]; //save internally to prevent overwriting
+static ioctlv IOCTL_Buf[2] ALIGNED(32);
 static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
 static const char NIN_BUILD_STRING[] ALIGNED(32) = NIN_VERSION_STRING; // Version detection string used by nintendont launchers "$$Version:x.xxx"
 
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 	*(vu32*)0xD3003420 = 0; //make sure kernel doesnt reload
 
 	raw_irq_handler_t irq_handler = BeforeIOSReload();
-	IOS_IoctlvAsync( fd, 0x1F, 0, 0, &IOCTL_Buf, NULL, NULL );
+	IOS_IoctlvAsync( fd, 0x1F, 0, 0, IOCTL_Buf, NULL, NULL );
 	AfterIOSReload( irq_handler, FoundVersion );
 
 	while(1)
@@ -1109,6 +1109,64 @@ int main(int argc, char **argv)
 	//} while(kdData[0] < 0);
 	IOS_Close(fd);
 
+	ncfg->NetworkProfile &= 3;
+	if(ncfg->NetworkProfile > 0)
+	{
+		do {
+			fd = IOS_Open("/dev/net/ncd/manage", 0);
+		} while(fd < 0);
+		//loader_stub is unused at this point so...
+		IOCTL_Buf[0].data = loader_stub;
+		IOCTL_Buf[0].len = 0x1B5C;
+		IOCTL_Buf[1].data = loader_stub+0x1B60;
+		IOCTL_Buf[1].len = 0x20;
+		IOS_Ioctlv(fd, 3, 0, 2, IOCTL_Buf);
+		//enable requested profile
+		if(ncfg->NetworkProfile == 1)
+		{
+			//enable profile 1
+			loader_stub[0x8] |= 0xA0;
+			//set wireless/wired select
+			if(loader_stub[0x8]&1) //wired
+				loader_stub[0x4] = 2;
+			else //wireless
+				loader_stub[0x4] = 1;
+			//disable profile 2 and 3
+			loader_stub[0x924] &= 0x7F;
+			loader_stub[0x1240] &= 0x7F;
+		}
+		else if(ncfg->NetworkProfile == 2)
+		{
+			//disable profile 1
+			loader_stub[0x8] &= 0x7F;
+			//enable profile 2
+			loader_stub[0x924] |= 0xA0;
+			//set wireless/wired select
+			if(loader_stub[0x924]&1) //wired
+				loader_stub[0x4] = 2;
+			else //wireless
+				loader_stub[0x4] = 1;
+			//disable profile 3
+			loader_stub[0x1240] &= 0x7F;
+		}
+		else //if(ncfg->NetworkProfile == 3)
+		{
+			//disable profile 1 and 2
+			loader_stub[0x8] &= 0x7F;
+			loader_stub[0x924] &= 0x7F;
+			//enable profile 3
+			loader_stub[0x1240] |= 0xA0;
+			//set wireless/wired select
+			if(loader_stub[0x1240]&1) //wired
+				loader_stub[0x4] = 2;
+			else //wireless
+				loader_stub[0x4] = 1;
+		}
+		//flush to RAM, REALLY important
+		DCFlushRange(loader_stub, 0x1C00);
+		IOS_Ioctlv(fd, 4, 1, 1, IOCTL_Buf);
+		IOS_Close(fd);
+	}
 	//fd = IOS_Open("/dev/net/ip/top", 0);
 	//IOS_Ioctl(fd, 0x1F, 0, 0, 0, 0);
 	//IOS_Close(fd);
