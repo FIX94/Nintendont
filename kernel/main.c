@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Stream.h"
 #include "HID.h"
 #include "EXI.h"
+#include "sock.h"
 #include "GCNCard.h"
 #include "debug.h"
 #include "GCAM.h"
@@ -60,6 +61,7 @@ extern u32 WaitForRealDisc;
 extern struct ipcmessage DI_CallbackMsg;
 extern u32 DI_MessageQueue;
 extern vu32 DisableSIPatch;
+extern vu32 bbaEmuWanted;
 extern char __bss_start, __bss_end;
 extern char __di_stack_addr, __di_stack_size;
 
@@ -251,6 +253,8 @@ int _main( int argc, char *argv[] )
 	StreamInit();
 
 	PatchInit();
+
+	SOCKInit();
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);
@@ -363,7 +367,7 @@ int _main( int argc, char *argv[] )
 		{
 			if(DiscCheckAsync())
 				DIInterrupt();
-			else
+			else if(!bbaEmuWanted)
 				udelay(200); //let the driver load data
 		}
 		else if(SaveCard == true) /* DI IRQ indicates we might read async, so dont write at the same time */
@@ -437,6 +441,11 @@ int _main( int argc, char *argv[] )
 		HIDUpdateRegisters(0);
 		if(DisableSIPatch == 0) SIUpdateRegisters();
 		#endif
+		if(bbaEmuWanted)
+		{
+			SOCKUpdateRegisters();
+			udelay(200);
+		}
 		StreamUpdateRegisters();
 		CheckOSReport();
 		if(GCNCard_CheckChanges())

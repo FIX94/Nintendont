@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ISO.h"
 #include "SI.h"
 #include "EXI.h"
+#include "sock.h"
 #include "codehandler.h"
 #include "codehandleronly.h"
 #include "ff_utf8.h"
@@ -48,7 +49,7 @@ u32 TITLE_ID = 0;
 #define PATCH_OFFSET_ENTRY PATCH_OFFSET_START - FakeEntryLoad_size
 static u32 POffset = PATCH_OFFSET_ENTRY;
 vu32 useipl = 0, useipltri = 0;
-vu32 DisableSIPatch = 0, DisableEXIPatch = 0;
+vu32 DisableSIPatch = 0, DisableEXIPatch = 0, bbaEmuWanted = 0;
 extern vu32 TRIGame;
 
 #define PRS_DOL     0x131C0000
@@ -1626,6 +1627,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PatchCount &= ~(FPATCH_VideoModes | FPATCH_VIConfigure | FPATCH_getTiming);
 		videoPatches = 1;
 	}
+
+	if(ConfigGetConfig(NIN_CFG_BBA_EMU) && (TITLE_ID == 0x474D34 || TITLE_ID == 0x474B59 || TITLE_ID == 0x475445))
+		bbaEmuWanted = 1;
+	else
+		bbaEmuWanted = 0;
+
+	if(bbaEmuWanted)
+		PatchCount &= ~FPATCH_OSSleepThread;
 	/* Set up patch pattern lists */
 	FuncPatterns CurFPatternsList[PCODE_MAX];
 	u32 CurFPatternsListLen = 0;
@@ -1642,6 +1651,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		if (AllFPatterns[patitr].patmode == PCODE_DATEL && Datel == 0)
 			continue;
 		if (AllFPatterns[patitr].patmode == PCODE_PSO && isPSO == 0)
+			continue;
+		if (AllFPatterns[patitr].patmode == PCODE_SO && bbaEmuWanted == 0)
 			continue;
 		if (AllFPatterns[patitr].patmode == PCODE_SI && DisableSIPatch)
 			continue;
@@ -1664,6 +1675,9 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	/* Cheats */
 	u32 OSSleepThreadHook = 0;
 	u32 PADHook = 0;
+	/* BBA Emu Stuff */
+	u32 OSSleepThread = 0, OSWakeupThread = 0;
+	s16 SOStartedOffset = 0;
 	//u32 DebuggerHook = 0, DebuggerHook2 = 0, DebuggerHook3 = 0;
 	/* SI Inited Patch */
 	u32 PADInitOffset = 0, SIInitOffset = 0;
@@ -1986,7 +2000,6 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					continue;
 				}
 			}
-	#ifdef CHEATS
 			if( (PatchCount & FPATCH_OSSleepThread) == 0 )
 			{
 				//OSSleepThread(Pattern 1)
@@ -1995,12 +2008,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					( read32((u32)Buffer + i + 8 ) == 0x38000004 || read32((u32)Buffer + i + 8 ) == 0x808400E4 ) )
 				{
 					PatchCount |= FPATCH_OSSleepThread;
+					OSSleepThread = (u32)Buffer + GotoFuncStart(i, (u32)Buffer);
+					printpatchfound("OSSleepThread",NULL,OSSleepThread);
 					i = GotoFuncEnd(i, (u32)Buffer);
 					OSSleepThreadHook = (u32)Buffer + i;
 					printpatchfound("Hook:OSSleepThread",NULL,(u32)Buffer + i);
+					OSWakeupThread = OSSleepThreadHook + 4;
+					printpatchfound("OSWakeupThread",NULL,OSWakeupThread);
 					continue;
 				}
 			}
+	#ifdef CHEATS
 			/*if( (PatchCount & FPATCH_GXBegin) == 0 )
 			{
 				//GXBegin(Pattern 1)
@@ -3081,6 +3099,127 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							else
 								CurPatterns[j].Found = 0;
 						} break;
+						case FCODE_SOInit:
+						{
+							if(read32(FOffset + 0x18) == 0x38000001 && read32(FOffset + 0x5C) == 0x38000001)
+							{
+								memcpy((void*)FOffset, SOInit, SOInit_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_SOStartup:
+						{
+							if(read32(FOffset+0x40C) == 0x38000001)
+							{
+								SOStartedOffset = read16(FOffset+0x412); //game startup status offset
+								memcpy((void*)FOffset, SOStartup, SOStartup_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else if(read32(FOffset+0x3E8) == 0x38000001)
+							{
+								SOStartedOffset = read16(FOffset+0x3EE); //game startup status offset
+								memcpy((void*)FOffset, SOStartup, SOStartup_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPGetMacAddr:
+						{
+							if(read32(FOffset + 0x28) == 0x4800000C && read32(FOffset + 0x40) == 0x389F0038)
+							{
+								memcpy((void*)FOffset, IPGetMacAddr, IPGetMacAddr_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPGetNetmask:
+						{
+							if(read32(FOffset + 0x28) == 0x4800000C && read32(FOffset + 0x40) == 0x389F0048)
+							{
+								memcpy((void*)FOffset, IPGetNetmask, IPGetNetmask_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPGetAddr:
+						{
+							if(read32(FOffset + 0x28) == 0x4800000C && read32(FOffset + 0x40) == 0x389F0044)
+							{
+								memcpy((void*)FOffset, IPGetAddr, IPGetAddr_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPGetAlias:
+						{
+							if(read32(FOffset + 0x28) == 0x4800000C && read32(FOffset + 0x40) == 0x389F0054)
+							{
+								//use same patch as for IPGetAddr
+								memcpy((void*)FOffset, IPGetAddr, IPGetAddr_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPGetMtu:
+						{
+							if(read32(FOffset + 0x24) == 0x4800000C && read32(FOffset + 0x34) == 0x801F0040)
+							{
+								memcpy((void*)FOffset, IPGetMtu, IPGetMtu_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPGetLinkState:
+						{
+							if(read32(FOffset + 0x24) == 0x4800000C && read32(FOffset + 0x34) == 0x801F0004)
+							{
+								memcpy((void*)FOffset, IPGetLinkState, IPGetLinkState_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPGetConfigError:
+						{
+							if(read32(FOffset) == 0x28030000 && read32(FOffset + 8) == 0x4800000C
+								&& read32(FOffset + 0x14) == 0x80630008)
+							{
+								memcpy((void*)FOffset, IPGetConfigError, IPGetConfigError_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPSetConfigError:
+						{
+							if(read32(FOffset + 0x24) == 0x4800000C && read32(FOffset + 0x34) == 0x801F0008
+								&& read32(FOffset + 0x40) == 0x93DF0008)
+							{
+								memcpy((void*)FOffset, IPSetConfigError, IPSetConfigError_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_IPClearConfigError:
+						{
+							if(read32(FOffset + 0x20) == 0x4800000C && read32(FOffset + 0x30) == 0x83DF0008
+								&& read32(FOffset + 0x38) == 0x901F0008)
+							{
+								memcpy((void*)FOffset, IPClearConfigError, IPClearConfigError_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else //false hit
+								CurPatterns[j].Found = 0;
+						} break;
 						default:
 						{
 							if( CurPatterns[j].Patch == (u8*)ARQPostRequest )
@@ -3300,6 +3439,78 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	#endif
 	PatchState = PATCH_STATE_DONE;
 
+
+	if(bbaEmuWanted && OSSleepThread && OSWakeupThread && SOStartedOffset)
+	{
+		u32 hspAddr = PatchCopy(HSPIntrruptHandler, HSPIntrruptHandler_size);
+		PatchBL(OSWakeupThread, hspAddr+0x28);
+		sync_after_write((void*)hspAddr, HSPIntrruptHandler_size);
+		write32(SO_HSP_LOC, (1<<31)|hspAddr);
+		write32(SO_HSP_LOC+4, (1<<31)|OSSleepThread);
+		write16(SO_HSP_LOC+8, SOStartedOffset);
+		dbgprintf("Patch:Inserted HSP Interrupt Handler\r\n");
+		sync_after_write((void*)SO_HSP_LOC, 0x20);
+		if(TITLE_ID == 0x474D34)
+		{
+			if(read32(0x001DD168) == 0x4BEE812D)
+			{
+				PatchB(0x001DD184, 0x001DD168);
+				dbgprintf("Patch:Patched Mario Kart NTSC-J BBA Detection\r\n");
+			}
+			else if(read32(0x001DD140) == 0x4BEE8155)
+			{
+				PatchB(0x001DD15C, 0x001DD140);
+				dbgprintf("Patch:Patched Mario Kart NTSC-U BBA Detection\r\n");
+			}
+			else if(read32(0x001DD100) == 0x4BEE8159)
+			{
+				PatchB(0x001DD11C, 0x001DD100);
+				dbgprintf("Patch:Patched Mario Kart PAL BBA Detection\r\n");
+			}
+		}
+		else if(TITLE_ID == 0x474B59)
+		{
+			if(read32(0x00482124) == 0x4BF6473D && read32(0x004821A8) == 0x4BF646B9)
+			{
+				PatchB(0x00482148, 0x00482124);
+				PatchB(0x004821D8, 0x004821A8);
+				dbgprintf("Patch:Patched Kirby Air Ride NTSC-J BBA Detection\r\n");
+			}
+			else if(read32(0x00487204) == 0x4BF6473D && read32(0x00487288) == 0x4BF646B9)
+			{
+				PatchB(0x00487228, 0x00487204);
+				PatchB(0x004872B8, 0x00487288);
+				dbgprintf("Patch:Patched Kirby Air Ride NTSC-U BBA Detection\r\n");
+			}
+			else if(read32(0x0048AF30) == 0x4BF63051 && read32(0x0048AFB4) == 0x4BF62FCD)
+			{
+				PatchB(0x0048AF54, 0x0048AF30);
+				PatchB(0x0048AFE4, 0x0048AFB4);
+				dbgprintf("Patch:Patched Kirby Air Ride PAL BBA Detection\r\n");
+			}
+		}
+		else if(TITLE_ID == 0x475445)
+		{
+			if(read32(0x00098C84) == 0x480A821D && read32(0x000F22A8) == 0x4804EBF9)
+			{
+				PatchB(0x00098C98, 0x00098C84);
+				PatchB(0x000F22BC, 0x000F22A8);
+				dbgprintf("Patch:1080 Avalanche NTSC-J BBA Detection\r\n");
+			}
+			else if(read32(0x00097C50) == 0x480A549D && read32(0x000EEFC8) == 0x4804E125)
+			{
+				PatchB(0x00097C64, 0x00097C50);
+				PatchB(0x000EEFDC, 0x000EEFC8);
+				dbgprintf("Patch:1080 Avalanche NTSC-U BBA Detection\r\n");
+			}
+			else if(read32(0x00097EB8) == 0x480A5EFD && read32(0x000EF920) == 0x4804E495)
+			{
+				PatchB(0x00097ECC, 0x00097EB8);
+				PatchB(0x000EF934, 0x000EF920);
+				dbgprintf("Patch:1080 Avalanche PAL BBA Detection\r\n");
+			}
+		}
+	}
 	//Sonic R NTSC Old Debug Prints
 	/*if(read32(0x7D49C) == 0x9421FF90 && read32(0x7D5A8) == 0x9421FF90)
 	{

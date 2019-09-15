@@ -37,6 +37,9 @@ int syscall_0e(int queue, struct ipcmessage **message, int flags);
 int  TimerCreate(int Time, int Dummy, int MessageQueue, int Message );
 void TimerDestroy( int TimerID );
 
+int heap_create(void *base, int size);
+void heap_destroy(int heap);
+
 #define heap_alloc(a, b) syscall_18(a, b)
 void *syscall_18(int heap, int size);
 

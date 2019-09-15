@@ -3,7 +3,7 @@
 Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
 
 Copyright (C) 2013  crediar
-Copyright (C) 2014 - 2016 FIX94
+Copyright (C) 2014 - 2019 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -118,6 +118,18 @@ enum
 	FCODE_PsoDolEntryMod,
 	FCODE_DolEntryMod,
 	FCODE_AppLoad,
+
+	FCODE_SOInit,
+	FCODE_SOStartup,
+	FCODE_IPGetMacAddr,
+	FCODE_IPGetNetmask,
+	FCODE_IPGetAddr,
+	FCODE_IPGetAlias,
+	FCODE_IPGetMtu,
+	FCODE_IPGetLinkState,
+	FCODE_IPGetConfigError,
+	FCODE_IPSetConfigError,
+	FCODE_IPClearConfigError,
 } FPatternCodes;
 
 enum
@@ -158,6 +170,8 @@ enum
 	FGROUP___OSReadROM,
 	FGROUP___DSPHandler,
 	FGROUP_PsoDolEntryMod,
+	FGROUP_SOStartup,
+	FGROUP_SOCleanup,
 } FPatternGroups;
 
 static FuncPattern NormalFPatterns[] =
@@ -399,6 +413,35 @@ static FuncPattern PSOFPatterns[] =
 	{  0x250,   58,    5,   38,    3,    9,	NULL,				FCODE_PsoDolEntryMod,		"PsoDolEntryMod",		"B",		FGROUP_PsoDolEntryMod,	    0 },
 };
 
+FuncPattern SOPatterns[] =
+{
+	{   0x7C,   11,   4,    5,    2,    2,	NULL,				FCODE_SOInit,				"SOInit",				NULL,		FGROUP_NONE,				0 },
+	{   0x4F8, 118,  32,   30,   41,   24,  NULL,				FCODE_SOStartup,			"SOStartup",			"A",		FGROUP_SOStartup,			0 },
+	{   0x4D4, 111,  31,   30,   41,   24,  NULL,				FCODE_SOStartup,			"SOStartup",			"B",		FGROUP_SOStartup,			0 },
+	{   0x344,  72,  11,   32,   24,   10,	SOCleanup,			SOCleanup_size,				"SOCleanup",			"A",		FGROUP_SOCleanup,			0 },
+	{   0x30C,  69,  11,   27,   23,   10,	SOCleanup,			SOCleanup_size,				"SOCleanup",			"B",		FGROUP_SOCleanup,			0 },
+	{   0x668, 133,  17,   45,   50,   16,  SOSocket,			SOSocket_size,				"SOSocket",				NULL,		FGROUP_NONE,				0 },
+	{   0x454,  82,  23,   26,   28,   23,	SOClose,			SOClose_size,				"__SOClose",			NULL,		FGROUP_NONE,				0 },
+	{   0x128,  15,   6,    4,   21,    3,	SOListen,			SOListen_size,				"SOListen",				NULL,		FGROUP_NONE,				0 },
+	{   0x2BC,  44,  15,   18,   29,    6,	SOAccept,			SOAccept_size,				"SOAccept",				NULL,		FGROUP_NONE,				0 },
+	{   0x120,  15,   4,    5,   25,    5,	SOBind,				SOBind_size,				"SOBind",				NULL,		FGROUP_NONE,				0 },
+	{   0x100,  17,   4,    4,   16,    6,	SOShutdown,			SOShutdown_size,			"SOShutdown",			NULL,		FGROUP_NONE,				0 },
+	{   0x234,  33,   2,   14,   32,    8,	SORecvFrom,			SORecvFrom_size,			"SORecvFrom",			NULL,		FGROUP_NONE,				0 },
+	{   0x284,  34,   2,   14,   47,   10,	SOSendTo,			SOSendTo_size,				"SOSendTo",				NULL,		FGROUP_NONE,				0 },
+	{   0x6AC, 135,  14,   45,   66,   26,	SOSetSockOpt,		SOSetSockOpt_size,			"__SOSetSockOpt",		NULL,		FGROUP_NONE,				0 },
+	{   0x140,  16,  15,    3,   17,    3,	SOFcntl,			SOFcntl_size,				"SOFcntl",				NULL,		FGROUP_NONE,				0 },
+	{   0x2E4,  38,   2,   13,   36,   19,	SOPoll,				SOPoll_size,				"SOPoll",				NULL,		FGROUP_NONE,				0 },
+	{   0x6C,    9,   5,    3,    2,    3,	NULL,				FCODE_IPGetMacAddr,			"IPGetMacAddr",			NULL,		FGROUP_NONE,				0 },
+	{   0x6C,    9,   5,    3,    2,    3,	NULL,				FCODE_IPGetNetmask,			"IPGetNetmask",			NULL,		FGROUP_NONE,				0 },
+	{   0x6C,    9,   5,    3,    2,    3,	NULL,				FCODE_IPGetAddr,			"IPGetAddr",			NULL,		FGROUP_NONE,				0 },
+	{   0x6C,    9,   5,    3,    2,    3,	NULL,				FCODE_IPGetAlias,			"IPGetAlias",			NULL,		FGROUP_NONE,				0 },
+	{   0x54,    6,   5,    2,    2,    3,	NULL,				FCODE_IPGetMtu,				"IPGetMtu",				NULL,		FGROUP_NONE,				0 },
+	{   0x54,    6,   5,    2,    2,    3,	NULL,				FCODE_IPGetLinkState,		"IPGetLinkState",		NULL,		FGROUP_NONE,				0 },
+	{   0x18,    3,   0,    0,    2,    0,	NULL,				FCODE_IPGetConfigError,		"IPGetConfigError",		NULL,		FGROUP_NONE,				0 },
+	{   0x60,    7,   5,    2,    2,    3,	NULL,				FCODE_IPSetConfigError,		"IPSetConfigError",		NULL,		FGROUP_NONE,				0 },
+	{   0x58,    7,   5,    2,    2,    3,	NULL,				FCODE_IPClearConfigError,	"IPClearConfigError",	NULL,		FGROUP_NONE,				0 },
+};
+
 enum
 {
 	PCODE_NORMAL = 0,
@@ -408,6 +451,7 @@ enum
 	PCODE_EXI,
 	PCODE_DATEL,
 	PCODE_PSO,
+	PCODE_SO,
 	PCODE_MAX,
 } AllPGroups;
 
@@ -420,4 +464,5 @@ static const FuncPatterns AllFPatterns[] =
 	{ EXIFPatterns, sizeof(EXIFPatterns) / sizeof(FuncPattern), PCODE_EXI },
 	{ DatelFPatterns, sizeof(DatelFPatterns) / sizeof(FuncPattern), PCODE_DATEL },
 	{ PSOFPatterns, sizeof(PSOFPatterns) / sizeof(FuncPattern), PCODE_PSO },
+	{ SOPatterns, sizeof(SOPatterns) / sizeof(FuncPattern), PCODE_SO },
 };

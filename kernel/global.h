@@ -26,6 +26,7 @@
 //#define DEBUG_FST	1
 #define DEBUG_PATCH	1
 //#define DEBUG_TIME 1
+//#define DEBUG_SOCK 1
 
 #define REGION_ID_USA	0x45
 #define REGION_ID_JAP	0x4A
@@ -172,10 +173,11 @@ typedef s32(*ipccallback)(s32 result,void *usrdata);
 #define DI_INT			(INT_BASE+0x20) //0x4
 #define SI_INT			(INT_BASE+0x40) //0x8
 #define EXI_INT			(INT_BASE+0x60) //0x10
+#define HSP_INT			(INT_BASE+0x80) //0x2000
 
-#define STREAMING		0x13026580
-#define UPDATE_STREAM	0x130265A0
-#define AI_ADP_LOC		0x130265C0
+#define STREAMING		0x130265A0
+#define UPDATE_STREAM	0x130265C0
+#define AI_ADP_LOC		0x130265E0
 
 enum Gameregion
 {

@@ -17,18 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include <asm.h>
-
-.set	AI_ADP_BUF,		0x93280000
-
-.set	STREAMING,		0xD3026580
-.set	UPDATE_STREAM,	0xD30265A0
-.set	AI_ADP_LOC,		0xD30265C0
-
-.set	AI_CR,			0xCD806C00
-.set	AI_VR,			0xCD806C04
-
-.set	AI_DMA_ADDR,	0xCC005030
-.set	AI_DMA_SIZE,	0xCC005036
+.include "constants.inc"
 
 #note:r3 and r12 will get overwritten, safe to use
 
