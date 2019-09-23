@@ -1526,10 +1526,10 @@ int main(int argc, char **argv)
 
 	DCFlushRange((void*)0x93000000, 0x3000);
 
-	DCInvalidateRange((void*)0x93006000, 0x4000);
-	memset((void*)0x93006000, 0, 0x4000);
+	DCInvalidateRange((void*)0x93006000, 0xA000);
+	memset((void*)0x93006000, 0, 0xA000);
 	memcpy((void*)0x93006000, IOSInterface_bin, IOSInterface_bin_size);
-	DCFlushRange((void*)0x93006000, 0x4000);
+	DCFlushRange((void*)0x93006000, 0xA000);
 
 	DCInvalidateRange((void*)0x93010010, 0x10000);
 	memcpy((void*)0x93010010, loader_stub, 0x1800);

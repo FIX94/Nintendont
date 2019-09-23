@@ -7,6 +7,12 @@ ENTRY(__start)
 SECTIONS {
 	/* placed in by kernel Patch.c */
 	OSSleepThread = 0x93026C84;
+	OSWakeupThread = 0x93026C88;
+	OSCreateThread = 0x93026C8C;
+	OSResumeThread = 0x93026C90;
+	DHCPStateOffset = 0x93026C94;
+	SOStartedOffset = 0x93026C98;
+	IsInited = 0x93026C9C;
 
 	. = 0x93006000;
 

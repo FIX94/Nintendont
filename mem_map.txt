@@ -60,6 +60,7 @@ MEM2
 0x93026400-0x93026500=serial interface
 0x93026500-0x930265A0=fake interrupts
 0x930265A0-0x93026600=audio stream information
+0x93060000-0x93100000=IOS Interface Data Buffers
 0x93100000-0x93150000=ipl fonts buffer (0x1aff00-0x1fff00)
 0x93160000-0x93160008=OSReport (patch_fwrite)
 0x931C0000=PSO PRS dol location

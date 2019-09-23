@@ -78,6 +78,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 .set	SOSetSockOptAddr,			IOSInterfaceAddr+0x2C
 .set	SOFcntlAddr,				IOSInterfaceAddr+0x30
 .set	SOPollAddr,					IOSInterfaceAddr+0x34
+
 .set	IPGetMacAddrAddr,			IOSInterfaceAddr+0x38
 .set	IPGetNetmaskAddr,			IOSInterfaceAddr+0x3C
 .set	IPGetAddrAddr,				IOSInterfaceAddr+0x40
@@ -86,6 +87,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 .set	IPGetConfigErrorAddr,		IOSInterfaceAddr+0x4C
 .set	IPSetConfigErrorAddr,		IOSInterfaceAddr+0x50
 .set	IPClearConfigErrorAddr,		IOSInterfaceAddr+0x54
+
+.set	avetcp_init_Addr,			IOSInterfaceAddr+0x58
+.set	avetcp_term_Addr,			IOSInterfaceAddr+0x5C
+
+.set	dns_set_server_Addr,		IOSInterfaceAddr+0x60
+.set	dns_clear_server_Addr,		IOSInterfaceAddr+0x64
+.set	dns_open_addr_Addr,			IOSInterfaceAddr+0x68
+.set	dns_get_addr_Addr,			IOSInterfaceAddr+0x6C
+.set	dns_close_Addr,				IOSInterfaceAddr+0x70
+
+.set	tcp_create_Addr,			IOSInterfaceAddr+0x74
+.set	tcp_setsockopt_Addr,		IOSInterfaceAddr+0x78
+.set	tcp_bind_Addr,				IOSInterfaceAddr+0x7C
+.set	tcp_connect_Addr,			IOSInterfaceAddr+0x80
+.set	tcp_stat_Addr,				IOSInterfaceAddr+0x84
+.set	tcp_send_Addr,				IOSInterfaceAddr+0x88
+.set	tcp_receive_Addr,			IOSInterfaceAddr+0x8C
+.set	tcp_abort_Addr,				IOSInterfaceAddr+0x90
+.set	tcp_delete_Addr,			IOSInterfaceAddr+0x94
+
+.set	DHCP_request_nb_Addr,		IOSInterfaceAddr+0x98
+.set	DHCP_get_dns_Addr,			IOSInterfaceAddr+0x9C
+.set	DHCP_release_Addr,			IOSInterfaceAddr+0xA0
 
 /** Disc Interface **/
 

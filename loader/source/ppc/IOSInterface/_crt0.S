@@ -22,6 +22,26 @@
 	.extern SOSetSockOpt
 	.extern SOFcntl
 	.extern SOPoll
+	# avetcp shit
+	.extern avetcp_init
+	.extern avetcp_term
+	.extern dns_set_server
+	.extern dns_clear_server
+	.extern dns_open_addr
+	.extern dns_get_addr
+	.extern dns_close
+	.extern tcp_create
+	.extern tcp_setsockopt
+	.extern tcp_bind
+	.extern tcp_connect
+	.extern tcp_stat
+	.extern tcp_send
+	.extern tcp_receive
+	.extern tcp_abort
+	.extern tcp_delete
+	.extern DHCP_request_nb
+	.extern DHCP_get_dns
+	.extern DHCP_release
 
 	.globl __start
 __start:
@@ -49,7 +69,26 @@ __start:
 	b IPGetConfigError
 	b IPSetConfigError
 	b IPClearConfigError
-
+	# avetcp shit
+	b avetcp_init
+	b avetcp_term
+	b dns_set_server
+	b dns_clear_server
+	b dns_open_addr
+	b dns_get_addr
+	b dns_close
+	b tcp_create
+	b tcp_setsockopt
+	b tcp_bind
+	b tcp_connect
+	b tcp_stat
+	b tcp_send
+	b tcp_receive
+	b tcp_abort
+	b tcp_delete
+	b DHCP_request_nb
+	b DHCP_get_dns
+	b DHCP_release
 
 # just some helper functions
 	.globl disableIRQs
@@ -75,11 +114,21 @@ restoreSetVal:
 	extrwi 3,4,1,16
 	blr
 
-.set SO_HSP_LOC,		0x93026C80
+.extern DHCPStateOffset
+	.globl setDHCPStateOffset
+setDHCPStateOffset:
+	lis 4, DHCPStateOffset@ha
+	lha 4, DHCPStateOffset@l(4)
+	stwx 3, 4, 13
+	blr
+
+.extern SOStartedOffset
 	.globl setSOStartStatus
 setSOStartStatus:
-	lis 4, SO_HSP_LOC@h
-	ori 4, 4, SO_HSP_LOC@l
-	lha 4, 8(4)
+	lis 4, SOStartedOffset@ha
+	lha 4, SOStartedOffset@l(4)
+	cmplwi 4,0x7777
+	beq startstatend
 	stwx 3, 4, 13
+startstatend:
 	blr

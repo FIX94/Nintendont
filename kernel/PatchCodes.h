@@ -79,6 +79,29 @@
 #include "asm/IPClearConfigError.h"
 #include "asm/HSPIntrruptHandler.h"
 
+#include "asm/avetcp_init.h"
+#include "asm/avetcp_term.h"
+#include "asm/dns_set_server.h"
+#include "asm/dns_clear_server.h"
+#include "asm/dns_open_addr.h"
+#include "asm/dns_get_addr.h"
+#include "asm/dns_close.h"
+#include "asm/DHCP_request_nb.h"
+#include "asm/DHCP_get_dns.h"
+#include "asm/DHCP_release.h"
+#include "asm/tcp_create.h"
+#include "asm/tcp_setsockopt.h"
+#include "asm/tcp_bind.h"
+#include "asm/tcp_connect.h"
+#include "asm/tcp_stat.h"
+#include "asm/tcp_send.h"
+#include "asm/tcp_receive.h"
+#include "asm/tcp_abort.h"
+#include "asm/tcp_delete.h"
+#include "asm/Return0.h"
+#include "asm/Return1.h"
+
+
 //this is the data from my wii disk drive
 const u8 DiskDriveInfo[32] = {
 	0x00,0x00,0x00,0x02,

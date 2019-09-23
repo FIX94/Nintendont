@@ -130,6 +130,35 @@ enum
 	FCODE_IPGetConfigError,
 	FCODE_IPSetConfigError,
 	FCODE_IPClearConfigError,
+
+	FCODE_OSCreateThread,
+	FCODE_OSResumeThread,
+
+	FCODE_avetcp_term,
+	FCODE_ppp_term,
+	FCODE_dix_term,
+	FCODE_some_unk_term,
+
+	FCODE_dns_clear_server,
+	FCODE_dns_close,
+	FCODE_dns_term,
+
+	FCODE_DHCP_request,
+	FCODE_DHCP_request_nb,
+	FCODE_DHCP_hostname,
+	FCODE_DHCP_get_gateway,
+	FCODE_DHCP_release,
+	FCODE_DHCP_terminate,
+
+	FCODE_tcp_create,
+	FCODE_tcp_setsockopt,
+	FCODE_tcp_stat,
+	FCODE_tcp_delete,
+
+	FCODE_route4_add,
+
+	FCODE_GetEtherLinkState,
+	FCODE_GetConnectionType,
 } FPatternCodes;
 
 enum
@@ -172,6 +201,7 @@ enum
 	FGROUP_PsoDolEntryMod,
 	FGROUP_SOStartup,
 	FGROUP_SOCleanup,
+	FGROUP_GetConnectionType,
 } FPatternGroups;
 
 static FuncPattern NormalFPatterns[] =
@@ -413,7 +443,65 @@ static FuncPattern PSOFPatterns[] =
 	{  0x250,   58,    5,   38,    3,    9,	NULL,				FCODE_PsoDolEntryMod,		"PsoDolEntryMod",		"B",		FGROUP_PsoDolEntryMod,	    0 },
 };
 
-FuncPattern SOPatterns[] =
+static FuncPattern PSO_SOPatterns[] =
+{
+	{  0x11C,   21,   27,   3,    4,    3,	NULL,				FCODE_OSCreateThread,		"OSCreateThread",		NULL,		FGROUP_NONE,				0 },	
+	{  0x284,   50,   31,   5,   25,   14,	NULL,				FCODE_OSResumeThread,		"OSResumeThread",		NULL,		FGROUP_NONE,				0 },	
+
+	{  0x16C,   11,    4,  26,   16,    2,	avetcp_init,		avetcp_init_size,			"avetcp_init",			NULL,		FGROUP_NONE,				0 },
+	{   0x50,    3,    2,  13,    0,    2,	NULL,				FCODE_avetcp_term,			"avetcp_term",			NULL,		FGROUP_NONE,				0 },
+
+	{   0xF0,   17,    6,  12,    4,    3,	Return0,			Return0_size,				"ppp_init",				NULL,		FGROUP_NONE,				0 },
+	{  0x150,   42,   15,   6,    2,    2,	Return0,			Return0_size,				"ppp_stat",				NULL,		FGROUP_NONE,				0 },
+	{   0xD8,   18,    5,   4,    7,    3,	Return0,			Return0_size,				"ppp_stop",				NULL,		FGROUP_NONE,				0 },
+	{   0x3C,    3,    2,   8,    0,    2,	NULL,				FCODE_ppp_term,				"ppp_term",				NULL,		FGROUP_NONE,				0 },
+
+	{  0x188,   40,   13,   5,    9,    6,	Return0,			Return0_size,				"dix_init",				NULL,		FGROUP_NONE,				0 },
+	{   0x8C,    6,    2,   2,    3,    3,	NULL,				FCODE_dix_term,				"dix_term",				NULL,		FGROUP_NONE,				0 },
+
+	{  0x120,   34,   15,   2,    4,    4,	Return0,			Return0_size,				"some_unk_init",		NULL,		FGROUP_NONE,				0 },
+	{   0x4C,    7,    3,   2,    0,    2,	NULL,				FCODE_some_unk_term,		"some_unk_term",		NULL,		FGROUP_NONE,				0 },
+
+	{  0x1D0,   43,   13,   3,   12,   17,	Return0,			Return0_size,				"dns_init",				NULL,		FGROUP_NONE,				0 },
+	{  0x15C,   20,    2,   5,   24,    5,	dns_set_server,		dns_set_server_size,		"dns_set_server",		NULL,		FGROUP_NONE,				0 },
+	{   0x80,   11,    5,   2,    3,    4,	NULL,				FCODE_dns_clear_server,		"dns_clear_server",		NULL,		FGROUP_NONE,				0 },
+	{  0x4B0,   85,    9,  15,   46,   24,	dns_open_addr,		dns_open_addr_size,			"dns_open_addr",		NULL,		FGROUP_NONE,				0 },
+	{  0x214,   25,    9,   8,   27,    9,	dns_get_addr,		dns_get_addr_size,			"dns_get_addr",			NULL,		FGROUP_NONE,				0 },
+	{   0x64,    7,    2,   1,    4,    6,	NULL,				FCODE_dns_close,			"dns_close",			NULL,		FGROUP_NONE,				0 },
+	{   0x98,   10,    6,   3,    3,    3,	NULL,				FCODE_dns_term,				"dns_term",				NULL,		FGROUP_NONE,				0 },
+
+	{   0x48,    6,    3,   3,    0,    4,	NULL,				FCODE_tcp_create,			"tcp_create",			NULL,		FGROUP_NONE,				0 },
+	{   0x98,   14,    6,   3,    3,    4,	NULL,				FCODE_tcp_setsockopt,		"tcp_setsockopt",		NULL,		FGROUP_NONE,				0 },
+	{   0xE4,   20,    6,   8,    6,    6,	tcp_bind,			tcp_bind_size,				"tcp_bind",				NULL,		FGROUP_NONE,				0 },
+	{  0x16C,   27,    2,   9,   22,    7,	tcp_connect,		tcp_connect_size,			"tcp_connect",			NULL,		FGROUP_NONE,				0 },
+	{   0xA0,   13,    2,   5,    4,    5,	NULL,				FCODE_tcp_stat,				"tcp_stat",				NULL,		FGROUP_NONE,				0 },
+	{  0x320,   59,    5,  25,   24,    8,	tcp_send,			tcp_send_size,				"tcp_send",				NULL,		FGROUP_NONE,				0 },
+	{  0x228,   39,    2,  18,   16,    5,	tcp_receive,		tcp_receive_size,			"tcp_receive",			NULL,		FGROUP_NONE,				0 },
+	{   0xBC,   14,    4,   7,    6,    6,	tcp_abort,			tcp_abort_size,				"tcp_abort",			NULL,		FGROUP_NONE,				0 },
+	{   0x68,    8,    4,   3,    2,    4,	NULL,				FCODE_tcp_delete,			"tcp_delete",			NULL,		FGROUP_NONE,				0 },
+
+	{   0xFC,   19,    5,   6,   13,    5,	Return0,			Return0_size,				"if_config",			NULL,		FGROUP_NONE,				0 },
+	{   0xF0,   19,    2,   5,    7,    3,	Return0,			Return0_size,				"if_up",				NULL,		FGROUP_NONE,				0 },
+	{   0xF4,   13,    5,   8,   13,    8,	Return0,			Return0_size,				"if_down",				NULL,		FGROUP_NONE,				0 },
+
+	{  0x198,   35,   32,   8,    7,    4,	Return0,			Return0_size,				"DHCP_init",			NULL,		FGROUP_NONE,				0 },
+	{   0x70,   10,    3,   2,    5,    2,	NULL,				FCODE_DHCP_request,			"DHCP_request",			NULL,		FGROUP_NONE,				0 },
+	{   0x20,    4,    2,   0,    1,    0,	NULL,				FCODE_DHCP_request_nb,		"DHCP_request_nb",		NULL,		FGROUP_NONE,				0 },
+	{   0x7C,   11,    6,   2,    4,    3,	NULL,				FCODE_DHCP_hostname,		"DHCP_hostname",		NULL,		FGROUP_NONE,				0 },
+	{   0xE0,   23,    9,   3,    6,    2,	Return0,			Return0_size,				"DHCP_get_leasetime",	NULL,		FGROUP_NONE,				0 },
+	{   0x70,   11,    5,   1,    5,    2,	NULL,				FCODE_DHCP_get_gateway,		"DHCP_get_gateway",		NULL,		FGROUP_NONE,				0 },
+	{   0xDC,   22,    9,   3,    7,    3,	DHCP_get_dns,		DHCP_get_dns_size,			"DHCP_get_dns",			NULL,		FGROUP_NONE,				0 },
+	{   0x60,    9,    7,   1,    3,    2,	NULL,				FCODE_DHCP_release,			"DHCP_release",			NULL,		FGROUP_NONE,				0 },
+	{   0x48,    6,    3,   3,    1,    2,	NULL,				FCODE_DHCP_terminate,		"DHCP_terminate",		NULL,		FGROUP_NONE,				0 },
+
+	{   0x84,   14,    6,   3,    0,    4,	NULL,				FCODE_route4_add,			"route4_add",			NULL,		FGROUP_NONE,				0 },
+
+	{   0x58,    7,    2,   1,    4,    2,	NULL,				FCODE_GetEtherLinkState,	"GetEtherLinkState",	NULL,		FGROUP_NONE,				0 },
+	{   0xF8,   20,   12,   2,   15,    5,	NULL,				FCODE_GetConnectionType,	"GetConnectionType",	"A",		FGROUP_GetConnectionType,	0 },
+	{   0xF8,   20,   12,   2,   15,    4,	NULL,				FCODE_GetConnectionType,	"GetConnectionType",	"B",		FGROUP_GetConnectionType,	0 },
+};
+
+static FuncPattern NinSOPatterns[] =
 {
 	{   0x7C,   11,   4,    5,    2,    2,	NULL,				FCODE_SOInit,				"SOInit",				NULL,		FGROUP_NONE,				0 },
 	{   0x4F8, 118,  32,   30,   41,   24,  NULL,				FCODE_SOStartup,			"SOStartup",			"A",		FGROUP_SOStartup,			0 },
@@ -431,6 +519,7 @@ FuncPattern SOPatterns[] =
 	{   0x6AC, 135,  14,   45,   66,   26,	SOSetSockOpt,		SOSetSockOpt_size,			"__SOSetSockOpt",		NULL,		FGROUP_NONE,				0 },
 	{   0x140,  16,  15,    3,   17,    3,	SOFcntl,			SOFcntl_size,				"SOFcntl",				NULL,		FGROUP_NONE,				0 },
 	{   0x2E4,  38,   2,   13,   36,   19,	SOPoll,				SOPoll_size,				"SOPoll",				NULL,		FGROUP_NONE,				0 },
+
 	{   0x6C,    9,   5,    3,    2,    3,	NULL,				FCODE_IPGetMacAddr,			"IPGetMacAddr",			NULL,		FGROUP_NONE,				0 },
 	{   0x6C,    9,   5,    3,    2,    3,	NULL,				FCODE_IPGetNetmask,			"IPGetNetmask",			NULL,		FGROUP_NONE,				0 },
 	{   0x6C,    9,   5,    3,    2,    3,	NULL,				FCODE_IPGetAddr,			"IPGetAddr",			NULL,		FGROUP_NONE,				0 },
@@ -451,7 +540,8 @@ enum
 	PCODE_EXI,
 	PCODE_DATEL,
 	PCODE_PSO,
-	PCODE_SO,
+	PCODE_PSOSO,
+	PCODE_NINSO,
 	PCODE_MAX,
 } AllPGroups;
 
@@ -464,5 +554,6 @@ static const FuncPatterns AllFPatterns[] =
 	{ EXIFPatterns, sizeof(EXIFPatterns) / sizeof(FuncPattern), PCODE_EXI },
 	{ DatelFPatterns, sizeof(DatelFPatterns) / sizeof(FuncPattern), PCODE_DATEL },
 	{ PSOFPatterns, sizeof(PSOFPatterns) / sizeof(FuncPattern), PCODE_PSO },
-	{ SOPatterns, sizeof(SOPatterns) / sizeof(FuncPattern), PCODE_SO },
+	{ PSO_SOPatterns, sizeof(PSO_SOPatterns) / sizeof(FuncPattern), PCODE_PSOSO },
+	{ NinSOPatterns, sizeof(NinSOPatterns) / sizeof(FuncPattern), PCODE_NINSO },
 };

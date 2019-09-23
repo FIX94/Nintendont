@@ -66,6 +66,7 @@ typedef struct _newpoll_params {
 #define so_accept 0x01
 #define so_bind 0x02
 #define so_close 0x03
+#define so_connect 0x04
 #define so_fcntl 0x05
 #define so_setsockopt 0x09
 #define so_listen 0x0A
@@ -74,6 +75,7 @@ typedef struct _newpoll_params {
 #define so_sendto 0x0D
 #define so_shutdown 0x0E
 #define so_socket 0x0F
+#define so_gethostbyname 0x11
 #define so_getinterfaceopt 0x1C
 #define so_setinterfaceopt 0x1D
 #define so_startinterface 0x1F

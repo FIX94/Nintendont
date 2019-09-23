@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 static so_struct_arm *sock_entry_arm = (so_struct_arm*)SO_BASE_ARM;
 static so_struct_buf *sock_data_buf = (so_struct_buf*)SO_DATA_BUF;
 
-static u32 socket_inited = 0;
+extern u32 IsInited;
 static u32 socket_started = 0;
 static u32 interface_started = 0;
 //for optimization purposes
@@ -44,16 +44,19 @@ extern int restoreIRQs(int val);
 extern void setSOStartStatus(int status);
 //defined in linker script
 extern void (*OSSleepThread)(void *queue);
+extern void (*OSWakeupThread)(void *queue);
 
 #ifndef DEBUG_SOCK
 #define OSReport(...)
 #else
 //mario kart ntsc-u
-static void (*OSReport)(char *in, ...) = (void*)0x800E8078;
+//static void (*OSReport)(char *in, ...) = (void*)0x800E8078;
 //kirby air ride ntsc-u
 //static void (*OSReport)(char *in, ...) = (void*)0x803D4CE8;
 //1080 avalanche ntsc-u
 //static void (*OSReport)(char *in, ...) = (void*)0x80136174;
+//pso plus ntsc-u
+static void (*OSReport)(char *in, ...) = (void*)0x80371DF8;
 #endif
 
 int getFreeFD()
@@ -81,9 +84,9 @@ void freeUpFD(int i)
 
 void SOInit(void)
 {
-	if(socket_inited)
-		return;
 	sync_before_read((void*)SO_HSP_LOC, 0x20);
+	if(IsInited) //done already
+		return;
 	if(*SO_HSP_LOC == 0) //game patching failed
 		return;
 	int val = disableIRQs();
@@ -100,7 +103,8 @@ void SOInit(void)
 	*sysIrqMask &= ~0x20;
 	*piIrqMask |= 0x2000;
 	//ready to accept requests
-	socket_inited = 1;
+	IsInited = 1;
+	sync_after_write((void*)SO_HSP_LOC, 0x20);
 	OSReport("SOInit done\n");
 	restoreIRQs(val);
 }
@@ -136,7 +140,7 @@ static inline void reset_cache_vals()
 
 int doStartSOInterface(int fd, int doIRQ)
 {
-	if(!socket_inited) //no interface to call open
+	if(!IsInited) //no interface to call open
 		return 0;
 	if(!interface_started)
 	{
@@ -190,7 +194,7 @@ int doSOSetInterfaceOpt(int cmd, char *buf, int len, int fd, int doIRQ)
 //with default config instead to start up SO
 int SOStartup(void)
 {
-	if(!socket_inited) //no interface to call open
+	if(!IsInited) //no interface to call open
 		return 0;
 	if(socket_started) //already started
 		return 0;
@@ -214,7 +218,7 @@ int SOStartup(void)
 
 int SOCleanup(void)
 {
-	if(!socket_inited) //no interface to call open
+	if(!IsInited) //no interface to call open
 		return 0;
 	if(!socket_started) //already cleaned up
 		return 0;
@@ -324,6 +328,22 @@ int SOBind(int snum, char *sock)
 	return ret;
 }
 
+int SOConnect(int snum, char *sock)
+{
+	//quit if no socket running or no input or input size not 8
+	if(!socket_started || !sock || sock[0] != 8)
+		return -1;
+	int ret;
+	int fd = getFreeFD();
+	sock_entry_arm[fd].cmd0 = snum;
+	sock_entry_arm[fd].cmd1 = *(volatile u32*)(sock+0x0);
+	sock_entry_arm[fd].cmd2 = *(volatile u32*)(sock+0x4);
+	ret = doCall(so_connect, fd, 1);
+	freeUpFD(fd);
+	OSReport("SOConnect done %08x\n", ret);
+	return ret;
+}
+
 int SOShutdown(int snum, int msg)
 {
 	if(!socket_started)
@@ -340,6 +360,7 @@ int SOShutdown(int snum, int msg)
 
 int SORecvFrom(int snum, char *buf, int len, int flags, char *sock)
 {
+	OSReport("SORecvFrom %i %08x %i %i %08x\n", snum, buf, len, flags, sock);
 	if(!socket_started || !buf || len < 0 || (sock && sock[0] != 8))
 		return -1;
 	int ret;
@@ -534,6 +555,25 @@ void IPGetMacAddr(char *interface_in, char *retval)
 	OSReport("IPGetMacAddr done %08x%04x\n", *(u32*)retval, *(unsigned short*)(retval+4));
 }
 
+void IPGetBroadcastAddr(char *interface_in, u32 *retval)
+{
+	if(!retval)
+		return;
+	if(interface_in)
+	{
+		*retval = *(volatile u32*)(interface_in+0x48);
+		return;
+	}
+	//default interface request
+	int fd = getFreeFD();
+	if(doSOGetInterfaceOpt(0x4003, (void*)sock_data_buf[fd].buf, 12, fd, 1)) //read out from IOS address
+		*retval = *(volatile u32*)(sock_data_buf[fd].buf+8);
+	else //just return 0
+		*retval = 0;
+	freeUpFD(fd);
+	OSReport("IPGetBroadcastAddr done %08x\n", *retval);
+}
+
 void IPGetNetmask(char *interface_in, u32 *retval)
 {
 	if(!retval)
@@ -698,4 +738,333 @@ int IPClearConfigError(char *interface_in)
 	conf_cache = ret;
 	OSReport("IPClearConfigError done %08x\n", ret);
 	return ret; //returns last interface value
+}
+
+
+/* All the PSO related hooks follow here */
+
+//defined in linker script
+extern int (*OSCreateThread)(void *thread, void *func, u32 funcvar, void *stack_start, u32 stack_size, u32 prio, u32 params);
+extern void (*OSResumeThread)(void *thread);
+extern void setDHCPStateOffset(int status);
+//allow 4 threads just for receives, 10 may be original but we only have so much space....
+#define PSO_MAX_FDS 4
+static u8 recvThread[PSO_MAX_FDS][0x800] __attribute__((aligned(32)));
+static u8 recvStack[PSO_MAX_FDS][0x800] __attribute__((aligned(32)));
+static volatile u32 recvArg[PSO_MAX_FDS][4];
+static volatile u32 recvused[PSO_MAX_FDS];
+static u64 recvQueue[PSO_MAX_FDS];
+
+static u32 dns_arr[2];
+static u32 dns_num = 0;
+static char *dns_names[SO_TOTAL_FDS];
+static int dns_namelen[SO_TOTAL_FDS];
+
+int getFreeRecvFD()
+{
+	int val = disableIRQs();
+	int i;
+	for(i = 0; i < PSO_MAX_FDS; i++)
+	{
+		if(recvused[i] == 0)
+		{
+			recvused[i] = 1;
+			break;
+		}
+	}
+	restoreIRQs(val);
+	return i;
+}
+
+void freeUpRecvFD(int i)
+{
+	int val = disableIRQs();
+	recvused[i] = 0;
+	restoreIRQs(val);
+}
+
+static volatile u32 recvRunning = 0;
+static void recvHandle(u32 num)
+{
+	//initial sleep
+	OSSleepThread(&recvQueue[num]);
+	//OSReport("Initial wakeup %i\n", num);
+	//on wakeup, check if we quit
+	while(recvRunning)
+	{
+		int sock = recvArg[num][0];
+		char *buf = (char*)recvArg[num][1];
+		int len = recvArg[num][2];
+		void *cb = (void*)recvArg[num][3];
+		int ret = SORecvFrom(sock, buf, len, 0, 0);
+		if(cb) ((void(*)(int,int))(cb))(ret, sock);
+		freeUpRecvFD(num);
+		OSSleepThread(&recvQueue[num]);
+		//OSReport("wakeup again %i\n", num);
+	}
+	//OSReport("end %i\n", num);
+}
+
+static u32 avetcp_inited = 0;
+int avetcp_init()
+{
+	OSReport("avetcp_init\n");
+	SOInit();
+	if(!avetcp_inited)
+	{
+		//start up receive threads
+		recvRunning = 1;
+		int i;
+		for(i = 0; i < PSO_MAX_FDS; i++)
+		{
+			recvQueue[i] = 0;
+			OSCreateThread(recvThread[i], recvHandle, i, recvStack[i] + 0x800, 0x800, 5, 0);
+			OSResumeThread(recvThread[i]);
+		}
+		avetcp_inited = 1;
+	}
+	return 0;
+}
+
+int avetcp_term()
+{
+	OSReport("avetcp_term\n");
+	if(avetcp_inited)
+	{
+		//wait for any remaining threads
+		int i;
+		int remain;
+		do
+		{
+			remain = 0;
+			u32 garbage = 0xFFFFFF;
+			while(garbage--) ;
+			for(i = 0; i < PSO_MAX_FDS; i++)
+			{
+				if(recvused[i])
+				{
+					remain = 1;
+					break;
+				}
+			}
+		}
+		while(remain);
+		//all recv threads now sleeping, end them
+		recvRunning = 0;
+		for(i = 0; i < PSO_MAX_FDS; i++)
+		{
+			OSWakeupThread(&recvQueue[i]);
+			u32 garbage = 0xFFFFFF;
+			while(garbage--) ;
+		}
+		avetcp_inited = 0;
+	}
+	return 0;
+}
+
+int dns_set_server(u32 *addr)
+{
+	u32 num = dns_num;
+	OSReport("dns_set_server %i %08x\n", num, addr[1]);
+	if(addr[0] == 4 && addr[1]) dns_arr[num] = addr[1];
+	//write to ios if at least primary is set
+	if(num == 1 && dns_arr[0])
+	{
+		int fd = getFreeFD();
+		*(volatile u32*)(sock_data_buf[fd].buf+0) = dns_arr[0];
+		*(volatile u32*)(sock_data_buf[fd].buf+4) = dns_arr[1];
+		//do set dns server
+		doSOSetInterfaceOpt(0xB003, (void*)sock_data_buf[fd].buf, 8, fd, 1);
+		freeUpFD(fd);
+	}
+	dns_num++;
+	return num;
+}
+
+int dns_clear_server()
+{
+	OSReport("dns_clear_server\n");
+	int ret = dns_num;
+	dns_arr[0] = 0;
+	dns_arr[1] = 0;
+	dns_num = 0;
+	return ret;
+}
+
+int dns_open_addr(char *name, int len, u32 unk1)
+{
+	OSReport("dns_open_addr %s\n", name);
+	int fd = getFreeFD();
+	dns_names[fd] = name;
+	//include 0 at end
+	dns_namelen[fd] = len+1;
+	return fd;
+}
+
+int dns_get_addr(int fd, u32 *arr, u32 unk1, u32 unk2, u32 unk3, u32 unk4)
+{
+	OSReport("dns_get_addr %i\n", fd);
+	int i;
+	for(i = 0; i < dns_namelen[fd]; i++)
+		sock_data_buf[fd].buf[i] = dns_names[fd][i];
+	sync_after_write((void*)sock_data_buf[fd].buf, dns_namelen[fd]);
+	sock_entry_arm[fd].cmd0 = (u32)sock_data_buf[fd].buf;
+	sock_entry_arm[fd].cmd1 = dns_namelen[fd];
+	//giving it 0x200 for a name is overkill, should work fine
+	sock_entry_arm[fd].cmd2 = (u32)sock_data_buf[fd].buf+0x200;
+	sock_entry_arm[fd].cmd3 = 0x460;
+	int ret = doCall(so_gethostbyname, fd, 1);
+	if(ret >= 0)
+	{
+		sync_before_read((void*)sock_data_buf[fd].buf+0x200, 0x460);
+		u16 addrlen = *(u16*)(sock_data_buf[fd].buf+0x20A);
+		if(addrlen == 4)
+		{
+			//offset represents address difference between original IOS memory region and our memory region
+			u32 ppc_offset = ((u32)sock_data_buf[fd].buf+0x210) - *(u32*)(sock_data_buf[fd].buf+0x200);
+			//resolve ip entry from its various pointers
+			u32 ip_arr_addr_ptr = (*(u32*)(sock_data_buf[fd].buf+0x20C)) + ppc_offset;
+			u32 ip_arr_entry0_ptr = (*(u32*)(ip_arr_addr_ptr)) + ppc_offset;
+			u32 ip_arr_entry0 = *(u32*)ip_arr_entry0_ptr;
+			//write resolved ip back into game
+			arr[0] = addrlen;
+			arr[1] = ip_arr_entry0;
+			OSReport("dns_get_addr ret %08x\n", arr[1]);
+		}
+		return 0;
+	}
+	return ret;
+}
+
+int dns_close(int fd)
+{
+	OSReport("dns_close %i\n", fd);
+	freeUpFD(fd);
+	return 0;
+}
+
+int tcp_create()
+{
+	OSReport("tcp_create\n");
+	return SOSocket(2,1,0);
+}
+
+int tcp_setsockopt(int sock, int cmd, u8 *buf)
+{
+	OSReport("tcp_setsockopt %i %08x %i\n", sock, cmd, *(u32*)buf);
+	return SOSetSockOpt(sock, 6, cmd, (char*)buf, 4);
+}
+
+int tcp_bind(int sock, u32 *arr, u16 port)
+{
+	OSReport("tcp_bind %i %08x %i\n", sock, arr[1], sock);
+	u32 input[2];
+	input[0] = 0x08020000 | port;
+	input[1] = arr[1];
+	return SOBind(sock,(char*)input);
+}
+
+int tcp_connect(int sock, u32 *arr, u16 port, u32 unk1)
+{
+	OSReport("tcp_connect %i %08x %i\n", sock, arr[1], sock);
+	u32 input[2];
+	input[0] = 0x08020000 | port;
+	input[1] = arr[1];
+	return SOConnect(sock,(char*)input);
+}
+
+int tcp_stat(int sock, short *someweirdthing, u32 *unk1free, u32 *sendfree, u32 *unk2free)
+{
+	OSReport("tcp_stat %i\n", sock);
+	//just always have all set free for now
+	if(someweirdthing) *someweirdthing = 4;
+	if(sendfree) *sendfree = 0x1000;
+	return 0;
+}
+
+//assumes cb always set to 0 (sync call)
+typedef struct _sendarr {
+	u16 len;
+	char *buf;
+} sendarr;
+
+int tcp_send(int sock, u32 cb, int pcks, sendarr *arr)
+{
+	OSReport("tcp_send %i\n", sock);
+	int i;
+	for(i = 0; i < pcks; i++)
+		SOSendTo(sock, arr[i].buf, arr[i].len, 0, 0);
+	return 0;
+}
+
+int tcp_receive(int sock, u32 cb, int len, char *buf)
+{
+	OSReport("tcp_receive %i\n", sock);
+	if(cb)
+	{
+		int fd = getFreeRecvFD();
+		recvArg[fd][0] = sock;
+		recvArg[fd][1] = (u32)buf;
+		recvArg[fd][2] = len;
+		recvArg[fd][3] = cb;
+		OSWakeupThread(&recvQueue[fd]);
+	}
+	else
+		SORecvFrom(sock, buf, len, 0, 0);
+	return 0;
+}
+
+int tcp_abort(int sock)
+{
+	OSReport("tcp_abort %i\n", sock);
+	return SOShutdown(sock, 0);
+}
+
+int tcp_delete(int sock)
+{
+	OSReport("tcp_delete %i\n", sock);
+	return SOClose(sock);
+}
+
+int DHCP_request_nb(u32 unk1, u32 unk2, u32 unk3, u32 unk4, u32 *ip, u32 *netmask, u32 *bcast, u32 tries)
+{
+	OSReport("DHCP_request_nb\n");
+	SOStartup();
+	*ip = 0;
+	while(*ip == 0)
+	{
+		u32 garbage = 0xFFFFFFF;
+		while(garbage--) ;
+		IPGetAddr(0, ip);
+	}
+	IPGetNetmask(0, netmask);
+	IPGetBroadcastAddr(0, bcast);
+	dns_arr[0] = 0;
+	dns_arr[1] = 0;
+	dns_num = 0;
+	setDHCPStateOffset(3); //done
+	return 0;
+}
+
+int DHCP_get_dns(u32 unk, char *domain, u32 *addr1, u32 *addr2)
+{
+	OSReport("DHCP_get_dns\n");
+	//default interface request
+	int fd = getFreeFD();
+	if(doSOGetInterfaceOpt(0xB003, (void*)sock_data_buf[fd].buf, 8, fd, 1)) //read out from IOS address
+	{
+		*addr1 = *(volatile u32*)(sock_data_buf[fd].buf+0);
+		*addr2 = *(volatile u32*)(sock_data_buf[fd].buf+4);
+		OSReport("DHCP_get_dns ret %08x %08x\n", *addr1, *addr2);
+	}
+	freeUpFD(fd);
+
+	return 0;
+}
+
+int DHCP_release()
+{
+	OSReport("DHCP_release\n");
+	setDHCPStateOffset(0); //off
+	return SOCleanup();
 }
