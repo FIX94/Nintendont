@@ -56,7 +56,9 @@ extern void (*OSWakeupThread)(void *queue);
 //1080 avalanche ntsc-u
 //static void (*OSReport)(char *in, ...) = (void*)0x80136174;
 //pso plus ntsc-u
-static void (*OSReport)(char *in, ...) = (void*)0x80371DF8;
+//static void (*OSReport)(char *in, ...) = (void*)0x80371DF8;
+//pso 1.0 ntsc-u
+static void (*OSReport)(char *in, ...) = (void*)0x8036E6B4;
 #endif
 
 int getFreeFD()

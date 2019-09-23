@@ -146,6 +146,7 @@ enum
 	FCODE_DHCP_request,
 	FCODE_DHCP_request_nb,
 	FCODE_DHCP_hostname,
+	FCODE_DHCP_get_state,
 	FCODE_DHCP_get_gateway,
 	FCODE_DHCP_release,
 	FCODE_DHCP_terminate,
@@ -201,6 +202,15 @@ enum
 	FGROUP_PsoDolEntryMod,
 	FGROUP_SOStartup,
 	FGROUP_SOCleanup,
+	FGROUP_OSCreateThread,
+	FGROUP_avetcp_init,
+	FGROUP_tcp_send,
+	FGROUP_if_config,
+	FGROUP_if_down,
+	FGROUP_DHCP_init,
+	FGROUP_DHCP_request,
+	FGROUP_DHCP_release,
+	FGROUP_DHCP_terminate,
 	FGROUP_GetConnectionType,
 } FPatternGroups;
 
@@ -445,10 +455,12 @@ static FuncPattern PSOFPatterns[] =
 
 static FuncPattern PSO_SOPatterns[] =
 {
-	{  0x11C,   21,   27,   3,    4,    3,	NULL,				FCODE_OSCreateThread,		"OSCreateThread",		NULL,		FGROUP_NONE,				0 },	
+	{  0x11C,   21,   27,   3,    4,    3,	NULL,				FCODE_OSCreateThread,		"OSCreateThread",		"A",		FGROUP_OSCreateThread,		0 },	
+	{  0x1E4,   25,   60,   3,    5,    4,	NULL,				FCODE_OSCreateThread,		"OSCreateThread",		"B",		FGROUP_OSCreateThread,		0 },
 	{  0x284,   50,   31,   5,   25,   14,	NULL,				FCODE_OSResumeThread,		"OSResumeThread",		NULL,		FGROUP_NONE,				0 },	
 
-	{  0x16C,   11,    4,  26,   16,    2,	avetcp_init,		avetcp_init_size,			"avetcp_init",			NULL,		FGROUP_NONE,				0 },
+	{  0x144,    6,    3,  25,   16,    2,	avetcp_init,		avetcp_init_size,			"avetcp_init",			"A",		FGROUP_avetcp_init,			0 },
+	{  0x16C,   11,    4,  26,   16,    2,	avetcp_init,		avetcp_init_size,			"avetcp_init",			"B",		FGROUP_avetcp_init,			0 },
 	{   0x50,    3,    2,  13,    0,    2,	NULL,				FCODE_avetcp_term,			"avetcp_term",			NULL,		FGROUP_NONE,				0 },
 
 	{   0xF0,   17,    6,  12,    4,    3,	Return0,			Return0_size,				"ppp_init",				NULL,		FGROUP_NONE,				0 },
@@ -475,24 +487,32 @@ static FuncPattern PSO_SOPatterns[] =
 	{   0xE4,   20,    6,   8,    6,    6,	tcp_bind,			tcp_bind_size,				"tcp_bind",				NULL,		FGROUP_NONE,				0 },
 	{  0x16C,   27,    2,   9,   22,    7,	tcp_connect,		tcp_connect_size,			"tcp_connect",			NULL,		FGROUP_NONE,				0 },
 	{   0xA0,   13,    2,   5,    4,    5,	NULL,				FCODE_tcp_stat,				"tcp_stat",				NULL,		FGROUP_NONE,				0 },
-	{  0x320,   59,    5,  25,   24,    8,	tcp_send,			tcp_send_size,				"tcp_send",				NULL,		FGROUP_NONE,				0 },
+	{  0x2F8,   55,    5,  23,   22,    8,	tcp_send,			tcp_send_size,				"tcp_send",				"A",		FGROUP_tcp_send,			0 },
+	{  0x320,   59,    5,  25,   24,    8,	tcp_send,			tcp_send_size,				"tcp_send",				"B",		FGROUP_tcp_send,			0 },
 	{  0x228,   39,    2,  18,   16,    5,	tcp_receive,		tcp_receive_size,			"tcp_receive",			NULL,		FGROUP_NONE,				0 },
 	{   0xBC,   14,    4,   7,    6,    6,	tcp_abort,			tcp_abort_size,				"tcp_abort",			NULL,		FGROUP_NONE,				0 },
 	{   0x68,    8,    4,   3,    2,    4,	NULL,				FCODE_tcp_delete,			"tcp_delete",			NULL,		FGROUP_NONE,				0 },
 
-	{   0xFC,   19,    5,   6,   13,    5,	Return0,			Return0_size,				"if_config",			NULL,		FGROUP_NONE,				0 },
+	{   0xE4,   18,    4,   4,   13,    5,	Return0,			Return0_size,				"if_config",			"A",		FGROUP_if_config,			0 },
+	{   0xFC,   19,    5,   6,   13,    5,	Return0,			Return0_size,				"if_config",			"B",		FGROUP_if_config,			0 },
 	{   0xF0,   19,    2,   5,    7,    3,	Return0,			Return0_size,				"if_up",				NULL,		FGROUP_NONE,				0 },
-	{   0xF4,   13,    5,   8,   13,    8,	Return0,			Return0_size,				"if_down",				NULL,		FGROUP_NONE,				0 },
+	{   0xDC,   12,    4,   6,   13,    8,	Return0,			Return0_size,				"if_down",				"A",		FGROUP_if_down,				0 },
+	{   0xF4,   13,    5,   8,   13,    8,	Return0,			Return0_size,				"if_down",				"B",		FGROUP_if_down,				0 },
 
-	{  0x198,   35,   32,   8,    7,    4,	Return0,			Return0_size,				"DHCP_init",			NULL,		FGROUP_NONE,				0 },
-	{   0x70,   10,    3,   2,    5,    2,	NULL,				FCODE_DHCP_request,			"DHCP_request",			NULL,		FGROUP_NONE,				0 },
+	{  0x17C,   31,   30,   7,    7,    4,	Return0,			Return0_size,				"DHCP_init",			"A",		FGROUP_DHCP_init,			0 },
+	{  0x198,   35,   32,   8,    7,    4,	Return0,			Return0_size,				"DHCP_init",			"B",		FGROUP_DHCP_init,			0 },
+	{   0x74,    9,    3,   3,    5,    2,	NULL,				FCODE_DHCP_request,			"DHCP_request",			"A",		FGROUP_DHCP_request,		0 },
+	{   0x70,   10,    3,   2,    5,    2,	NULL,				FCODE_DHCP_request,			"DHCP_request",			"B",		FGROUP_DHCP_request,		0 },
 	{   0x20,    4,    2,   0,    1,    0,	NULL,				FCODE_DHCP_request_nb,		"DHCP_request_nb",		NULL,		FGROUP_NONE,				0 },
 	{   0x7C,   11,    6,   2,    4,    3,	NULL,				FCODE_DHCP_hostname,		"DHCP_hostname",		NULL,		FGROUP_NONE,				0 },
+	{  0x1B4,   38,   13,   7,   16,   10,	NULL,				FCODE_DHCP_get_state,		"DHCP_get_state",		NULL,		FGROUP_NONE,				0 },
 	{   0xE0,   23,    9,   3,    6,    2,	Return0,			Return0_size,				"DHCP_get_leasetime",	NULL,		FGROUP_NONE,				0 },
 	{   0x70,   11,    5,   1,    5,    2,	NULL,				FCODE_DHCP_get_gateway,		"DHCP_get_gateway",		NULL,		FGROUP_NONE,				0 },
 	{   0xDC,   22,    9,   3,    7,    3,	DHCP_get_dns,		DHCP_get_dns_size,			"DHCP_get_dns",			NULL,		FGROUP_NONE,				0 },
-	{   0x60,    9,    7,   1,    3,    2,	NULL,				FCODE_DHCP_release,			"DHCP_release",			NULL,		FGROUP_NONE,				0 },
-	{   0x48,    6,    3,   3,    1,    2,	NULL,				FCODE_DHCP_terminate,		"DHCP_terminate",		NULL,		FGROUP_NONE,				0 },
+	{   0x64,    8,    7,   2,    3,    2,	NULL,				FCODE_DHCP_release,			"DHCP_release",			"A",		FGROUP_DHCP_release,		0 },
+	{   0x60,    9,    7,   1,    3,    2,	NULL,				FCODE_DHCP_release,			"DHCP_release",			"B",		FGROUP_DHCP_release,		0 },
+	{   0x3C,    4,    3,   2,    1,    2,	NULL,				FCODE_DHCP_terminate,		"DHCP_terminate",		"A",		FGROUP_DHCP_terminate,		0 },
+	{   0x48,    6,    3,   3,    1,    2,	NULL,				FCODE_DHCP_terminate,		"DHCP_terminate",		"B",		FGROUP_DHCP_terminate,		0 },
 
 	{   0x84,   14,    6,   3,    0,    4,	NULL,				FCODE_route4_add,			"route4_add",			NULL,		FGROUP_NONE,				0 },
 

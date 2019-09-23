@@ -1161,7 +1161,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PatchState = PATCH_STATE_DONE;
 		return;
 	}
-
+	//dbgprintf("%08x %08x\r\n",Length,DiscOffset);
 	int i, j, k;
 	u32 read;
 	u32 value = 0;
@@ -1176,14 +1176,17 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			dbgprintf("PSO:psov3.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_NOENTRY;
 		}
-		if( (Length == 0x318E0 && read32((u32)Buffer+0x318B0) == 0x4CBEBC20) || //PSO PAL/NTSC
-			(Length == 0x31B60 && read32((u32)Buffer+0x31B28) == 0x4CBEBC20) || //PSO JAP
+		if( (Length == 0x318E0 && read32((u32)Buffer+0x318B0) == 0x4CBEBC20) || //PSO PAL/NTSC v1.00/v1.01
+			(Length == 0x31B60 && read32((u32)Buffer+0x31B28) == 0x4CBEBC20) || //PSO JAP v1.02/v1.03
 			(Length == 0x339A0 && read32((u32)Buffer+0x33960) == 0x4CBEBC20) || //PSO Plus JAP v1.05
 			(Length == 0x33FC0 && read32((u32)Buffer+0x33F78) == 0x4CBEBC20) || //PSO 3 JAP
 			(Length == 0x34B60 && read32((u32)Buffer+0x34B28) == 0x4CBEBC20) || //PSO Demo JAP
-			//this case is a little weird, file is actually 0x31ECO big, but game reads it in 2 parts,
+			//this case is a little weird, file is actually full switcher, but game reads it in 2 parts,
 			//so just watch out for the 1st part being read in, should be good enough I suppose
-			(Length == 0x31800 && read32((u32)Buffer+0x2A790) == 0x0A417070))	//PSO Plus NTSC v1.00
+			(Length == 0x31800 && read32((u32)Buffer+0x2A410) == 0x0A417070) ||	//PSO PAL/NTSC v1.00/v1.01
+			(Length == 0x31800 && read32((u32)Buffer+0x2A790) == 0x0A417070) ||	//PSO Plus NTSC v1.02
+			(Length == 0x31800 && read32((u32)Buffer+0x2A0D0) == 0x0A417070) ||	//PSO JAP v1.02/v1.03
+			(Length == 0x33800 && read32((u32)Buffer+0x2B830) == 0x0A417070))	//PSO Plus JAP v1.05
 		{
 			dbgprintf("PSO:switcher.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_SWITCH;
@@ -1193,10 +1196,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			dbgprintf("PSO:switcherD.dol\r\n");
 			PSOHack = PSO_STATE_LOAD | PSO_STATE_SWITCH;
 		}
-		else if((Length == 0x19580 && read32((u32)Buffer+0x19560) == 0xC8BFAF78) || //PSO Plus NTSC v1.00
+		else if((Length == 0x19580 && read32((u32)Buffer+0x19560) == 0xC8BFAF78) || //PSO Plus NTSC v1.02
+				(Length == 0x1A5C0 && read32((u32)Buffer+0x1A5A0) == 0x4CA7BEBC) || //PSO Plus JAP v1.05
 				(Length == 0x19EA0 && read32((u32)Buffer+0x19E80) == 0x24C7E996) || //PSO 3 PAL
 				(Length == 0x1A2C0 && read32((u32)Buffer+0x1A2A0) == 0xE2BEE1FF) || //PSO 3 NTSC
-				(Length == 0x1A5C0 && read32((u32)Buffer+0x1A5A0) == 0x4CA7BEBC) || //PSO Plus JAP v1.05
 				(Length == 0x1A960 && read32((u32)Buffer+0x1A940) == 0x09F8FF13))   //PSO 3 JAP
 		{
 			dbgprintf("PSO:switcher.prs\r\n");
@@ -3230,7 +3233,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_OSCreateThread:
 						{
-							if(read32(FOffset + 0xC8) == 0x3C808000 && read32(FOffset + 0xCC) == 0x38A400DC)
+							if((read32(FOffset + 0xC8) == 0x3C808000 && read32(FOffset + 0xCC) == 0x38A400DC) || //pattern A
+								(read32(FOffset + 0x19C) == 0x3C808000 && read32(FOffset + 0x1A0) == 0x38A400DC)) //pattern B
 							{
 								OSCreateThread = FOffset;
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
@@ -3323,8 +3327,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						case FCODE_DHCP_request:
 						{
 							//since DHCP_request_nb gets patched just return its result immediately
-							if(read32(FOffset + 0x14) == 0x2C030000 && read32(FOffset + 0x34) == 0x28000001 &&
-								read32(FOffset + 0x54) == 0x3860FFFF && read32(FOffset + 0x5C) == 0x38600000)
+							if(read32(FOffset + 0x14) == 0x2C030000 && read32(FOffset + 0x38) == 0x28000001 &&
+								read32(FOffset + 0x58) == 0x3860FFFF && read32(FOffset + 0x60) == 0x38600000) //pattern A
+							{
+								PatchB(FOffset+0x64, FOffset+0x14);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
+							else if(read32(FOffset + 0x14) == 0x2C030000 && read32(FOffset + 0x34) == 0x28000001 &&
+								read32(FOffset + 0x54) == 0x3860FFFF && read32(FOffset + 0x5C) == 0x38600000) //pattern B
 							{
 								PatchB(FOffset+0x60, FOffset+0x14);
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
@@ -3356,6 +3366,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							else //false hit
 								CurPatterns[j].Found = 0;
 						} break;
+						case FCODE_DHCP_get_state:
+						{
+							//mirror behavior of later library versions, return state immediately
+							PatchB(FOffset+0x1A4, FOffset+0x10);
+							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+						} break;
 						case FCODE_DHCP_get_gateway:
 						{
 							if(read32(FOffset + 0x18) == 0x2C000003 && read32(FOffset + 0x24) == 0x2C000004 &&
@@ -3369,8 +3385,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_DHCP_release:
 						{
-							if(read32(FOffset + 0x4) == 0x38600006 && read32(FOffset + 0xC) == 0x38000000 &&
-								read32(FOffset + 0x44) == 0x3860FFFF && read32(FOffset + 0x4C) == 0x38600000)
+							if((read32(FOffset + 0x4) == 0x38600006 && read32(FOffset + 0xC) == 0x38000000 &&
+								read32(FOffset + 0x48) == 0x3860FFFF && read32(FOffset + 0x50) == 0x38600000) || //pattern A
+								(read32(FOffset + 0x4) == 0x38600006 && read32(FOffset + 0xC) == 0x38000000 &&
+								read32(FOffset + 0x44) == 0x3860FFFF && read32(FOffset + 0x4C) == 0x38600000)) //pattern B
 							{
 								memcpy((void*)FOffset, DHCP_release, DHCP_release_size);
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
@@ -3380,8 +3398,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						} break;
 						case FCODE_DHCP_terminate:
 						{
-							if(read32(FOffset + 0x1C) == 0x2C03FFFF && read32(FOffset + 0x28) == 0x3800FFFF &&
-								read32(FOffset + 0x30) == 0x38600000)
+							if((read32(FOffset + 0x10) == 0x2C03FFFF && read32(FOffset + 0x1C) == 0x3800FFFF &&
+								read32(FOffset + 0x24) == 0x38600000) || //pattern A
+								(read32(FOffset + 0x1C) == 0x2C03FFFF && read32(FOffset + 0x28) == 0x3800FFFF &&
+								read32(FOffset + 0x30) == 0x38600000)) //pattern B
 							{
 								memcpy((void*)FOffset, Return0, Return0_size);
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
