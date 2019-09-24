@@ -493,6 +493,10 @@ static FuncPattern PSO_SOPatterns[] =
 	{   0xBC,   14,    4,   7,    6,    6,	tcp_abort,			tcp_abort_size,				"tcp_abort",			NULL,		FGROUP_NONE,				0 },
 	{   0x68,    8,    4,   3,    2,    4,	NULL,				FCODE_tcp_delete,			"tcp_delete",			NULL,		FGROUP_NONE,				0 },
 
+	{  0x120,   20,    2,  11,    7,    2,	ReturnMinus1,		ReturnMinus1_size,			"udp_open",				NULL,		FGROUP_NONE,				0 },
+	{  0x23C,   51,    6,  16,   17,    8,	ReturnMinus1,		ReturnMinus1_size,			"udp_send",				NULL,		FGROUP_NONE,				0 },
+	//{   0x6C,    8,    4,   3,    2,    4,	ReturnMinus1,		ReturnMinus1_size,			"udp_close",			NULL,		FGROUP_NONE,				0 },
+
 	{   0xE4,   18,    4,   4,   13,    5,	Return0,			Return0_size,				"if_config",			"A",		FGROUP_if_config,			0 },
 	{   0xFC,   19,    5,   6,   13,    5,	Return0,			Return0_size,				"if_config",			"B",		FGROUP_if_config,			0 },
 	{   0xF0,   19,    2,   5,    7,    3,	Return0,			Return0_size,				"if_up",				NULL,		FGROUP_NONE,				0 },
