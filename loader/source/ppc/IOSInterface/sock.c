@@ -978,9 +978,10 @@ int tcp_connect(int sock, u32 *arr, u16 port, u32 unk1)
 int tcp_stat(int sock, short *someweirdthing, u32 *unk1free, u32 *sendfree, u32 *unk2free)
 {
 	OSReport("tcp_stat %i\n", sock);
-	//just always have all set free for now
+	//this on init has to be 4 or more to work
 	if(someweirdthing) *someweirdthing = 4;
-	if(sendfree) *sendfree = 0x1000;
+	//always say we have the full 32k to send
+	if(sendfree) *sendfree = 0x8000;
 	return 0;
 }
 
