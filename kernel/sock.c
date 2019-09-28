@@ -32,8 +32,14 @@ extern int dbgprintf( const char *fmt, ...);
 #endif
 
 int soHeap = -1;
+//total overall allocated
+#define SO_TOTAL_FDS 64
+//total depending on game
+vu16 SOCurrentTotalFDs = SO_TOTAL_FDS;
 
-static so_struct_arm *sock_entry_arm = (so_struct_arm*)SO_BASE_ARM;
+static volatile unsigned char *ioctl_ppc = (unsigned char*)(SO_STRUCT_BUF+0x00);
+static volatile unsigned char *ioctl_arm = (unsigned char*)(SO_STRUCT_BUF+0x40);
+static so_struct_arm *sock_entry_arm = (so_struct_arm*)(SO_STRUCT_BUF+0x80);
 
 static struct ipcmessage *sockmsg[SO_TOTAL_FDS];
 
@@ -65,10 +71,13 @@ static u32 SOCKAlarm()
 		//dbgprintf("sock %08x msg\r\n",i);
 		int res = msg->result;
 		mqueue_ack(msg, 0);
-		//dbgprintf("result cmd for %i ioctl %08x\r\n",i,sock_entry_arm[i].ioctl);
-		switch(sock_entry_arm[i].ioctl)
+		u32 ioctl = ioctl_arm[i];
+		//dbgprintf("result cmd for %i ioctl %08x\r\n",i,ioctl);
+		switch(ioctl&~SO_THREAD_FD)
 		{
 			case so_accept:
+			case so_getpeername:
+			case so_getsockname:
 				sock_entry_arm[i].retval = res;
 				if(res >= 0)
 				{
@@ -76,7 +85,7 @@ static u32 SOCKAlarm()
 					if((sock_entry_arm[i].cmd1>>24) == 8)
 					{
 						memcpy((void*)&sock_entry_arm[i].cmd1, SOOutParams[i], 8);
-						//dbgprintf("[%i] Accept res %08x %08x%08x\r\n",i,res,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
+						//dbgprintf("[%i] IOCTL %08x res %08x %08x%08x\r\n",i,ioctl,res,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
 					}
 				}
 				break;
@@ -126,10 +135,10 @@ static u32 SOCKAlarm()
 				}
 				break;
 			case nwc_startup:
-				sock_entry_arm[i].retval = read32((u32)SOOutParams[i]);
+				sock_entry_arm[i].retval = SOOutParams[i][0];
 				break;
 			case nwc_cleanup:
-				sock_entry_arm[i].retval = read32((u32)SOOutParams[i]);
+				sock_entry_arm[i].retval = SOOutParams[i][0];
 				//FOR OUR BROADCAST HACK: Reset comparison IP
 				ourCurrentIP = 0;
 				break;
@@ -153,11 +162,11 @@ static u32 SOCKAlarm()
 				break;
 		}
 		//if(sock_entry_arm[i].retval < 0)
-		//	dbgprintf("[%i] WARNING: Ret for ioctl %08x was %08x\r\n", i, sock_entry_arm[i].ioctl, sock_entry_arm[i].retval);
-		sock_entry_arm[i].ioctl = 0;
+		//	dbgprintf("[%i] WARNING: Ret for ioctl %08x was %08x\r\n", i, ioctl, sock_entry_arm[i].retval);
+		sock_entry_arm[i].busy = 0;
 		sync_after_write(&sock_entry_arm[i], 0x20);
 		soBusy[i] = 0;
-		write32(HSP_INT, 0x2000 | i); // HSP IRQ
+		write32(HSP_INT, 0x2000 | ((ioctl&SO_THREAD_FD) ? ioctl : i)); // HSP IRQ
 		sync_after_write( (void*)HSP_INT, 0x20 );
 		//int rep = 0;
 		do {
@@ -234,6 +243,11 @@ void SOCKInit()
 	nwcFd = IOS_Open(name, 0);
 	heap_free(soHeap, name);
 
+	memset((void*)ioctl_ppc, 0, 0x40);
+	sync_after_write((void*)ioctl_ppc, 0x40);
+	memset((void*)ioctl_arm, 0, 0x40);
+	sync_after_write((void*)ioctl_arm, 0x40);
+
 	ourCurrentIP = 0;
 	//mdelay(100);
 	//dbgprintf("SOInit %08x\n", &soIf[1]);
@@ -250,17 +264,27 @@ void SOCKShutdown()
 void SOCKUpdateRegisters()
 {
 	int i;
-	for(i = 0; i < SO_TOTAL_FDS; i++)
+	sync_before_read((void*)ioctl_ppc, 0x40);
+	for(i = 0; i < SOCurrentTotalFDs; i++)
 	{
-		if(soBusy[i])
+		if(ioctl_ppc[i] == 0) //no cmd on this fd
+		{
+			ioctl_arm[i] = 0;
 			continue;
+		}
+		else if(soBusy[i]) //processing right now
+			continue;
+		else if(ioctl_arm[i]) //previously in use, wait for ppc clear
+			continue;
+		//new command, set it
+		u32 ioctl = ioctl_arm[i] = ioctl_ppc[i];
+		soBusy[i] = 1;
+		sockmsg[i]->seek.origin = i;
 		sync_before_read(&sock_entry_arm[i], 0x20);
-		u32 ioctl = sock_entry_arm[i].ioctl;
 		u32 optCmd, optLen;
 		u8 *dataBuf;
 		u64 time;
-		if(ioctl == 0) //no cmd on this fd
-			continue;
+		ioctl&=~SO_THREAD_FD;
 		//dbgprintf("cmd for %i ioctl %08x\r\n",i,ioctl);
 		switch(ioctl)
 		{
@@ -270,16 +294,13 @@ void SOCKUpdateRegisters()
 				{
 					memcpy(SOOutParams[i], (void*)&sock_entry_arm[i].cmd1, 8);
 					dbgprintf("[%i] SOAccept %i %08x%08x\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1, sock_entry_arm[i].cmd2);
-					sockmsg[i]->seek.origin = i;
 					IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, SOOutParams[i], 8, sockqueue, sockmsg[i]);
 				}
 				else //no return requested
 				{
 					dbgprintf("[%i] SOAccept %i\r\n", i,sock_entry_arm[i].cmd0);
-					sockmsg[i]->seek.origin = i;
 					IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, NULL, 0, sockqueue, sockmsg[i]);
 				}
-				soBusy[i] = 1;
 				break;
 			case so_bind:
 				memset(bindParams[i], 0, sizeof(struct bind_params));
@@ -287,16 +308,12 @@ void SOCKUpdateRegisters()
 				bindParams[i]->has_name = 1;
 				memcpy(bindParams[i]->name, (void*)&sock_entry_arm[i].cmd1, 8);
 				dbgprintf("[%i] SOBind %i %08x%08x\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, bindParams[i], sizeof(struct bind_params), NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_close:
 				SOParams[i][0] = sock_entry_arm[i].cmd0;
 				dbgprintf("[%i] SOClose %i\r\n", i,sock_entry_arm[i].cmd0);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_connect:
 				memset(bindParams[i], 0, sizeof(struct bind_params));
@@ -304,9 +321,7 @@ void SOCKUpdateRegisters()
 				bindParams[i]->has_name = 1;
 				memcpy(bindParams[i]->name, (void*)&sock_entry_arm[i].cmd1, 8);
 				dbgprintf("[%i] SOConnect %i %08x%08x\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, bindParams[i], sizeof(struct bind_params), NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_fcntl:
 				SOParams[i][0] = sock_entry_arm[i].cmd0;
@@ -314,9 +329,21 @@ void SOCKUpdateRegisters()
 				SOParams[i][2] = sock_entry_arm[i].cmd2;
 				sync_after_write(SOParams[i],0x20);
 				dbgprintf("[%i] SOFcntl %i %i %i\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 12, NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
+				break;
+			case so_getpeername:
+				SOParams[i][0] = sock_entry_arm[i].cmd0;
+				SOOutParams[i][0] = sock_entry_arm[i].cmd1;
+				SOOutParams[i][1] = sock_entry_arm[i].cmd2;
+				dbgprintf("[%i] SOGetPeerName %i %08x%08x\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
+				IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, SOOutParams[i], 8, sockqueue, sockmsg[i]);
+				break;
+			case so_getsockname:
+				SOParams[i][0] = sock_entry_arm[i].cmd0;
+				SOOutParams[i][0] = sock_entry_arm[i].cmd1;
+				SOOutParams[i][1] = sock_entry_arm[i].cmd2;
+				dbgprintf("[%i] SOGetSockName %i %08x%08x\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
+				IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 4, SOOutParams[i], 8, sockqueue, sockmsg[i]);
 				break;
 			case so_setsockopt:
 				dataBuf = (void*)(sock_entry_arm[i].cmd0&(~(1<<31)));
@@ -324,16 +351,12 @@ void SOCKUpdateRegisters()
 				sync_before_read(dataBuf, optLen);
 				dbgprintf("[%i] SOSetSockOpt %08x %08x %08x %08x%08x\r\n", i,
 					read32(((u32)dataBuf)+0x4),read32(((u32)dataBuf)+0x8),read32(((u32)dataBuf)+0xC),read32(((u32)dataBuf)+0x10),read32(((u32)dataBuf)+0x14));
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, dataBuf, optLen, NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_listen:
 				memcpy(SOParams[i], (void*)&sock_entry_arm[i].cmd0, 8);
 				dbgprintf("[%i] SOListen %i %i\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 8, NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_poll:
 				time = (read64((u32)(&sock_entry_arm[i].cmd2)) / 60750ULL);
@@ -346,9 +369,7 @@ void SOCKUpdateRegisters()
 				#ifdef DEBUG_SOCK
 				//hexdump((void*)SOOutParams[i][0], SOOutParams[i][1]);
 				#endif
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 8, (void*)SOOutParams[i][0], SOOutParams[i][1], sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_recvfrom:
 				memset(SOVec[i],0,sizeof(ioctlv)*3);
@@ -370,9 +391,7 @@ void SOCKUpdateRegisters()
 					SOVec[i][2].len = 0;
 				}
 				dbgprintf("[%i] SORecvFrom %i %08x %i\r\n", i, sock_entry_arm[i].cmd0, sock_entry_arm[i].cmd1, sock_entry_arm[i].cmd2);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlvAsync(sockFd, ioctl, 1, 2, SOVec[i], sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_sendto:
 				SOVec[i][0].data = (void*)(sock_entry_arm[i].cmd1&(~(1<<31)));
@@ -400,30 +419,22 @@ void SOCKUpdateRegisters()
 				#ifdef DEBUG_SOCK
 				//hexdump(SOVec[i][0].data, SOVec[i][0].len);
 				#endif
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlvAsync(sockFd, ioctl, 2, 0, SOVec[i], sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_shutdown:
 				memcpy(SOParams[i], (void*)&sock_entry_arm[i].cmd0, 8);
 				dbgprintf("[%i] SOShutdown %i %i\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 8, NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_socket:
 				memcpy(SOParams[i], (void*)&sock_entry_arm[i].cmd0, 12);
 				dbgprintf("[%i] SOSocket %i %i %i\r\n", i,sock_entry_arm[i].cmd0,sock_entry_arm[i].cmd1,sock_entry_arm[i].cmd2);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, SOParams[i], 12, NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_gethostbyname:
 				dbgprintf("[%i] SOGetHostByName %s %i\r\n", i,(char*)(sock_entry_arm[i].cmd0&(~(1<<31))),sock_entry_arm[i].cmd1);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlAsync(sockFd, ioctl, (void*)(sock_entry_arm[i].cmd0&(~(1<<31))), sock_entry_arm[i].cmd1, 
 											(void*)(sock_entry_arm[i].cmd2&(~(1<<31))), sock_entry_arm[i].cmd3, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_getinterfaceopt:
 				optCmd = sock_entry_arm[i].cmd0;
@@ -440,9 +451,7 @@ void SOCKUpdateRegisters()
 				write32((u32)SOVecResC[i], optLen);
 				SOVec[i][2].data = SOVecResC[i];
 				SOVec[i][2].len = 4;
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlvAsync(sockFd, ioctl, 1, 2, SOVec[i], sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_setinterfaceopt:
 				optCmd = sock_entry_arm[i].cmd0;
@@ -455,27 +464,23 @@ void SOCKUpdateRegisters()
 				SOVec[i][1].data = (void*)(sock_entry_arm[i].cmd1&(~(1<<31)));
 				SOVec[i][1].len = optLen;
 				sync_before_read(SOVec[i][1].data, SOVec[i][1].len);
-				sockmsg[i]->seek.origin = i;
 				IOS_IoctlvAsync(sockFd, ioctl, 2, 0, SOVec[i], sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case so_startinterface:
-				sockmsg[i]->seek.origin = i;
 				dbgprintf("[%i] SOStartInterface\r\n", i);
 				IOS_IoctlAsync(sockFd, ioctl, NULL, 0, NULL, 0, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			case nwc_startup:
 			case nwc_cleanup:
 				ioctl &= ~SO_NWC_CMD;
 				dbgprintf("[%i] NWC %08x\r\n", i, ioctl);
-				write32((u32)SOOutParams[i], -1);
+				SOOutParams[i][0] = -1;
 				IOS_IoctlAsync(nwcFd, ioctl, NULL, 0, SOOutParams[i], 0x20, sockqueue, sockmsg[i]);
-				soBusy[i] = 1;
 				break;
 			default: //should never happen
 				Shutdown();
 				break;
 		}
 	}
+	sync_after_write((void*)ioctl_arm, 0x40);
 }

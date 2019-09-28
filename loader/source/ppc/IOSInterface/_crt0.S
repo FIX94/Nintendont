@@ -31,15 +31,18 @@
 	.extern dns_get_addr
 	.extern dns_close
 	.extern tcp_create
-	.extern tcp_setsockopt
 	.extern tcp_bind
-	.extern tcp_connect
+	.extern tcp_listen
 	.extern tcp_stat
+	.extern tcp_getaddr
+	.extern tcp_connect
+	.extern tcp_accept
 	.extern tcp_send
 	.extern tcp_receive
 	.extern tcp_abort
 	.extern tcp_delete
 	.extern DHCP_request_nb
+	.extern DHCP_get_gateway
 	.extern DHCP_get_dns
 	.extern DHCP_release
 
@@ -78,15 +81,18 @@ __start:
 	b dns_get_addr
 	b dns_close
 	b tcp_create
-	b tcp_setsockopt
 	b tcp_bind
-	b tcp_connect
+	b tcp_listen
 	b tcp_stat
+	b tcp_getaddr
+	b tcp_connect
+	b tcp_accept
 	b tcp_send
 	b tcp_receive
 	b tcp_abort
 	b tcp_delete
 	b DHCP_request_nb
+	b DHCP_get_gateway
 	b DHCP_get_dns
 	b DHCP_release
 

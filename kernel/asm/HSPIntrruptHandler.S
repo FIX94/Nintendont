@@ -12,7 +12,7 @@ HSPIntrruptHandler:
 	li		0,		0
 	stw		0,		HSP_INT@l(4)
 	# add queue number from irq and execute wakeup
-	rlwinm	3,		3,		3,		25,		28
+	rlwinm	3,		3,		3,		22,		28
 	addis	3,		3,		SO_BASE_PPC@ha
 	addi	3,		3,		SO_BASE_PPC@l
 	nop		# bl OSWakeupThread

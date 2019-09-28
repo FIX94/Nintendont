@@ -11,7 +11,9 @@ SECTIONS {
 	OSCreateThread = 0x93026C8C;
 	OSResumeThread = 0x93026C90;
 	DHCPStateOffset = 0x93026C94;
-	SOStartedOffset = 0x93026C98;
+	SOStartedOffset = 0x93026C96;
+	SOShift = 0x93026C98;
+	SOCurrentTotalFDs = 0x93026C9A;
 	IsInited = 0x93026C9C;
 
 	. = 0x93006000;

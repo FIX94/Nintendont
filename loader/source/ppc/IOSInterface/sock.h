@@ -21,34 +21,24 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef _SOCK_H_
 #define _SOCK_H_
 
-//allow 20 operations at once, each with up to
-//32KB of I/O memory freely available
-#define		SO_TOTAL_FDS	20
-
-//interface between PPC and ARM side
-#define		SO_BASE_ARM		0x93026900
-typedef struct _so_struct_arm
-{
-	volatile unsigned int ioctl;
+//use for thread queue
+#define		SO_BASE_PPC		(volatile u64*)(0x93026900)
+//used to share location of HSP Interrupt Handler
+#define		SO_HSP_LOC		(volatile u32*)(0x93026C80)
+//512KB data buffer
+#define		SO_DATA_BUF		0x93060000
+//128KB struct buffer
+#define		SO_STRUCT_BUF	0x930E0000
+typedef struct _so_struct_arm {
 	volatile unsigned int cmd0;
 	volatile unsigned int cmd1;
 	volatile unsigned int cmd2;
 	volatile unsigned int cmd3;
 	volatile unsigned int cmd4;
 	volatile unsigned int cmd5;
+	volatile int busy;
 	volatile int retval;
 } so_struct_arm;
-
-//use for thread queue
-#define		SO_BASE_PPC		(volatile u64*)(0x93026B80)
-//used to share location of HSP Interrupt Handler
-#define		SO_HSP_LOC		(volatile u32*)(0x93026C80)
-//640KB data buffer
-#define		SO_DATA_BUF		0x93060000
-typedef struct _so_struct_buf
-{
-	volatile unsigned char buf[0x8000];
-} so_struct_buf;
 
 typedef struct _oldpoll_params {
 	int socket;
@@ -68,6 +58,8 @@ typedef struct _newpoll_params {
 #define so_close 0x03
 #define so_connect 0x04
 #define so_fcntl 0x05
+#define so_getpeername 0x06
+#define so_getsockname 0x07
 #define so_setsockopt 0x09
 #define so_listen 0x0A
 #define so_poll 0x0B
@@ -83,5 +75,7 @@ typedef struct _newpoll_params {
 #define		SO_NWC_CMD		0x20
 #define nwc_startup (SO_NWC_CMD | 6)
 #define nwc_cleanup (SO_NWC_CMD | 7)
+
+#define		SO_THREAD_FD	0x40
 
 #endif

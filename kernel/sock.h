@@ -26,22 +26,17 @@ void SOCKShutdown();
 void SOCKUpdateRegisters();
 void SOCKInterrupt(void);
 
-//allow 20 operations at once, each with up to
-//32KB of I/O memory freely available
-#define SO_TOTAL_FDS 20
-
-//interface between PPC and ARM side
-#define		SO_BASE_ARM		0x13026900
-typedef struct _so_struct_arm
-{
-	unsigned int ioctl;
-	unsigned int cmd0;
-	unsigned int cmd1;
-	unsigned int cmd2;
-	unsigned int cmd3;
-	unsigned int cmd4;
-	unsigned int cmd5;
-	int retval;
+//128KB struct buffer
+#define		SO_STRUCT_BUF	0x130E0000
+typedef struct _so_struct_arm {
+	volatile unsigned int cmd0;
+	volatile unsigned int cmd1;
+	volatile unsigned int cmd2;
+	volatile unsigned int cmd3;
+	volatile unsigned int cmd4;
+	volatile unsigned int cmd5;
+	volatile int busy;
+	volatile int retval;
 } so_struct_arm;
 
 //used to share location of HSP Interrupt Handler
@@ -53,6 +48,8 @@ typedef struct _so_struct_arm
 #define so_close 0x03
 #define so_connect 0x04
 #define so_fcntl 0x05
+#define so_getpeername 0x06
+#define so_getsockname 0x07
 #define so_setsockopt 0x09
 #define so_listen 0x0A
 #define so_poll 0x0B
@@ -69,4 +66,5 @@ typedef struct _so_struct_arm
 #define nwc_startup (SO_NWC_CMD | 6)
 #define nwc_cleanup (SO_NWC_CMD | 7)
 
+#define		SO_THREAD_FD	0x40
 #endif

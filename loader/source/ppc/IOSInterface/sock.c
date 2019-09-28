@@ -23,16 +23,24 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 //#define DEBUG_SOCK 1
 
-static so_struct_arm *sock_entry_arm = (so_struct_arm*)SO_BASE_ARM;
-static so_struct_buf *sock_data_buf = (so_struct_buf*)SO_DATA_BUF;
+//total overall allocated
+#define SO_TOTAL_FDS 64
+//total depending on game
+extern volatile u16 SOCurrentTotalFDs;
 
-extern u32 IsInited;
-static u32 socket_started = 0;
-static u32 interface_started = 0;
+static volatile unsigned char *ioctl_ppc = (unsigned char*)(SO_STRUCT_BUF+0x00);
+static volatile unsigned char *ioctl_arm = (unsigned char*)(SO_STRUCT_BUF+0x40);
+static so_struct_arm *sock_entry_arm = (so_struct_arm*)(SO_STRUCT_BUF+0x80);
+
+extern volatile u16 SOShift;
+extern volatile u32 IsInited;
+static volatile u32 socket_started = 0;
+static volatile u32 interface_started = 0;
 //for optimization purposes
-static int conf_cache = -1, ip_cache = 0, link_cache = 0;
-static u8 used[SO_TOTAL_FDS];
-static u64 *queue = (u64*)SO_BASE_PPC;
+static volatile int conf_cache = -1, ip_cache = 0, link_cache = 0;
+
+static volatile u8 so_used[SO_TOTAL_FDS];
+static u64 *so_queue = (u64*)SO_BASE_PPC;
 
 //general location of interrupt stuff
 static volatile u32 *osIrqHandlerAddr = (u32*)0x80003040;
@@ -52,35 +60,45 @@ extern void (*OSWakeupThread)(void *queue);
 //mario kart ntsc-u
 //static void (*OSReport)(char *in, ...) = (void*)0x800E8078;
 //kirby air ride ntsc-u
-//static void (*OSReport)(char *in, ...) = (void*)0x803D4CE8;
+static void (*OSReport)(char *in, ...) = (void*)0x803D4CE8;
 //1080 avalanche ntsc-u
 //static void (*OSReport)(char *in, ...) = (void*)0x80136174;
 //pso plus ntsc-u
 //static void (*OSReport)(char *in, ...) = (void*)0x80371DF8;
 //pso 1.0 ntsc-u
-static void (*OSReport)(char *in, ...) = (void*)0x8036E6B4;
+//static void (*OSReport)(char *in, ...) = (void*)0x8036E6B4;
+//homeland 1.0
+//static void (*OSReport)(char *in, ...) = (void*)0x8004D438;
 #endif
 
 int getFreeFD()
 {
-	int val = disableIRQs();
 	int i;
-	for(i = 0; i < SO_TOTAL_FDS; i++)
-	{
-		if(used[i] == 0)
+	do {
+		int val = disableIRQs();
+		sync_before_read((void*)ioctl_arm, 0x40);
+		for(i = 0; i < SOCurrentTotalFDs; i++)
 		{
-			used[i] = 1;
-			break;
+			if(ioctl_arm[i] == 0 && so_used[i] == 0)
+			{
+				so_used[i] = 1;
+				break;
+			}
 		}
-	}
-	restoreIRQs(val);
+		restoreIRQs(val);
+		if(i == SOCurrentTotalFDs)
+		{
+			u32 garbage = 0xFFFF;
+			while(garbage--) ;
+		}
+	} while(i == SOCurrentTotalFDs);
 	return i;
 }
 
 void freeUpFD(int i)
 {
 	int val = disableIRQs();
-	used[i] = 0;
+	so_used[i] = 0;
 	restoreIRQs(val);
 }
 
@@ -96,8 +114,8 @@ void SOInit(void)
 	int i;
 	for(i = 0; i < SO_TOTAL_FDS; i++)
 	{
-		queue[i] = 0;
-		used[i] = 0;
+		so_queue[i] = 0;
+		so_used[i] = 0;
 	}
 	//set custom interrupt handler
 	osIrqHandlerAddr[0x1A] = *SO_HSP_LOC;
@@ -111,25 +129,54 @@ void SOInit(void)
 	restoreIRQs(val);
 }
 
-int doCall(int call, int fd, int doIRQ)
+void doCallStart(int call, int fd, void *queue)
 {
-	//OSReport("doCall start %i %i\n", call, fd);
-	sock_entry_arm[fd].ioctl = call;
+	//OSReport("doCall start %i %i %i\n", call, fd, queue);
+	//set to busy
+	sock_entry_arm[fd].busy = 1;
 	sync_after_write(&sock_entry_arm[fd], 0x20);
-	if(doIRQ)
-		OSSleepThread((void*)(&queue[fd]));
+	//set and sync with irqs off
+	int val = disableIRQs();
+	ioctl_ppc[fd] = call;
+	sync_after_store((void*)ioctl_ppc, 0x40);
+	if(queue)
+	{
+		OSSleepThread(queue);
+		//only restore after it woke up,
+		//so that it sleeps when its already
+		//possibly done and about to be woken up
+		restoreIRQs(val);
+	}
 	else
 	{
-		while(sock_entry_arm[fd].ioctl)
+		restoreIRQs(val);
+		//just loop, safe enough...
+		while(sock_entry_arm[fd].busy)
 		{
 			u32 garbage = 0xFFFF;
 			while(garbage--) ;
 			sync_before_read(&sock_entry_arm[fd], 0x20);
 		}
 	}
+}
+int doCallEnd(int fd)
+{
+	//set and sync with irqs off
+	int val = disableIRQs();
+	ioctl_ppc[fd] = 0;
+	sync_after_store((void*)ioctl_ppc, 0x40);
+	restoreIRQs(val);
+	//get ret and return
 	sync_before_read(&sock_entry_arm[fd], 0x20);
 	//OSReport("doCall done %i\n", sock_entry_arm[fd].retval);
 	return sock_entry_arm[fd].retval;
+}
+
+//synced version used by SO interface
+int doCall(int call, int fd, void *queue)
+{
+	doCallStart(call, fd, queue);
+	return doCallEnd(fd);
 }
 
 static inline void reset_cache_vals()
@@ -140,36 +187,35 @@ static inline void reset_cache_vals()
 	link_cache = 0;
 }
 
-int doStartSOInterface(int fd, int doIRQ)
+int doStartSOInterface(void *queue)
 {
 	if(!IsInited) //no interface to call open
 		return 0;
+	//not yet started, beging checks
 	if(!interface_started)
 	{
-		if(doCall(so_startinterface, fd, doIRQ) >= 0)
+		//important: assign own FD to this sub-call, or else
+		//there may not be enough time for it to free up on IOS side!
+		int startfd = getFreeFD();
+		if(doCall(so_startinterface, startfd, queue ? &so_queue[startfd] : 0) >= 0)
 		{
-			int val = disableIRQs();
+			//started interface successfully
 			interface_started = 1;
 			reset_cache_vals();
-			restoreIRQs(val);
-			//started interface successfully
-			return 1;
 		}
-		//call failed...
-		return 0;
+		freeUpFD(startfd);
 	}
-	//already started
-	return 1;
+	return interface_started;
 }
 
-int doSOGetInterfaceOpt(int cmd, void *buf, int len, int fd, int doIRQ)
+int doSOGetInterfaceOpt(int cmd, void *buf, int len, int fd, void *queue)
 {
-	if(doStartSOInterface(fd, doIRQ))
+	if(doStartSOInterface(queue))
 	{
 		sock_entry_arm[fd].cmd0 = cmd;
 		sock_entry_arm[fd].cmd1 = (u32)buf;
 		sock_entry_arm[fd].cmd2 = len;
-		if(doCall(so_getinterfaceopt, fd, doIRQ) >= 0)
+		if(doCall(so_getinterfaceopt, fd, queue) >= 0)
 		{
 			sync_before_read(buf, len);
 			return 1;
@@ -178,15 +224,15 @@ int doSOGetInterfaceOpt(int cmd, void *buf, int len, int fd, int doIRQ)
 	return 0;
 }
 
-int doSOSetInterfaceOpt(int cmd, char *buf, int len, int fd, int doIRQ)
+int doSOSetInterfaceOpt(int cmd, char *buf, int len, int fd, void *queue)
 {
-	if(doStartSOInterface(fd, doIRQ))
+	if(doStartSOInterface(queue))
 	{
 		sock_entry_arm[fd].cmd0 = cmd;
 		sock_entry_arm[fd].cmd1 = (u32)buf;
 		sock_entry_arm[fd].cmd2 = len;
 		sync_after_write(buf, len);
-		if(doCall(so_setinterfaceopt, fd, doIRQ) >= 0)
+		if(doCall(so_setinterfaceopt, fd, queue) >= 0)
 			return 1;
 	}
 	return 0;
@@ -203,7 +249,7 @@ int SOStartup(void)
 	int ret;
 	int fd = getFreeFD();
 	do {
-		ret = doCall(nwc_startup, fd, 1);
+		ret = doCall(nwc_startup, fd, &so_queue[fd]);
 	} while(ret < 0);
 	freeUpFD(fd);
 	int val = disableIRQs();
@@ -227,7 +273,7 @@ int SOCleanup(void)
 	int ret;
 	int fd = getFreeFD();
 	do {
-		ret = doCall(nwc_cleanup, fd, 1);
+		ret = doCall(nwc_cleanup, fd, &so_queue[fd]);
 	} while(ret < 0);
 	freeUpFD(fd);
 	int val = disableIRQs();
@@ -251,7 +297,7 @@ int SOSocket(int a, int b, int c)
 	sock_entry_arm[fd].cmd0 = a;
 	sock_entry_arm[fd].cmd1 = b;
 	sock_entry_arm[fd].cmd2 = c;
-	ret = doCall(so_socket, fd, 1);
+	ret = doCall(so_socket, fd, &so_queue[fd]);
 	freeUpFD(fd);
 	OSReport("SOSocket done %08x\n", ret);
 	return ret;
@@ -264,7 +310,7 @@ int SOClose(int snum)
 	int ret;
 	int fd = getFreeFD();
 	sock_entry_arm[fd].cmd0 = snum;
-	ret = doCall(so_close, fd, 1);
+	ret = doCall(so_close, fd, &so_queue[fd]);
 	freeUpFD(fd);
 	OSReport("SOClose done %08x\n", ret);
 	return ret;
@@ -278,9 +324,41 @@ int SOListen(int snum, int list)
 	int fd = getFreeFD();
 	sock_entry_arm[fd].cmd0 = snum;
 	sock_entry_arm[fd].cmd1 = list;
-	ret = doCall(so_listen, fd, 1);
+	ret = doCall(so_listen, fd, &so_queue[fd]);
 	freeUpFD(fd);
 	OSReport("SOListen done %08x\n", ret);
+	return ret;
+}
+
+static int _SOSockCmd(int snum, char *sock, int socmd, int wantres)
+{
+	int ret;
+	int fd = getFreeFD();
+	sock_entry_arm[fd].cmd0 = snum;
+	if(!sock) //no sock input
+	{
+		sock_entry_arm[fd].cmd1 = 0;
+		sock_entry_arm[fd].cmd2 = 0;
+		ret = doCall(socmd, fd, &so_queue[fd]);
+	}
+	else if(!wantres) //no return request
+	{
+		sock_entry_arm[fd].cmd1 = *(volatile u32*)(sock+0);
+		sock_entry_arm[fd].cmd2 = *(volatile u32*)(sock+4);
+		ret = doCall(socmd, fd, &so_queue[fd]);
+	}
+	else //requests actual return
+	{
+		sock_entry_arm[fd].cmd1 = *(volatile u32*)(sock+0);
+		sock_entry_arm[fd].cmd2 = *(volatile u32*)(sock+4);
+		ret = doCall(socmd, fd, &so_queue[fd]);
+		if(ret >= 0) //copy back return value
+		{
+			*(volatile u32*)(sock+0) = sock_entry_arm[fd].cmd1;
+			*(volatile u32*)(sock+4) = sock_entry_arm[fd].cmd2;
+		}
+	}
+	freeUpFD(fd);
 	return ret;
 }
 
@@ -289,27 +367,7 @@ int SOAccept(int snum, char *sock)
 	//quit if no socket running or socket input size not 8
 	if(!socket_started || (sock && sock[0] != 8))
 		return -1;
-	int ret;
-	int fd = getFreeFD();
-	sock_entry_arm[fd].cmd0 = snum;
-	if(!sock) //no return request
-	{
-		sock_entry_arm[fd].cmd1 = 0;
-		sock_entry_arm[fd].cmd2 = 0;
-		ret = doCall(so_accept, fd, 1);
-	}
-	else //requests actual return
-	{
-		sock_entry_arm[fd].cmd1 = *(volatile u32*)(sock+0);
-		sock_entry_arm[fd].cmd2 = *(volatile u32*)(sock+4);
-		ret = doCall(so_accept, fd, 1);
-		if(ret >= 0) //copy back return value
-		{
-			*(volatile u32*)(sock+0) = sock_entry_arm[fd].cmd1;
-			*(volatile u32*)(sock+4) = sock_entry_arm[fd].cmd2;
-		}
-	}
-	freeUpFD(fd);
+	int ret = _SOSockCmd(snum, sock, so_accept, sock ? 1 : 0);
 	OSReport("SOAccept done %08x\n", ret);
 	return ret;
 }
@@ -319,13 +377,7 @@ int SOBind(int snum, char *sock)
 	//quit if no socket running or no input or input size not 8
 	if(!socket_started || !sock || sock[0] != 8)
 		return -1;
-	int ret;
-	int fd = getFreeFD();
-	sock_entry_arm[fd].cmd0 = snum;
-	sock_entry_arm[fd].cmd1 = *(volatile u32*)(sock+0x0);
-	sock_entry_arm[fd].cmd2 = *(volatile u32*)(sock+0x4);
-	ret = doCall(so_bind, fd, 1);
-	freeUpFD(fd);
+	int ret = _SOSockCmd(snum, sock, so_bind, 0);
 	OSReport("SOBind done %08x\n", ret);
 	return ret;
 }
@@ -335,14 +387,28 @@ int SOConnect(int snum, char *sock)
 	//quit if no socket running or no input or input size not 8
 	if(!socket_started || !sock || sock[0] != 8)
 		return -1;
-	int ret;
-	int fd = getFreeFD();
-	sock_entry_arm[fd].cmd0 = snum;
-	sock_entry_arm[fd].cmd1 = *(volatile u32*)(sock+0x0);
-	sock_entry_arm[fd].cmd2 = *(volatile u32*)(sock+0x4);
-	ret = doCall(so_connect, fd, 1);
-	freeUpFD(fd);
+	int ret = _SOSockCmd(snum, sock, so_connect, 0);
 	OSReport("SOConnect done %08x\n", ret);
+	return ret;
+}
+
+int SOGetSockName(int snum, char *sock)
+{
+	//quit if no socket running or no input or input size not 8
+	if(!socket_started || !sock || sock[0] != 8)
+		return -1;
+	int ret = _SOSockCmd(snum, sock, so_getsockname, 1);
+	OSReport("SOGetSockName done %08x %08x %08x\n", ret, *(u32*)sock, *(u32*)(sock+4));
+	return ret;
+}
+
+int SOGetPeerName(int snum, char *sock)
+{
+	//quit if no socket running or no input or input size not 8
+	if(!socket_started || !sock || sock[0] != 8)
+		return -1;
+	int ret = _SOSockCmd(snum, sock, so_getpeername, 1);
+	OSReport("SOGetPeerName done %08x %08x %08x\n", ret, *(u32*)sock, *(u32*)(sock+4));
 	return ret;
 }
 
@@ -354,7 +420,7 @@ int SOShutdown(int snum, int msg)
 	int fd = getFreeFD();
 	sock_entry_arm[fd].cmd0 = snum;
 	sock_entry_arm[fd].cmd1 = msg;
-	ret = doCall(so_shutdown, fd, 1);
+	ret = doCall(so_shutdown, fd, &so_queue[fd]);
 	freeUpFD(fd);
 	OSReport("SOShutdown done %08x\n", ret);
 	return ret;
@@ -362,30 +428,30 @@ int SOShutdown(int snum, int msg)
 
 int SORecvFrom(int snum, char *buf, int len, int flags, char *sock)
 {
-	OSReport("SORecvFrom %i %08x %i %i %08x\n", snum, buf, len, flags, sock);
 	if(!socket_started || !buf || len < 0 || (sock && sock[0] != 8))
 		return -1;
 	int ret;
 	int fd = getFreeFD();
-	//max len of 32k
-	if(len >= 0x8000)
-		len = 0x8000;
+	//max len
+	if(len >= (1<<SOShift))
+		len = (1<<SOShift);
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 	//set common values
 	sock_entry_arm[fd].cmd0 = snum;
-	sock_entry_arm[fd].cmd1 = (u32)sock_data_buf[fd].buf;
+	sock_entry_arm[fd].cmd1 = curbuf;
 	sock_entry_arm[fd].cmd2 = len;
 	sock_entry_arm[fd].cmd3 = flags;
 	if(!sock)
 	{
 		sock_entry_arm[fd].cmd4 = 0;
 		sock_entry_arm[fd].cmd5 = 0;
-		ret = doCall(so_recvfrom, fd, 1);
+		ret = doCall(so_recvfrom, fd, &so_queue[fd]);
 	}
 	else
 	{
 		sock_entry_arm[fd].cmd4 = *(volatile u32*)(sock+0);
 		sock_entry_arm[fd].cmd5 = *(volatile u32*)(sock+4);
-		ret = doCall(so_recvfrom, fd, 1);
+		ret = doCall(so_recvfrom, fd, &so_queue[fd]);
 		if(ret >= 0) //copy back sock
 		{
 			*(volatile u32*)(sock+0) = sock_entry_arm[fd].cmd4;
@@ -395,10 +461,10 @@ int SORecvFrom(int snum, char *buf, int len, int flags, char *sock)
 	//copy back actually received data
 	if(ret > 0)
 	{
-		sync_before_read((void*)sock_data_buf[fd].buf, ret);
+		sync_before_read((void*)curbuf, ret);
 		int i;
 		for(i = 0; i < ret; i++)
-			*(volatile u8*)(buf+i) = *(volatile u8*)(sock_data_buf[fd].buf+i);
+			*(volatile u8*)(buf+i) = *(volatile u8*)(curbuf+i);
 	}
 	freeUpFD(fd);
 	OSReport("SORecvFrom done %08x\n", ret);
@@ -411,20 +477,21 @@ int SOSendTo(int snum, char *buf, int len, int flags, char *sock)
 		return -1;
 	int ret;
 	int fd = getFreeFD();
-	//max len of 32k
-	if(len >= 0x8000)
-		len = 0x8000;
+	//max len
+	if(len >= (1<<SOShift))
+		len = (1<<SOShift);
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 	//copy over data to send
 	if(len > 0)
 	{
 		int i;
 		for(i = 0; i < len; i++)
-			*(volatile u8*)(sock_data_buf[fd].buf+i) = *(volatile u8*)(buf+i);
-		sync_after_write((void*)sock_data_buf[fd].buf, len);
+			*(volatile u8*)(curbuf+i) = *(volatile u8*)(buf+i);
+		sync_after_write((void*)curbuf, len);
 	}
 	//set common values
 	sock_entry_arm[fd].cmd0 = snum;
-	sock_entry_arm[fd].cmd1 = (u32)sock_data_buf[fd].buf;
+	sock_entry_arm[fd].cmd1 = curbuf;
 	sock_entry_arm[fd].cmd2 = len;
 	sock_entry_arm[fd].cmd3 = flags;
 	if(!sock)
@@ -437,7 +504,7 @@ int SOSendTo(int snum, char *buf, int len, int flags, char *sock)
 		sock_entry_arm[fd].cmd4 = *(volatile u32*)(sock+0);
 		sock_entry_arm[fd].cmd5 = *(volatile u32*)(sock+4);
 	}
-	ret = doCall(so_sendto, fd, 1);
+	ret = doCall(so_sendto, fd, &so_queue[fd]);
 	freeUpFD(fd);
 	OSReport("SOSendTo done %08x\n", ret);
 	return ret;
@@ -449,28 +516,29 @@ int SOSetSockOpt(int snum, int ctype, int cmd, char *buf, int len)
 		return -1;
 	int ret;
 	int fd = getFreeFD();
-	sock_entry_arm[fd].cmd0 = (u32)sock_data_buf[fd].buf;
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+	sock_entry_arm[fd].cmd0 = curbuf;
 	sock_entry_arm[fd].cmd1 = 0x24; //fixed out size
-	*(volatile u32*)(sock_data_buf[fd].buf+0x0) = snum;
-	*(volatile u32*)(sock_data_buf[fd].buf+0x4) = ctype;
-	*(volatile u32*)(sock_data_buf[fd].buf+0x8) = cmd;
-	*(volatile u32*)(sock_data_buf[fd].buf+0xC) = len;
+	*(volatile u32*)(curbuf+0x0) = snum;
+	*(volatile u32*)(curbuf+0x4) = ctype;
+	*(volatile u32*)(curbuf+0x8) = cmd;
+	*(volatile u32*)(curbuf+0xC) = len;
 	if(len)
 	{
 		int i;
 		if(buf)
 		{
 			for(i = 0; i < len; i++)
-				*(volatile u8*)(sock_data_buf[fd].buf+0x10+i) = *(volatile u8*)(buf+i);
+				*(volatile u8*)(curbuf+0x10+i) = *(volatile u8*)(buf+i);
 		}
 		else
 		{
 			for(i = 0; i < len; i++)
-				*(volatile u8*)(sock_data_buf[fd].buf+0x10+i) = 0;
+				*(volatile u8*)(curbuf+0x10+i) = 0;
 		}
 	}
-	sync_after_write((void*)sock_data_buf[fd].buf, 0x24);
-	ret = doCall(so_setsockopt, fd, 1);
+	sync_after_write((void*)curbuf, 0x24);
+	ret = doCall(so_setsockopt, fd, &so_queue[fd]);
 	freeUpFD(fd);
 	OSReport("SOSetSockOpt done %08x\n", ret);
 	return ret;
@@ -487,7 +555,7 @@ int SOFcntl(int snum, int cmd, int arg)
 	sock_entry_arm[fd].cmd0 = snum;
 	sock_entry_arm[fd].cmd1 = cmd;
 	sock_entry_arm[fd].cmd2 = arg;
-	ret = doCall(so_fcntl, fd, 1);
+	ret = doCall(so_fcntl, fd, &so_queue[fd]);
 	OSReport("SOFcntl done %08x\n", ret);
 	freeUpFD(fd);
 	return ret;
@@ -499,7 +567,7 @@ int SOPoll(oldpoll_params *params, int num, unsigned long long time)
 		return -1;
 	int ret;
 	int fd = getFreeFD();
-	newpoll_params *newparams = (newpoll_params*)sock_data_buf[fd].buf;
+	newpoll_params *newparams = (newpoll_params*)(SO_DATA_BUF+(fd<<SOShift));
 	int i;
 	for(i = 0; i < num; i++)
 	{
@@ -512,7 +580,7 @@ int SOPoll(oldpoll_params *params, int num, unsigned long long time)
 	sock_entry_arm[fd].cmd1 = sizeof(newpoll_params)*num;
 	sock_entry_arm[fd].cmd2 = (u32)(time>>32);
 	sock_entry_arm[fd].cmd3 = (u32)(time&0xFFFFFFFF);
-	ret = doCall(so_poll, fd, 1);
+	ret = doCall(so_poll, fd, &so_queue[fd]);
 	if(ret >= 0)
 	{
 		sync_before_read(newparams, sizeof(newpoll_params)*num);
@@ -540,13 +608,14 @@ void IPGetMacAddr(char *interface_in, char *retval)
 	}
 	//default interface request
 	int fd = getFreeFD();
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 	//do getmacaddr, note specifically for mario kart dd:
 	//using an irq to wait for the result will crash for some reason,
 	//possibly due to the specific game booting thread its executed from
-	if(doSOGetInterfaceOpt(0x1004, (void*)sock_data_buf[fd].buf, 6, fd, 0)) //read out from IOS address
+	if(doSOGetInterfaceOpt(0x1004, (void*)curbuf, 6, fd, 0)) //read out from IOS address
 	{
-		*(volatile u32*)(retval+0) = *(volatile u32*)(sock_data_buf[fd].buf+0);
-		*(volatile u16*)(retval+4) = *(volatile u16*)(sock_data_buf[fd].buf+4);
+		*(volatile u32*)(retval+0) = *(volatile u32*)(curbuf+0);
+		*(volatile u16*)(retval+4) = *(volatile u16*)(curbuf+4);
 	}
 	else //just return 0
 	{
@@ -568,12 +637,13 @@ void IPGetBroadcastAddr(char *interface_in, u32 *retval)
 	}
 	//default interface request
 	int fd = getFreeFD();
-	if(doSOGetInterfaceOpt(0x4003, (void*)sock_data_buf[fd].buf, 12, fd, 1)) //read out from IOS address
-		*retval = *(volatile u32*)(sock_data_buf[fd].buf+8);
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+	if(doSOGetInterfaceOpt(0x4003, (void*)curbuf, 12, fd, &so_queue[fd])) //read out from IOS address
+		*retval = *(volatile u32*)(curbuf+8);
 	else //just return 0
 		*retval = 0;
 	freeUpFD(fd);
-	OSReport("IPGetBroadcastAddr done %08x\n", *retval);
+	OSReport("IPGetBroadcastAddr done %i.%i.%i.%i\n", ((*retval)>>24),((*retval)>>16)&0xFF,((*retval)>>8)&0xFF,(*retval)&0xFF);
 }
 
 void IPGetNetmask(char *interface_in, u32 *retval)
@@ -587,12 +657,13 @@ void IPGetNetmask(char *interface_in, u32 *retval)
 	}
 	//default interface request
 	int fd = getFreeFD();
-	if(doSOGetInterfaceOpt(0x4003, (void*)sock_data_buf[fd].buf, 12, fd, 1)) //read out from IOS address
-		*retval = *(volatile u32*)(sock_data_buf[fd].buf+4);
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+	if(doSOGetInterfaceOpt(0x4003, (void*)curbuf, 12, fd, &so_queue[fd])) //read out from IOS address
+		*retval = *(volatile u32*)(curbuf+4);
 	else //just return 0
 		*retval = 0;
 	freeUpFD(fd);
-	OSReport("IPGetNetmask done %08x\n", *retval);
+	OSReport("IPGetNetmask done %i.%i.%i.%i\n", ((*retval)>>24),((*retval)>>16)&0xFF,((*retval)>>8)&0xFF,(*retval)&0xFF);
 }
 
 void IPGetAddr(char *interface_in, u32 *retval)
@@ -612,13 +683,14 @@ void IPGetAddr(char *interface_in, u32 *retval)
 	}
 	//default interface request
 	int fd = getFreeFD();
-	if(doSOGetInterfaceOpt(0x4003, (void*)sock_data_buf[fd].buf, 12, fd, 1)) //read out from IOS address
-		*retval = *(volatile u32*)sock_data_buf[fd].buf;
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+	if(doSOGetInterfaceOpt(0x4003, (void*)curbuf, 12, fd, &so_queue[fd])) //read out from IOS address
+		*retval = *(volatile u32*)curbuf;
 	else //just return 0
 		*retval = 0;
 	freeUpFD(fd);
 	ip_cache = *retval;
-	OSReport("IPGetAddr done %08x\n", *retval);
+	OSReport("IPGetAddr done %i.%i.%i.%i\n", ((*retval)>>24),((*retval)>>16)&0xFF,((*retval)>>8)&0xFF,(*retval)&0xFF);
 }
 
 void IPGetMtu(char *interface_in, u32 *retval)
@@ -632,8 +704,9 @@ void IPGetMtu(char *interface_in, u32 *retval)
 	}
 	//default interface request
 	int fd = getFreeFD();
-	if(doSOGetInterfaceOpt(0x4004, (void*)sock_data_buf[fd].buf, 4, fd, 1)) //read out from IOS address
-		*retval = *(volatile u32*)sock_data_buf[fd].buf;
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+	if(doSOGetInterfaceOpt(0x4004, (void*)curbuf, 4, fd, &so_queue[fd])) //read out from IOS address
+		*retval = *(volatile u32*)curbuf;
 	else //just return 0
 		*retval = 0;
 	freeUpFD(fd);
@@ -657,9 +730,10 @@ void IPGetLinkState(char *interface_in, u32 *retval)
 	}
 	//default interface request
 	int fd = getFreeFD();
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 	//do getlinkstate
-	if(doSOGetInterfaceOpt(0x1005, (void*)sock_data_buf[fd].buf, 4, fd, 1)) //read out from IOS address
-		*retval = *(volatile u32*)sock_data_buf[fd].buf;
+	if(doSOGetInterfaceOpt(0x1005, (void*)curbuf, 4, fd, &so_queue[fd])) //read out from IOS address
+		*retval = *(volatile u32*)curbuf;
 	else //just say link down
 		*retval = 0;
 	freeUpFD(fd);
@@ -677,9 +751,10 @@ int IPGetConfigError(char *interface_in)
 	int ret;
 	//default interface request
 	int fd = getFreeFD();
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 	//do getconfigerror
-	if(doSOGetInterfaceOpt(0x1003, (void*)sock_data_buf[fd].buf, 4, fd, 1)) //read out from IOS address
-		ret = *(volatile u32*)sock_data_buf[fd].buf;
+	if(doSOGetInterfaceOpt(0x1003, (void*)curbuf, 4, fd, &so_queue[fd])) //read out from IOS address
+		ret = *(volatile u32*)curbuf;
 	else //return some negative number I guess
 		ret = -1;
 	freeUpFD(fd);
@@ -708,9 +783,10 @@ int IPSetConfigError(char *interface_in, int err)
 	if(ret == 0)
 	{
 		ret = err;
-		*(volatile u32*)sock_data_buf[fd].buf = err;
+		u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+		*(volatile u32*)curbuf = err;
 		//do setconfigerror
-		doSOSetInterfaceOpt(0x1003, (void*)sock_data_buf[fd].buf, 4, fd, 1);
+		doSOSetInterfaceOpt(0x1003, (void*)curbuf, 4, fd, &so_queue[fd]);
 	}
 	freeUpFD(fd);
 	conf_cache = ret;
@@ -732,10 +808,11 @@ int IPClearConfigError(char *interface_in)
 		return 0;
 	//default interface request
 	int fd = getFreeFD();
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 	//clear out current interface value
-	*(volatile u32*)sock_data_buf[fd].buf = 0;
+	*(volatile u32*)curbuf = 0;
 	//do clearconfigerror
-	doSOSetInterfaceOpt(0x1003, (void*)sock_data_buf[fd].buf, 4, fd, 1);
+	doSOSetInterfaceOpt(0x1003, (void*)curbuf, 4, fd, &so_queue[fd]);
 	freeUpFD(fd);
 	conf_cache = ret;
 	OSReport("IPClearConfigError done %08x\n", ret);
@@ -745,141 +822,268 @@ int IPClearConfigError(char *interface_in)
 
 /* All the PSO related hooks follow here */
 
+typedef struct _threadCBDatStr {
+	u32 cb;
+	u32 buf;
+	short len;
+	short sock;
+} threadCBDatStr;
+
+typedef struct _myCtx {
+	void *queue;
+	u32 type;
+} myCtx;
+
+typedef struct _sendarr {
+	u16 len;
+	char *buf;
+} sendarr;
+
 //defined in linker script
-extern int (*OSCreateThread)(void *thread, void *func, u32 funcvar, void *stack_start, u32 stack_size, u32 prio, u32 params);
+extern int (*OSCreateThread)(void *thread, void *func, void *funcvar, void *stack_start, u32 stack_size, u32 prio, u32 params);
 extern void (*OSResumeThread)(void *thread);
 extern void setDHCPStateOffset(int status);
-//allow 4 threads just for receives, 10 may be original but we only have so much space....
-#define PSO_MAX_FDS 4
-static u8 recvThread[PSO_MAX_FDS][0x800] __attribute__((aligned(32)));
-static u8 recvStack[PSO_MAX_FDS][0x800] __attribute__((aligned(32)));
-static volatile u32 recvArg[PSO_MAX_FDS][4];
-static volatile u32 recvused[PSO_MAX_FDS];
-static u64 recvQueue[PSO_MAX_FDS];
 
-static u32 dns_arr[2];
-static u32 dns_num = 0;
-static char *dns_names[SO_TOTAL_FDS];
-static int dns_namelen[SO_TOTAL_FDS];
+static volatile u32 avetcp_inited = 0;
 
-int getFreeRecvFD()
+static volatile u32 dns_arr[2];
+static volatile u32 dns_num = 0;
+static volatile char *dns_names[SO_TOTAL_FDS];
+static volatile int dns_namelen[SO_TOTAL_FDS];
+
+//send, receive and accept threads
+static volatile u32 threadsRunning = 0;
+#define T_SEND 0
+#define T_RECV 1
+#define T_ACPT 2
+#define T_MAX 3
+static u8 ioThread[T_MAX][0x800] __attribute__((aligned(32)));
+static u8 threadStack[T_MAX][0x800] __attribute__((aligned(32)));
+static volatile u8 threadLock[T_MAX];
+static volatile u8 threadReq[T_MAX];
+static volatile u8 threadReqFD[T_MAX];
+static volatile u8 threadBusy[T_MAX][SO_TOTAL_FDS];
+static threadCBDatStr threadReqDat[T_MAX][SO_TOTAL_FDS];
+static myCtx threadCtx[T_MAX];
+
+int lockThread(u32 num)
+{
+	int ret = 0;
+	int val = disableIRQs();
+	while(threadsRunning)
+	{
+		if(threadLock[num] == 0 && threadReq[num] == 0)
+		{
+			threadLock[num] = 1;
+			ret = 1;
+			break;
+		}
+		//thread busy, wait for it
+		//to free up again
+		restoreIRQs(val);
+		u32 garbage = 0xFFFF;
+		while(garbage--) ;
+		val = disableIRQs();
+	}
+	restoreIRQs(val);
+	return ret;
+}
+
+void unlockThread(u32 num)
+{
+	threadLock[num] = 0;
+}
+
+static int doCbChecks(u32 type, int val)
+{
+	while(1)
+	{
+		//check if interrupt updates
+		int donecheck = 1;
+		int i;
+		sync_before_read(sock_entry_arm, 0x40*0x20);
+		for(i = 0; i < SOCurrentTotalFDs; i++)
+		{
+			//one call got back to us, handle it
+			if(threadBusy[type][i] && sock_entry_arm[i].busy == 0)
+			{
+				//gotta go through list again
+				donecheck = 0;
+				//set to not busy anymore
+				threadBusy[type][i] = 0;
+				//done call, get return value
+				int ret = doCallEnd(i);
+				//do handling and cb with interrupts enabled
+				restoreIRQs(val);
+				u32 cb = threadReqDat[type][i].cb;
+				u32 sock = threadReqDat[type][i].sock;
+				if(type == T_SEND)
+					((void(*)(int,int))(cb))(0, sock);
+				else if(type == T_RECV)
+				{
+					if(ret > 0)
+					{
+						u32 outbuf = threadReqDat[type][i].buf;
+						u32 curbuf = (SO_DATA_BUF+(i<<SOShift));
+						sync_before_read((void*)curbuf, ret);
+						int i;
+						for(i = 0; i < ret; i++)
+							*(volatile u8*)(outbuf+i) = *(volatile u8*)(curbuf+i);
+					}
+					((void(*)(int,int))(cb))(ret, sock);
+				}
+				else //accept
+				{
+					u32 buf[2];
+					if(ret >= 0) //copy back return value
+					{
+						buf[0] = sock_entry_arm[i].cmd1;
+						buf[1] = sock_entry_arm[i].cmd2;
+					}
+					u16 port = (u16)(buf[0]&0xFFFF);
+					buf[0] = 4;
+					((void(*)(int,int,char*,u16))(cb))(ret, sock, (char*)buf, port);
+				}
+				val = disableIRQs();
+				//done processing, free up fd
+				freeUpFD(i);
+			}
+		}
+		if(donecheck)
+			break;
+	}
+	return val;
+}
+
+static void threadHandle(myCtx *ctx)
 {
 	int val = disableIRQs();
-	int i;
-	for(i = 0; i < PSO_MAX_FDS; i++)
+	while(threadsRunning)
 	{
-		if(recvused[i] == 0)
+		//no requests for now, so sleep
+		OSSleepThread(ctx->queue);
+		//had irq enabled so check
+		if(!threadsRunning) break;
+		//woke up, either request or callback
+		val = doCbChecks(ctx->type, val);
+		//had irq enabled so check
+		if(!threadsRunning) break;
+		//handle new requests
+		while(threadReq[ctx->type])
 		{
-			recvused[i] = 1;
-			break;
+			u32 fd = threadReqFD[ctx->type];
+			u32 buf = threadReqDat[ctx->type][fd].buf;
+			short len = threadReqDat[ctx->type][fd].len;
+			short sock = threadReqDat[ctx->type][fd].sock;
+			//clear request, so next OSSleepThread can make new one
+			threadReq[ctx->type] = 0;
+			//set this to busy so doCbChecks knows
+			threadBusy[ctx->type][fd] = 1;
+			if(ctx->type == T_SEND)
+			{
+				u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+				//copy over data to send
+				if(len > 0)
+				{
+					int i;
+					for(i = 0; i < len; i++)
+						*(volatile u8*)(curbuf+i) = *(volatile u8*)(buf+i);
+					sync_after_write((void*)curbuf, len);
+				}
+				sock_entry_arm[fd].cmd0 = sock;
+				sock_entry_arm[fd].cmd1 = curbuf;
+				sock_entry_arm[fd].cmd2 = len;
+				sock_entry_arm[fd].cmd3 = 0;
+				sock_entry_arm[fd].cmd4 = 0;
+				sock_entry_arm[fd].cmd5 = 0;
+				doCallStart(SO_THREAD_FD|so_sendto, fd, ctx->queue);
+			}
+			else if(ctx->type == T_RECV)
+			{
+				u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+				sock_entry_arm[fd].cmd0 = sock;
+				sock_entry_arm[fd].cmd1 = curbuf;
+				sock_entry_arm[fd].cmd2 = len;
+				sock_entry_arm[fd].cmd3 = 0;
+				sock_entry_arm[fd].cmd4 = 0;
+				sock_entry_arm[fd].cmd5 = 0;
+				doCallStart(SO_THREAD_FD|so_recvfrom, fd, ctx->queue);
+			}
+			else
+			{
+				sock_entry_arm[fd].cmd0 = sock;
+				sock_entry_arm[fd].cmd1 = 0x08000000;
+				sock_entry_arm[fd].cmd2 = 0;
+				doCallStart(SO_THREAD_FD|so_accept, fd, ctx->queue);
+			}
+			//had irq enabled so check
+			if(!threadsRunning) break;
+			//doCallStart did OSSleepThread so check
+			val = doCbChecks(ctx->type, val);
+			//had irq enabled so check
+			if(!threadsRunning) break;
 		}
 	}
 	restoreIRQs(val);
-	return i;
 }
 
-void freeUpRecvFD(int i)
-{
-	int val = disableIRQs();
-	recvused[i] = 0;
-	restoreIRQs(val);
-}
-
-static volatile u32 recvRunning = 0;
-static void recvHandle(u32 num)
-{
-	//initial sleep
-	OSSleepThread(&recvQueue[num]);
-	//OSReport("Initial wakeup %i\n", num);
-	//on wakeup, check if we quit
-	while(recvRunning)
-	{
-		int sock = recvArg[num][0];
-		char *buf = (char*)recvArg[num][1];
-		int len = recvArg[num][2];
-		void *cb = (void*)recvArg[num][3];
-		int ret = SORecvFrom(sock, buf, len, 0, 0);
-		if(cb) ((void(*)(int,int))(cb))(ret, sock);
-		freeUpRecvFD(num);
-		OSSleepThread(&recvQueue[num]);
-		//OSReport("wakeup again %i\n", num);
-	}
-	//OSReport("end %i\n", num);
-}
-
-static u32 avetcp_inited = 0;
 int avetcp_init()
 {
-	OSReport("avetcp_init\n");
 	SOInit();
 	if(!avetcp_inited)
 	{
-		//start up receive threads
-		recvRunning = 1;
+		//start up io threads
+		threadsRunning = 1;
 		int i;
-		for(i = 0; i < PSO_MAX_FDS; i++)
+		so_queue[SO_THREAD_FD|so_sendto] = 0;
+		threadCtx[T_SEND].queue = &so_queue[SO_THREAD_FD|so_sendto];
+		so_queue[SO_THREAD_FD|so_recvfrom] = 0;
+		threadCtx[T_RECV].queue = &so_queue[SO_THREAD_FD|so_recvfrom];
+		so_queue[SO_THREAD_FD|so_accept] = 0;
+		threadCtx[T_ACPT].queue = &so_queue[SO_THREAD_FD|so_accept];
+		for(i = 0; i < T_MAX; i++)
 		{
-			recvQueue[i] = 0;
-			OSCreateThread(recvThread[i], recvHandle, i, recvStack[i] + 0x800, 0x800, 5, 0);
-			OSResumeThread(recvThread[i]);
+			threadCtx[i].type = i;
+			OSCreateThread(ioThread[i], threadHandle, &threadCtx[i], threadStack[i] + 0x800, 0x800, 5, 0);
+			OSResumeThread(ioThread[i]);
 		}
 		avetcp_inited = 1;
 	}
+	OSReport("avetcp_init done\n");
 	return 0;
 }
 
 int avetcp_term()
 {
-	OSReport("avetcp_term\n");
 	if(avetcp_inited)
 	{
-		//wait for any remaining threads
-		int i;
-		int remain;
-		do
-		{
-			remain = 0;
-			u32 garbage = 0xFFFFFF;
-			while(garbage--) ;
-			for(i = 0; i < PSO_MAX_FDS; i++)
-			{
-				if(recvused[i])
-				{
-					remain = 1;
-					break;
-				}
-			}
-		}
-		while(remain);
-		//all recv threads now sleeping, end them
-		recvRunning = 0;
-		for(i = 0; i < PSO_MAX_FDS; i++)
-		{
-			OSWakeupThread(&recvQueue[i]);
-			u32 garbage = 0xFFFFFF;
-			while(garbage--) ;
-		}
+		threadsRunning = 0;
+		OSWakeupThread(&so_queue[SO_THREAD_FD|so_sendto]);
+		OSWakeupThread(&so_queue[SO_THREAD_FD|so_recvfrom]);
+		OSWakeupThread(&so_queue[SO_THREAD_FD|so_accept]);
 		avetcp_inited = 0;
 	}
+	OSReport("avetcp_term done\n");
 	return 0;
 }
 
 int dns_set_server(u32 *addr)
 {
 	u32 num = dns_num;
-	OSReport("dns_set_server %i %08x\n", num, addr[1]);
+	OSReport("dns_set_server %i %i.%i.%i.%i\n", num, ((addr[1])>>24),((addr[1])>>16)&0xFF,((addr[1])>>8)&0xFF,(addr[1])&0xFF);
 	if(addr[0] == 4 && addr[1]) dns_arr[num] = addr[1];
 	//write to ios if at least primary is set
-	if(num == 1 && dns_arr[0])
+	if(dns_arr[0])
 	{
 		int fd = getFreeFD();
-		*(volatile u32*)(sock_data_buf[fd].buf+0) = dns_arr[0];
-		*(volatile u32*)(sock_data_buf[fd].buf+4) = dns_arr[1];
+		u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+		*(volatile u32*)(curbuf+0) = dns_arr[0];
+		*(volatile u32*)(curbuf+4) = dns_arr[1];
 		//do set dns server
-		doSOSetInterfaceOpt(0xB003, (void*)sock_data_buf[fd].buf, 8, fd, 1);
+		doSOSetInterfaceOpt(0xB003, (void*)curbuf, 8, fd, &so_queue[fd]);
 		freeUpFD(fd);
 	}
-	dns_num++;
+	dns_num^=1;
 	return num;
 }
 
@@ -906,32 +1110,33 @@ int dns_open_addr(char *name, int len, u32 unk1)
 int dns_get_addr(int fd, u32 *arr, u32 unk1, u32 unk2, u32 unk3, u32 unk4)
 {
 	OSReport("dns_get_addr %i\n", fd);
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 	int i;
 	for(i = 0; i < dns_namelen[fd]; i++)
-		sock_data_buf[fd].buf[i] = dns_names[fd][i];
-	sync_after_write((void*)sock_data_buf[fd].buf, dns_namelen[fd]);
-	sock_entry_arm[fd].cmd0 = (u32)sock_data_buf[fd].buf;
+		*(volatile u8*)(curbuf+i) = dns_names[fd][i];
+	sync_after_write((void*)curbuf, dns_namelen[fd]);
+	sock_entry_arm[fd].cmd0 = curbuf;
 	sock_entry_arm[fd].cmd1 = dns_namelen[fd];
 	//giving it 0x200 for a name is overkill, should work fine
-	sock_entry_arm[fd].cmd2 = (u32)sock_data_buf[fd].buf+0x200;
+	sock_entry_arm[fd].cmd2 = curbuf+0x200;
 	sock_entry_arm[fd].cmd3 = 0x460;
-	int ret = doCall(so_gethostbyname, fd, 1);
+	int ret = doCall(so_gethostbyname, fd, &so_queue[fd]);
 	if(ret >= 0)
 	{
-		sync_before_read((void*)sock_data_buf[fd].buf+0x200, 0x460);
-		u16 addrlen = *(u16*)(sock_data_buf[fd].buf+0x20A);
+		sync_before_read((void*)curbuf+0x200, 0x460);
+		u16 addrlen = *(u16*)(curbuf+0x20A);
 		if(addrlen == 4)
 		{
 			//offset represents address difference between original IOS memory region and our memory region
-			u32 ppc_offset = ((u32)sock_data_buf[fd].buf+0x210) - *(u32*)(sock_data_buf[fd].buf+0x200);
+			u32 ppc_offset = (curbuf+0x210) - *(u32*)(curbuf+0x200);
 			//resolve ip entry from its various pointers
-			u32 ip_arr_addr_ptr = (*(u32*)(sock_data_buf[fd].buf+0x20C)) + ppc_offset;
+			u32 ip_arr_addr_ptr = (*(u32*)(curbuf+0x20C)) + ppc_offset;
 			u32 ip_arr_entry0_ptr = (*(u32*)(ip_arr_addr_ptr)) + ppc_offset;
 			u32 ip_arr_entry0 = *(u32*)ip_arr_entry0_ptr;
 			//write resolved ip back into game
 			arr[0] = addrlen;
 			arr[1] = ip_arr_entry0;
-			OSReport("dns_get_addr ret %08x\n", arr[1]);
+			OSReport("dns_get_addr ret %i.%i.%i.%i\n", ((arr[1])>>24),((arr[1])>>16)&0xFF,((arr[1])>>8)&0xFF,(arr[1])&0xFF);
 		}
 		return 0;
 	}
@@ -951,12 +1156,6 @@ int tcp_create()
 	return SOSocket(2,1,0);
 }
 
-int tcp_setsockopt(int sock, int cmd, u8 *buf)
-{
-	OSReport("tcp_setsockopt %i %08x %i\n", sock, cmd, *(u32*)buf);
-	return SOSetSockOpt(sock, 6, cmd, (char*)buf, 4);
-}
-
 int tcp_bind(int sock, u32 *arr, u16 port)
 {
 	OSReport("tcp_bind %i %08x %i\n", sock, arr[1], sock);
@@ -964,6 +1163,45 @@ int tcp_bind(int sock, u32 *arr, u16 port)
 	input[0] = 0x08020000 | port;
 	input[1] = arr[1];
 	return SOBind(sock,(char*)input);
+}
+
+int tcp_listen(int sock, u32 unk1, u32 unk2, int list, u32 unk3, u32 unk4)
+{
+	OSReport("tcp_listen %i %i\n", sock, list);
+	return SOListen(sock, list);
+}
+
+int tcp_stat(int sock, short *someweirdthing, u32 *unk1free, u32 *sendfree, u32 *unk2free)
+{
+	OSReport("tcp_stat %i\n", sock);
+	//this on init has to be 4 or more to work
+	if(someweirdthing) *someweirdthing = 4;
+	//always say we have the full buffer to send
+	if(sendfree) *sendfree = (1<<SOShift);
+	return 0;
+}
+
+int tcp_getaddr(int sock, u32 *a1, u16 *p1, u32 *a2, u32 *p2)
+{
+	OSReport("tcp_getaddr %i\n", sock);
+	//convert over socket address fist
+	u32 tmpbuf[2];
+	tmpbuf[0] = 0x08000000;
+	tmpbuf[1] = 0;
+	SOGetSockName(sock, (char*)tmpbuf);
+	u16 port = (u16)(tmpbuf[0]&0xFFFF);
+	a1[0] = 4;
+	a1[1] = tmpbuf[1];
+	*p1 = port;
+	//now do connected peer address
+	tmpbuf[0] = 0x08000000;
+	tmpbuf[1] = 0;
+	SOGetPeerName(sock, (char*)tmpbuf);
+	port = (u16)(tmpbuf[0]&0xFFFF);
+	a2[0] = 4;
+	a2[1] = tmpbuf[1];
+	*p2 = port;
+	return 0;
 }
 
 int tcp_connect(int sock, u32 *arr, u16 port, u32 unk1)
@@ -975,57 +1213,81 @@ int tcp_connect(int sock, u32 *arr, u16 port, u32 unk1)
 	return SOConnect(sock,(char*)input);
 }
 
-int tcp_stat(int sock, short *someweirdthing, u32 *unk1free, u32 *sendfree, u32 *unk2free)
+int tcp_accept(short sock, u32 cb, u32 bufmaybe)
 {
-	OSReport("tcp_stat %i\n", sock);
-	//this on init has to be 4 or more to work
-	if(someweirdthing) *someweirdthing = 4;
-	//always say we have the full 32k to send
-	if(sendfree) *sendfree = 0x8000;
-	return 0;
+	OSReport("tcp_accept %i\n", sock);
+	if(cb)
+	{
+		if(!lockThread(T_ACPT)) return -1;
+		int fd = getFreeFD();
+		threadReqFD[T_ACPT] = fd;
+		threadReqDat[T_ACPT][fd].cb = cb;
+		threadReqDat[T_ACPT][fd].sock = sock;
+		threadReq[T_ACPT] = 1;
+		OSWakeupThread(&so_queue[SO_THREAD_FD|so_accept]);
+		unlockThread(T_ACPT);
+		return -1;
+	}
+	//nothing uses bufmaybe, so not sure how to emulate,
+	//just ignore and return socket fd alone for now
+	return SOAccept(sock, (char*)0);
 }
-
-//assumes cb always set to 0 (sync call)
-typedef struct _sendarr {
-	u16 len;
-	char *buf;
-} sendarr;
 
 int tcp_send(int sock, u32 cb, int pcks, sendarr *arr)
 {
-	OSReport("tcp_send %i\n", sock);
+	OSReport("tcp_send %i %08x %i %08x\n", sock, cb, pcks, (u32)arr);
+	if(cb) //only handling pcks=1 here, the only game using this does just that
+	{
+		if(!lockThread(T_SEND)) return -1;
+		int fd = getFreeFD();
+		threadReqFD[T_SEND] = fd;
+		threadReqDat[T_SEND][fd].len = arr[0].len;
+		threadReqDat[T_SEND][fd].buf = (u32)arr[0].buf;
+		threadReqDat[T_SEND][fd].cb = cb;
+		threadReqDat[T_SEND][fd].sock = sock;
+		threadReq[T_SEND] = 1;
+		OSWakeupThread(&so_queue[SO_THREAD_FD|so_sendto]);
+		unlockThread(T_SEND);
+		return -1;
+	}
 	int i;
 	for(i = 0; i < pcks; i++)
 		SOSendTo(sock, arr[i].buf, arr[i].len, 0, 0);
 	return 0;
 }
 
-int tcp_receive(int sock, u32 cb, int len, char *buf)
+int tcp_receive(int sock, u32 cb, u32 len, char *buf)
 {
-	OSReport("tcp_receive %i\n", sock);
+	OSReport("tcp_receive %i %08x %i %08x\n", sock, cb, len, (u32)buf);
 	if(cb)
 	{
-		int fd = getFreeRecvFD();
-		recvArg[fd][0] = sock;
-		recvArg[fd][1] = (u32)buf;
-		recvArg[fd][2] = len;
-		recvArg[fd][3] = cb;
-		OSWakeupThread(&recvQueue[fd]);
+		if(!lockThread(T_RECV)) return -1;
+		int fd = getFreeFD();
+		threadReqFD[T_RECV] = fd;
+		threadReqDat[T_RECV][fd].len = len;
+		threadReqDat[T_RECV][fd].buf = (u32)buf;
+		threadReqDat[T_RECV][fd].cb = cb;
+		threadReqDat[T_RECV][fd].sock = sock;
+		threadReq[T_RECV] = 1;
+		OSWakeupThread(&so_queue[SO_THREAD_FD|so_recvfrom]);
+		unlockThread(T_RECV);
+		return -1;
 	}
-	else
-		SORecvFrom(sock, buf, len, 0, 0);
-	return 0;
+	return SORecvFrom(sock, buf, len, 0, 0);
 }
 
+//just do the same for abort and delete for now,
+//not sure if there even is much of a difference
 int tcp_abort(int sock)
 {
 	OSReport("tcp_abort %i\n", sock);
-	return SOShutdown(sock, 0);
+	SOShutdown(sock, 2);
+	return SOClose(sock);
 }
-
 int tcp_delete(int sock)
 {
 	OSReport("tcp_delete %i\n", sock);
+	SOShutdown(sock, 2);
 	return SOClose(sock);
 }
 
@@ -1034,12 +1296,19 @@ int DHCP_request_nb(u32 unk1, u32 unk2, u32 unk3, u32 unk4, u32 *ip, u32 *netmas
 	OSReport("DHCP_request_nb\n");
 	SOStartup();
 	*ip = 0;
-	while(*ip == 0)
+	//should be more than enough retries
+	int retries = 100;
+	while(retries--)
 	{
 		u32 garbage = 0xFFFFFFF;
 		while(garbage--) ;
 		IPGetAddr(0, ip);
+		if(*ip) break;
 	}
+	//timed out
+	if(*ip == 0)
+		return -1;
+	//got ip, success
 	IPGetNetmask(0, netmask);
 	IPGetBroadcastAddr(0, bcast);
 	dns_arr[0] = 0;
@@ -1049,19 +1318,54 @@ int DHCP_request_nb(u32 unk1, u32 unk2, u32 unk3, u32 unk4, u32 *ip, u32 *netmas
 	return 0;
 }
 
+int DHCP_get_gateway(u32 unk, u32 *addr)
+{
+	OSReport("DHCP_get_gateway\n");
+	*addr = 0;
+	//default interface request
+	int fd = getFreeFD();
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+	u32 entries = 0;
+	if(doSOGetInterfaceOpt(0x4005, (void*)curbuf, 4, fd, &so_queue[fd])) //read out from IOS address
+		entries = *(volatile u32*)curbuf;
+	freeUpFD(fd);
+	//no route entries
+	if(!entries)
+		return -1;
+	//got entries, now parse it
+	fd = getFreeFD();
+	if(doSOGetInterfaceOpt(0x4006, (void*)curbuf, 24*entries, fd, &so_queue[fd])) //read out from IOS address
+	{
+		int i;
+		for(i = 0; i < 24*entries; i+=24)
+		{
+			if(*(volatile u32*)(curbuf+i) == 0 && *(volatile u32*)(curbuf+i+4) == 0 && *(volatile u32*)(curbuf+i+8) != 0)
+			{
+				*addr = *(volatile u32*)(curbuf+i+8);
+				OSReport("DHCP_get_gateway ret %i.%i.%i.%i\n", ((*addr)>>24),((*addr)>>16)&0xFF,((*addr)>>8)&0xFF,(*addr)&0xFF);
+				break;
+			}
+		}
+	}
+	freeUpFD(fd);
+	return 0;
+}
+
 int DHCP_get_dns(u32 unk, char *domain, u32 *addr1, u32 *addr2)
 {
 	OSReport("DHCP_get_dns\n");
 	//default interface request
 	int fd = getFreeFD();
-	if(doSOGetInterfaceOpt(0xB003, (void*)sock_data_buf[fd].buf, 8, fd, 1)) //read out from IOS address
+	u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
+	if(doSOGetInterfaceOpt(0xB003, (void*)curbuf, 8, fd, &so_queue[fd])) //read out from IOS address
 	{
-		*addr1 = *(volatile u32*)(sock_data_buf[fd].buf+0);
-		*addr2 = *(volatile u32*)(sock_data_buf[fd].buf+4);
-		OSReport("DHCP_get_dns ret %08x %08x\n", *addr1, *addr2);
+		*addr1 = *(volatile u32*)(curbuf+0);
+		*addr2 = *(volatile u32*)(curbuf+4);
+		OSReport("DHCP_get_dns ret %i.%i.%i.%i and %i.%i.%i.%i\n", 
+			((*addr1)>>24),((*addr1)>>16)&0xFF,((*addr1)>>8)&0xFF,(*addr1)&0xFF,
+			((*addr2)>>24),((*addr2)>>16)&0xFF,((*addr2)>>8)&0xFF,(*addr2)&0xFF);
 	}
 	freeUpFD(fd);
-
 	return 0;
 }
 
