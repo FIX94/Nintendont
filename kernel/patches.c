@@ -472,6 +472,7 @@ static FuncPattern PSOFPatterns[] =
 	{  0x268,   52,    9,   39,    8,    7,	NULL,				FCODE_PrsLoad,				"PrsLoad",				NULL,		FGROUP_NONE,			    0 },
 	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_PsoDolEntryMod,		"PsoDolEntryMod",		"A",		FGROUP_PsoDolEntryMod,	    0 },
 	{  0x250,   58,    5,   38,    3,    9,	NULL,				FCODE_PsoDolEntryMod,		"PsoDolEntryMod",		"B",		FGROUP_PsoDolEntryMod,	    0 },
+	{  0x1FC,   33,   10,   11,   23,   13,	KeyboardRead,		KeyboardRead_size,			"KeyboardRead",			NULL,		FGROUP_NONE,				0 },
 };
 
 static FuncPattern PSO_SOPatterns[] =
@@ -503,19 +504,19 @@ static FuncPattern PSO_SOPatterns[] =
 
 	{  0x1D0,   43,   13,   3,   12,   17,	Return0,			Return0_size,				"dns_init",				"A",		FGROUP_dns_init,			0 },
 	{  0x1E8,   45,   13,   4,   14,   18,	Return0,			Return0_size,				"dns_init",				"B",		FGROUP_dns_init,			0 },
-	{  0x1F0,   46,   13,   4,   14,   18,	Return0,			Return0_size,				"dns_init",				"B",		FGROUP_dns_init,			0 },
+	{  0x1F0,   46,   13,   4,   14,   18,	Return0,			Return0_size,				"dns_init",				"C",		FGROUP_dns_init,			0 },
 	{  0x15C,   20,    2,   5,   24,    5,	dns_set_server,		dns_set_server_size,		"dns_set_server",		"A",		FGROUP_dns_set_server,		0 },
 	{  0x170,   22,    2,   6,   24,    5,	dns_set_server,		dns_set_server_size,		"dns_set_server",		"B",		FGROUP_dns_set_server,		0 },
-	{  0x174,   22,    2,   6,   25,    5,	dns_set_server,		dns_set_server_size,		"dns_set_server",		"B",		FGROUP_dns_set_server,		0 },
+	{  0x174,   22,    2,   6,   25,    5,	dns_set_server,		dns_set_server_size,		"dns_set_server",		"C",		FGROUP_dns_set_server,		0 },
 	{   0x80,   11,    5,   2,    3,    4,	NULL,				FCODE_dns_clear_server,		"dns_clear_server",		NULL,		FGROUP_NONE,				0 },
 	{  0x4B0,   85,    9,  15,   46,   24,	dns_open_addr,		dns_open_addr_size,			"dns_open_addr",		"A",		FGROUP_dns_open_addr,		0 },
 	{  0x4CC,   87,    9,  16,   47,   24,	dns_open_addr,		dns_open_addr_size,			"dns_open_addr",		"B",		FGROUP_dns_open_addr,		0 },
 	{  0x4D4,   77,    8,  16,   56,   25,	dns_open_addr,		dns_open_addr_size,			"dns_open_addr",		"C",		FGROUP_dns_open_addr,		0 },
-	{  0x214,   25,    9,   8,   27,    9,	dns_get_addr,		dns_get_addr_size,			"dns_get_addr",			NULL,		FGROUP_dns_get_addr,		0 },
-	{  0x228,   26,    9,   8,   28,    9,	dns_get_addr,		dns_get_addr_size,			"dns_get_addr",			NULL,		FGROUP_dns_get_addr,		0 },
+	{  0x214,   25,    9,   8,   27,    9,	dns_get_addr,		dns_get_addr_size,			"dns_get_addr",			"A",		FGROUP_dns_get_addr,		0 },
+	{  0x228,   26,    9,   8,   28,    9,	dns_get_addr,		dns_get_addr_size,			"dns_get_addr",			"B",		FGROUP_dns_get_addr,		0 },
 	{   0x64,    7,    2,   1,    4,    6,	NULL,				FCODE_dns_close,			"dns_close",			NULL,		FGROUP_NONE,				0 },
-	{   0x98,   10,    6,   3,    3,    3,	NULL,				FCODE_dns_term,				"dns_term",				NULL,		FGROUP_dns_term,			0 },
-	{   0xA0,   11,    6,   3,    3,    3,	NULL,				FCODE_dns_term,				"dns_term",				NULL,		FGROUP_dns_term,			0 },
+	{   0x98,   10,    6,   3,    3,    3,	NULL,				FCODE_dns_term,				"dns_term",				"A",		FGROUP_dns_term,			0 },
+	{   0xA0,   11,    6,   3,    3,    3,	NULL,				FCODE_dns_term,				"dns_term",				"B",		FGROUP_dns_term,			0 },
 
 	{   0x48,    6,    3,   3,    0,    4,	NULL,				FCODE_tcp_create,			"tcp_create",			NULL,		FGROUP_NONE,				0 },
 	{   0x98,   14,    6,   3,    3,    4,	NULL,				FCODE_tcp_setsockopt,		"tcp_setsockopt",		NULL,		FGROUP_NONE,				0 },

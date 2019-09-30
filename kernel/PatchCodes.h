@@ -104,7 +104,7 @@
 #include "asm/Return0.h"
 #include "asm/Return1.h"
 #include "asm/ReturnMinus1.h"
-
+#include "asm/KeyboardRead.h"
 
 //this is the data from my wii disk drive
 const u8 DiskDriveInfo[32] = {

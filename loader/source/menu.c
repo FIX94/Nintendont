@@ -937,15 +937,14 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				static const char *desc_max_pads[] = {
 					"Set the maximum number of",
 					"native GameCube controller",
-					"ports to use.",
+					"ports to use on Wii.",
 					"",
 					"This should usually be kept",
 					"at 4 to enable all ports",
 					"",
 					"This option has no effect on",
 					"Wii U and Wii Family Edition",
-					"systems, since they don't",
-					"have native controller ports.",
+					"systems.",
 					NULL
 				};
 				return desc_max_pads;
@@ -1008,9 +1007,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 					"USB HID controllers.",
 					"",
 					"This option is not available",
-					"on Wii U, since it does not",
-					"have built-in GameCube",
-					"controller ports.",
+					"on Wii U.",
 					NULL
 				};
 				return desc_native_si;
@@ -1057,6 +1054,41 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 					NULL
 				};
 				return desc_skip_ipl;
+			}
+
+			case 6: {
+				// BBA Emulation
+				static const char *desc_skip_bba[] = {
+					"Enable BBA Emulation in the",
+					"following supported titles",
+					"including all their regions:",
+					"",
+					"Mario Kart: Double Dash!!",
+					"Kirby Air Ride",
+					"1080 Avalanche",
+					"PSO Episode 1&2",
+					"PSO Episode III",
+					"Homeland",
+					NULL
+				};
+				return desc_skip_bba;
+			}
+
+			case 7: {
+				// BBA Network Profile
+				static const char *desc_skip_netprof[] = {
+					"Force a Network Profile",
+					"to use for BBA Emulation,",
+					"this option only works on",
+					"the original Wii because",
+					"on Wii U the profiles are",
+					"managed by the Wii U Menu.",
+					"This means you can even",
+					"use profiles that cannot",
+					"connect to the internet.",
+					NULL
+				};
+				return desc_skip_netprof;
 			}
 
 			default:

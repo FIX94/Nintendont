@@ -114,6 +114,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 .set	DHCP_get_dns_Addr,			IOSInterfaceAddr+0xA8
 .set	DHCP_release_Addr,			IOSInterfaceAddr+0xAC
 
+.set	KeyboardStub,				IOSInterfaceAddr+0xB0
+
 /** Disc Interface **/
 
 .set	DI_BASE,		0xD3026000
