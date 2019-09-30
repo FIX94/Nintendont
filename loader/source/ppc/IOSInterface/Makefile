@@ -7,13 +7,13 @@ include $(DEVKITPPC)/wii_rules
 #---------------------------------------------------------------------------------
 TARGET	:= IOSInterface
 BUILD	:= ../../../data
-OUTELF	:= $(CURDIR)/IOSInterface.elf
+OUTELF	:= $(CURDIR)/$(TARGET).elf
 OUTPUT	:= $(BUILD)/$(TARGET).bin
 #---------------------------------------------------------------------------------
 CFLAGS	:= -O1 -Wall -s -nostartfiles -nostdlib -mhard-float
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -T link.ld
-OCFLAGS	:= -S -O binary
+OCFLAGS	:= -S -O binary -j .code
 #---------------------------------------------------------------------------------
 CFILES		:=	$(foreach dir,$(CURDIR),$(notdir $(wildcard $(dir)/*.c)))
 SFILES		:=	$(foreach dir,$(CURDIR),$(notdir $(wildcard $(dir)/*.S)))

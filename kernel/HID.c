@@ -1031,5 +1031,6 @@ void HIDUpdateRegisters(u32 LoaderRequest)
 				}
 			}
 		}
+		HID_Timer = read32(HW_TIMER);
 	}
 }

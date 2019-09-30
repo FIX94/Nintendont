@@ -114,8 +114,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 .set	DHCP_get_dns_Addr,			IOSInterfaceAddr+0xA8
 .set	DHCP_release_Addr,			IOSInterfaceAddr+0xAC
 
-.set	KeyboardStub,				IOSInterfaceAddr+0xB0
-
 /** Disc Interface **/
 
 .set	DI_BASE,		0xD3026000
@@ -128,10 +126,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /** PAD redirection **/
 
-.set	PadStub,	0x93000000
-.set	PadBuff,	0x93003100
+.set	PadStub,		0x93000000
+.set	KeyboardStub,	0x93000004
+.set	PadBuff,		0x93003100
 
-.set	PadRumble,	0x93003010
+.set	PadRumble,		0x93003010
 .set	PadRumble_0,	PadRumble+0x00
 .set	PadRumble_1,	PadRumble+0x04
 .set	PadRumble_2,	PadRumble+0x08

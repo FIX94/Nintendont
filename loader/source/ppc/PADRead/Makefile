@@ -7,20 +7,29 @@ include $(DEVKITPPC)/wii_rules
 #---------------------------------------------------------------------------------
 TARGET	:= PADReadGC
 BUILD	:= ../../../data
+OUTELF	:= $(CURDIR)/$(TARGET).elf
 OUTPUT	:= $(BUILD)/$(TARGET).bin
 #---------------------------------------------------------------------------------
-CFLAGS	:= -Os -Wall -s -nostartfiles -mhard-float -T openstub.ld
-OCFLAGS	:= -S -O binary
+CFLAGS	:= -Os -Wall -s -nostartfiles -nostdlib -mhard-float
+ASFLAGS := $(CFLAGS)
+LDFLAGS := -T link.ld
+OCFLAGS	:= -S -O binary -j .code
 #---------------------------------------------------------------------------------
+CFILES		:=	$(foreach dir,$(CURDIR),$(notdir $(wildcard $(dir)/*.c)))
+SFILES		:=	$(foreach dir,$(CURDIR),$(notdir $(wildcard $(dir)/*.S)))
+OFILES		:=	$(CFILES:.c=.o) $(SFILES:.S=.o)
+
+export LD	:=	$(CC)
+
 .PHONY: all clean
 
 all: $(OUTPUT)
 
-$(OUTPUT): $(TARGET).c
-	@echo " COMPILE     $<"
-	@$(CC) $(CFLAGS) $^ -o $@
-	@echo " OBJCOPY     $(TARGET).bin"
-	@$(OBJCOPY) $(OCFLAGS) $@
-	
+$(OUTELF): $(OFILES)
+
+$(OUTPUT): $(OUTELF)
+	@echo "output ... $(TARGET).bin"
+	@$(OBJCOPY) $(OCFLAGS) $^ $@
+
 clean:
-	@rm -fr $(BUILD)/$(TARGET).bin
+	@rm -fr $(OFILES) $(OUTELF) $(OUTPUT)

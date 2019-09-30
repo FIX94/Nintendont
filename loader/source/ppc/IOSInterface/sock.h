@@ -23,8 +23,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 //use for thread queue
 #define		SO_BASE_PPC		0x93026900
-//used to share keyboard data
-#define		KB_INPUT		0x93026C60
 //used to share location of HSP Interrupt Handler
 #define		SO_HSP_LOC		(volatile u32*)(0x93026C80)
 //512KB data buffer

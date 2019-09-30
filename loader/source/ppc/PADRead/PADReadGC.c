@@ -5,6 +5,12 @@
 #include "wiidrc.h"
 #define PAD_CHAN0_BIT				0x80000000
 
+//from our asm
+extern int disableIRQs(void);
+extern int restoreIRQs(int val);
+extern void disableCaches(void);
+extern void bootStub(void);
+
 static u32 stubsize = 0x1800;
 static vu32 *stubdest = (vu32*)0x80004000;
 static vu32 *stubsrc = (vu32*)0x93011810;
@@ -56,33 +62,6 @@ const s8 DEADZONE = 0x1A;
 
 #define ALIGN32(x) 	(((u32)x) & (~31))
 
-#define _CPU_ISR_Disable( _isr_cookie ) \
-  { register u32 _disable_mask = 0; \
-	_isr_cookie = 0; \
-    __asm__ __volatile__ ( \
-	  "mfmsr %0\n" \
-	  "rlwinm %1,%0,0,17,15\n" \
-	  "mtmsr %1\n" \
-	  "extrwi %0,%0,1,16" \
-	  : "=&r" ((_isr_cookie)), "=&r" ((_disable_mask)) \
-	  : "0" ((_isr_cookie)), "1" ((_disable_mask)) \
-	); \
-  }
-
-#define _CPU_ISR_Restore( _isr_cookie )  \
-  { register u32 _enable_mask = 0; \
-	__asm__ __volatile__ ( \
-    "    cmpwi %0,0\n" \
-	"    beq 1f\n" \
-	"    mfmsr %1\n" \
-	"    ori %1,%1,0x8000\n" \
-	"    mtmsr %1\n" \
-	"1:" \
-	: "=r"((_isr_cookie)),"=&r" ((_enable_mask)) \
-	: "0"((_isr_cookie)),"1" ((_enable_mask)) \
-	); \
-  }
-
 #define DRC_DEADZONE 10
 #define _DRC_BUILD_TMPSTICK(inval) \
 	tmp_stick16 = (((s8)(inval-0x80))*14)>>3; \
@@ -93,7 +72,7 @@ const s8 DEADZONE = 0x1A;
 	else if(tmp_stick16 < -0x80) tmp_stick8 = -0x80; \
 	else tmp_stick8 = (s8)tmp_stick16;
 
-u32 _start(u32 calledByGame)
+u32 PADRead(u32 calledByGame)
 {
 	// Registers r1,r13-r31 automatically restored if used.
 	// Registers r0, r3-r12 should be handled by calling function
@@ -1401,23 +1380,22 @@ u32 _start(u32 calledByGame)
 	//execute codehandler if its there
 	if(*(vu32*)0x800010A0 == 0x9421FF58)
 	{
-		u32 level;
-		_CPU_ISR_Disable(level);
+		u32 level = disableIRQs();
 		((void(*)(void))0x800010A0)();
-		_CPU_ISR_Restore(level);
+		restoreIRQs(level);
 	}
 	return Rumble;
 
 DoExit:
 	/* disable interrupts */
-	asm volatile("mfmsr 3 ; rlwinm 3,3,0,17,15 ; mtmsr 3");
+	disableIRQs();
 	/* stop audio dma */
 	_dspReg[27] = (_dspReg[27]&~0x8000);
 	/* reset status 1 (DoExit) */
 	*RESET_STATUS = 0x1DEA;
 	while(*RESET_STATUS == 0x1DEA) ;
 	/* disable dcache and icache */
-	asm volatile("sync ; isync ; mfspr 3,1008 ; rlwinm 3,3,0,18,15 ; mtspr 1008,3");
+	disableCaches();
 	/* disable memory protection */
 	_memReg[15] = 0xF;
 	_memReg[16] = 0;
@@ -1429,19 +1407,100 @@ DoExit:
 	/* Allow all IOS IRQs again */
 	*(vu32*)0xCD800004 = 0x36;
 	/* jump to it */
-	asm volatile(
-		"lis %r3, 0x8000\n"
-		"ori %r3, %r3, 0x4000\n"
-		"mtlr %r3\n"
-		"blr\n"
-	);
+	bootStub();
 	return 0;
 DoShutdown:
 	/* disable interrupts */
-	asm volatile("mfmsr 3 ; rlwinm 3,3,0,17,15 ; mtmsr 3");
+	disableIRQs();
 	/* stop audio dma */
 	_dspReg[27] = (_dspReg[27]&~0x8000);
 	/* reset status 7 (DoShutdown) */
 	*RESET_STATUS = 0x7DEA;
 	while(1) ;
 }
+
+
+/* Functions for PSO Keyboard */
+static void kbDoSpecial(u8 *in, u8 *out)
+{
+	if((*in)&0x02)
+	{
+		*in = (*in)&(~0x02);
+		*out = 0x54;
+	}
+	else if((*in)&0x20)
+	{
+		*in = (*in)&(~0x20);
+		*out = 0x55;
+	}
+	else if((*in)&0x11)
+	{
+		*in = (*in)&(~0x11);
+		*out = 0x56;
+	}
+	else if((*in)&0x44)
+	{
+		*in = (*in)&(~0x44);
+		*out = 0x57;
+	}
+}
+
+static const unsigned char kb_matrix[256] =
+{
+    0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 
+    0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 
+    0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x61, 0x4C, 0x50, 0x51, 0x59, 0x34, 0x35, 0x37, 
+    0x38, 0x00, 0x3B, 0x39, 0x3A, 0x4F, 0x3C, 0x3D, 0x3E, 0x53, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 
+    0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x36, 0x0A, 0x00, 0x4D, 0x06, 0x08, 0x4E, 0x07, 0x09, 0x5F, 
+    0x5C, 0x5D, 0x5E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x61, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 
+    0x31, 0x32, 0x33, 0x3D, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x5B, 0x36, 0x5A, 0x58, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+} ;
+
+static u8 *kb_input = (u8*)0x93026C60;
+int KeyboardRead(u32 a, u32 *b)
+{
+	if(a == 0)
+	{
+		u32 memInvalidate = (u32)kb_input;
+		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+		u8 key1 = 0, key2 = 0, key3 = 0;
+		u8 special = kb_input[0];
+		if(special&0x77) //check special keys
+			kbDoSpecial(&special, &key1);
+		if(key1) //at least one special key, see if more set
+		{
+			if(special&0x77) //at least 2 special keys, see if more set
+			{
+				kbDoSpecial(&special, &key2);
+				if(special&0x77) //at least 3 special keys, no more room
+					kbDoSpecial(&special, &key3);
+				else //2 special keys, copy over 1 char
+					key3 = kb_matrix[kb_input[2]];
+			}
+			else //1 special key, copy over 2 chars
+			{
+				key2 = kb_matrix[kb_input[2]];
+				key3 = kb_matrix[kb_input[3]];
+			}
+		}
+		else //no special keys, copy over 3 chars
+		{
+			key1 = kb_matrix[kb_input[2]];
+			key2 = kb_matrix[kb_input[3]];
+			key3 = kb_matrix[kb_input[4]];
+		}
+		*b = key1<<24 | key2<<16 | key3<<8;
+		return 0;
+	}
+	return -1;
+}
+

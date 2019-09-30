@@ -16,14 +16,13 @@ SECTIONS {
 	SOCurrentTotalFDs = 0x93026C9A;
 	IsInited = 0x93026C9C;
 
-	. = 0x93006000;
-
-	.start : { _crt0.o(*) }
-	.text : { *(.text) }
-	.rodata : { *(.rodata .rodata.*)}
-	.data : { *(.data) }
-
-	__bss_start = .;
-	.bss : { *(.bss) }
-	__bss_end = .;
+	.code 0x93006000 :
+	{
+		_crt0.o(*)
+		*(.text)
+		*(.rodata .rodata.*)
+		*(.data)
+		*(.bss)
+		. = 0xA000;
+	}
 }
