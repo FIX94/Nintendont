@@ -1,4 +1,4 @@
-#include "../../../../common/include/CommonConfig.h"
+#include "../../../../../common/include/CommonConfig.h"
 #include "global.h"
 #include "HID.h"
 #include "hidmem.h"

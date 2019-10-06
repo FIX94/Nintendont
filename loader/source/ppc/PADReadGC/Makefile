@@ -25,7 +25,7 @@ INCLUDES	:= include
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	:= $(INCLUDE) -O1 -Wall -s -nostartfiles -nostdlib -mhard-float
+CFLAGS	:= $(INCLUDE) -Os -Wall -s -nostartfiles -nostdlib -mhard-float
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -T $(LDSCRIPT)
 OCFLAGS	:= -S -O binary -j .code
