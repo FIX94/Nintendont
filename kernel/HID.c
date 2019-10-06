@@ -3,6 +3,7 @@
 Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
 
 Copyright (C) 2013  crediar
+Copyright (C) 2014 - 2019 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -71,10 +72,16 @@ static const unsigned char rawData[] =
 	0x00,
 };
 
-struct _usb_msg readreq ALIGNED(32);
-struct _usb_msg writereq ALIGNED(32);
-struct _usb_msg readkbreq ALIGNED(32);
-struct _usb_msg writekbreq ALIGNED(32);
+struct _usb_msg read_ctrl_req ALIGNED(32);
+struct _usb_msg write_ctrl_req ALIGNED(32);
+struct _usb_msg read_irq_req ALIGNED(32);
+struct _usb_msg write_irq_req ALIGNED(32);
+
+struct _usb_msg read_kb_ctrl_req ALIGNED(32);
+struct _usb_msg write_kb_ctrl_req ALIGNED(32);
+struct _usb_msg read_kb_irq_req ALIGNED(32);
+struct _usb_msg write_kb_irq_req ALIGNED(32);
+
 static u8 *ps3buf = (u8*)NULL;
 static u8 *gcbuf = (u8*)NULL;
 static u8 *kbbuf = (u8*)NULL;
@@ -94,8 +101,8 @@ static u8 *hidheap = NULL;
 static s32 hidqueue = -1;
 static vu32 hidread = 0, keyboardread = 0, hidchange = 0, hidattach = 0, hidattached = 0, hidwaittimer = 0;
 static u32 HIDAlarm();
-static s32 HIDInterruptMessage(u32 DeviceID, u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueue, struct ipcmessage *asyncmsg);
-static s32 HIDControlMessage(u32 DeviceID, u8 *Data, u32 Length, u32 RequestType, u32 Request, u32 Value, s32 asyncqueue, struct ipcmessage *asyncmsg);
+static s32 HIDInterruptMessage(u32 isKBreq, u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueue, struct ipcmessage *asyncmsg);
+static s32 HIDControlMessage(u32 isKBreq, u8 *Data, u32 Length, u32 RequestType, u32 Request, u32 Value, s32 asyncqueue, struct ipcmessage *asyncmsg);
 extern char __hid_stack_addr, __hid_stack_size;
 
 #define HID_STATUS 0x13003440
@@ -222,8 +229,10 @@ s32 HIDOpen( u32 LoaderRequest )
 				(bInterfaceProtocol == USB_PROTOCOL_KEYBOARD))
 			{
 				dbgprintf("HID:Keyboard detected\r\n");
-				memset32(&readkbreq, 0, sizeof(struct _usb_msg));
-				memset32(&writekbreq, 0, sizeof(struct _usb_msg));
+				memset32(&read_kb_ctrl_req, 0, sizeof(struct _usb_msg));
+				memset32(&write_kb_ctrl_req, 0, sizeof(struct _usb_msg));
+				memset32(&read_kb_irq_req, 0, sizeof(struct _usb_msg));
+				memset32(&write_kb_irq_req, 0, sizeof(struct _usb_msg));
 				KeyboardID = DeviceID;
 				bEndpointAddressKeyboard = bEndpointAddress;
 				HIDKeyboardConnected = 1;
@@ -238,8 +247,10 @@ s32 HIDOpen( u32 LoaderRequest )
 				(bInterfaceProtocol != USB_PROTOCOL_KEYBOARD) &&
 				(bInterfaceProtocol != USB_PROTOCOL_MOUSE))
 			{
-				memset32(&readreq, 0, sizeof(struct _usb_msg));
-				memset32(&writereq, 0, sizeof(struct _usb_msg));
+				memset32(&read_ctrl_req, 0, sizeof(struct _usb_msg));
+				memset32(&write_ctrl_req, 0, sizeof(struct _usb_msg));
+				memset32(&read_irq_req, 0, sizeof(struct _usb_msg));
+				memset32(&write_irq_req, 0, sizeof(struct _usb_msg));
 
 				memset32(ps3buf, 0, 64);
 				memcpy(ps3buf, rawData, sizeof(rawData));
@@ -616,6 +627,8 @@ s32 HIDOpen( u32 LoaderRequest )
 	{
 		dbgprintf("HID:No keyboard connected!\r\n");
 		KeyboardID = 0;
+		memset(kb_input, 0, 8);
+		sync_after_write(kb_input, 0x20);
 	}
 	else //(re)start reading
 		HIDInterruptMessage(1, kbbuf, 8, bEndpointAddressKeyboard, hidqueue, hidreadkeyboardmsg);
@@ -648,12 +661,21 @@ static u32 HIDAlarm()
 	return 0;
 }
 
-static s32 HIDControlMessage(u32 DeviceID, u8 *Data, u32 Length, u32 RequestType, u32 Request, u32 Value, s32 asyncqueue, struct ipcmessage *asyncmsg)
+static s32 HIDControlMessage(u32 isKBreq, u8 *Data, u32 Length, u32 RequestType, u32 Request, u32 Value, s32 asyncqueue, struct ipcmessage *asyncmsg)
 {
 	u8 request_dir = !!(RequestType & USB_CTRLTYPE_DIR_DEVICE2HOST);
 
-	struct _usb_msg *msg = request_dir ? (DeviceID ? &readkbreq : &readreq) : (DeviceID ? &writekbreq : &writereq);
-	msg->fd = DeviceID ? KeyboardID : ControllerID;
+	struct _usb_msg *msg;
+	if(isKBreq)
+	{
+		msg = request_dir ? &read_kb_ctrl_req : &write_kb_ctrl_req;
+		msg->fd = KeyboardID;
+	}
+	else
+	{
+		msg = request_dir ? &read_ctrl_req : &write_ctrl_req;
+		msg->fd = ControllerID;
+	}
 
 	msg->ctrl.bmRequestType = RequestType;
 	msg->ctrl.bmRequest = Request;
@@ -672,13 +694,22 @@ static s32 HIDControlMessage(u32 DeviceID, u8 *Data, u32 Length, u32 RequestType
 	return IOS_Ioctlv(HIDHandle, ControlMessage, 2-request_dir, request_dir, msg->vec);
 }
 
-static s32 HIDInterruptMessage(u32 DeviceID, u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueue, struct ipcmessage *asyncmsg)
+static s32 HIDInterruptMessage(u32 isKBreq, u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueue, struct ipcmessage *asyncmsg)
 {
 	u8 endpoint_dir = !!(Endpoint & USB_ENDPOINT_IN);
 
-	struct _usb_msg *msg = endpoint_dir ? (DeviceID ? &readkbreq : &readreq) : (DeviceID ? &writekbreq : &writereq);
+	struct _usb_msg *msg;
+	if(isKBreq)
+	{
+		msg = endpoint_dir ? &read_kb_irq_req : &write_kb_irq_req;
+		msg->fd = KeyboardID;
+	}
+	else
+	{
+		msg = endpoint_dir ? &read_irq_req : &write_irq_req;
+		msg->fd = ControllerID;
+	}
 	msg->hid_intr_dir = !endpoint_dir;
-	msg->fd = DeviceID ? KeyboardID : ControllerID;
 
 	msg->vec[0].data = msg;
 	msg->vec[0].len = 64;
@@ -694,7 +725,7 @@ void HIDGCInit()
 	s32 ret = HIDInterruptMessage(0, gcbuf, 1, bEndpointAddressOut, 0, NULL);
 	if( ret < 0 )
 	{
-		dbgprintf("HID:HIDGCInit:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\r\n", HIDHandle, 2, writereq, 32, 0, 0, ret );
+		dbgprintf("HID:HIDGCInit:IOS_Ioctl( %u, %u, %u, %u, %u):%d\r\n", HIDHandle, 2, 32, 0, 0, ret );
 		BootStatusError(-8, -7);
 		mdelay(4000);
 		Shutdown();
@@ -708,7 +739,7 @@ void HIDPS3Init()
 			USB_REQ_GETREPORT, (USB_REPTYPE_FEATURE<<8) | 0xf2, 0, NULL);
 	if( ret < 0 )
 	{
-		dbgprintf("HID:HIDPS3Init:IOS_Ioctl( %u, %u, %p, %u, %u, %u):%d\r\n", HIDHandle, 2, readreq, 32, 0, 0, ret );
+		dbgprintf("HID:HIDPS3Init:IOS_Ioctl( %u, %u, %u, %u, %u):%d\r\n", HIDHandle, 2, 32, 0, 0, ret );
 		BootStatusError(-8, -6);
 		mdelay(4000);
 		Shutdown();

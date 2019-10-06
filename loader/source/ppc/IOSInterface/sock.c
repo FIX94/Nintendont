@@ -838,6 +838,18 @@ typedef struct _sendarr {
 	char *buf;
 } sendarr;
 
+enum {
+	T_SEND = 0,
+	T_RECV,
+	T_ACPT,
+	T_MAX
+};
+
+//game callback function definitions
+typedef void(*send_cb)(int ret, int sock);
+typedef void(*recv_cb)(int recvd, int sock);
+typedef void(*acpt_cb)(int newsock, int sock, char *addr, u16 port);
+
 //defined in linker script
 extern int (*OSCreateThread)(void *thread, void *func, void *funcvar, void *stack_start, u32 stack_size, u32 prio, u32 params);
 extern void (*OSResumeThread)(void *thread);
@@ -852,10 +864,6 @@ static volatile int dns_namelen[SO_TOTAL_FDS];
 
 //send, receive and accept threads
 static volatile u32 threadsRunning = 0;
-#define T_SEND 0
-#define T_RECV 1
-#define T_ACPT 2
-#define T_MAX 3
 static u8 ioThread[T_MAX][0x400] __attribute__((aligned(32)));
 static u8 threadStack[T_MAX][0x1000] __attribute__((aligned(32)));
 static volatile u8 threadLock[T_MAX];
@@ -917,7 +925,7 @@ static int doCbChecks(u32 type, int val)
 				u32 cb = threadReqDat[type][i].cb;
 				u32 sock = threadReqDat[type][i].sock;
 				if(type == T_SEND)
-					((void(*)(int,int))(cb))(0, sock);
+					((send_cb)cb)(0, sock);
 				else if(type == T_RECV)
 				{
 					if(ret > 0)
@@ -929,7 +937,7 @@ static int doCbChecks(u32 type, int val)
 						for(i = 0; i < ret; i++)
 							*(volatile u8*)(outbuf+i) = *(volatile u8*)(curbuf+i);
 					}
-					((void(*)(int,int))(cb))(ret, sock);
+					((recv_cb)cb)(ret, sock);
 				}
 				else //accept
 				{
@@ -941,13 +949,16 @@ static int doCbChecks(u32 type, int val)
 					}
 					u16 port = (u16)(buf[0]&0xFFFF);
 					buf[0] = 4;
-					((void(*)(int,int,char*,u16))(cb))(ret, sock, (char*)buf, port);
+					((acpt_cb)cb)(ret, sock, (char*)buf, port);
 				}
+				//cb done, disable irqs again
 				val = disableIRQs();
 				//done processing, free up fd
 				freeUpFD(i);
 			}
 		}
+		//no updates happened, so no interrupts were enabled for
+		//another update to happen during that time, end check
 		if(donecheck)
 			break;
 	}
@@ -957,28 +968,30 @@ static int doCbChecks(u32 type, int val)
 static void threadHandle(myCtx *ctx)
 {
 	int val = disableIRQs();
+	void *queue = ctx->queue;
+	u32 type = ctx->type;
 	while(threadsRunning)
 	{
 		//no requests for now, so sleep
-		OSSleepThread(ctx->queue);
+		OSSleepThread(queue);
 		//had irq enabled so check
 		if(!threadsRunning) break;
 		//woke up, either request or callback
-		val = doCbChecks(ctx->type, val);
+		val = doCbChecks(type, val);
 		//had irq enabled so check
 		if(!threadsRunning) break;
 		//handle new requests
-		while(threadReq[ctx->type])
+		while(threadReq[type])
 		{
-			u32 fd = threadReqFD[ctx->type];
-			u32 buf = threadReqDat[ctx->type][fd].buf;
-			short len = threadReqDat[ctx->type][fd].len;
-			short sock = threadReqDat[ctx->type][fd].sock;
+			u32 fd = threadReqFD[type];
+			u32 buf = threadReqDat[type][fd].buf;
+			short len = threadReqDat[type][fd].len;
+			short sock = threadReqDat[type][fd].sock;
 			//clear request, so next OSSleepThread can make new one
-			threadReq[ctx->type] = 0;
+			threadReq[type] = 0;
 			//set this to busy so doCbChecks knows
-			threadBusy[ctx->type][fd] = 1;
-			if(ctx->type == T_SEND)
+			threadBusy[type][fd] = 1;
+			if(type == T_SEND)
 			{
 				u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 				//copy over data to send
@@ -995,9 +1008,9 @@ static void threadHandle(myCtx *ctx)
 				sock_entry_arm[fd].cmd3 = 0;
 				sock_entry_arm[fd].cmd4 = 0;
 				sock_entry_arm[fd].cmd5 = 0;
-				doCallStart(SO_THREAD_FD|so_sendto, fd, ctx->queue);
+				doCallStart(SO_THREAD_FD|so_sendto, fd, queue);
 			}
-			else if(ctx->type == T_RECV)
+			else if(type == T_RECV)
 			{
 				u32 curbuf = (SO_DATA_BUF+(fd<<SOShift));
 				sock_entry_arm[fd].cmd0 = sock;
@@ -1006,19 +1019,19 @@ static void threadHandle(myCtx *ctx)
 				sock_entry_arm[fd].cmd3 = 0;
 				sock_entry_arm[fd].cmd4 = 0;
 				sock_entry_arm[fd].cmd5 = 0;
-				doCallStart(SO_THREAD_FD|so_recvfrom, fd, ctx->queue);
+				doCallStart(SO_THREAD_FD|so_recvfrom, fd, queue);
 			}
 			else
 			{
 				sock_entry_arm[fd].cmd0 = sock;
 				sock_entry_arm[fd].cmd1 = 0x08000000;
 				sock_entry_arm[fd].cmd2 = 0;
-				doCallStart(SO_THREAD_FD|so_accept, fd, ctx->queue);
+				doCallStart(SO_THREAD_FD|so_accept, fd, queue);
 			}
 			//had irq enabled so check
 			if(!threadsRunning) break;
 			//doCallStart did OSSleepThread so check
-			val = doCbChecks(ctx->type, val);
+			val = doCbChecks(type, val);
 			//had irq enabled so check
 			if(!threadsRunning) break;
 		}

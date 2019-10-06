@@ -1471,18 +1471,18 @@ static const unsigned char kb_matrix[256] =
 } ;
 
 static u8 *kb_input = (u8*)0x93026C60;
-int KeyboardRead(u32 a, u32 *b)
+int KeyboardRead(u32 chan, u32 *held)
 {
-	if(a == 0)
+	//do output on first channel
+	if(chan == 0)
 	{
 		u32 memInvalidate = (u32)kb_input;
 		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 		u8 key1 = 0, key2 = 0, key3 = 0;
 		u8 special = kb_input[0];
-		if(special&0x77) //check special keys
-			kbDoSpecial(&special, &key1);
-		if(key1) //at least one special key, see if more set
+		if(special&0x77) //at least one special key, see if more set
 		{
+			kbDoSpecial(&special, &key1);
 			if(special&0x77) //at least 2 special keys, see if more set
 			{
 				kbDoSpecial(&special, &key2);
@@ -1503,9 +1503,12 @@ int KeyboardRead(u32 a, u32 *b)
 			key2 = kb_matrix[kb_input[3]];
 			key3 = kb_matrix[kb_input[4]];
 		}
-		*b = key1<<24 | key2<<16 | key3<<8;
+		//shift in results, lowest 8bit are checksum,
+		//seems to not be verified so can be ignored
+		*held = (key1<<24 | key2<<16 | key3<<8);
 		return 0;
 	}
+	//return -1 on other channels to quit the
+	//read loops and end as early as possible
 	return -1;
 }
-

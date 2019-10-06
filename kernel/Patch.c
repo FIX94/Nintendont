@@ -3,7 +3,7 @@
 Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
 
 Copyright (C) 2013  crediar
-Copyright (C) 2014 - 2018 FIX94
+Copyright (C) 2014 - 2019 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -106,6 +106,7 @@ extern u32 RealDiscCMD;
 extern u32 drcAddress;
 extern u32 drcAddressAligned;
 u32 IsN64Emu = 0;
+u32 isKirby = 0;
 
 // SHA-1 hashes of known DSP modules.
 static const unsigned char DSPHashes[][20] =
@@ -1483,6 +1484,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		PSOHack &= ~PSO_STATE_SWITCH_START;
 		PSOHack |= PSO_STATE_SWITCH;
 	}
+	/* requires lots of additional timer patches for BBA */
+	isKirby = (TITLE_ID == 0x474B59);
 
 	sync_before_read(Buffer, Length);
 
