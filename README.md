@@ -19,6 +19,7 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 * Auto boot from loader
 * Disc switching
 * Use the official Nintendo GameCube controller adapter
+* BBA Emulation (see [BBA Emulation Readme](BBA_Readme.md))
 
 ### Features: (Wii only)
 * Play retail discs
@@ -27,9 +28,6 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 * GBA-Link cable
 * WiiRd
 * Allow use of the Nintendo GameCube Microphone
-
-### What Nintendont doesn't do yet:
-* BBA/Modem support
 
 ### What Nintendont will never support:
 * Game Boy Player
