@@ -16,8 +16,8 @@ On WiiU this option is not available, but it is not needed because you can defau
 
 
 Game specific notes:  
-For Mario Kart, Kirby Air Ride and 1080 Avalance, when you want to connect to a real GameCube or Dolphin, first go into the LAN options on them.  
-After they start looking for other consoles, then connect up all of your nintendont instances.  
+For Mario Kart, Kirby Air Ride and 1080 Avalance, when you want to connect to a real GameCube or Dolphin, first go into the LAN Mode on them.  
+After THEY start looking for other consoles, only THEN connect the other nintendont instances.  
 If you do not follow that order, nintendont will not be able to see the other consoles, possibly due to a bug in the wii firmware.  
 You can only connect to other consoles in your local network unless you use a LAN tunneling program such as Xlink Kai just like on a real BBA.  
 Also, while WLAN will work, it of course has the potential to run slower.  
