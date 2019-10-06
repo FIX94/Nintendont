@@ -418,12 +418,12 @@ void UpdateNinCFG()
 {
 	if (ncfg->Version == 2)
 	{	//251 blocks, used to be there
-		ncfg->Unused = 0x2;
+		ncfg->NetworkProfile = 0x2;
 		ncfg->Version = 3;
 	}
 	if (ncfg->Version == 3)
 	{	//new memcard setting space
-		ncfg->MemCardBlocks = ncfg->Unused;
+		ncfg->MemCardBlocks = ncfg->NetworkProfile;
 		ncfg->VideoScale = 0;
 		ncfg->VideoOffset = 0;
 		ncfg->Version = 4;
@@ -449,6 +449,13 @@ void UpdateNinCFG()
 		ncfg->Config &= ~NIN_CFG_CC_RUMBLE;
 		ncfg->Config &= ~NIN_CFG_SKIP_IPL;
 		ncfg->Version = 8;
+	}
+	if (ncfg->Version == 8)
+	{	// BBA Emu disabled by default
+		// BBA Config 0 by default
+		ncfg->Config &= ~NIN_CFG_BBA_EMU;
+		ncfg->NetworkProfile = 0;
+		ncfg->Version = 9;
 	}
 }
 

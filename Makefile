@@ -14,7 +14,7 @@ endif
 SUBPROJECTS := multidol kernel/asm resetstub \
 	fatfs/libfat-arm.a fatfs/libfat-ppc.a \
 	codehandler kernel kernelboot \
-	loader/source/ppc loader
+	loader/source/ppc/PADRead loader/source/ppc/IOSInterface loader
 .PHONY: all forced clean $(SUBPROJECTS)
 
 all: loader
@@ -62,11 +62,17 @@ kernel: kernel/asm fatfs/libfat-arm.a codehandler
 	@echo " "
 	$(MAKE) -C kernel
 
-loader/source/ppc:
+loader/source/ppc/PADRead:
 	@echo " "
-	@echo "Building Nintendont HID"
+	@echo "Building Nintendont PADRead"
 	@echo " "
-	$(MAKE) -C loader/source/ppc
+	$(MAKE) -C loader/source/ppc/PADRead
+
+loader/source/ppc/IOSInterface:
+	@echo " "
+	@echo "Building Nintendont IOSInterface"
+	@echo " "
+	$(MAKE) -C loader/source/ppc/IOSInterface
 
 kernelboot:
 	@echo " "
@@ -74,7 +80,7 @@ kernelboot:
 	@echo " "
 	$(MAKE) -C kernelboot
 
-loader: multidol resetstub fatfs/libfat-ppc.a kernel kernelboot loader/source/ppc
+loader: multidol resetstub fatfs/libfat-ppc.a kernel kernelboot loader/source/ppc/PADRead loader/source/ppc/IOSInterface
 	@echo " "
 	@echo "Building Nintendont loader"
 	@echo " "
@@ -92,5 +98,6 @@ clean:
 	$(MAKE) -C codehandler clean
 	$(MAKE) -C kernel clean
 	$(MAKE) -C kernelboot clean
-	$(MAKE) -C loader/source/ppc clean
+	$(MAKE) -C loader/source/ppc/PADRead clean
+	$(MAKE) -C loader/source/ppc/IOSInterface clean
 	$(MAKE) -C loader clean

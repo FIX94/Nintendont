@@ -12,14 +12,11 @@ __di_stack_addr = __phy_stack_addr + __di_stack_size;
 __realdi_stack_size = 0x400;
 __realdi_stack_addr = __di_stack_addr + __realdi_stack_size;
 
-__hid_read_stack_size = 0x400;
-__hid_read_stack_addr = __realdi_stack_addr + __hid_read_stack_size;
-
-__hid_change_stack_size = 0x400;
-__hid_change_stack_addr = __hid_read_stack_addr + __hid_change_stack_size;
+__hid_stack_size = 0x400;
+__hid_stack_addr = __realdi_stack_addr + __hid_stack_size;
 
 __intr_stack_size = 0x400;
-__intr_stack_addr = __hid_change_stack_addr + __intr_stack_size;
+__intr_stack_addr = __hid_stack_addr + __intr_stack_size;
 
 __blk_stack_size = 0x400;
 __blk_stack_addr = __intr_stack_addr + __blk_stack_size;

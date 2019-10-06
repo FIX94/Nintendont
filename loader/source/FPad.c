@@ -56,8 +56,6 @@ void FPAD_Init( void )
 {
 	DCInvalidateRange((void*)0x93000000, 0x3000);
 	memcpy((void*)0x93000000, PADReadGC_bin, PADReadGC_bin_size);
-	if(PADReadGC_bin_size < 0x3000) //make sure to clear BSS section!
-		memset((void*)(0x93000000+PADReadGC_bin_size), 0, 0x3000-PADReadGC_bin_size);
 	DCFlushRange((void*)0x93000000, 0x3000);
 	ICInvalidateRange((void*)0x93000000, 0x3000);
 	DCInvalidateRange((void*)0x93003010, 0x190);

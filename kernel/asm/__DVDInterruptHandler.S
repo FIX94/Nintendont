@@ -1,11 +1,5 @@
 #include <asm.h>
-
-.set	DI_BASE,	0xD3026000
-.set	DI_INV_ADR,	(DI_BASE+0x28)
-.set	DI_INV_LEN,	(DI_BASE+0x2C)
-
-.set	INT_BASE,	0xD3026500
-.set	DI_INT,		(INT_BASE+0x20)
+.include "constants.inc"
 
 __DVDInterruptHandler:
 	li		r0,	0

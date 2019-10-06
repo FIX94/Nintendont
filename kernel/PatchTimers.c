@@ -1,7 +1,7 @@
 /*
 PatchTimers.c for Nintendont (Kernel)
 
-Copyright (C) 2014-2017 FIX94
+Copyright (C) 2014 - 2019 FIX94
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,6 +21,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "string.h"
 #include "PatchTimers.h"
 
+extern u32 isKirby;
+
 static bool write64A( u32 Offset, u64 Value, u64 CurrentValue )
 {
 	if( read64(Offset) != CurrentValue )
@@ -28,6 +30,20 @@ static bool write64A( u32 Offset, u64 Value, u64 CurrentValue )
 	write64( Offset, Value );
 	return true;
 }
+
+//arithmetic high for addi calls
+static void W16AH(u32 Address, u32 Data)
+{
+	//see if high bit of lower 16bits are set
+	bool needsAdd = !!(Data&(1<<15));
+	Data>>=16; //shift out lower 16bits
+	if(needsAdd) Data++; //add 1 if high bit was set
+	W16(Address, Data); //write parsed value
+}
+//logical high for ori calls
+#define W16H(Address, Data) W16(Address, (Data)>>16)
+//low for addi and ori calls
+#define W16L(Address, Data) W16(Address, (Data)&0xFFFF)
 
 static u32 CheckFor( u32 Buf, u32 Val )
 {
@@ -40,7 +56,8 @@ static u32 CheckFor( u32 Buf, u32 Val )
 		if((CurVal & 0xFC00FFFF) == Val)
 			return Buf+i;
 		i += 4;
-		if(i > 0x40)
+		//kirby has 1 far pattern
+		if(i > (isKirby ? 0x80 : 0x40))
 			break;
 	}
 	return 0;
@@ -166,8 +183,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x6000EC80);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, U32_TIMER_CLOCK_BUS_WII >> 16);
-			W16(NextP + 2, U32_TIMER_CLOCK_BUS_WII & 0xFFFF);
+			W16H(Buffer + 2, U32_TIMER_CLOCK_BUS_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_BUS_WII);
 			dbgprintf("PatchTimers:[Timer Clock ori Bus] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -177,8 +194,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x3800EC80);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, (U32_TIMER_CLOCK_BUS_WII >> 16) + 1);
-			W16(NextP + 2, U32_TIMER_CLOCK_BUS_WII & 0xFFFF);
+			W16AH(Buffer + 2, U32_TIMER_CLOCK_BUS_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_BUS_WII);
 			dbgprintf("PatchTimers:[Timer Clock addi Bus] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -190,13 +207,13 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		{
 			if(IsWiiUFastCPU())
 			{
-				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_FAST >> 16);
-				W16(NextP + 2, U32_TIMER_CLOCK_CPU_FAST & 0xFFFF);
+				W16H(Buffer + 2, U32_TIMER_CLOCK_CPU_FAST);
+				W16L(NextP + 2, U32_TIMER_CLOCK_CPU_FAST);
 			}
 			else
 			{
-				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_WII >> 16);
-				W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+				W16H(Buffer + 2, U32_TIMER_CLOCK_CPU_WII);
+				W16L(NextP + 2, U32_TIMER_CLOCK_CPU_WII);
 			}
 			dbgprintf("PatchTimers:[Timer Clock ori CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
@@ -208,14 +225,14 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		if(NextP > 0)
 		{
 			if(IsWiiUFastCPU())
-			{	//no ">>16) + 1" since its a positive 16bit value
-				W16(Buffer + 2, U32_TIMER_CLOCK_CPU_FAST >> 16);
-				W16(NextP + 2, U32_TIMER_CLOCK_CPU_FAST & 0xFFFF);
+			{
+				W16AH(Buffer + 2, U32_TIMER_CLOCK_CPU_FAST);
+				W16L(NextP + 2, U32_TIMER_CLOCK_CPU_FAST);
 			}
 			else
 			{
-				W16(Buffer + 2, (U32_TIMER_CLOCK_CPU_WII >> 16) + 1);
-				W16(NextP + 2, U32_TIMER_CLOCK_CPU_WII & 0xFFFF);
+				W16AH(Buffer + 2, U32_TIMER_CLOCK_CPU_WII);
+				W16L(NextP + 2, U32_TIMER_CLOCK_CPU_WII);
 			}
 			dbgprintf("PatchTimers:[Timer Clock addi CPU] applied (0x%08X)\r\n", Buffer );
 			return true;
@@ -226,8 +243,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x6000FB20);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, U32_TIMER_CLOCK_SECS_WII >> 16);
-			W16(NextP + 2, U32_TIMER_CLOCK_SECS_WII & 0xFFFF);
+			W16H(Buffer + 2, U32_TIMER_CLOCK_SECS_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_SECS_WII);
 			dbgprintf("PatchTimers:[Timer Clock ori s] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -237,8 +254,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x3800FB20);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, (U32_TIMER_CLOCK_SECS_WII >> 16) + 1);
-			W16(NextP + 2, U32_TIMER_CLOCK_SECS_WII & 0xFFFF);
+			W16AH(Buffer + 2, U32_TIMER_CLOCK_SECS_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_SECS_WII);
 			dbgprintf("PatchTimers:[Timer Clock addi s] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -248,8 +265,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x60004CB8);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, U32_TIMER_CLOCK_60HZ_WII >> 16);
-			W16(NextP + 2, U32_TIMER_CLOCK_60HZ_WII & 0xFFFF);
+			W16H(Buffer + 2, U32_TIMER_CLOCK_60HZ_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_60HZ_WII);
 			dbgprintf("PatchTimers:[Timer Clock ori 60Hz] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -259,9 +276,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x38004CB8);
 		if(NextP > 0)
 		{
-			//no ">>16) + 1" since its a positive 16bit value
-			W16(Buffer + 2, U32_TIMER_CLOCK_60HZ_WII >> 16);
-			W16(NextP + 2, U32_TIMER_CLOCK_60HZ_WII & 0xFFFF);
+			W16AH(Buffer + 2, U32_TIMER_CLOCK_60HZ_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_60HZ_WII);
 			dbgprintf("PatchTimers:[Timer Clock addi 60Hz] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -271,8 +287,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x60009E34);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, U32_TIMER_CLOCK_MSECS_WII >> 16);
-			W16(NextP + 2, U32_TIMER_CLOCK_MSECS_WII & 0xFFFF);
+			W16H(Buffer + 2, U32_TIMER_CLOCK_MSECS_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_MSECS_WII);
 			dbgprintf("PatchTimers:[Timer Clock ori ms] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -282,8 +298,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x38009E34);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, (U32_TIMER_CLOCK_MSECS_WII >> 16) + 1);
-			W16(NextP + 2, U32_TIMER_CLOCK_MSECS_WII & 0xFFFF);
+			W16AH(Buffer + 2, U32_TIMER_CLOCK_MSECS_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_MSECS_WII);
 			dbgprintf("PatchTimers:[Timer Clock addi ms] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -295,8 +311,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		if(NextP > 0)
 		{
 			u32 smallTimer = U32_TIMER_CLOCK_RAD_WII >> 15;
-			W16(Buffer + 2, smallTimer >> 16);
-			W16(NextP + 2, smallTimer & 0xFFFF);
+			W16H(Buffer + 2, smallTimer);
+			W16L(NextP + 2, smallTimer);
 			dbgprintf("PatchTimers:[RADTimerRead ori shift] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -306,8 +322,8 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x600049A1);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, U32_TIMER_CLOCK_RAD_WII >> 16);
-			W16(NextP + 2, U32_TIMER_CLOCK_RAD_WII & 0xFFFF);
+			W16H(Buffer + 2, U32_TIMER_CLOCK_RAD_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_RAD_WII);
 			dbgprintf("PatchTimers:[RADTimerRead ori full] applied (0x%08X)\r\n", Buffer );
 			return true;
 		}
@@ -317,10 +333,60 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x380049A1);
 		if(NextP > 0)
 		{
-			W16(Buffer + 2, (U32_TIMER_CLOCK_RAD_WII >> 16) + 1);
-			W16(NextP + 2, U32_TIMER_CLOCK_RAD_WII & 0xFFFF);
+			W16AH(Buffer + 2, U32_TIMER_CLOCK_RAD_WII);
+			W16L(NextP + 2, U32_TIMER_CLOCK_RAD_WII);
 			dbgprintf("PatchTimers:[RADTimerRead addi full] applied (0x%08X)\r\n", Buffer );
 			return true;
+		}
+	}
+	//kirby has many hardcoded timers, heres some dynamic ones,
+	//there is also an 80 second timeout I cant patch because its
+	//result is literally out of range for a 32bit integer
+	if(isKirby)
+	{
+		if( FirstVal == 0x3C00003E)
+		{
+			u32 NextP = CheckFor(Buffer, 0x3800CC50);
+			if(NextP > 0)
+			{
+				W16AH(Buffer + 2, U32_TIMER_CLOCK_SECS_WII/10);
+				W16L(NextP + 2, U32_TIMER_CLOCK_SECS_WII/10);
+				dbgprintf("PatchTimers:[Kirby addi 10Hz] applied (0x%08X)\r\n", Buffer );
+				return true;
+			}
+		}
+		if( FirstVal == 0x3C00001F)
+		{
+			u32 NextP = CheckFor(Buffer, 0x3800E628);
+			if(NextP > 0)
+			{
+				W16AH(Buffer + 2, U32_TIMER_CLOCK_SECS_WII/20);
+				W16L(NextP + 2, U32_TIMER_CLOCK_SECS_WII/20);
+				dbgprintf("PatchTimers:[Kirby addi 20Hz] applied (0x%08X)\r\n", Buffer );
+				return true;
+			}
+		}
+		if( FirstVal == 0x3C00073E)
+		{
+			u32 NextP = CheckFor(Buffer, 0x3800F160);
+			if(NextP > 0)
+			{
+				W16AH(Buffer + 2, U32_TIMER_CLOCK_SECS_WII*3);
+				W16L(NextP + 2, U32_TIMER_CLOCK_SECS_WII*3);
+				dbgprintf("PatchTimers:[Kirby addi 3 secs] applied (0x%08X)\r\n", Buffer );
+				return true;
+			}
+		}
+		if( FirstVal == 0x3C000C12)
+		{
+			u32 NextP = CheckFor(Buffer, 0x3800E7A0);
+			if(NextP > 0)
+			{
+				W16AH(Buffer + 2, U32_TIMER_CLOCK_SECS_WII*5);
+				W16L(NextP + 2, U32_TIMER_CLOCK_SECS_WII*5);
+				dbgprintf("PatchTimers:[Kirby addi 5 secs] applied (0x%08X)\r\n", Buffer );
+				return true;
+			}
 		}
 	}
 	return false;

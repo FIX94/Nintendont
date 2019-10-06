@@ -79,6 +79,18 @@ TimerDestroy:
 	.long 0xe6000290
 	bx lr
 
+	.global heap_create
+	.type   heap_create STT_FUNC
+heap_create:
+	.long 0xe60002D0
+	bx lr
+
+	.global heap_destroy
+	.type   heap_destroy STT_FUNC
+heap_destroy:
+	.long 0xe60002F0
+	bx lr
+
 	.global syscall_18
 	.type   syscall_18 STT_FUNC
 syscall_18:

@@ -5,7 +5,7 @@
 #include "NintendontVersion.h"
 #include "Metadata.h"
 
-#define NIN_CFG_VERSION		0x00000008
+#define NIN_CFG_VERSION		0x00000009
 
 #define NIN_CFG_MAXPAD 4
 
@@ -23,7 +23,7 @@ typedef struct NIN_CFG
 	unsigned char		MemCardBlocks;
 	signed char			VideoScale;
 	signed char			VideoOffset;
-	unsigned char		Unused;
+	unsigned char		NetworkProfile;
 } NIN_CFG;
 
 enum ninconfigbitpos
@@ -50,6 +50,7 @@ enum ninconfigbitpos
 	NIN_CFG_BIT_ARCADE_MODE = (16),
 	NIN_CFG_BIT_CC_RUMBLE	= (17),
 	NIN_CFG_BIT_SKIP_IPL	= (18),
+	NIN_CFG_BIT_BBA_EMU		= (19),
 
 	// Internal kernel settings.
 	NIN_CFG_BIT_MC_SLOTB	= (31),	// Slot B image is loaded
@@ -78,6 +79,7 @@ enum ninconfig
 	NIN_CFG_ARCADE_MODE	= (1<<NIN_CFG_BIT_ARCADE_MODE),
 	NIN_CFG_CC_RUMBLE	= (1<<NIN_CFG_BIT_CC_RUMBLE),
 	NIN_CFG_SKIP_IPL	= (1<<NIN_CFG_BIT_SKIP_IPL),
+	NIN_CFG_BBA_EMU		= (1<<NIN_CFG_BIT_BBA_EMU),
 
 	NIN_CFG_MC_SLOTB	= (1<<NIN_CFG_BIT_MC_SLOTB),
 };

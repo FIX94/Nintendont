@@ -937,15 +937,14 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				static const char *desc_max_pads[] = {
 					"Set the maximum number of",
 					"native GameCube controller",
-					"ports to use.",
+					"ports to use on Wii.",
 					"",
 					"This should usually be kept",
 					"at 4 to enable all ports",
 					"",
 					"This option has no effect on",
 					"Wii U and Wii Family Edition",
-					"systems, since they don't",
-					"have native controller ports.",
+					"systems.",
 					NULL
 				};
 				return desc_max_pads;
@@ -1008,9 +1007,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 					"USB HID controllers.",
 					"",
 					"This option is not available",
-					"on Wii U, since it does not",
-					"have built-in GameCube",
-					"controller ports.",
+					"on Wii U.",
 					NULL
 				};
 				return desc_native_si;
@@ -1057,6 +1054,41 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 					NULL
 				};
 				return desc_skip_ipl;
+			}
+
+			case 6: {
+				// BBA Emulation
+				static const char *desc_skip_bba[] = {
+					"Enable BBA Emulation in the",
+					"following supported titles",
+					"including all their regions:",
+					"",
+					"Mario Kart: Double Dash!!",
+					"Kirby Air Ride",
+					"1080 Avalanche",
+					"PSO Episode 1&2",
+					"PSO Episode III",
+					"Homeland",
+					NULL
+				};
+				return desc_skip_bba;
+			}
+
+			case 7: {
+				// BBA Network Profile
+				static const char *desc_skip_netprof[] = {
+					"Force a Network Profile",
+					"to use for BBA Emulation,",
+					"this option only works on",
+					"the original Wii because",
+					"on Wii U the profiles are",
+					"managed by the Wii U Menu.",
+					"This means you can even",
+					"use profiles that cannot",
+					"connect to the internet.",
+					NULL
+				};
+				return desc_skip_netprof;
 			}
 
 			default:
@@ -1115,7 +1147,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 6))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 8))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1142,7 +1174,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 5;
+				ctx->settings.posX = 7;
 			}
 		}
 
@@ -1374,6 +1406,21 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 
+				case 6:
+					// BBA Emulation
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_BBA_EMU);
+					ctx->redraw = true;
+					break;
+
+				case 7:
+					// BBA Network Profile
+					ctx->saveSettings = true;
+					ncfg->NetworkProfile++;
+					ncfg->NetworkProfile &= 3;
+					ctx->redraw = true;
+					break;
+
 				default:
 					break;
 			}
@@ -1510,6 +1557,13 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		}
 		snprintf(vidOffset, sizeof(vidOffset), "%i", ncfg->VideoOffset);
 
+		char netProfile[5];
+		ncfg->NetworkProfile &= 3;
+		if(ncfg->NetworkProfile == 0)
+			snprintf(netProfile, sizeof(netProfile), "Auto");
+		else
+			snprintf(netProfile, sizeof(netProfile), "%i", ncfg->NetworkProfile);
+
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
 			    "%-18s:%-4s", "Video Width", vidWidth);
 		ListLoopIndex++;
@@ -1537,9 +1591,20 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Skip IPL", (ncfg->Config & (NIN_CFG_SKIP_IPL)) ? "Yes" : "No ");
 		ListLoopIndex++;
 
+		// BBA Emulation
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "BBA Emulation", (ncfg->Config & (NIN_CFG_BBA_EMU)) ? "On" : "Off");
+		ListLoopIndex++;
+
+		// BBA Network Profile
+		PrintFormat(MENU_SIZE, (IsWiiU() || !(ncfg->Config & (NIN_CFG_BBA_EMU))) ? DARK_GRAY : BLACK,
+				MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "Network Profile", netProfile);
+		ListLoopIndex++;
+
 		// Draw the cursor.
+		u32 cursor_color = BLACK;
 		if (ctx->settings.settingPart == 0) {
-			u32 cursor_color = BLACK;
 			if ((!IsWiiU() && ctx->settings.posX == NIN_CFG_BIT_USB) ||
 			     (IsWiiU() && ctx->settings.posX == NIN_CFG_NATIVE_SI))
 			{
@@ -1549,7 +1614,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			}
 			PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 30, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		} else {
-			PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
+			if((IsWiiU() || !(ncfg->Config & (NIN_CFG_BBA_EMU))) && ctx->settings.posX == 7)
+				cursor_color = DARK_GRAY;
+			PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		}
 
 		// Print a description for the selected option.
@@ -1558,7 +1625,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 7;
+			int line_num = 9;
 			do {
 				if (**desc != 0)
 				{

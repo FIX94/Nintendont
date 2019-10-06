@@ -52,15 +52,15 @@ MEM2
 0x93005000-0x930050E8=hid controller positions
 0x930050F0-0x93005170=hid packet (may be bigger device dependent)
 
-0x93006000-0x93008000=codehandler
+0x93006000-0x93010000=IOS Interface
 
-0x93007420-0x93009000=old di thread stack
 0x93010000=old memory card buffer,old EXI Interrupt Handler Status
 0x93010010-0x93020010=loader and our reload stub
 0x93024000-0x93024060=memory interface
 0x93026400-0x93026500=serial interface
-0x93026500-0x93026580=fake interrupts
-0x93026580-0x93026600=audio stream information
+0x93026500-0x930265A0=fake interrupts
+0x930265A0-0x93026600=audio stream information
+0x93060000-0x93100000=IOS Interface Data Buffers
 0x93100000-0x93150000=ipl fonts buffer (0x1aff00-0x1fff00)
 0x93160000-0x93160008=OSReport (patch_fwrite)
 0x931C0000=PSO PRS dol location
