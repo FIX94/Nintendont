@@ -25,7 +25,8 @@ Note that 1080 Avalanche has a especially big problem with disconnecting very of
 
 For the Phantasy Star Online games you are able to connect to private servers such as schthack after creating an account on them.  
 After making an account, go into the games network settings, set DHCP to auto and do not disconnect, and then enter the DNS Server of the private server you want to join.  
-You can also connect a USB Keyboard and use it ingame without any further setup required.  
+You can also connect a USB Keyboard and use it ingame when you have native controls turned off without any further setup required.  
+With native controls turned on it will instead accept a real GameCube Keyboard in the controller port of original Wiis if you happen to own one.  
 The keyboard layout will be for a japanese keyboard by default, see helper cheats below if you want to use a different layout.    
 
 For Homeland, you can use the game as both server and client when you enable the direct IP mode in game. Just set its network settings to DHCP auto just like PSO.  
