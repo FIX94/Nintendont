@@ -737,7 +737,8 @@ void DIUpdateRegisters( void )
 			} break;
 			case 0xA8:
 			{
-				u32 Buffer	= P2C(read32(DI_DMA_ADR));
+				u32 rawAddr = read32(DI_DMA_ADR);
+				u32 Buffer	= P2C(rawAddr);
 				u32 Length	= read32(DI_CMD_2);
 				u32 Offset	= read32(DI_CMD_1) << 2;
 
@@ -748,7 +749,7 @@ void DIUpdateRegisters( void )
 					useipltri = 0; //happens after the "setup", read actual disc
 				}
 
-				dbgprintf( "DIP:DVDReadA8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, Buffer|0x80000000 );
+				dbgprintf( "DIP:DVDReadA8( 0x%08x, 0x%08x, 0x%08x )\r\n", Offset, Length, rawAddr );
 
 				if( TRIGame && Offset >= 0x1F000000 )
 				{
@@ -761,10 +762,11 @@ void DIUpdateRegisters( void )
 					if( Offset >= 0x57058000 )
 					{
 						dbgprintf("Unhandled Read\n");
-						dbgprintf("DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, Buffer|0x80000000 );
+						dbgprintf("DIP:DVDRead%02X( 0x%08x, 0x%08x, 0x%08x )\n", DIcommand, Offset, Length, rawAddr );
 						Shutdown();
 					}
-					if( Buffer < 0x01800000 )
+					if( Buffer < 0x01800000 || // Valid GC Buffer
+						rawAddr == 0x931C1800 ) //PSO Ep.III Hack
 					{
 						if( useipltri )
 							ReadSegaBoot(Buffer, Offset, Length);

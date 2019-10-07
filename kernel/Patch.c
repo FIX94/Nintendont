@@ -1531,6 +1531,31 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			else								// EUR/USA
 				memset32( (void*)0x5634, 0x60000000, 0x10 );
 		}
+		else if( TITLE_ID == 0x475053 )
+		{
+			// HACK: PSO 0x80001800 move to 0x931C1800
+			if(read32(0x590F4) == 0x3C601000 && read32(0x590FC) == 0x3B830300)
+			{
+				dbgprintf("Patch:[PSO Ep.III NTSC-U 0x931C] applied\r\n");
+				u32 shifted_lowmem = 0x931C1800 >> 3;
+				write32(0x590F4, 0x3C600000 | (shifted_lowmem>>16));
+				write32(0x590FC, 0x607C0000 | (shifted_lowmem&0xFFFF));
+			}
+			else if(read32(0x5925C) == 0x3C601000 && read32(0x59264) == 0x3B830300)
+			{
+				dbgprintf("Patch:[PSO Ep.III PAL 0x931C] applied\r\n");
+				u32 shifted_lowmem = 0x931C1800 >> 3;
+				write32(0x5925C, 0x3C600000 | (shifted_lowmem>>16));
+				write32(0x59264, 0x607C0000 | (shifted_lowmem&0xFFFF));
+			}
+			else if(read32(0x591A0) == 0x3C601000 && read32(0x591A8) == 0x3B830300)
+			{
+				dbgprintf("Patch:[PSO Ep.III NTSC-J 0x931C] applied\r\n");
+				u32 shifted_lowmem = 0x931C1800 >> 3;
+				write32(0x591A0, 0x3C600000 | (shifted_lowmem>>16));
+				write32(0x591A8, 0x607C0000 | (shifted_lowmem&0xFFFF));
+			}
+		}
 		else if(DOLMaxOff == 0x141FE0 && read32(0xF278C) == 0x2F6D616A) //Majoras Mask NTSC-U
 		{
 			dbgprintf("Patch:[Majoras Mask NTSC-U] applied\r\n");
@@ -3141,6 +3166,16 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							}
 							else
 								CurPatterns[j].Found = 0;
+						} break;
+						case FCODE_KeyboardRead:
+						{
+							if(DisableSIPatch)
+								dbgprintf("Patch:[KeyboardRead] skipped (0x%08X)\r\n", FOffset);
+							else
+							{
+								memcpy((void*)FOffset, KeyboardRead, KeyboardRead_size);
+								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+							}
 						} break;
 						case FCODE_SOInit:
 						{

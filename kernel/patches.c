@@ -117,7 +117,7 @@ enum
 	FCODE_PrsLoad,
 	FCODE_PsoDolEntryMod,
 	FCODE_DolEntryMod,
-	FCODE_AppLoad,
+	FCODE_KeyboardRead,
 
 	FCODE_SOInit,
 	FCODE_SOStartup,
@@ -472,7 +472,7 @@ static FuncPattern PSOFPatterns[] =
 	{  0x268,   52,    9,   39,    8,    7,	NULL,				FCODE_PrsLoad,				"PrsLoad",				NULL,		FGROUP_NONE,			    0 },
 	{   0xC0,   22,    2,    7,    1,    4,	NULL,				FCODE_PsoDolEntryMod,		"PsoDolEntryMod",		"A",		FGROUP_PsoDolEntryMod,	    0 },
 	{  0x250,   58,    5,   38,    3,    9,	NULL,				FCODE_PsoDolEntryMod,		"PsoDolEntryMod",		"B",		FGROUP_PsoDolEntryMod,	    0 },
-	{  0x1FC,   33,   10,   11,   23,   13,	KeyboardRead,		KeyboardRead_size,			"KeyboardRead",			NULL,		FGROUP_NONE,				0 },
+	{  0x1FC,   33,   10,   11,   23,   13,	NULL,				FCODE_KeyboardRead,			"KeyboardRead",			NULL,		FGROUP_NONE,				0 },
 };
 
 static FuncPattern PSO_SOPatterns[] =
