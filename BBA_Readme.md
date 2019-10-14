@@ -19,6 +19,8 @@ Game specific notes:
 For Mario Kart, Kirby Air Ride and 1080 Avalance, when you want to connect to a real GameCube or Dolphin, first go into the LAN Mode on them.  
 After THEY start looking for other consoles, only THEN connect the other nintendont instances.  
 If you do not follow that order, nintendont will not be able to see the other consoles, possibly due to a bug in the wii firmware.  
+Important for PAL users: Both Mario Kart and 1080 Avalanche have to be set to the same 50/60Hz setting on all consoles on game boot in order to be found by other consoles, if one of your consoles is set to a different refresh rate, it wont be detected by the others when they search.  
+Interestingly, this does not apply for Kirby Air Ride which will find each other and work regardless of your 50/60Hz selection.  
 You can only connect to other consoles in your local network unless you use a LAN tunneling program such as Xlink Kai just like on a real BBA.  
 Also, while WLAN will work, it of course has the potential to run slower.  
 Note that 1080 Avalanche has a especially big problem with disconnecting very often, see helper cheats below to help its connection.    
