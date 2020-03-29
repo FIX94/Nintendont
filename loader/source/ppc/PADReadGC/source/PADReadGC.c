@@ -72,30 +72,13 @@ const s8 DEADZONE = 0x1A;
 	else if(tmp_stick16 < -0x80) tmp_stick8 = -0x80; \
 	else tmp_stick8 = (s8)tmp_stick16;
 
-
-/* Functions for HID */
-static s8 hidGetMod(volatile layout *button){
-	// constrain value to [0,3]
-	return button->Modif > 0 && button->Modif < 4 ? (s8)(button->Modif) : 0;
-}
-static u8 hidButtonValue(volatile layout *button){
-	return (HID_Packet[button->Offset] & button->Mask) == button->Mask;
-}
-static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 modifiers[3], u32 used[24], u16 data){
-	s8 m = hidGetMod(&(HID_CTRL->Left))-1;
-	if(with_mods){
-		if(m>=0 && modifiers[m]){
-			used[HID_CTRL->Left.Offset] |= HID_CTRL->Left.Mask;
-			return data;
-		}
-	} else if(!(used[HID_CTRL->Left.Offset] & HID_CTRL->Left.Mask) && m<0) {
-		return data;
-	}
-	return 0x0000;
-}
+static s8 hidGetMod(volatile layout *button);
+static u8 hidButtonValue(volatile layout *button);
+static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 modifiers[3], u32 used[24], u16 data);
 
 u32 PADRead(u32 calledByGame)
 {
+	exit(0);
 	// Registers r1,r13-r31 automatically restored if used.
 	// Registers r0, r3-r12 should be handled by calling function
 	// Register r2 not changed
@@ -338,7 +321,7 @@ u32 PADRead(u32 calledByGame)
 	{
 		if(HIDMemPrep == 0) // first run
 		{
-			HID_Packet = (vu8*)0x930050F0; // reset back to default offset
+			HID_Packet = (vu8*)0x930052F0; // reset back to default offset
 			memInvalidate = (u32)HID_Packet; // prepare memory
 			asm volatile("dcbi 0,%0" : : "b"(memInvalidate) : "memory");
 			//invalidate cache block for controllers using more than 0x10 bytes
@@ -356,47 +339,6 @@ u32 PADRead(u32 calledByGame)
 			PrevAdapterChannel2 = PrevAdapterChannel3;
 			PrevAdapterChannel3 = PrevAdapterChannel4;
 			PrevAdapterChannel4 = HID_Packet[0] - 1;
-		}
-
-		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
-		{
-			HID_Packet = (vu8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
-			u32 HID_CacheEndBlock = ALIGN32(((u32)HID_Packet) + HID_CTRL->MultiInValue); //calculate upper cache block used
-			if(HID_CacheEndBlock > HIDMemPrep) //new cache block, prepare memory
-			{
-				memInvalidate = HID_CacheEndBlock;
-				asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
-				HIDMemPrep = memInvalidate;
-			}
-			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo WiiU Gamecube Adapter
-			{
-				// 0x04=port powered 0x10=normal controller 0x22=wavebird communicating
-				if (((HID_Packet[1] & 0x10) == 0)	//normal controller not connected
-				 && ((HID_Packet[1] & 0x22) != 0x22))	//wavebird not connected
-				{
-					*HIDMotor &= ~(1 << chan); //make sure to disable rumble just in case
-					continue;	//try next controller
-				}
-				if(((MotorCommand[chan]&3) == 1) && (HID_Packet[1] & 0x04))	//game wants rumbe and controller has power for rumble.
-					*HIDMotor |= (1 << chan);
-				else
-					*HIDMotor &= ~(1 << chan);
-
-				if ((HID_Packet[HID_CTRL->StickX.Offset] < 5)		//if connected device is a bongo
-				  &&(HID_Packet[HID_CTRL->StickY.Offset] < 5)
-				  &&(HID_Packet[HID_CTRL->CStickX.Offset] < 5)
-				  &&(HID_Packet[HID_CTRL->CStickY.Offset] < 5)
-				  &&(HID_Packet[HID_CTRL->LAnalog] < 5))
-				{
-					PADBarrelEnabled[chan] = 1;
-					PADIsBarrel[chan] = 1;
-				}
-				else
-				{
-					PADBarrelEnabled[chan] = 0;
-					PADIsBarrel[chan] = 0;
-				}
-			}
 		}
 
 		if(calledByGame && HID_CTRL->Power.Mask &&	//exit if power configured and all power buttons pressed
@@ -1489,6 +1431,29 @@ DoShutdown:
 	*RESET_STATUS = 0x7DEA;
 	while(1) ;
 }
+
+
+/* Functions for HID */
+static s8 hidGetMod(volatile layout *button){
+	// constrain value to [0,3]
+	return button->Modif > 0 && button->Modif < 4 ? (s8)(button->Modif) : 0;
+}
+static u8 hidButtonValue(volatile layout *button){
+	return (HID_Packet[button->Offset] & button->Mask) == button->Mask;
+}
+static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 modifiers[3], u32 used[24], u16 data){
+	s8 m = hidGetMod(&(HID_CTRL->Left))-1;
+	if(with_mods){
+		if(m>=0 && modifiers[m]){
+			used[HID_CTRL->Left.Offset] |= HID_CTRL->Left.Mask;
+			return data;
+		}
+	} else if(!(used[HID_CTRL->Left.Offset] & HID_CTRL->Left.Mask) && m<0) {
+		return data;
+	}
+	return 0x0000;
+}
+
 
 /* Functions for PSO Keyboard */
 static void kbDoSpecial(u8 *in, u8 *out)

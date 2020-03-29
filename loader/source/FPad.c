@@ -122,14 +122,22 @@ void FPAD_Update( void )
 
 	/* HID */
 	HIDUpdateRegisters();
+	ShowMess("FPAD_Update .. LINE 131 hid registers");
+
 	PADRead(0);
+	ShowMess("FPAD_Update .. LINE 134 hid padread");
+
 	PADStatus *Pad = (PADStatus*)(0x93003100);
+	ShowMess("FPAD_Update .. LINE 137 hid PADStatus");
+
 	for(i = 0; i < PAD_CHANMAX; ++i)
 	{
 		PAD_Pressed |= Pad[i].button;
 		PAD_Stick_Y |= Pad[i].stickY;
 		PAD_Stick_X |= Pad[i].stickX;
 	}
+	ShowMess("FPAD_Update .. LINE 145");
+
 	if(!IsWiiU())
 	{
 		PAD_ScanPads();
@@ -140,6 +148,9 @@ void FPAD_Update( void )
 			PAD_Stick_X |= PAD_StickX(i);
 		}
 	}
+
+	ShowMess("FPAD_Update .. LINE 158");
+
 	if( WPAD_Pressed == 0 && PAD_Pressed == 0 && WiiDRC_Pressed == 0 && ( PAD_Stick_Y < 25 && PAD_Stick_Y > -25 )  && ( PAD_Stick_X < 25 && PAD_Stick_X > -25 ) )
 	{
 		Repeat = 0;
@@ -158,6 +169,9 @@ void FPAD_Update( void )
 	//Power Button
 	if((*(vu32*)0xCD8000C8) & 1)
 		SetShutdown();
+	
+	ShowMess("FPAD_Update .. LINE 168 end");
+
 }
 bool FPAD_Up( bool ILock )
 {
