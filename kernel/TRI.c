@@ -354,7 +354,7 @@ void TRISetupGames()
 	{
 		dbgprintf("TRI:F-Zero AX (Rev C)\r\n");
 		TRIGame = TRI_AX;
-		SystemRegion = REGION_JAPAN;
+		SystemRegion = REGION_EXPORT;
 		AXTimerOffset = 0x003CD1C0;
 		TRISettingsName = SETTINGS_AX_RVC;
 		TRISettingsLoc = 0x3CF6F0;
@@ -388,7 +388,7 @@ void TRISetupGames()
 		write32( 0x001FB998, 0x38C00000 );
 
 		//English
-		write32( 0x000DF430, 0x38000000 );
+		//write32( 0x000DF430, 0x38000000 );
 
 		if(!arcadeMode)
 		{
@@ -437,7 +437,7 @@ void TRISetupGames()
 	{
 		dbgprintf("TRI:F-Zero AX (Rev D)\r\n");
 		TRIGame = TRI_AX;
-		SystemRegion = REGION_JAPAN;
+		SystemRegion = REGION_EXPORT;
 		AXTimerOffset = 0x003CD6A0;
 		TRISettingsName = SETTINGS_AX_RVD;
 		TRISettingsLoc = 0x3CFBD0;
@@ -481,7 +481,7 @@ void TRISetupGames()
 		write32( 0x001FBE54, 0x38C00000 );
 
 		//English
-		write32( 0x000DF698, 0x38000000 );
+		//write32( 0x000DF698, 0x38000000 );
 
 		if(!arcadeMode)
 		{
@@ -531,7 +531,7 @@ void TRISetupGames()
 	{
 		dbgprintf("TRI:F-Zero AX (Rev E)\r\n");
 		TRIGame = TRI_AX;
-		SystemRegion = REGION_JAPAN;
+		SystemRegion = REGION_EXPORT;
 		AXTimerOffset = 0x003CDC20;
 		TRISettingsName = SETTINGS_AX_RVE;
 		TRISettingsLoc = 0x3D0150;
@@ -572,7 +572,7 @@ void TRISetupGames()
 		write32( 0x001FC2C4, 0x38C00000 );
 
 		//English
-		write32( 0x000DF818, 0x38000000 );
+		//write32( 0x000DF818, 0x38000000 );
 
 		if(!arcadeMode)
 		{
