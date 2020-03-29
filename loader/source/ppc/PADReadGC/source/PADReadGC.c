@@ -74,6 +74,9 @@ const s8 DEADZONE = 0x1A;
 
 u32 PADRead(u32 calledByGame)
 {
+	// ShowMessDebug("entered PADRead!");
+	exit(0);
+	
 	// Registers r1,r13-r31 automatically restored if used.
 	// Registers r0, r3-r12 should be handled by calling function
 	// Register r2 not changed

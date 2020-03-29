@@ -1919,6 +1919,12 @@ void ShowMessageScreen(const char *msg)
 	ClearScreen();
 }
 
+void ShowMessDebug(const char *msg)
+{
+	ShowMessageScreen(msg);
+	sleep(2);
+}
+
 /**
  * Show a single message screen and then exit to loader..
  * @param msg Message.

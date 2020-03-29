@@ -122,6 +122,7 @@ void FPAD_Update( void )
 
 	/* HID */
 	HIDUpdateRegisters();
+	ShowMessDebug("entering PADRead...");
 	PADRead(0);
 	PADStatus *Pad = (PADStatus*)(0x93003100);
 	for(i = 0; i < PAD_CHANMAX; ++i)
