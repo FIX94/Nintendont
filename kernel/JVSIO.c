@@ -264,9 +264,9 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 							}
 							else if(i == 1)
 							{
-								if( PadBuff[0].triggerLeft > 0x44 )
+								if( PadBuff[0].button & PAD_BUTTON_B )
 									PlayerData[0] |= 0x20; // Paddle Left
-								if( PadBuff[0].triggerRight > 0x44 )
+								if( PadBuff[0].button & PAD_BUTTON_A )
 									PlayerData[0] |= 0x10; // Paddle Right
 							}
 							break;
@@ -389,9 +389,9 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 							else if(i == 1)
 								val = PadBuff[0].stickY + 0x80; // Steering Y
 							else if(i == 4) {
-								if(PadBuff[0].button & PAD_BUTTON_A) val = 0xFF; //Gas
+								val = PadBuff[0].triggerRight; //Gas
 							} else if(i == 5) {
-								if(PadBuff[0].button & PAD_BUTTON_B) val = 0xFF; //Brake
+								val = PadBuff[0].triggerLeft; //Brake
 							}
 							break;
 						case TRI_VS4:
