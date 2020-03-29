@@ -123,7 +123,12 @@ void FPAD_Update( void )
 	/* HID */
 	HIDUpdateRegisters();
 	ShowMessDebug("entering PADRead...");
-	PADRead(0);
+	char buffer[50]; 
+	u32 ret = PADRead(0);
+	sprintf(buffer, "exit PADRead ret=%d", ret);
+	ShowMessDebug(buffer);
+	exit(0);
+
 	PADStatus *Pad = (PADStatus*)(0x93003100);
 	for(i = 0; i < PAD_CHANMAX; ++i)
 	{
