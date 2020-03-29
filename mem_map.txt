@@ -50,7 +50,7 @@ MEM2
 0x93004000-0x93005000=nincfg
 
 0x93005000-0x930050E8=hid controller positions
-0x930050F0-0x93005170=hid packet (may be bigger device dependent)
+0x930052F0-0x93005370=hid packet (may be bigger device dependent)
 
 0x93006000-0x93010000=IOS Interface
 
