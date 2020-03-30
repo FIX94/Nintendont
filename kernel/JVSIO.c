@@ -239,9 +239,9 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						case TRI_GP2:
 							if( PadBuff[0].button & PAD_BUTTON_X && inTestMenu )
 								PlayerData[0] |= 0x40; // Service button
-							if( PadBuff[0].button & PAD_BUTTON_A )
+							if( PadBuff[0].button & PAD_BUTTON_Y )
 								PlayerData[1] |= 0x10; // Item button
-							if( PadBuff[0].button & PAD_BUTTON_B )
+							if( PadBuff[0].button & PAD_BUTTON_START )
 								PlayerData[1] |= 0x02; // Cancel button
 							break;
 						case TRI_AX:
@@ -378,10 +378,12 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						case TRI_GP2:
 							if(i == 0)
 								val = PadBuff[0].stickX + 0x80; // Steering
-							else if(i == 1)
-								val = PadBuff[0].triggerRight >> 1; //Gas
-							else if(i == 2)
-								val = PadBuff[0].triggerLeft >> 1; //Brake
+							else if(i == 1) {
+								if(PadBuff[0].button & PAD_BUTTON_A) val = 0x7F; //Gas
+							}
+							else if(i == 2) {
+								if(PadBuff[0].button & PAD_BUTTON_B) val = 0x7F; //Brake
+							}
 							break;
 						case TRI_AX:
 							if(i == 0)
