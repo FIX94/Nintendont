@@ -39,6 +39,7 @@ typedef struct Layout
 {
 	u32 Offset;
 	u32 Mask;
+	u8 Modif;
 } layout;
 
 typedef struct StickLayout
@@ -56,8 +57,13 @@ typedef struct Controller
 	u32 DPAD;
 	u32 DPADMask;
 	u32 DigitalLR;
+	u32 DigitalCStick;
 	u32 MultiIn;
 	u32 MultiInValue;
+
+	layout Mod1;
+	layout Mod2;
+	layout Mod3;
 
 	layout Power;
 
@@ -81,6 +87,15 @@ typedef struct Controller
 	layout DownRight;
 	layout DownLeft;
 	layout UpLeft;
+
+	layout CStickUp;
+	layout CStickRight;
+	layout CStickLeft;
+	layout CStickDown;
+	layout CStickRightUp;
+	layout CStickDownRight;
+	layout CStickDownLeft;
+	layout CStickUpLeft;
 
 	stickLayout StickX;
 	stickLayout StickY;
@@ -324,61 +339,89 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
+		HID_CTRL->Mod1.Offset	= ConfigGetValue( Data, "Mod1", 0 );
+		HID_CTRL->Mod1.Mask		= ConfigGetValue( Data, "Mod1", 1 );
+
+		HID_CTRL->Mod2.Offset	= ConfigGetValue( Data, "Mod2", 0 );
+		HID_CTRL->Mod2.Mask		= ConfigGetValue( Data, "Mod2", 1 );
+		
+		HID_CTRL->Mod3.Offset	= ConfigGetValue( Data, "Mod3", 0 );
+		HID_CTRL->Mod3.Mask		= ConfigGetValue( Data, "Mod3", 1 );
+
+
 		HID_CTRL->Power.Offset	= ConfigGetValue( Data, "Power", 0 );
 		HID_CTRL->Power.Mask	= ConfigGetValue( Data, "Power", 1 );
+		HID_CTRL->Power.Modif 	= ConfigGetValue( Data, "Power", 2 );
 
 		HID_CTRL->A.Offset	= ConfigGetValue( Data, "A", 0 );
 		HID_CTRL->A.Mask	= ConfigGetValue( Data, "A", 1 );
+		HID_CTRL->A.Modif 	= ConfigGetValue( Data, "A", 2 );
 
 		HID_CTRL->B.Offset	= ConfigGetValue( Data, "B", 0 );
 		HID_CTRL->B.Mask	= ConfigGetValue( Data, "B", 1 );
+		HID_CTRL->B.Modif 	= ConfigGetValue( Data, "B", 2 );
 
 		HID_CTRL->X.Offset	= ConfigGetValue( Data, "X", 0 );
 		HID_CTRL->X.Mask	= ConfigGetValue( Data, "X", 1 );
+		HID_CTRL->X.Modif 	= ConfigGetValue( Data, "X", 2 );
 
 		HID_CTRL->Y.Offset	= ConfigGetValue( Data, "Y", 0 );
 		HID_CTRL->Y.Mask	= ConfigGetValue( Data, "Y", 1 );
+		HID_CTRL->Y.Modif 	= ConfigGetValue( Data, "Y", 2 );
 
 		HID_CTRL->ZL.Offset	= ConfigGetValue( Data, "ZL", 0 );
 		HID_CTRL->ZL.Mask	= ConfigGetValue( Data, "ZL", 1 );
+		HID_CTRL->ZL.Modif 	= ConfigGetValue( Data, "ZL", 2 );
 
 		HID_CTRL->Z.Offset	= ConfigGetValue( Data, "Z", 0 );
 		HID_CTRL->Z.Mask	= ConfigGetValue( Data, "Z", 1 );
+		HID_CTRL->Z.Modif 	= ConfigGetValue( Data, "Z", 2 );
 
 		HID_CTRL->L.Offset	= ConfigGetValue( Data, "L", 0 );
 		HID_CTRL->L.Mask	= ConfigGetValue( Data, "L", 1 );
+		HID_CTRL->L.Modif 	= ConfigGetValue( Data, "L", 2 );
 
 		HID_CTRL->R.Offset	= ConfigGetValue( Data, "R", 0 );
 		HID_CTRL->R.Mask	= ConfigGetValue( Data, "R", 1 );
+		HID_CTRL->R.Modif 	= ConfigGetValue( Data, "R", 2 );
 
 		HID_CTRL->S.Offset	= ConfigGetValue( Data, "S", 0 );
 		HID_CTRL->S.Mask	= ConfigGetValue( Data, "S", 1 );
+		HID_CTRL->S.Modif 	= ConfigGetValue( Data, "S", 2 );
 
 		HID_CTRL->Left.Offset	= ConfigGetValue( Data, "Left", 0 );
 		HID_CTRL->Left.Mask		= ConfigGetValue( Data, "Left", 1 );
+		HID_CTRL->Left.Modif 	= ConfigGetValue( Data, "Left", 2 );
 
 		HID_CTRL->Down.Offset	= ConfigGetValue( Data, "Down", 0 );
 		HID_CTRL->Down.Mask		= ConfigGetValue( Data, "Down", 1 );
+		HID_CTRL->Down.Modif 	= ConfigGetValue( Data, "Down", 2 );
 
 		HID_CTRL->Right.Offset	= ConfigGetValue( Data, "Right", 0 );
 		HID_CTRL->Right.Mask	= ConfigGetValue( Data, "Right", 1 );
+		HID_CTRL->Right.Modif 	= ConfigGetValue( Data, "Right", 2 );
 
 		HID_CTRL->Up.Offset		= ConfigGetValue( Data, "Up", 0 );
 		HID_CTRL->Up.Mask		= ConfigGetValue( Data, "Up", 1 );
+		HID_CTRL->Up.Modif 		= ConfigGetValue( Data, "Up", 2 );
 
 		if( HID_CTRL->DPAD )
 		{
 			HID_CTRL->RightUp.Offset	= ConfigGetValue( Data, "RightUp", 0 );
 			HID_CTRL->RightUp.Mask		= ConfigGetValue( Data, "RightUp", 1 );
+			HID_CTRL->RightUp.Modif		= ConfigGetValue( Data, "RightUp", 2 );
 
 			HID_CTRL->DownRight.Offset	= ConfigGetValue( Data, "DownRight", 0 );
 			HID_CTRL->DownRight.Mask	= ConfigGetValue( Data, "DownRight", 1 );
+			HID_CTRL->DownRight.Modif	= ConfigGetValue( Data, "DownRight", 2 );
 
 			HID_CTRL->DownLeft.Offset	= ConfigGetValue( Data, "DownLeft", 0 );
 			HID_CTRL->DownLeft.Mask		= ConfigGetValue( Data, "DownLeft", 1 );
+			HID_CTRL->DownLeft.Modif	= ConfigGetValue( Data, "DownLeft", 2 );
 
 			HID_CTRL->UpLeft.Offset		= ConfigGetValue( Data, "UpLeft", 0 );
 			HID_CTRL->UpLeft.Mask		= ConfigGetValue( Data, "UpLeft", 1 );
+			HID_CTRL->UpLeft.Modif		= ConfigGetValue( Data, "UpLeft", 2 );
 		}
 
 		if( HID_CTRL->DPAD  &&	//DPAD == 1 and all offsets the same
@@ -406,7 +449,7 @@ int main(int argc, char *argv[])
 		if (HID_CTRL->StickX.Radius == 0)
 			HID_CTRL->StickX.Radius = 80;
 		HID_CTRL->StickX.Radius = (u64)HID_CTRL->StickX.Radius * 1280 / (128 - HID_CTRL->StickX.DeadZone);	//adjust for DeadZone
-	//		printf("HID:StickX:  Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->StickX.Offset, HID_CTRL->StickX.DeadZone, HID_CTRL->StickX.Radius);
+	//		dbgprintf("HID:StickX:  Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->StickX.Offset, HID_CTRL->StickX.DeadZone, HID_CTRL->StickX.Radius);
 
 		HID_CTRL->StickY.Offset		= ConfigGetValue( Data, "StickY", 0 );
 		HID_CTRL->StickY.DeadZone	= ConfigGetValue( Data, "StickY", 1 );
@@ -414,43 +457,78 @@ int main(int argc, char *argv[])
 		if (HID_CTRL->StickY.Radius == 0)
 			HID_CTRL->StickY.Radius = 80;
 		HID_CTRL->StickY.Radius = (u64)HID_CTRL->StickY.Radius * 1280 / (128 - HID_CTRL->StickY.DeadZone);	//adjust for DeadZone
-	//		printf("HID:StickY:  Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->StickY.Offset, HID_CTRL->StickY.DeadZone, HID_CTRL->StickY.Radius);
+	//		dbgprintf("HID:StickY:  Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->StickY.Offset, HID_CTRL->StickY.DeadZone, HID_CTRL->StickY.Radius);
 
-		HID_CTRL->CStickX.Offset	= ConfigGetValue( Data, "CStickX", 0 );
-		HID_CTRL->CStickX.DeadZone	= ConfigGetValue( Data, "CStickX", 1 );
-		HID_CTRL->CStickX.Radius	= ConfigGetDecValue( Data, "CStickX", 2 );
-		if (HID_CTRL->CStickX.Radius == 0)
-			HID_CTRL->CStickX.Radius = 80;
-		HID_CTRL->CStickX.Radius = (u64)HID_CTRL->CStickX.Radius * 1280 / (128 - HID_CTRL->CStickX.DeadZone);	//adjust for DeadZone
-	//		printf("HID:CStickX: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickX.Offset, HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius);
+		if (HID_CTRL->DigitalCStick) {
+			HID_CTRL->CStickLeft.Offset	= ConfigGetValue( Data, "CStickLeft", 0 );
+			HID_CTRL->CStickLeft.Mask	= ConfigGetValue( Data, "CStickLeft", 1 );
+			HID_CTRL->CStickLeft.Modif 	= ConfigGetValue( Data, "CStickLeft", 2 );
 
-		HID_CTRL->CStickY.Offset	= ConfigGetValue( Data, "CStickY", 0 );
-		HID_CTRL->CStickY.DeadZone	= ConfigGetValue( Data, "CStickY", 1 );
-		HID_CTRL->CStickY.Radius	= ConfigGetDecValue( Data, "CStickY", 2 );
-		if (HID_CTRL->CStickY.Radius == 0)
-			HID_CTRL->CStickY.Radius = 80;
-		HID_CTRL->CStickY.Radius = (u64)HID_CTRL->CStickY.Radius * 1280 / (128 - HID_CTRL->CStickY.DeadZone);	//adjust for DeadZone
-	//		printf("HID:CStickY: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickY.Offset, HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius);
+			HID_CTRL->CStickDown.Offset	= ConfigGetValue( Data, "CStickDown", 0 );
+			HID_CTRL->CStickDown.Mask	= ConfigGetValue( Data, "CStickDown", 1 );
+			HID_CTRL->CStickDown.Modif 	= ConfigGetValue( Data, "CStickDown", 2 );
 
+			HID_CTRL->CStickRight.Offset	= ConfigGetValue( Data, "CStickRight", 0 );
+			HID_CTRL->CStickRight.Mask		= ConfigGetValue( Data, "CStickRight", 1 );
+			HID_CTRL->CStickRight.Modif 	= ConfigGetValue( Data, "CStickRight", 2 );
+
+			HID_CTRL->CStickUp.Offset	= ConfigGetValue( Data, "CStickUp", 0 );
+			HID_CTRL->CStickUp.Mask		= ConfigGetValue( Data, "CStickUp", 1 );
+			HID_CTRL->CStickUp.Modif 	= ConfigGetValue( Data, "CStickUp", 2 );
+
+		} else {
+			HID_CTRL->CStickX.Offset	= ConfigGetValue( Data, "CStickX", 0 );
+			HID_CTRL->CStickX.DeadZone	= ConfigGetValue( Data, "CStickX", 1 );
+			HID_CTRL->CStickX.Radius	= ConfigGetDecValue( Data, "CStickX", 2 );
+			if (HID_CTRL->CStickX.Radius == 0)
+				HID_CTRL->CStickX.Radius = 80;
+			HID_CTRL->CStickX.Radius = (u64)HID_CTRL->CStickX.Radius * 1280 / (128 - HID_CTRL->CStickX.DeadZone);	//adjust for DeadZone
+			//	dbgprintf("HID:CStickX: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickX.Offset, HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius);
+
+			HID_CTRL->CStickY.Offset	= ConfigGetValue( Data, "CStickY", 0 );
+			HID_CTRL->CStickY.DeadZone	= ConfigGetValue( Data, "CStickY", 1 );
+			HID_CTRL->CStickY.Radius	= ConfigGetDecValue( Data, "CStickY", 2 );
+			if (HID_CTRL->CStickY.Radius == 0)
+				HID_CTRL->CStickY.Radius = 80;
+			HID_CTRL->CStickY.Radius = (u64)HID_CTRL->CStickY.Radius * 1280 / (128 - HID_CTRL->CStickY.DeadZone);	//adjust for DeadZone
+			//	dbgprintf("HID:CStickY: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickY.Offset, HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius);
+		}
 		HID_CTRL->LAnalog	= ConfigGetValue( Data, "LAnalog", 0 );
 		HID_CTRL->RAnalog	= ConfigGetValue( Data, "RAnalog", 0 );
 
 		FILE *array = fopen("array.txt", "a");
 		fprintf(array,
-			"\t{ 0x%04x, 0x%04x, %i, %i, 0x%x, %i, %i, %i,\n"
-			"\t{0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x},\n"
-			"\t{0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, {0x%x, 0x%x}, \n"
-			"\t{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, 0x%x, 0x%x },\n",
-			HID_CTRL->VID, HID_CTRL->PID, HID_CTRL->Polltype, HID_CTRL->DPAD, HID_CTRL->DPADMask, HID_CTRL->DigitalLR, HID_CTRL->MultiIn, HID_CTRL->MultiInValue, 
-			HID_CTRL->Power.Offset ,HID_CTRL->Power.Mask, HID_CTRL->A.Offset ,HID_CTRL->A.Mask, HID_CTRL->B.Offset ,HID_CTRL->B.Mask, 
-			HID_CTRL->X.Offset ,HID_CTRL->X.Mask, HID_CTRL->Y.Offset ,HID_CTRL->Y.Mask, HID_CTRL->ZL.Offset ,HID_CTRL->ZL.Mask, 
-			HID_CTRL->Z.Offset ,HID_CTRL->Z.Mask, HID_CTRL->L.Offset ,HID_CTRL->L.Mask, HID_CTRL->R.Offset ,HID_CTRL->R.Mask, HID_CTRL->S.Offset ,HID_CTRL->S.Mask,
-			HID_CTRL->Left.Offset ,HID_CTRL->Left.Mask, HID_CTRL->Down.Offset ,HID_CTRL->Down.Mask, HID_CTRL->Right.Offset ,HID_CTRL->Right.Mask, 
-			HID_CTRL->Up.Offset ,HID_CTRL->Up.Mask, HID_CTRL->RightUp.Offset ,HID_CTRL->RightUp.Mask, HID_CTRL->DownRight.Offset ,HID_CTRL->DownRight.Mask, 
-			HID_CTRL->DownLeft.Offset ,HID_CTRL->DownLeft.Mask, HID_CTRL->UpLeft.Offset ,HID_CTRL->UpLeft.Mask, 
+			"\t{ 0x%04x, 0x%04x, %i, %i, 0x%x, %i, %i, %i, %i,\n"
+			"\t{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x},\n"  // Mod1, Mod2, Mod3
+			"\t{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, "  // Power, A, B
+			"{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, "  // X, Y, ZL
+			"{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x},\n"  // Z, L, R, S
+			"\t{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, "  // Left, Down, Right
+			"{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, " // Up, RightUp, DownRight
+			"{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, \n"  // DownLeft, UpLeft
+			"\t{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x},\n"  // CStickUp, CStickRight, CStickLeft, CStickDown
+			"\t{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x},\n"  // CStickRightUp, CStickDownRight, CStickDownLeft, CStickUpLeft
+			"\t{0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, {0x%x, 0x%x, 0x%x}, 0x%x, 0x%x },\n", // StickX, StickY, CStickX, CStickY, LAnalog, RAnalog
+			HID_CTRL->VID, HID_CTRL->PID, HID_CTRL->Polltype, HID_CTRL->DPAD, HID_CTRL->DPADMask, HID_CTRL->DigitalLR, HID_CTRL->DigitalCStick, HID_CTRL->MultiIn, HID_CTRL->MultiInValue,
+			HID_CTRL->Mod1.Offset, HID_CTRL->Mod1.Mask, HID_CTRL->Mod1.Modif, HID_CTRL->Mod2.Offset, HID_CTRL->Mod2.Mask, HID_CTRL->Mod2.Modif, HID_CTRL->Mod3.Offset, HID_CTRL->Mod3.Mask, HID_CTRL->Mod3.Modif,
+			HID_CTRL->Power.Offset ,HID_CTRL->Power.Mask, HID_CTRL->Power.Modif, HID_CTRL->A.Offset ,HID_CTRL->A.Mask, HID_CTRL->A.Modif, HID_CTRL->B.Offset ,HID_CTRL->B.Mask, HID_CTRL->B.Modif, 
+			HID_CTRL->X.Offset ,HID_CTRL->X.Mask, HID_CTRL->X.Modif, HID_CTRL->Y.Offset ,HID_CTRL->Y.Mask, HID_CTRL->Y.Modif, HID_CTRL->ZL.Offset ,HID_CTRL->ZL.Mask, HID_CTRL->ZL.Modif, 
+			HID_CTRL->Z.Offset ,HID_CTRL->Z.Mask, HID_CTRL->Z.Modif, HID_CTRL->L.Offset ,HID_CTRL->L.Mask, HID_CTRL->L.Modif, HID_CTRL->R.Offset ,HID_CTRL->R.Mask, HID_CTRL->R.Modif, HID_CTRL->S.Offset ,HID_CTRL->S.Mask, HID_CTRL->S.Modif,
+			HID_CTRL->Left.Offset ,HID_CTRL->Left.Mask, HID_CTRL->Left.Modif, HID_CTRL->Down.Offset ,HID_CTRL->Down.Mask, HID_CTRL->Down.Modif, HID_CTRL->Right.Offset ,HID_CTRL->Right.Mask, HID_CTRL->Right.Modif, 
+			HID_CTRL->Up.Offset ,HID_CTRL->Up.Mask, HID_CTRL->Up.Modif, HID_CTRL->RightUp.Offset ,HID_CTRL->RightUp.Mask, HID_CTRL->RightUp.Modif, HID_CTRL->DownRight.Offset ,HID_CTRL->DownRight.Mask, HID_CTRL->DownRight.Modif, 
+			HID_CTRL->DownLeft.Offset ,HID_CTRL->DownLeft.Mask, HID_CTRL->DownLeft.Modif, HID_CTRL->UpLeft.Offset ,HID_CTRL->UpLeft.Mask, HID_CTRL->UpLeft.Modif, 
+			HID_CTRL->CStickUp.Offset, HID_CTRL->CStickUp.Mask, HID_CTRL->CStickUp.Modif,
+			HID_CTRL->CStickRight.Offset, HID_CTRL->CStickRight.Mask, HID_CTRL->CStickRight.Modif,
+			HID_CTRL->CStickLeft.Offset, HID_CTRL->CStickLeft.Mask, HID_CTRL->CStickLeft.Modif,
+			HID_CTRL->CStickDown.Offset, HID_CTRL->CStickDown.Mask, HID_CTRL->CStickDown.Modif,
+			HID_CTRL->CStickRightUp.Offset, HID_CTRL->CStickRightUp.Mask, HID_CTRL->CStickRightUp.Modif,
+			HID_CTRL->CStickDownRight.Offset, HID_CTRL->CStickDownRight.Mask, HID_CTRL->CStickDownRight.Modif,
+			HID_CTRL->CStickDownLeft.Offset, HID_CTRL->CStickDownLeft.Mask, HID_CTRL->CStickDownLeft.Modif,
+			HID_CTRL->CStickUpLeft.Offset, HID_CTRL->CStickUpLeft.Mask, HID_CTRL->CStickUpLeft.Modif,
 			HID_CTRL->StickX.Offset, HID_CTRL->StickX.DeadZone, HID_CTRL->StickX.Radius, HID_CTRL->StickY.Offset, HID_CTRL->StickY.DeadZone, HID_CTRL->StickY.Radius, 
 			HID_CTRL->CStickX.Offset, HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius, HID_CTRL->CStickY.Offset, HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius, 
 			HID_CTRL->LAnalog, HID_CTRL->RAnalog);
+
 		fclose(array);
 		if(ConfigGetValue( Data, "Rumble", 0 ))
 		{

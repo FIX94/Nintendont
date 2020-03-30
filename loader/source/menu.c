@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ff_utf8.h"
 #include "ShowGameInfo.h"
 
+
 // Dark gray for grayed-out menu items.
 #define DARK_GRAY 0x666666FF
 
@@ -1856,8 +1857,11 @@ bool SelectDevAndGame(void)
 	{
 		VIDEO_WaitVSync();
 		FPAD_Update();
+		ShowMessDebug("menu.. LINE 1868  post FPAD_Update");
 		if(Shutdown)
 			LoaderShutdown();
+
+		ShowMessDebug("menu.. LINE 1872");
 
 		if (redraw)
 		{
@@ -1875,6 +1879,8 @@ bool SelectDevAndGame(void)
 			GRRLIB_Render();
 			ClearScreen();
 		}
+
+		ShowMessDebug("menu.. LINE 1891");
 
 		if (FPAD_OK(0))
 		{
@@ -1898,6 +1904,7 @@ bool SelectDevAndGame(void)
 			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
 			redraw = true;
 		}
+
 	}
 
 	return SaveSettings;
