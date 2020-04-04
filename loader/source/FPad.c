@@ -197,27 +197,21 @@ void FPAD_Update( void )
 	/* HID */
 	HIDUpdateRegisters();
 
-	sleep(1);
-	char buffer[200]; 
-	sprintf(buffer, "CSTICK-config[offset,mask,mod]: left[%d,%d,%d] up[%d,%d,%d] down[%d,%d,%d] right[%d,%d,%d]"
-		" - ru[%d,%d,%d] dr[%d,%d,%d] dl[%d,%d,%d] ul[%d,%d,%d]",
-		HID_CTRL->CStickLeft.Offset, HID_CTRL->CStickLeft.Mask, HID_CTRL->CStickLeft.Modif,
-		HID_CTRL->CStickUp.Offset, HID_CTRL->CStickUp.Mask, HID_CTRL->CStickUp.Modif,
-		HID_CTRL->CStickDown.Offset, HID_CTRL->CStickDown.Mask, HID_CTRL->CStickDown.Modif,
-		HID_CTRL->CStickRight.Offset, HID_CTRL->CStickRight.Mask, HID_CTRL->CStickRight.Modif,
-		HID_CTRL->CStickRightUp.Offset, HID_CTRL->CStickRightUp.Mask, HID_CTRL->CStickRightUp.Modif,
-		HID_CTRL->CStickDownRight.Offset, HID_CTRL->CStickDownRight.Mask, HID_CTRL->CStickDownRight.Modif,
-		HID_CTRL->CStickDownLeft.Offset, HID_CTRL->CStickDownLeft.Mask, HID_CTRL->CStickDownLeft.Modif,
-		HID_CTRL->CStickUpLeft.Offset, HID_CTRL->CStickUpLeft.Mask, HID_CTRL->CStickUpLeft.Modif);
-	udp_printf("%s\n", buffer);
-
-	u32 ret = PADRead(0);
-	// PADRead(0);
-	sprintf(buffer, "exit PADRead packet-code=%x", ret);
-	udp_printf("%s\n", buffer);
+	// debug
+	// sleep(1);
+	// udp_printf("CSTICK-config[offset,mask,mod]: left[%d,%d,%d] up[%d,%d,%d] down[%d,%d,%d] right[%d,%d,%d]"
+	// 	" - ru[%d,%d,%d] dr[%d,%d,%d] dl[%d,%d,%d] ul[%d,%d,%d]\n",
+	// 	HID_CTRL->CStickLeft.Offset, HID_CTRL->CStickLeft.Mask, HID_CTRL->CStickLeft.Modif,
+	// 	HID_CTRL->CStickUp.Offset, HID_CTRL->CStickUp.Mask, HID_CTRL->CStickUp.Modif,
+	// 	HID_CTRL->CStickDown.Offset, HID_CTRL->CStickDown.Mask, HID_CTRL->CStickDown.Modif,
+	// 	HID_CTRL->CStickRight.Offset, HID_CTRL->CStickRight.Mask, HID_CTRL->CStickRight.Modif,
+	// 	HID_CTRL->CStickRightUp.Offset, HID_CTRL->CStickRightUp.Mask, HID_CTRL->CStickRightUp.Modif,
+	// 	HID_CTRL->CStickDownRight.Offset, HID_CTRL->CStickDownRight.Mask, HID_CTRL->CStickDownRight.Modif,
+	// 	HID_CTRL->CStickDownLeft.Offset, HID_CTRL->CStickDownLeft.Mask, HID_CTRL->CStickDownLeft.Modif,
+	// 	HID_CTRL->CStickUpLeft.Offset, HID_CTRL->CStickUpLeft.Mask, HID_CTRL->CStickUpLeft.Modif);
+	PADRead(0);
 
 	PADStatus *Pad = (PADStatus*)(0x93003100);
-	// udp_printf("%s\n", "FPAD_Update .. LINE 137 hid PADStatus");
 
 	for(i = 0; i < PAD_CHANMAX; ++i)
 	{
@@ -225,7 +219,6 @@ void FPAD_Update( void )
 		PAD_Stick_Y |= Pad[i].stickY;
 		PAD_Stick_X |= Pad[i].stickX;
 	}
-	// udp_printf("%s\n", "FPAD_Update .. LINE 145");
 
 	if(!IsWiiU())
 	{
@@ -237,8 +230,6 @@ void FPAD_Update( void )
 			PAD_Stick_X |= PAD_StickX(i);
 		}
 	}
-
-	// udp_printf("%s\n", "FPAD_Update .. LINE 158");
 
 	if( WPAD_Pressed == 0 && PAD_Pressed == 0 && WiiDRC_Pressed == 0 && ( PAD_Stick_Y < 25 && PAD_Stick_Y > -25 )  && ( PAD_Stick_X < 25 && PAD_Stick_X > -25 ) )
 	{
@@ -258,8 +249,6 @@ void FPAD_Update( void )
 	//Power Button
 	if((*(vu32*)0xCD8000C8) & 1)
 		SetShutdown();
-	
-	// udp_printf("%s\n", "FPAD_Update .. LINE 168 end");
 
 }
 bool FPAD_Up( bool ILock )

@@ -541,41 +541,33 @@ u32 PADRead(u32 calledByGame)
 			if (HID_CTRL->DigitalCStick){
 				if(hidCStickValue(&(HID_CTRL->CStickUp), modifiers_bvals)){
 						substickY = 127;
-						return (((u32)HID_Packet[5])<<8) | 1;
 				}
 				if(hidCStickValue(&(HID_CTRL->CStickDown), modifiers_bvals)){
 					substickY = -127;
-					return (((u32)HID_Packet[5])<<8) | 2;
 				}
 				if(hidCStickValue(&(HID_CTRL->CStickRight), modifiers_bvals)){
 					substickX = 127;
-					return (((u32)HID_Packet[5])<<8) | 3;
 				}
 				if(hidCStickValue(&(HID_CTRL->CStickLeft), modifiers_bvals)){
 					substickX = -127;
-					return (((u32)HID_Packet[5])<<8) | 4;
 				}
 				
 				if(HID_CTRL->DPAD != 0){
 					if(hidCStickValue(&(HID_CTRL->CStickRightUp), modifiers_bvals)){
 						substickY = 127;
 						substickX = 127;
-						return (((u32)HID_Packet[5])<<8) | 5;
 					}
 					if(hidCStickValue(&(HID_CTRL->CStickDownRight), modifiers_bvals)){
 						substickY = -127;
 						substickX = 127;
-						return (((u32)HID_Packet[5])<<8) | 6;
 					}
 					if(hidCStickValue(&(HID_CTRL->CStickDownLeft), modifiers_bvals)){
 						substickY = -127;
 						substickX = -127;
-						return (((u32)HID_Packet[5])<<8) | 7;
 					}
 					if(hidCStickValue(&(HID_CTRL->CStickUpLeft), modifiers_bvals)){
 						substickY = 127;
 						substickX = -127;
-						return (((u32)HID_Packet[5])<<8) | 8;
 					}
 				}
 			} else {
@@ -1451,27 +1443,25 @@ DoShutdown:
 
 /* Functions for HID */
 static u8 hidGetMod(volatile layout *button){
-	// constrain value to [0,3]
+	// constrain button->Modif value to [0,3]
+	// 0 is no Modifier, else is Modifier_ID
 	return (button->Modif > 0) && (button->Modif < 4) ? button->Modif : 0;
 }
 static u8 hidButtonValue(volatile layout *button){
+	// return (boolean) button is pressed
 	return (HID_Packet[button->Offset] & button->Mask) == button->Mask;
 }
 static u8 hidSpecialValue(volatile layout *button){
+	// return (boolean) DPADbutton is pressed -> for special DPAD encoding
 	return (HID_Packet[button->Offset] & HID_CTRL->DPADMask) == button->Mask;
 }
 static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals){
-	u8 ret = 0;
-	if(modifiers_bvals[hidGetMod(cstick_button)] && hidButtonValue(cstick_button)) {
-		// Standard case CStickButton is ON
+	return modifiers_bvals[hidGetMod(cstick_button)] && hidButtonValue(cstick_button) // Standard case CStickButton is ON
 		// Special case if offset is DPAD and DPAD encodes special -> needs testing
+		&& ((cstick_button->Offset != HID_CTRL->Up.Offset) // button is not DPAD
 		// using Up.Offset for DPAD.Offset : fingers crossed that always all on the same offset for every HID
-		if((cstick_button->Offset != HID_CTRL->Up.Offset) || (HID_CTRL->DPAD == 0) || hidSpecialValue(cstick_button))
-		{ // confirmed: CStickButton is ON
-			ret = 1;
-		}
-	}
-	return ret;
+			|| (HID_CTRL->DPAD == 0) // DPAD is not special
+			|| hidSpecialValue(cstick_button)); // is DPAD and Special but checks out
 }
 static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers, u32 *used, u16 data){
 	// Test the modifier combo and return data if passes
