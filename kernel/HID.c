@@ -539,21 +539,39 @@ s32 HIDOpen( u32 LoaderRequest )
 				//		dbgprintf("HID:StickY:  Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->StickY.Offset, HID_CTRL->StickY.DeadZone, HID_CTRL->StickY.Radius);
 
 					if (HID_CTRL->DigitalCStick) {
-						HID_CTRL->CStickLeft.Offset	= ConfigGetValue( Data, "CStickLeft", 0 );
-						HID_CTRL->CStickLeft.Mask	= ConfigGetValue( Data, "CStickLeft", 1 );
-						HID_CTRL->CStickLeft.Modif 	= ConfigGetValue( Data, "CStickLeft", 2 );
+						HID_CTRL->CStickLeft.Offset	 = ConfigGetValue( Data, "CStickLeft", 0 );
+						HID_CTRL->CStickLeft.Mask	 = ConfigGetValue( Data, "CStickLeft", 1 );
+						HID_CTRL->CStickLeft.Modif 	 = ConfigGetValue( Data, "CStickLeft", 2 );
 
-						HID_CTRL->CStickDown.Offset	= ConfigGetValue( Data, "CStickDown", 0 );
-						HID_CTRL->CStickDown.Mask	= ConfigGetValue( Data, "CStickDown", 1 );
-						HID_CTRL->CStickDown.Modif 	= ConfigGetValue( Data, "CStickDown", 2 );
+						HID_CTRL->CStickDown.Offset	 = ConfigGetValue( Data, "CStickDown", 0 );
+						HID_CTRL->CStickDown.Mask	 = ConfigGetValue( Data, "CStickDown", 1 );
+						HID_CTRL->CStickDown.Modif 	 = ConfigGetValue( Data, "CStickDown", 2 );
 
-						HID_CTRL->CStickRight.Offset	= ConfigGetValue( Data, "CStickRight", 0 );
-						HID_CTRL->CStickRight.Mask		= ConfigGetValue( Data, "CStickRight", 1 );
-						HID_CTRL->CStickRight.Modif 	= ConfigGetValue( Data, "CStickRight", 2 );
+						HID_CTRL->CStickRight.Offset = ConfigGetValue( Data, "CStickRight", 0 );
+						HID_CTRL->CStickRight.Mask	 = ConfigGetValue( Data, "CStickRight", 1 );
+						HID_CTRL->CStickRight.Modif  = ConfigGetValue( Data, "CStickRight", 2 );
 
-						HID_CTRL->CStickUp.Offset	= ConfigGetValue( Data, "CStickUp", 0 );
-						HID_CTRL->CStickUp.Mask		= ConfigGetValue( Data, "CStickUp", 1 );
-						HID_CTRL->CStickUp.Modif 	= ConfigGetValue( Data, "CStickUp", 2 );
+						HID_CTRL->CStickUp.Offset	 = ConfigGetValue( Data, "CStickUp", 0 );
+						HID_CTRL->CStickUp.Mask		 = ConfigGetValue( Data, "CStickUp", 1 );
+						HID_CTRL->CStickUp.Modif 	 = ConfigGetValue( Data, "CStickUp", 2 );
+						
+						if( HID_CTRL->DPAD ){ // get values, however useful they are
+							HID_CTRL->CStickRightUp.Offset	 = ConfigGetValue( Data, "CStickRightUp", 0 );
+							HID_CTRL->CStickRightUp.Mask	 = ConfigGetValue( Data, "CStickRightUp", 1 );
+							HID_CTRL->CStickRightUp.Modif	 = ConfigGetValue( Data, "CStickRightUp", 2 );
+
+							HID_CTRL->CStickDownRight.Offset = ConfigGetValue( Data, "CStickDownRight", 0 );
+							HID_CTRL->CStickDownRight.Mask	 = ConfigGetValue( Data, "CStickDownRight", 1 );
+							HID_CTRL->CStickDownRight.Modif	 = ConfigGetValue( Data, "CStickDownRight", 2 );
+
+							HID_CTRL->CStickDownLeft.Offset	 = ConfigGetValue( Data, "CStickDownLeft", 0 );
+							HID_CTRL->CStickDownLeft.Mask	 = ConfigGetValue( Data, "CStickDownLeft", 1 );
+							HID_CTRL->CStickDownLeft.Modif	 = ConfigGetValue( Data, "CStickDownLeft", 2 );
+
+							HID_CTRL->CStickUpLeft.Offset	 = ConfigGetValue( Data, "CStickUpLeft", 0 );
+							HID_CTRL->CStickUpLeft.Mask	 	 = ConfigGetValue( Data, "CStickUpLeft", 1 );
+							HID_CTRL->CStickUpLeft.Modif	 = ConfigGetValue( Data, "CStickUpLeft", 2 );
+						}
 
 					} else {
 						HID_CTRL->CStickX.Offset	= ConfigGetValue( Data, "CStickX", 0 );

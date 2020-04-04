@@ -1857,11 +1857,8 @@ bool SelectDevAndGame(void)
 	{
 		VIDEO_WaitVSync();
 		FPAD_Update();
-		ShowMessDebug("menu.. LINE 1868  post FPAD_Update");
 		if(Shutdown)
 			LoaderShutdown();
-
-		ShowMessDebug("menu.. LINE 1872");
 
 		if (redraw)
 		{
@@ -1879,8 +1876,6 @@ bool SelectDevAndGame(void)
 			GRRLIB_Render();
 			ClearScreen();
 		}
-
-		ShowMessDebug("menu.. LINE 1891");
 
 		if (FPAD_OK(0))
 		{
@@ -1924,12 +1919,6 @@ void ShowMessageScreen(const char *msg)
 	PrintFormat(DEFAULT_SIZE, BLACK, x, 232, "%s", msg);
 	GRRLIB_Render();
 	ClearScreen();
-}
-
-void ShowMessDebug(const char *msg)
-{
-	ShowMessageScreen(msg);
-	sleep(2);
 }
 
 /**

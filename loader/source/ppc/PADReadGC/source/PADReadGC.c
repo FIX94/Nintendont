@@ -1,4 +1,9 @@
 #include "../../../../../common/include/CommonConfig.h"
+
+// #define DEFAULT_UDP_LOG_HOST "192.168.43.132"
+// #define DEFAULT_UDP_LOG_PORT 9930
+// #include "../../../../../kernel/udp_log.h"
+
 #include "global.h"
 #include "HID.h"
 #include "hidmem.h"
@@ -72,9 +77,11 @@ const s8 DEADZONE = 0x1A;
 	else if(tmp_stick16 < -0x80) tmp_stick8 = -0x80; \
 	else tmp_stick8 = (s8)tmp_stick16;
 
-static s8 hidGetMod(volatile layout *button);
+static u8 hidGetMod(volatile layout *button);
 static u8 hidButtonValue(volatile layout *button);
-static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 modifiers[3], u32 used[24], u16 data);
+static u8 hidSpecialValue(volatile layout *button);
+static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals);
+static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers, u32 *used, u16 data);
 
 u32 PADRead(u32 calledByGame)
 {
@@ -351,11 +358,10 @@ u32 PADRead(u32 calledByGame)
 
 		/* first buttons */
 
-		return 59;
-
 		u16 button = 0;
-		u32 used[24] = { 0 };
-		u8 modifiers[3] = { hidButtonValue(&(HID_CTRL->Mod1)),
+		u32 used_buttons[24] = { 0 };
+		u8 modifiers_bvals[4] = { 1,
+					   hidButtonValue(&(HID_CTRL->Mod1)),
 					   hidButtonValue(&(HID_CTRL->Mod2)),
 					   hidButtonValue(&(HID_CTRL->Mod3)) };
 		// first pass: process buttons with modifier (remember keys pressed)
@@ -365,50 +371,51 @@ u32 PADRead(u32 calledByGame)
 			if(HID_CTRL->DPAD == 0)
 			{
 				if( HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->Left.Mask )
-					button |= hidProcessButton(&(HID_CTRL->Left), with_mods, modifiers, used, PAD_BUTTON_LEFT);
+					button |= hidProcessButton(&(HID_CTRL->Left), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_LEFT);
 
 				if( HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->Right.Mask )
-					button |= hidProcessButton(&(HID_CTRL->Right), with_mods, modifiers, used, PAD_BUTTON_RIGHT);
+					button |= hidProcessButton(&(HID_CTRL->Right), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_RIGHT);
 		
 				if( HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->Down.Mask )
-					button |= hidProcessButton(&(HID_CTRL->Down), with_mods, modifiers, used, PAD_BUTTON_DOWN);
+					button |= hidProcessButton(&(HID_CTRL->Down), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_DOWN);
 		
 				if( HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->Up.Mask )
-					button |= hidProcessButton(&(HID_CTRL->Up), with_mods, modifiers, used, PAD_BUTTON_UP);
+					button |= hidProcessButton(&(HID_CTRL->Up), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_UP);
 			}
 			else
 			{
 				if(((HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Up.Mask)		 || ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask)			|| ((HID_Packet[HID_CTRL->RightUp.Offset]	& HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
-					button |= hidProcessButton(&(HID_CTRL->Up), with_mods, modifiers, used, PAD_BUTTON_UP);
-		
+					button |= hidProcessButton(&(HID_CTRL->Up), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_UP);
+
 				if(((HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Right.Mask) || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->RightUp.Offset] & HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
-					button |= hidProcessButton(&(HID_CTRL->Right), with_mods, modifiers, used, PAD_BUTTON_RIGHT);
-		
+					button |= hidProcessButton(&(HID_CTRL->Right), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_RIGHT);
+
 				if(((HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Down.Mask)	 || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask))
-					button |= hidProcessButton(&(HID_CTRL->Down), with_mods, modifiers, used, PAD_BUTTON_DOWN);
+					button |= hidProcessButton(&(HID_CTRL->Down), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_DOWN);
 		
 				if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
-					button |= hidProcessButton(&(HID_CTRL->Left), with_mods, modifiers, used, PAD_BUTTON_LEFT);
+					button |= hidProcessButton(&(HID_CTRL->Left), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_LEFT);
 			}
+
 			if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
-				button |= hidProcessButton(&(HID_CTRL->A), with_mods, modifiers, used, PAD_BUTTON_A);
+				button |= hidProcessButton(&(HID_CTRL->A), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_A);
 			if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)
-				button |= hidProcessButton(&(HID_CTRL->B), with_mods, modifiers, used, PAD_BUTTON_B);
+				button |= hidProcessButton(&(HID_CTRL->B), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_B);
 			if(HID_Packet[HID_CTRL->X.Offset] & HID_CTRL->X.Mask)
-				button |= hidProcessButton(&(HID_CTRL->X), with_mods, modifiers, used, PAD_BUTTON_X);
+				button |= hidProcessButton(&(HID_CTRL->X), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_X);
 			if(HID_Packet[HID_CTRL->Y.Offset] & HID_CTRL->Y.Mask)
-				button |= hidProcessButton(&(HID_CTRL->Y), with_mods, modifiers, used, PAD_BUTTON_Y);
+				button |= hidProcessButton(&(HID_CTRL->Y), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_Y);
 			if(HID_Packet[HID_CTRL->Z.Offset] & HID_CTRL->Z.Mask)
-				button |= hidProcessButton(&(HID_CTRL->Z), with_mods, modifiers, used, PAD_TRIGGER_Z);
+				button |= hidProcessButton(&(HID_CTRL->Z), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_Z);
 
 			if( HID_CTRL->DigitalLR == 1)	//digital trigger buttons only
 			{
 				if(!(HID_Packet[HID_CTRL->ZL.Offset] & HID_CTRL->ZL.Mask))	//ZL acts as shift for half pressed
 				{
 					if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
-						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers, used, PAD_TRIGGER_L);
+						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_L);
 					if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
-						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers, used, PAD_TRIGGER_R);
+						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_R);
 				}
 			}
 			else if( HID_CTRL->DigitalLR == 2)	//no digital trigger buttons compute from analog trigger values
@@ -416,24 +423,24 @@ u32 PADRead(u32 calledByGame)
 				if ((HID_CTRL->VID == 0x0925) && (HID_CTRL->PID == 0x03E8))	//Mayflash Classic Controller Pro Adapter
 				{
 					if((HID_Packet[HID_CTRL->L.Offset] & 0x7C) >= HID_CTRL->L.Mask)	//only some bits are part of this control
-						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers, used, PAD_TRIGGER_L);
+						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_L);
 					if((HID_Packet[HID_CTRL->R.Offset] & 0x0F) >= HID_CTRL->R.Mask)	//only some bits are part of this control
-						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers, used, PAD_TRIGGER_R);
+						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_R);
 				}
 				else	//standard no digital trigger button
 				{
 					if(HID_Packet[HID_CTRL->L.Offset] >= HID_CTRL->L.Mask)
-						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers, used, PAD_TRIGGER_L);
+						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_L);
 					if(HID_Packet[HID_CTRL->R.Offset] >= HID_CTRL->R.Mask)
-						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers, used, PAD_TRIGGER_R);
+						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_R);
 				}
 			}
 			else	//standard digital left and right trigger buttons
 			{
 				if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
-					button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers, used, PAD_TRIGGER_L);
+					button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_L);
 				if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
-					button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers, used, PAD_TRIGGER_R);
+					button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_R);
 			}
 
 			if (PADBarrelEnabled[chan] && PADIsBarrel[chan]) //if bongo controller
@@ -452,9 +459,10 @@ u32 PADRead(u32 calledByGame)
 			}
 			
 			if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
-				button |= hidProcessButton(&(HID_CTRL->S), with_mods, modifiers, used, PAD_BUTTON_START);
+				button |= hidProcessButton(&(HID_CTRL->S), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_START);
 		}
 		
+
 		Pad[chan].button = button;
 
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
@@ -528,43 +536,48 @@ u32 PADRead(u32 calledByGame)
 		{
 			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
 			stickY		= 127 - HID_Packet[HID_CTRL->StickY.Offset];
-			s8 tmp_m = 0;
+			// CStick
 			substickY = substickX = 0;
 			if (HID_CTRL->DigitalCStick){
-				tmp_m = hidGetMod(&(HID_CTRL->CStickUp));
-				if(hidButtonValue(&(HID_CTRL->CStickUp)) && (tmp_m == 0 || modifiers[tmp_m-1]))
-					substickY = 127;
-				tmp_m = hidGetMod(&(HID_CTRL->CStickDown));
-				if(hidButtonValue(&(HID_CTRL->CStickDown)) && (tmp_m == 0 || modifiers[tmp_m-1]))
+				if(hidCStickValue(&(HID_CTRL->CStickUp), modifiers_bvals)){
+						substickY = 127;
+						return (((u32)HID_Packet[5])<<8) | 1;
+				}
+				if(hidCStickValue(&(HID_CTRL->CStickDown), modifiers_bvals)){
 					substickY = -127;
-				tmp_m = hidGetMod(&(HID_CTRL->CStickRight));
-				if(hidButtonValue(&(HID_CTRL->CStickRight)) && (tmp_m == 0 || modifiers[tmp_m-1]))
+					return (((u32)HID_Packet[5])<<8) | 2;
+				}
+				if(hidCStickValue(&(HID_CTRL->CStickRight), modifiers_bvals)){
 					substickX = 127;
-				tmp_m = hidGetMod(&(HID_CTRL->CStickLeft));
-				if(hidButtonValue(&(HID_CTRL->CStickLeft)) && (tmp_m == 0 || modifiers[tmp_m-1]))
+					return (((u32)HID_Packet[5])<<8) | 3;
+				}
+				if(hidCStickValue(&(HID_CTRL->CStickLeft), modifiers_bvals)){
 					substickX = -127;
-
-				tmp_m = hidGetMod(&(HID_CTRL->CStickRightUp));
-				if(hidButtonValue(&(HID_CTRL->CStickRightUp)) && (tmp_m == 0 || modifiers[tmp_m-1])){
-					substickY = 127;
-					substickX = 127;
+					return (((u32)HID_Packet[5])<<8) | 4;
 				}
-				tmp_m = hidGetMod(&(HID_CTRL->CStickDownRight));
-				if(hidButtonValue(&(HID_CTRL->CStickDownRight)) && (tmp_m == 0 || modifiers[tmp_m-1])){
-					substickY = -127;
-					substickX = 127;
+				
+				if(HID_CTRL->DPAD != 0){
+					if(hidCStickValue(&(HID_CTRL->CStickRightUp), modifiers_bvals)){
+						substickY = 127;
+						substickX = 127;
+						return (((u32)HID_Packet[5])<<8) | 5;
+					}
+					if(hidCStickValue(&(HID_CTRL->CStickDownRight), modifiers_bvals)){
+						substickY = -127;
+						substickX = 127;
+						return (((u32)HID_Packet[5])<<8) | 6;
+					}
+					if(hidCStickValue(&(HID_CTRL->CStickDownLeft), modifiers_bvals)){
+						substickY = -127;
+						substickX = -127;
+						return (((u32)HID_Packet[5])<<8) | 7;
+					}
+					if(hidCStickValue(&(HID_CTRL->CStickUpLeft), modifiers_bvals)){
+						substickY = 127;
+						substickX = -127;
+						return (((u32)HID_Packet[5])<<8) | 8;
+					}
 				}
-				tmp_m = hidGetMod(&(HID_CTRL->CStickDownLeft));
-				if(hidButtonValue(&(HID_CTRL->CStickDownLeft)) && (tmp_m == 0 || modifiers[tmp_m-1])){
-					substickY = -127;
-					substickX = -127;
-				}
-				tmp_m = hidGetMod(&(HID_CTRL->CStickUpLeft));
-				if(hidButtonValue(&(HID_CTRL->CStickUpLeft)) && (tmp_m == 0 || modifiers[tmp_m-1])){
-					substickY = 127;
-					substickX = -127;
-				}
-
 			} else {
 				substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;
 				substickY	= 127 - HID_Packet[HID_CTRL->CStickY.Offset];
@@ -1437,24 +1450,45 @@ DoShutdown:
 
 
 /* Functions for HID */
-static s8 hidGetMod(volatile layout *button){
+static u8 hidGetMod(volatile layout *button){
 	// constrain value to [0,3]
-	return button->Modif > 0 && button->Modif < 4 ? (s8)(button->Modif) : 0;
+	return (button->Modif > 0) && (button->Modif < 4) ? button->Modif : 0;
 }
 static u8 hidButtonValue(volatile layout *button){
 	return (HID_Packet[button->Offset] & button->Mask) == button->Mask;
 }
-static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 modifiers[3], u32 used[24], u16 data){
-	s8 m = hidGetMod(&(HID_CTRL->Left))-1;
-	if(with_mods){
-		if(m>=0 && modifiers[m]){
-			used[HID_CTRL->Left.Offset] |= HID_CTRL->Left.Mask;
-			return data;
+static u8 hidSpecialValue(volatile layout *button){
+	return (HID_Packet[button->Offset] & HID_CTRL->DPADMask) == button->Mask;
+}
+static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals){
+	u8 ret = 0;
+	if(modifiers_bvals[hidGetMod(cstick_button)] && hidButtonValue(cstick_button)) {
+		// Standard case CStickButton is ON
+		// Special case if offset is DPAD and DPAD encodes special -> needs testing
+		// using Up.Offset for DPAD.Offset : fingers crossed that always all on the same offset for every HID
+		if((cstick_button->Offset != HID_CTRL->Up.Offset) || (HID_CTRL->DPAD == 0) || hidSpecialValue(cstick_button))
+		{ // confirmed: CStickButton is ON
+			ret = 1;
 		}
-	} else if(!(used[HID_CTRL->Left.Offset] & HID_CTRL->Left.Mask) && m<0) {
-		return data;
 	}
-	return 0x0000;
+	return ret;
+}
+static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers, u32 *used, u16 data){
+	// Test the modifier combo and return data if passes
+	// modifiers: array of size 3
+	// used: array of size 24	
+	u8 m = hidGetMod(button);
+	if ((with_mods && (m > 0) && modifiers[m-1]) || (!with_mods && (m==0))) {
+		// modif combo test passed
+		// used[button->Offset] |= button->Mask;
+		return data;
+		// FIXME test if used
+		// if(!(used[button->Offset] & (button->Mask))) {
+		// 	// button not used already
+		// 	return data;
+		// }
+	}
+	return 0;
 }
 
 

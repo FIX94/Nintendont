@@ -846,7 +846,6 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		ShowMessDebug("Checking storage devices... LINE 858 autobooting");
 		// Autobooting.
 		gprintf("Autobooting:\"%s\"\r\n", ncfg->GamePath );
 		PrintInfo();
@@ -854,7 +853,6 @@ int main(int argc, char **argv)
 		ClearScreen();
 	}
 	
-	ShowMessDebug("Checking storage devices... LINE 862");
 
 //Init DI and set correct ID if needed
 	unsigned int CurDICMD = 0;
@@ -928,7 +926,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	ShowMessDebug("Checking storage devices... LINE 936");
 
 	if(SaveSettings)
 	{
@@ -969,7 +966,6 @@ int main(int argc, char **argv)
 		FlushDevices();
 	}
 
-	ShowMessDebug("Checking storage devices... LINE 977");
 
 
 	// Get multi-game and region code information.
@@ -1033,7 +1029,6 @@ int main(int argc, char **argv)
 		ExitToLoader(1);
 	}
 
-	ShowMessDebug("Checking storage devices... LINE 1041");
 
 	// Save the ISO shift value for multi-game discs.
 	*(vu32*)0xD300300C = ISOShift;
@@ -1203,7 +1198,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	ShowMessDebug("Checking storage devices... LINE 1211");
 
 	//sync changes
 	CloseDevices();
@@ -1243,7 +1237,6 @@ int main(int argc, char **argv)
 //hand over approx time passed since 1970
 	*(vu32*)0xD3003424 = (cur_time+946684800);
 
-	ShowMessDebug("Checking storage devices... LINE 1249");
 
 //set status for kernel to start running
 	*(vu32*)0xD3003420 = 0x0DEA;
@@ -1392,7 +1385,6 @@ int main(int argc, char **argv)
 	GRRLIB_FreeTTF(myFont);
 	GRRLIB_Exit();
 
-	ShowMessDebug("Checking storage devices... LINE 1396");
 
 	gprintf("GameRegion:");
 
@@ -1512,7 +1504,6 @@ int main(int argc, char **argv)
 		while(!__SYS_SyncSram());
 	}
 	
-	ShowMessDebug("Checking storage devices... LINE 1514");
 
 	ReconfigVideo(vmode);
 	VIDEO_SetBlack(FALSE);
@@ -1581,7 +1572,6 @@ int main(int argc, char **argv)
 	IOS_Ioctl(fd, IOCTL_ExecSuspendScheduler, NULL, 0, &out, 4);
 	IOS_Close(fd);
 
-	ShowMessDebug("Checking storage devices... LINE 1581");
 
 
 	if(ncfg->Config & NIN_CFG_BBA_EMU)
@@ -1646,7 +1636,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	ShowMessDebug("Checking storage devices... LINE 1643");
 
 	write16(0xD8B420A, 0); //disable MEMPROT again after reload
 	//u32 level = IRQ_Disable();
@@ -1658,7 +1647,6 @@ int main(int argc, char **argv)
 	memset((void*)(void*)0x90000000, 0, 0x1000000); //clear ARAM
 	DCFlushRange((void*)0x90000000, 0x1000000);
 
-	ShowMessDebug("Checking storage devices... LINE 1655");
 
 	gprintf("Game Start\n");
 	//alow interrupts on Y2

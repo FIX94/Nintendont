@@ -80,10 +80,6 @@ bool SelectDevAndGame(void);
  * @param msg Message.
  */
 void ShowMessageScreen(const char *msg);
-/**
- * Show message and sleep a while for debug purposes
- */
-void ShowMessDebug(const char *msg);
 
 /**
  * Show a single message screen and then exit to loader..
