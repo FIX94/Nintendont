@@ -572,24 +572,23 @@ s32 HIDOpen( u32 LoaderRequest )
 							HID_CTRL->CStickUpLeft.Mask	 	 = ConfigGetValue( Data, "CStickUpLeft", 1 );
 							HID_CTRL->CStickUpLeft.Modif	 = ConfigGetValue( Data, "CStickUpLeft", 2 );
 						}
-
-					} else {
-						HID_CTRL->CStickX.Offset	= ConfigGetValue( Data, "CStickX", 0 );
-						HID_CTRL->CStickX.DeadZone	= ConfigGetValue( Data, "CStickX", 1 );
-						HID_CTRL->CStickX.Radius	= ConfigGetDecValue( Data, "CStickX", 2 );
-						if (HID_CTRL->CStickX.Radius == 0)
-							HID_CTRL->CStickX.Radius = 80;
-						HID_CTRL->CStickX.Radius = (u64)HID_CTRL->CStickX.Radius * 1280 / (128 - HID_CTRL->CStickX.DeadZone);	//adjust for DeadZone
-						//	dbgprintf("HID:CStickX: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickX.Offset, HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius);
-
-						HID_CTRL->CStickY.Offset	= ConfigGetValue( Data, "CStickY", 0 );
-						HID_CTRL->CStickY.DeadZone	= ConfigGetValue( Data, "CStickY", 1 );
-						HID_CTRL->CStickY.Radius	= ConfigGetDecValue( Data, "CStickY", 2 );
-						if (HID_CTRL->CStickY.Radius == 0)
-							HID_CTRL->CStickY.Radius = 80;
-						HID_CTRL->CStickY.Radius = (u64)HID_CTRL->CStickY.Radius * 1280 / (128 - HID_CTRL->CStickY.DeadZone);	//adjust for DeadZone
-						//	dbgprintf("HID:CStickY: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickY.Offset, HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius);
 					}
+					HID_CTRL->CStickX.Offset	= ConfigGetValue( Data, "CStickX", 0 );
+					HID_CTRL->CStickX.DeadZone	= ConfigGetValue( Data, "CStickX", 1 );
+					HID_CTRL->CStickX.Radius	= ConfigGetDecValue( Data, "CStickX", 2 );
+					if (HID_CTRL->CStickX.Radius == 0)
+						HID_CTRL->CStickX.Radius = 80;
+					HID_CTRL->CStickX.Radius = (u64)HID_CTRL->CStickX.Radius * 1280 / (128 - HID_CTRL->CStickX.DeadZone);	//adjust for DeadZone
+					//	dbgprintf("HID:CStickX: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickX.Offset, HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius);
+
+					HID_CTRL->CStickY.Offset	= ConfigGetValue( Data, "CStickY", 0 );
+					HID_CTRL->CStickY.DeadZone	= ConfigGetValue( Data, "CStickY", 1 );
+					HID_CTRL->CStickY.Radius	= ConfigGetDecValue( Data, "CStickY", 2 );
+					if (HID_CTRL->CStickY.Radius == 0)
+						HID_CTRL->CStickY.Radius = 80;
+					HID_CTRL->CStickY.Radius = (u64)HID_CTRL->CStickY.Radius * 1280 / (128 - HID_CTRL->CStickY.DeadZone);	//adjust for DeadZone
+					//	dbgprintf("HID:CStickY: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickY.Offset, HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius);
+
 					HID_CTRL->LAnalog	= ConfigGetValue( Data, "LAnalog", 0 );
 					HID_CTRL->RAnalog	= ConfigGetValue( Data, "RAnalog", 0 );
 

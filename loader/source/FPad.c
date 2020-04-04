@@ -209,6 +209,7 @@ void FPAD_Update( void )
 	// 	HID_CTRL->CStickDownRight.Offset, HID_CTRL->CStickDownRight.Mask, HID_CTRL->CStickDownRight.Modif,
 	// 	HID_CTRL->CStickDownLeft.Offset, HID_CTRL->CStickDownLeft.Mask, HID_CTRL->CStickDownLeft.Modif,
 	// 	HID_CTRL->CStickUpLeft.Offset, HID_CTRL->CStickUpLeft.Mask, HID_CTRL->CStickUpLeft.Modif);
+	// u32 retcode = PADRead(0);
 	PADRead(0);
 
 	PADStatus *Pad = (PADStatus*)(0x93003100);
@@ -219,6 +220,9 @@ void FPAD_Update( void )
 		PAD_Stick_Y |= Pad[i].stickY;
 		PAD_Stick_X |= Pad[i].stickX;
 	}
+	// udp_printf("[%d] PAD#%i: b=%i, yx=%i,%i, cyx=%i,%i\n", retcode, i,
+	// 	Pad[0].button, Pad[0].stickY, Pad[0].stickX, Pad[0].substickY, Pad[0].substickX);
+	// usleep(200000);
 
 	if(!IsWiiU())
 	{

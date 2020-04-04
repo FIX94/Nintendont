@@ -80,8 +80,11 @@ const s8 DEADZONE = 0x1A;
 static u8 hidGetMod(volatile layout *button);
 static u8 hidButtonValue(volatile layout *button);
 static u8 hidSpecialValue(volatile layout *button);
-static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals);
-static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers, u32 *used, u16 data);
+static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals, s8 with_mods, u8 retcode);
+static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers, u32 *used_buttons, u16 data);
+static void hidTagUsedButton(volatile layout * button, u32 * used_buttons);
+static u32 used_buttons[24] = { 0 }; // how big is safe size?
+
 
 u32 PADRead(u32 calledByGame)
 {
@@ -357,13 +360,14 @@ u32 PADRead(u32 calledByGame)
 		Rumble |= ((1<<31)>>chan);
 
 		/* first buttons */
-
 		u16 button = 0;
-		u32 used_buttons[24] = { 0 };
+		s8 stickX, stickY, substickX = 0, substickY = 0;		
 		u8 modifiers_bvals[4] = { 1,
 					   hidButtonValue(&(HID_CTRL->Mod1)),
 					   hidButtonValue(&(HID_CTRL->Mod2)),
 					   hidButtonValue(&(HID_CTRL->Mod3)) };
+		for (int k=0; k<24; k++) { used_buttons[k] = 0;} // init
+		// HID MODIFIED BUTTONS LOOP
 		// first pass: process buttons with modifier (remember keys pressed)
 		// second pass: buttons without mods, omit the keys already processed
 		for (s8 with_mods=1; with_mods >= 0; with_mods--)
@@ -460,9 +464,42 @@ u32 PADRead(u32 calledByGame)
 			
 			if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 				button |= hidProcessButton(&(HID_CTRL->S), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_START);
-		}
-		
+			
+			// Digital CStick needs to be processed here for modified buttons disambiguation
+			if (HID_CTRL->DigitalCStick){
+				// DIGITAL CSTICK TAKES PRECEDENCE OVER ALL BUTTONS
+				// INTENDED USE IS Modifier+DPAD=EmulatedCStick
+				u8 cstickval = hidCStickValue(&(HID_CTRL->CStickUp), modifiers_bvals, with_mods,1)
+								| hidCStickValue(&(HID_CTRL->CStickDown), modifiers_bvals, with_mods,2)
+								| hidCStickValue(&(HID_CTRL->CStickRight), modifiers_bvals, with_mods,4)
+								| hidCStickValue(&(HID_CTRL->CStickLeft), modifiers_bvals, with_mods,8);
+				if(HID_CTRL->DPAD != 0){
+					cstickval |= hidCStickValue(&(HID_CTRL->CStickRightUp), modifiers_bvals, with_mods,5)
+								  | hidCStickValue(&(HID_CTRL->CStickDownRight), modifiers_bvals, with_mods,6)
+								  | hidCStickValue(&(HID_CTRL->CStickDownLeft), modifiers_bvals, with_mods,10)
+								  | hidCStickValue(&(HID_CTRL->CStickUpLeft), modifiers_bvals, with_mods,9);
+				} // sorry for weird writing way, but to save bytes :'( ... (from 0000000093003008 to 0000000093003000)
 
+				if(1 & cstickval){
+					substickY = 127;
+					hidTagUsedButton(&(HID_CTRL->CStickUp), used_buttons);
+				}
+				if(2 & cstickval){
+					substickY = -127;
+					hidTagUsedButton(&(HID_CTRL->CStickDown), used_buttons);
+				}
+				if(4 & cstickval){
+					substickX = 127;
+					hidTagUsedButton(&(HID_CTRL->CStickRight), used_buttons);
+				}
+				if(8 & cstickval){
+					substickX = -127;
+					hidTagUsedButton(&(HID_CTRL->CStickLeft), used_buttons);
+				}
+			} 
+
+		} // END OF HID MODIFIED BUTTONS LOOP
+		
 		Pad[chan].button = button;
 
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
@@ -474,7 +511,6 @@ u32 PADRead(u32 calledByGame)
 			*RESET_STATUS = 0;
 
 		/* then analog sticks */
-		s8 stickX, stickY, substickX, substickY;
 		if (PADIsBarrel[chan])
 		{
 			stickX = stickY = substickX = substickY = 0;	//DK Jungle Beat requires all sticks = 0 in menues
@@ -536,45 +572,11 @@ u32 PADRead(u32 calledByGame)
 		{
 			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
 			stickY		= 127 - HID_Packet[HID_CTRL->StickY.Offset];
-			// CStick
-			substickY = substickX = 0;
-			if (HID_CTRL->DigitalCStick){
-				if(hidCStickValue(&(HID_CTRL->CStickUp), modifiers_bvals)){
-						substickY = 127;
-				}
-				if(hidCStickValue(&(HID_CTRL->CStickDown), modifiers_bvals)){
-					substickY = -127;
-				}
-				if(hidCStickValue(&(HID_CTRL->CStickRight), modifiers_bvals)){
-					substickX = 127;
-				}
-				if(hidCStickValue(&(HID_CTRL->CStickLeft), modifiers_bvals)){
-					substickX = -127;
-				}
-				
-				if(HID_CTRL->DPAD != 0){
-					if(hidCStickValue(&(HID_CTRL->CStickRightUp), modifiers_bvals)){
-						substickY = 127;
-						substickX = 127;
-					}
-					if(hidCStickValue(&(HID_CTRL->CStickDownRight), modifiers_bvals)){
-						substickY = -127;
-						substickX = 127;
-					}
-					if(hidCStickValue(&(HID_CTRL->CStickDownLeft), modifiers_bvals)){
-						substickY = -127;
-						substickX = -127;
-					}
-					if(hidCStickValue(&(HID_CTRL->CStickUpLeft), modifiers_bvals)){
-						substickY = 127;
-						substickX = -127;
-					}
-				}
-			} else {
+			if(! HID_CTRL->DigitalCStick) { // DigitalCStick has been handled previously in the buttons loop
 				substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;
 				substickY	= 127 - HID_Packet[HID_CTRL->CStickY.Offset];
 			}
-		}
+		}		
 	
 		s8 tmp_stick = 0;
 		if(stickX > HID_CTRL->StickX.DeadZone && stickX > 0)
@@ -1455,32 +1457,37 @@ static u8 hidSpecialValue(volatile layout *button){
 	// return (boolean) DPADbutton is pressed -> for special DPAD encoding
 	return (HID_Packet[button->Offset] & HID_CTRL->DPADMask) == button->Mask;
 }
-static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals){
-	return modifiers_bvals[hidGetMod(cstick_button)] && hidButtonValue(cstick_button) // Standard case CStickButton is ON
+static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals, s8 with_mods, u8 retcode){
+	u8 m = hidGetMod(cstick_button);
+	if((with_mods == 0) ^ (m > 0)  // [with_mods=1 && m>0] OR [with_mods=0 && m=0]  
+		&& modifiers_bvals[m] && hidButtonValue(cstick_button) // Standard case CStickButton is ON
 		// Special case if offset is DPAD and DPAD encodes special -> needs testing
 		&& ((cstick_button->Offset != HID_CTRL->Up.Offset) // button is not DPAD
 		// using Up.Offset for DPAD.Offset : fingers crossed that always all on the same offset for every HID
 			|| (HID_CTRL->DPAD == 0) // DPAD is not special
-			|| hidSpecialValue(cstick_button)); // is DPAD and Special but checks out
+			|| hidSpecialValue(cstick_button))) // is DPAD and Special but checks out
+	{ return retcode;
+	} else { return 0; }
 }
-static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers, u32 *used, u16 data){
+static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers_bvals, u32 *used_buttons, u16 data){
 	// Test the modifier combo and return data if passes
 	// modifiers: array of size 3
 	// used: array of size 24	
 	u8 m = hidGetMod(button);
-	if ((with_mods && (m > 0) && modifiers[m-1]) || (!with_mods && (m==0))) {
+	if ((with_mods==1 && m>0 && modifiers_bvals[m]) || (with_mods==0 && m==0)) {
 		// modif combo test passed
-		// used[button->Offset] |= button->Mask;
-		return data;
-		// FIXME test if used
-		// if(!(used[button->Offset] & (button->Mask))) {
-		// 	// button not used already
-		// 	return data;
-		// }
+		// test if used
+		if(!(used_buttons[button->Offset] & (button->Mask == 0 ? 0x10000 : button->Mask))) {
+			// button not used already
+			hidTagUsedButton(button, used_buttons);
+			return data;
+		}
 	}
 	return 0;
 }
-
+static void hidTagUsedButton(volatile layout * button, u32 * used_buttons){
+	used_buttons[button->Offset] |= (button->Mask == 0 ? 0x10000 : button->Mask); // buttons masks are actually u8 
+}
 
 /* Functions for PSO Keyboard */
 static void kbDoSpecial(u8 *in, u8 *out)
