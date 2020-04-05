@@ -1,9 +1,4 @@
 #include "../../../../../common/include/CommonConfig.h"
-
-// #define DEFAULT_UDP_LOG_HOST "192.168.43.132"
-// #define DEFAULT_UDP_LOG_PORT 9930
-// #include "../../../../../kernel/udp_log.h"
-
 #include "global.h"
 #include "HID.h"
 #include "hidmem.h"
@@ -77,13 +72,13 @@ const s8 DEADZONE = 0x1A;
 	else if(tmp_stick16 < -0x80) tmp_stick8 = -0x80; \
 	else tmp_stick8 = (s8)tmp_stick16;
 
-static u8 hidGetMod(volatile layout *button);
+// HID enable mapping with 3 modifiers
 static u8 hidButtonValue(volatile layout *button);
-static u8 hidSpecialValue(volatile layout *button);
-static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals, s8 with_mods, u8 retcode);
-static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers, u32 *used_buttons, u16 data);
-static void hidTagUsedButton(volatile layout * button, u32 * used_buttons);
-static u32 used_buttons[24] = { 0 }; // how big is safe size?
+static u8 hidIsButtonOn(volatile layout *button, u8 with_mods);
+static u8 hidConsume(volatile layout *button, u8 with_mods);
+static s8 hidRectifyStickValue(volatile stickLayout *stick, s8 raw_value);
+static u32 used_buttons[24]; // how big is safe size?
+static u8 modifiers_boolvals[4] = {1}; // no_mod + 3 modifiers, booleans
 
 
 u32 PADRead(u32 calledByGame)
@@ -349,6 +344,46 @@ u32 PADRead(u32 calledByGame)
 			PrevAdapterChannel3 = PrevAdapterChannel4;
 			PrevAdapterChannel4 = HID_Packet[0] - 1;
 		}
+		if (HID_CTRL->MultiIn == 3)		//multiple controllers connected to a single usb port all in one message
+		{
+			HID_Packet = (vu8*)(0x930050F0 + (chan * HID_CTRL->MultiInValue));	//skip forward how ever many bytes in each controller
+			u32 HID_CacheEndBlock = ALIGN32(((u32)HID_Packet) + HID_CTRL->MultiInValue); //calculate upper cache block used
+			if(HID_CacheEndBlock > HIDMemPrep) //new cache block, prepare memory
+			{
+				memInvalidate = HID_CacheEndBlock;
+				asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
+				HIDMemPrep = memInvalidate;
+			}
+			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo WiiU Gamecube Adapter
+			{
+				// 0x04=port powered 0x10=normal controller 0x22=wavebird communicating
+				if (((HID_Packet[1] & 0x10) == 0)	//normal controller not connected
+				 && ((HID_Packet[1] & 0x22) != 0x22))	//wavebird not connected
+				{
+					*HIDMotor &= ~(1 << chan); //make sure to disable rumble just in case
+					continue;	//try next controller
+				}
+				if(((MotorCommand[chan]&3) == 1) && (HID_Packet[1] & 0x04))	//game wants rumbe and controller has power for rumble.
+					*HIDMotor |= (1 << chan);
+				else
+					*HIDMotor &= ~(1 << chan);
+
+				if ((HID_Packet[HID_CTRL->StickX.Offset] < 5)		//if connected device is a bongo
+				  &&(HID_Packet[HID_CTRL->StickY.Offset] < 5)
+				  &&(HID_Packet[HID_CTRL->CStickX.Offset] < 5)
+				  &&(HID_Packet[HID_CTRL->CStickY.Offset] < 5)
+				  &&(HID_Packet[HID_CTRL->LAnalog] < 5))
+				{
+					PADBarrelEnabled[chan] = 1;
+					PADIsBarrel[chan] = 1;
+				}
+				else
+				{
+					PADBarrelEnabled[chan] = 0;
+					PADIsBarrel[chan] = 0;
+				}
+			}
+		}
 
 		if(calledByGame && HID_CTRL->Power.Mask &&	//exit if power configured and all power buttons pressed
 		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
@@ -362,89 +397,74 @@ u32 PADRead(u32 calledByGame)
 		/* first buttons */
 		u16 button = 0;
 		s8 stickX, stickY, substickX = 0, substickY = 0;		
-		u8 modifiers_bvals[4] = { 1,
-					   hidButtonValue(&(HID_CTRL->Mod1)),
-					   hidButtonValue(&(HID_CTRL->Mod2)),
-					   hidButtonValue(&(HID_CTRL->Mod3)) };
-		for (int k=0; k<24; k++) { used_buttons[k] = 0;} // init
+		modifiers_boolvals[1] = hidButtonValue(&(HID_CTRL->Mod1));
+		modifiers_boolvals[2] = hidButtonValue(&(HID_CTRL->Mod2));
+		modifiers_boolvals[3] = hidButtonValue(&(HID_CTRL->Mod3));
+		for (int k=0; k<24; k++) { used_buttons[k] = 0; } // init
 		// HID MODIFIED BUTTONS LOOP
 		// first pass: process buttons with modifier (remember keys pressed)
 		// second pass: buttons without mods, omit the keys already processed
 		for (s8 with_mods=1; with_mods >= 0; with_mods--)
 		{
-			if(HID_CTRL->DPAD == 0)
+			// consume DPAD
+			if(hidConsume(&(HID_CTRL->Left), with_mods))
+				button |= PAD_BUTTON_LEFT;
+			if(hidConsume(&(HID_CTRL->Right), with_mods))
+				button |= PAD_BUTTON_RIGHT;
+			if(hidConsume(&(HID_CTRL->Down), with_mods))
+				button |= PAD_BUTTON_DOWN;
+			if(hidConsume(&(HID_CTRL->Up), with_mods))
+				button |= PAD_BUTTON_UP;
+			if(HID_CTRL->DPAD) // HID_CTRL->DPAD not 0 
 			{
-				if( HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->Left.Mask )
-					button |= hidProcessButton(&(HID_CTRL->Left), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_LEFT);
-
-				if( HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->Right.Mask )
-					button |= hidProcessButton(&(HID_CTRL->Right), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_RIGHT);
-		
-				if( HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->Down.Mask )
-					button |= hidProcessButton(&(HID_CTRL->Down), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_DOWN);
-		
-				if( HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->Up.Mask )
-					button |= hidProcessButton(&(HID_CTRL->Up), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_UP);
+				if(hidConsume(&(HID_CTRL->UpLeft), with_mods))
+					button |= PAD_BUTTON_LEFT | PAD_BUTTON_UP;
+				if(hidConsume(&(HID_CTRL->RightUp), with_mods))
+					button |= PAD_BUTTON_RIGHT | PAD_BUTTON_UP;
+				if(hidConsume(&(HID_CTRL->DownLeft), with_mods))
+					button |= PAD_BUTTON_DOWN | PAD_BUTTON_LEFT;
+				if(hidConsume(&(HID_CTRL->DownRight), with_mods))
+					button |= PAD_BUTTON_DOWN | PAD_BUTTON_RIGHT;
 			}
-			else
-			{
-				if(((HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Up.Mask)		 || ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask)			|| ((HID_Packet[HID_CTRL->RightUp.Offset]	& HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
-					button |= hidProcessButton(&(HID_CTRL->Up), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_UP);
+			// other buttons
+			if(hidConsume(&(HID_CTRL->A), with_mods))
+				button |= PAD_BUTTON_A;
+			if(hidConsume(&(HID_CTRL->B), with_mods))
+				button |= PAD_BUTTON_B;
+			if(hidConsume(&(HID_CTRL->S), with_mods))
+				button |= PAD_BUTTON_START;
+			if(hidConsume(&(HID_CTRL->X), with_mods))
+				button |= PAD_BUTTON_X;
+			if(hidConsume(&(HID_CTRL->Y), with_mods))
+				button |= PAD_BUTTON_Y;
+			if(hidConsume(&(HID_CTRL->Z), with_mods))
+				button |= PAD_TRIGGER_Z;
 
-				if(((HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Right.Mask) || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->RightUp.Offset] & HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
-					button |= hidProcessButton(&(HID_CTRL->Right), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_RIGHT);
-
-				if(((HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Down.Mask)	 || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask))
-					button |= hidProcessButton(&(HID_CTRL->Down), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_DOWN);
-		
-				if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
-					button |= hidProcessButton(&(HID_CTRL->Left), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_LEFT);
-			}
-
-			if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
-				button |= hidProcessButton(&(HID_CTRL->A), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_A);
-			if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)
-				button |= hidProcessButton(&(HID_CTRL->B), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_B);
-			if(HID_Packet[HID_CTRL->X.Offset] & HID_CTRL->X.Mask)
-				button |= hidProcessButton(&(HID_CTRL->X), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_X);
-			if(HID_Packet[HID_CTRL->Y.Offset] & HID_CTRL->Y.Mask)
-				button |= hidProcessButton(&(HID_CTRL->Y), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_Y);
-			if(HID_Packet[HID_CTRL->Z.Offset] & HID_CTRL->Z.Mask)
-				button |= hidProcessButton(&(HID_CTRL->Z), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_Z);
-
-			if( HID_CTRL->DigitalLR == 1)	//digital trigger buttons only
-			{
-				if(!(HID_Packet[HID_CTRL->ZL.Offset] & HID_CTRL->ZL.Mask))	//ZL acts as shift for half pressed
-				{
-					if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
-						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_L);
-					if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
-						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_R);
-				}
-			}
-			else if( HID_CTRL->DigitalLR == 2)	//no digital trigger buttons compute from analog trigger values
+			// LR triggers
+			if( HID_CTRL->DigitalLR == 2)	//no digital trigger buttons compute from analog trigger values
 			{
 				if ((HID_CTRL->VID == 0x0925) && (HID_CTRL->PID == 0x03E8))	//Mayflash Classic Controller Pro Adapter
 				{
 					if((HID_Packet[HID_CTRL->L.Offset] & 0x7C) >= HID_CTRL->L.Mask)	//only some bits are part of this control
-						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_L);
+						button |= PAD_TRIGGER_L;
 					if((HID_Packet[HID_CTRL->R.Offset] & 0x0F) >= HID_CTRL->R.Mask)	//only some bits are part of this control
-						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_R);
+						button |= PAD_TRIGGER_R;
 				}
 				else	//standard no digital trigger button
 				{
 					if(HID_Packet[HID_CTRL->L.Offset] >= HID_CTRL->L.Mask)
-						button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_L);
+						button |= PAD_TRIGGER_L;
 					if(HID_Packet[HID_CTRL->R.Offset] >= HID_CTRL->R.Mask)
-						button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_R);
+						button |= PAD_TRIGGER_R;
 				}
 			}
-			else	//standard digital left and right trigger buttons
-			{
-				if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
-					button |= hidProcessButton(&(HID_CTRL->L), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_L);
-				if(HID_Packet[HID_CTRL->R.Offset] & HID_CTRL->R.Mask)
-					button |= hidProcessButton(&(HID_CTRL->R), with_mods, modifiers_bvals, used_buttons, PAD_TRIGGER_R);
+			else if((HID_CTRL->DigitalLR != 1) || !(HID_Packet[HID_CTRL->ZL.Offset] & HID_CTRL->ZL.Mask)) {
+				// when HID_CTRL->DigitalLR == 1 : ZL acts as shift for half pressed
+				// otherwise standard digital left and right trigger buttons
+				if(hidConsume(&(HID_CTRL->L), with_mods))
+					button |= PAD_TRIGGER_L;
+				if(hidConsume(&(HID_CTRL->R), with_mods))
+					button |= PAD_TRIGGER_R;
 			}
 
 			if (PADBarrelEnabled[chan] && PADIsBarrel[chan]) //if bongo controller
@@ -462,40 +482,25 @@ u32 PADRead(u32 calledByGame)
 						button |= PAD_TRIGGER_R;	//force button presss todo: bogo should only be using analog
 			}
 			
-			if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
-				button |= hidProcessButton(&(HID_CTRL->S), with_mods, modifiers_bvals, used_buttons, PAD_BUTTON_START);
-			
 			// Digital CStick needs to be processed here for modified buttons disambiguation
 			if (HID_CTRL->DigitalCStick){
 				// DIGITAL CSTICK TAKES PRECEDENCE OVER ALL BUTTONS
 				// INTENDED USE IS Modifier+DPAD=EmulatedCStick
-				u8 cstickval = hidCStickValue(&(HID_CTRL->CStickUp), modifiers_bvals, with_mods,1)
-								| hidCStickValue(&(HID_CTRL->CStickDown), modifiers_bvals, with_mods,2)
-								| hidCStickValue(&(HID_CTRL->CStickRight), modifiers_bvals, with_mods,4)
-								| hidCStickValue(&(HID_CTRL->CStickLeft), modifiers_bvals, with_mods,8);
+				u8 cstickval = hidConsume(&(HID_CTRL->CStickUp), with_mods)
+								| ( hidConsume(&(HID_CTRL->CStickDown), with_mods) << 1 )
+								| ( hidConsume(&(HID_CTRL->CStickRight), with_mods) << 2 )
+								| ( hidConsume(&(HID_CTRL->CStickLeft), with_mods) << 3 );
 				if(HID_CTRL->DPAD != 0){
-					cstickval |= hidCStickValue(&(HID_CTRL->CStickRightUp), modifiers_bvals, with_mods,5)
-								  | hidCStickValue(&(HID_CTRL->CStickDownRight), modifiers_bvals, with_mods,6)
-								  | hidCStickValue(&(HID_CTRL->CStickDownLeft), modifiers_bvals, with_mods,10)
-								  | hidCStickValue(&(HID_CTRL->CStickUpLeft), modifiers_bvals, with_mods,9);
-				} // sorry for weird writing way, but to save bytes :'( ... (from 0000000093003008 to 0000000093003000)
+					if( hidConsume(&(HID_CTRL->CStickRightUp), with_mods)) { cstickval |= 5; }
+					if( hidConsume(&(HID_CTRL->CStickDownRight), with_mods)) { cstickval |= 6; }
+					if( hidConsume(&(HID_CTRL->CStickUpLeft), with_mods)) { cstickval |= 9; }
+					if( hidConsume(&(HID_CTRL->CStickDownLeft), with_mods)) { cstickval |= 10; }
+				} // sorry for weird writing way, but need to save bytes :'( ... (from 093003008 down to 093003000)
 
-				if(1 & cstickval){
-					substickY = 127;
-					hidTagUsedButton(&(HID_CTRL->CStickUp), used_buttons);
-				}
-				if(2 & cstickval){
-					substickY = -127;
-					hidTagUsedButton(&(HID_CTRL->CStickDown), used_buttons);
-				}
-				if(4 & cstickval){
-					substickX = 127;
-					hidTagUsedButton(&(HID_CTRL->CStickRight), used_buttons);
-				}
-				if(8 & cstickval){
-					substickX = -127;
-					hidTagUsedButton(&(HID_CTRL->CStickLeft), used_buttons);
-				}
+				if(1 & cstickval) { substickY = 127; }
+				if(2 & cstickval) { substickY = -127; }
+				if(4 & cstickval) { substickX = 127; }
+				if(8 & cstickval) { substickX = -127; }
 			} 
 
 		} // END OF HID MODIFIED BUTTONS LOOP
@@ -578,33 +583,12 @@ u32 PADRead(u32 calledByGame)
 			}
 		}		
 	
-		s8 tmp_stick = 0;
-		if(stickX > HID_CTRL->StickX.DeadZone && stickX > 0)
-			tmp_stick = (double)(stickX - HID_CTRL->StickX.DeadZone) * HID_CTRL->StickX.Radius / 1000;
-		else if(stickX < -HID_CTRL->StickX.DeadZone && stickX < 0)
-			tmp_stick = (double)(stickX + HID_CTRL->StickX.DeadZone) * HID_CTRL->StickX.Radius / 1000;
-		Pad[chan].stickX = tmp_stick;
-	
-		tmp_stick = 0;
-		if(stickY > HID_CTRL->StickY.DeadZone && stickY > 0)
-			tmp_stick = (double)(stickY - HID_CTRL->StickY.DeadZone) * HID_CTRL->StickY.Radius / 1000;
-		else if(stickY < -HID_CTRL->StickY.DeadZone && stickY < 0)
-			tmp_stick = (double)(stickY + HID_CTRL->StickY.DeadZone) * HID_CTRL->StickY.Radius / 1000;
-		Pad[chan].stickY = tmp_stick;
-	
-		tmp_stick = 0;
-		if(substickX > HID_CTRL->CStickX.DeadZone && substickX > 0)
-			tmp_stick = (double)(substickX - HID_CTRL->CStickX.DeadZone) * HID_CTRL->CStickX.Radius / 1000;
-		else if(substickX < -HID_CTRL->CStickX.DeadZone && substickX < 0)
-			tmp_stick = (double)(substickX + HID_CTRL->CStickX.DeadZone) * HID_CTRL->CStickX.Radius / 1000;
-		Pad[chan].substickX = tmp_stick;
-	
-		tmp_stick = 0;
-		if(substickY > HID_CTRL->CStickY.DeadZone && substickY > 0)
-			tmp_stick = (double)(substickY - HID_CTRL->CStickY.DeadZone) * HID_CTRL->CStickY.Radius / 1000;
-		else if(substickY < -HID_CTRL->CStickY.DeadZone && substickY < 0)
-			tmp_stick = (double)(substickY + HID_CTRL->CStickY.DeadZone) * HID_CTRL->CStickY.Radius / 1000;
-		Pad[chan].substickY = tmp_stick;
+		// main stick
+		Pad[chan].stickX = hidRectifyStickValue(&(HID_CTRL->StickX), stickX);
+		Pad[chan].stickY = hidRectifyStickValue(&(HID_CTRL->StickY), stickY);;
+		// Cstick
+		Pad[chan].substickX = hidRectifyStickValue(&(HID_CTRL->CStickX), substickX);
+		Pad[chan].substickY = hidRectifyStickValue(&(HID_CTRL->CStickY), substickY);;
 /*
 		Pad[chan].stickX = stickX;
 		Pad[chan].stickY = stickY;
@@ -1457,36 +1441,36 @@ static u8 hidSpecialValue(volatile layout *button){
 	// return (boolean) DPADbutton is pressed -> for special DPAD encoding
 	return (HID_Packet[button->Offset] & HID_CTRL->DPADMask) == button->Mask;
 }
-static u8 hidCStickValue(volatile layout *cstick_button, u8 * modifiers_bvals, s8 with_mods, u8 retcode){
-	u8 m = hidGetMod(cstick_button);
-	if((with_mods == 0) ^ (m > 0)  // [with_mods=1 && m>0] OR [with_mods=0 && m=0]  
-		&& modifiers_bvals[m] && hidButtonValue(cstick_button) // Standard case CStickButton is ON
-		// Special case if offset is DPAD and DPAD encodes special -> needs testing
-		&& ((cstick_button->Offset != HID_CTRL->Up.Offset) // button is not DPAD
-		// using Up.Offset for DPAD.Offset : fingers crossed that always all on the same offset for every HID
-			|| (HID_CTRL->DPAD == 0) // DPAD is not special
-			|| hidSpecialValue(cstick_button))) // is DPAD and Special but checks out
-	{ return retcode;
-	} else { return 0; }
+static u8 hidCanFitDPAD(volatile layout *button){
+	return (button->Mask & HID_CTRL->DPADMask) == button->Mask;
 }
-static u16 hidProcessButton(volatile layout *button, u8 with_mods, u8 *modifiers_bvals, u32 *used_buttons, u16 data){
-	// Test the modifier combo and return data if passes
-	// modifiers: array of size 3
-	// used: array of size 24	
+static u8 hidIsButtonOn(volatile layout *button, u8 with_mods){
 	u8 m = hidGetMod(button);
-	if ((with_mods==1 && m>0 && modifiers_bvals[m]) || (with_mods==0 && m==0)) {
-		// modif combo test passed
-		// test if used
-		if(!(used_buttons[button->Offset] & (button->Mask == 0 ? 0x10000 : button->Mask))) {
-			// button not used already
-			hidTagUsedButton(button, used_buttons);
-			return data;
-		}
-	}
-	return 0;
+	return ((with_mods == 0) ^ (m > 0))  // [with_mods=1 && m>0] OR [with_mods=0 && m=0]
+		// true if [with_mods and button has a modifier] or [not with_mods and button has no modifier]  
+		&& modifiers_boolvals[m] && hidButtonValue(button) // check if modifier + button are on
+		// Special case if button is DPAD and special DPAD encoding -> needs testing
+		&& ( !(hidCanFitDPAD(button)) // button is not DPAD
+			 || (HID_CTRL->DPAD == 0) // DPAD is not special
+			 || hidSpecialValue(button)) // could be Special DPAD but checks out
+		// check if button already used, the used_buttons can deactivate all buttons in a button group with shared bits
+		&& !(used_buttons[button->Offset] & (button->Mask == 0 ? 0x10000 : button->Mask)) ;
 }
-static void hidTagUsedButton(volatile layout * button, u32 * used_buttons){
+static u8 hidTagUsedButton(volatile layout * button){
 	used_buttons[button->Offset] |= (button->Mask == 0 ? 0x10000 : button->Mask); // buttons masks are actually u8 
+	return 1;
+}
+static u8 hidConsume(volatile layout *button, u8 with_mods){
+	return hidIsButtonOn(button, with_mods) && hidTagUsedButton(button);
+}
+static s8 hidRectifyStickValue(volatile stickLayout *stick, s8 raw_value){
+	// adjust value using deadzone and radius parameters
+	if(raw_value > stick->DeadZone && raw_value > 0)
+		return (double)(raw_value - stick->DeadZone) * stick->Radius / 1000;
+	else if(raw_value < -stick->DeadZone && raw_value < 0)
+		return (double)(raw_value + stick->DeadZone) * stick->Radius / 1000;
+	else
+		return 0;
 }
 
 /* Functions for PSO Keyboard */
