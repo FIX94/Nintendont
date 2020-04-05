@@ -554,7 +554,6 @@ static char dev_es[] ATTRIBUTE_ALIGN(32) = "/dev/es";
 
 extern vu32 FoundVersion;
 extern void _jmp813();
-
 int main(int argc, char **argv)
 {
 	// Exit after 10 seconds if there is an error
@@ -754,7 +753,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-
 	// FIXME: Show this information in the menu instead of
 	// aborting here.
 	if (!devices[DEV_SD] && !devices[DEV_USB])
@@ -772,13 +770,11 @@ int main(int argc, char **argv)
 	}
 	gprintf("launch_dir = %s\r\n", launch_dir);
 
-
 	// Initialize controllers.
 	// FIXME: Initialize before storage devices.
 	// Doing that right now causes usbstorage to fail...
 	FPAD_Init();
 	FPAD_Update();
-
 
 	/* Read IPL Font before doing any patches */
 	void *fontbuffer = memalign(32, 0x50000);
@@ -852,7 +848,6 @@ int main(int argc, char **argv)
 		GRRLIB_Render();
 		ClearScreen();
 	}
-	
 
 //Init DI and set correct ID if needed
 	unsigned int CurDICMD = 0;
@@ -926,7 +921,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-
 	if(SaveSettings)
 	{
 		// TODO: If the boot device is the same as the game device,
@@ -965,8 +959,6 @@ int main(int argc, char **argv)
 
 		FlushDevices();
 	}
-
-
 
 	// Get multi-game and region code information.
 	u32 ISOShift = 0;	// NOTE: This is a 34-bit shifted offset.
@@ -1028,7 +1020,6 @@ int main(int argc, char **argv)
 		// Return to the loader.
 		ExitToLoader(1);
 	}
-
 
 	// Save the ISO shift value for multi-game discs.
 	*(vu32*)0xD300300C = ISOShift;
@@ -1198,7 +1189,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-
 	//sync changes
 	CloseDevices();
 
@@ -1236,7 +1226,6 @@ int main(int argc, char **argv)
 	settime(secs_to_ticks(cur_time));
 //hand over approx time passed since 1970
 	*(vu32*)0xD3003424 = (cur_time+946684800);
-
 
 //set status for kernel to start running
 	*(vu32*)0xD3003420 = 0x0DEA;
@@ -1385,7 +1374,6 @@ int main(int argc, char **argv)
 	GRRLIB_FreeTTF(myFont);
 	GRRLIB_Exit();
 
-
 	gprintf("GameRegion:");
 
 	u32 vidForce = (ncfg->VideoMode & NIN_VID_FORCE);
@@ -1504,7 +1492,6 @@ int main(int argc, char **argv)
 		while(!__SYS_SyncSram());
 	}
 	
-
 	ReconfigVideo(vmode);
 	VIDEO_SetBlack(FALSE);
 	VIDEO_Flush();
@@ -1572,8 +1559,6 @@ int main(int argc, char **argv)
 	IOS_Ioctl(fd, IOCTL_ExecSuspendScheduler, NULL, 0, &out, 4);
 	IOS_Close(fd);
 
-
-
 	if(ncfg->Config & NIN_CFG_BBA_EMU)
 	{
 		ncfg->NetworkProfile &= 3;
@@ -1636,7 +1621,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-
 	write16(0xD8B420A, 0); //disable MEMPROT again after reload
 	//u32 level = IRQ_Disable();
 	__exception_closeall();
@@ -1646,7 +1630,6 @@ int main(int argc, char **argv)
 	DCInvalidateRange((void*)0x90000000, 0x1000000);
 	memset((void*)(void*)0x90000000, 0, 0x1000000); //clear ARAM
 	DCFlushRange((void*)0x90000000, 0x1000000);
-
 
 	gprintf("Game Start\n");
 	//alow interrupts on Y2

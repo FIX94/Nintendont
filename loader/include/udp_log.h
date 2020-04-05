@@ -1,9 +1,3 @@
-// #include <stdarg.h>
-// #include <stdio.h>
-// #include <string.h>
-// #include <network.h>
-
-// needed??  #include "global.h"
 #include <gctypes.h>
 
 

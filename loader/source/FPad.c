@@ -52,80 +52,6 @@ static u32 Repeat;
 
 static u32 (*const PADRead)(u32) = (void*)0x93000000;
 #define C_NOT_SET	(0<<0)
-
-
-typedef struct Layout
-{
-	u32 Offset;
-	u32 Mask;
-	u8 Modif;
-} layout;
-
-typedef struct StickLayout
-{
-	u32 	Offset;
-	s8		DeadZone;
-	u32		Radius;
-} stickLayout;
-
-typedef struct Controller
-{
-	u32 VID;
-	u32 PID;
-	u32 Polltype;
-	u32 DPAD;
-	u32 DPADMask;
-	u32 DigitalLR;
-	u32 DigitalCStick;
-	u32 MultiIn;
-	u32 MultiInValue;
-
-	layout Mod1;
-	layout Mod2;
-	layout Mod3;
-
-	layout Power;
-
-	layout A;
-	layout B;
-	layout X;
-	layout Y;
-	layout ZL;
-	layout Z;
-	
-	layout L;
-	layout R;
-	layout S;
-	
-	layout Left;
-	layout Down;
-	layout Right;
-	layout Up;
-
-	layout RightUp;
-	layout DownRight;
-	layout DownLeft;
-	layout UpLeft;
-
-	layout CStickUp;
-	layout CStickRight;
-	layout CStickLeft;
-	layout CStickDown;
-	layout CStickRightUp;
-	layout CStickDownRight;
-	layout CStickDownLeft;
-	layout CStickUpLeft;
-
-	stickLayout StickX;
-	stickLayout StickY;
-	stickLayout CStickX;
-	stickLayout CStickY;
-	u32 LAnalog;
-	u32 RAnalog;
-
-} controller;
-static volatile controller *HID_CTRL = (volatile controller*)0x93005000; // debug
-
 void FPAD_Init( void )
 {
 	DCInvalidateRange((void*)0x93000000, 0x3000);
@@ -196,34 +122,14 @@ void FPAD_Update( void )
 
 	/* HID */
 	HIDUpdateRegisters();
-
-	// debug
-	// sleep(1);
-	// udp_printf("CSTICK-config[offset,mask,mod]: left[%d,%d,%d] up[%d,%d,%d] down[%d,%d,%d] right[%d,%d,%d]"
-	// 	" - ru[%d,%d,%d] dr[%d,%d,%d] dl[%d,%d,%d] ul[%d,%d,%d]\n",
-	// 	HID_CTRL->CStickLeft.Offset, HID_CTRL->CStickLeft.Mask, HID_CTRL->CStickLeft.Modif,
-	// 	HID_CTRL->CStickUp.Offset, HID_CTRL->CStickUp.Mask, HID_CTRL->CStickUp.Modif,
-	// 	HID_CTRL->CStickDown.Offset, HID_CTRL->CStickDown.Mask, HID_CTRL->CStickDown.Modif,
-	// 	HID_CTRL->CStickRight.Offset, HID_CTRL->CStickRight.Mask, HID_CTRL->CStickRight.Modif,
-	// 	HID_CTRL->CStickRightUp.Offset, HID_CTRL->CStickRightUp.Mask, HID_CTRL->CStickRightUp.Modif,
-	// 	HID_CTRL->CStickDownRight.Offset, HID_CTRL->CStickDownRight.Mask, HID_CTRL->CStickDownRight.Modif,
-	// 	HID_CTRL->CStickDownLeft.Offset, HID_CTRL->CStickDownLeft.Mask, HID_CTRL->CStickDownLeft.Modif,
-	// 	HID_CTRL->CStickUpLeft.Offset, HID_CTRL->CStickUpLeft.Mask, HID_CTRL->CStickUpLeft.Modif);
-	// u32 retcode = PADRead(0);
 	PADRead(0);
-
 	PADStatus *Pad = (PADStatus*)(0x93003100);
-
 	for(i = 0; i < PAD_CHANMAX; ++i)
 	{
 		PAD_Pressed |= Pad[i].button;
 		PAD_Stick_Y |= Pad[i].stickY;
 		PAD_Stick_X |= Pad[i].stickX;
 	}
-	// udp_printf("[%d] PAD#%i: b=%i, yx=%i,%i, cyx=%i,%i\n", retcode, i,
-	// 	Pad[0].button, Pad[0].stickY, Pad[0].stickX, Pad[0].substickY, Pad[0].substickX);
-	// usleep(200000);
-
 	if(!IsWiiU())
 	{
 		PAD_ScanPads();
@@ -234,7 +140,6 @@ void FPAD_Update( void )
 			PAD_Stick_X |= PAD_StickX(i);
 		}
 	}
-
 	if( WPAD_Pressed == 0 && PAD_Pressed == 0 && WiiDRC_Pressed == 0 && ( PAD_Stick_Y < 25 && PAD_Stick_Y > -25 )  && ( PAD_Stick_X < 25 && PAD_Stick_X > -25 ) )
 	{
 		Repeat = 0;
@@ -253,7 +158,6 @@ void FPAD_Update( void )
 	//Power Button
 	if((*(vu32*)0xCD8000C8) & 1)
 		SetShutdown();
-
 }
 bool FPAD_Up( bool ILock )
 {

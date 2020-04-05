@@ -42,7 +42,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ff_utf8.h"
 #include "ShowGameInfo.h"
 
-
 // Dark gray for grayed-out menu items.
 #define DARK_GRAY 0x666666FF
 
@@ -1899,7 +1898,6 @@ bool SelectDevAndGame(void)
 			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
 			redraw = true;
 		}
-
 	}
 
 	return SaveSettings;
