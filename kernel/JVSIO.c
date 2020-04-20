@@ -275,14 +275,14 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 								PlayerData[0] |= 0x80; // Start
 							if( PadBuff[i].triggerRight > 0x44 && inTestMenu )
 								PlayerData[0] |= 0x40; // Service button
-							if( PadBuff[i].stickY > 0x30 )
+							if( (PadBuff[i].stickY > 0x30) || (PadBuff[i].button & PAD_BUTTON_UP) )
 								PlayerData[0] |= 0x20; // Move Up
-							if( PadBuff[i].stickY < -0x30 )
+							if( (PadBuff[i].stickY < -0x30) || (PadBuff[i].button & PAD_BUTTON_DOWN) )
 								PlayerData[0] |= 0x10; // Move Down
-							if( PadBuff[i].stickX < -0x30 )
-								PlayerData[0] |= 0x08; // Move Right
-							if( PadBuff[i].stickX > 0x30 )
-								PlayerData[0] |= 0x04; // Move Left
+							if( (PadBuff[i].stickX > 0x30) || (PadBuff[i].button & PAD_BUTTON_RIGHT) )
+								PlayerData[0] |= 0x04; // Move Right
+							if( (PadBuff[i].stickX < -0x30) || (PadBuff[i].button & PAD_BUTTON_LEFT) )
+								PlayerData[0] |= 0x08; // Move Left
 							if( PadBuff[i].button & PAD_BUTTON_A )
 								PlayerData[0] |= 0x02; // Long Pass
 							if( PadBuff[i].button & PAD_BUTTON_X )
@@ -315,14 +315,14 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 								PlayerData[0] |= 0x80; // Start
 							if( PadBuff[i].triggerRight > 0x44 && inTestMenu )
 								PlayerData[0] |= 0x40; // Service button
-							if( PadBuff[i].stickY > 0x30 )
+							if( (PadBuff[i].stickY > 0x30) || (PadBuff[i].button & PAD_BUTTON_UP) )
 								PlayerData[0] |= 0x20; // Move Up
-							if( PadBuff[i].stickY < -0x30 )
+							if( (PadBuff[i].stickY < -0x30) || (PadBuff[i].button & PAD_BUTTON_DOWN) )
 								PlayerData[0] |= 0x10; // Move Down
-							if( PadBuff[i].stickX < -0x30 )
-								PlayerData[0] |= 0x08; // Move Right
-							if( PadBuff[i].stickX > 0x30 )
-								PlayerData[0] |= 0x04; // Move Left
+							if( (PadBuff[i].stickX > 0x30) || (PadBuff[i].button & PAD_BUTTON_RIGHT) )
+								PlayerData[0] |= 0x04; // Move Right
+							if( (PadBuff[i].stickX < -0x30) || (PadBuff[i].button & PAD_BUTTON_LEFT) )
+								PlayerData[0] |= 0x08; // Move Left
 							if( PadBuff[i].button & PAD_BUTTON_A )
 								PlayerData[0] |= 0x02; // A
 							if( PadBuff[i].button & PAD_BUTTON_B )
