@@ -388,11 +388,10 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 								val = PadBuff[0].stickX + 0x80; // Steering X
 							else if(i == 1)
 								val = PadBuff[0].stickY + 0x80; // Steering Y
-							else if(i == 4) {
+							else if(i == 4) 
 								val = PadBuff[0].triggerRight; //Gas
-							} else if(i == 5) {
+							else if(i == 5)
 								val = PadBuff[0].triggerLeft; //Brake
-							}
 							break;
 						case TRI_VS4:
 							if(i == 0)
