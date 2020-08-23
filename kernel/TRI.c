@@ -79,10 +79,12 @@ vu32 TRIGame = TRI_NONE;
 extern vu32 AXTimerOffset;
 
 u32 arcadeMode = 0;
+u32 analogPedals = 0;
 void TRIInit()
 {
 	GCAMInit();
 	arcadeMode = ConfigGetConfig(NIN_CFG_ARCADE_MODE);
+	analogPedals = ConfigGetConfig(NIN_CFG_TRI_ANALOG_PEDALS);
 }
 
 void TRIReset()
