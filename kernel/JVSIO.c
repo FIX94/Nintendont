@@ -19,6 +19,7 @@ extern vu8 m_msg[0x80];
 
 extern vu32 TRIGame;
 extern u32 arcadeMode;
+extern u32 analogPedals;
 vu32 AXTimerOffset = 0;
 static const char TRI_SegaChar[] = "SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00";
 static const char TRI_NamcoChar[] = "namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder";
@@ -239,10 +240,20 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						case TRI_GP2:
 							if( PadBuff[0].button & PAD_BUTTON_X && inTestMenu )
 								PlayerData[0] |= 0x40; // Service button
-							if( PadBuff[0].button & PAD_BUTTON_A )
-								PlayerData[1] |= 0x10; // Item button
-							if( PadBuff[0].button & PAD_BUTTON_B )
-								PlayerData[1] |= 0x02; // Cancel button
+							if(analogPedals)
+                            				{
+                                				if( PadBuff[0].button & PAD_BUTTON_A )
+                                    					PlayerData[1] |= 0x10; // Item button
+                                				if( PadBuff[0].button & PAD_BUTTON_B )
+                                    					PlayerData[1] |= 0x02; // Cancel button
+                            				}
+                            				else
+                            				{
+                                				if( PadBuff[0].button & PAD_BUTTON_Y )
+                                    					PlayerData[1] |= 0x10; // Item button
+                                				if( PadBuff[0].button & PAD_BUTTON_START )
+                                    					PlayerData[1] |= 0x02; // Cancel button
+                            				}
 							break;
 						case TRI_AX:
 							if(i == 0)
@@ -264,10 +275,20 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 							}
 							else if(i == 1)
 							{
-								if( PadBuff[0].triggerLeft > 0x44 )
-									PlayerData[0] |= 0x20; // Paddle Left
-								if( PadBuff[0].triggerRight > 0x44 )
-									PlayerData[0] |= 0x10; // Paddle Right
+								if(analogPedals)
+                                				{
+                                    					if( PadBuff[0].button & PAD_BUTTON_B )
+                                        					PlayerData[0] |= 0x20; // Paddle Left
+                                    					if( PadBuff[0].button & PAD_BUTTON_A )
+                                        					PlayerData[0] |= 0x10; // Paddle Right
+                                				}
+								else
+                                				{
+                                    					if( PadBuff[0].triggerLeft > 0x44 )
+                                        					PlayerData[0] |= 0x20; // Paddle Left
+                                    					if( PadBuff[0].triggerRight > 0x44 )
+                                        					PlayerData[0] |= 0x10; // Paddle Right
+                                				}
 							}
 							break;
 						case TRI_VS3:
@@ -378,21 +399,44 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 						case TRI_GP2:
 							if(i == 0)
 								val = PadBuff[0].stickX + 0x80; // Steering
-							else if(i == 1)
-								val = PadBuff[0].triggerRight >> 1; //Gas
-							else if(i == 2)
-								val = PadBuff[0].triggerLeft >> 1; //Brake
+							else if(i == 1) //Gas
+                            				{
+                                				if(analogPedals)
+                                    					val = PadBuff[0].triggerRight >> 1;
+                                				else {
+                                    					if(PadBuff[0].button & PAD_BUTTON_A) val = 0x7F;
+                                				}
+                            				}
+							else if(i == 2) //Brake
+                            				{
+                                				if(analogPedals)
+                                    					val = PadBuff[0].triggerLeft >> 1;
+                                				else {
+                                    					if(PadBuff[0].button & PAD_BUTTON_B) val = 0x7F;
+                                				}
+                            				}
 							break;
 						case TRI_AX:
 							if(i == 0)
 								val = PadBuff[0].stickX + 0x80; // Steering X
 							else if(i == 1)
 								val = PadBuff[0].stickY + 0x80; // Steering Y
-							else if(i == 4) {
-								if(PadBuff[0].button & PAD_BUTTON_A) val = 0xFF; //Gas
-							} else if(i == 5) {
-								if(PadBuff[0].button & PAD_BUTTON_B) val = 0xFF; //Brake
-							}
+							else if(i == 4) //Gas
+                            				{
+                                				if(analogPedals)
+                                    					val = PadBuff[0].triggerRight;
+                                				else {
+                                    					if(PadBuff[0].button & PAD_BUTTON_A) val = 0xFF;
+                                				}
+                            				}
+							else if(i == 5) //Brake
+                            				{
+                                				if(analogPedals)
+                                    					val = PadBuff[0].triggerLeft;
+                                				else {
+                                    					if(PadBuff[0].button & PAD_BUTTON_B) val = 0xFF;
+                                				}
+                            				}
 							break;
 						case TRI_VS4:
 							if(i == 0)
