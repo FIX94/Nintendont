@@ -441,6 +441,7 @@ void UpdateNinCFG()
 	if (ncfg->Version == 6)
 	{	//New flag, disabled by default
 		ncfg->Config &= ~NIN_CFG_ARCADE_MODE;
+		ncfg->Config &= ~NIN_CFG_TRI_ANALOG_PEDALS;
 		ncfg->Version = 7;
 	}
 	if (ncfg->Version == 7)
