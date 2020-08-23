@@ -1032,8 +1032,22 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				};
 				return desc_tri_arcade;
 			}
-
+				
 			case 4: {
+				// Triforce Analog Pedals
+				static const char *desc_tri_analog[] = {
+					"Allows for full control of",
+					"the pedals in the Triforce",
+					"racing games.",
+					"",
+					"Non-analog pedals: A and B",
+					"Analog pedals: L and R",
+					NULL
+				};
+				return desc_tri_analog;
+			}
+
+			case 5: {
 				// Wiimote CC Rumble
 				static const char *desc_cc_rumble[] = {
 					"Enable rumble on Wii Remotes",
@@ -1045,7 +1059,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_cc_rumble;
 			}
 
-			case 5: {
+			case 6: {
 				// Skip IPL
 				static const char *desc_skip_ipl[] = {
 					"Skip loading the GameCube",
@@ -1056,7 +1070,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_skip_ipl;
 			}
 
-			case 6: {
+			case 7: {
 				// BBA Emulation
 				static const char *desc_skip_bba[] = {
 					"Enable BBA Emulation in the",
@@ -1074,7 +1088,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_skip_bba;
 			}
 
-			case 7: {
+			case 8: {
 				// BBA Network Profile
 				static const char *desc_skip_netprof[] = {
 					"Force a Network Profile",
@@ -1391,29 +1405,36 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ncfg->Config ^= (NIN_CFG_ARCADE_MODE);
 					ctx->redraw = true;
 					break;
-
+					
 				case 4:
+					// Triforce Analog Pedals.
+					ctx->saveSettings = true;
+					ncfg->Config ^= (NIN_CFG_TRI_ANALOG_PEDALS);
+					ctx->redraw = true;
+					break;
+
+				case 5:
 					// Wiimote CC Rumble
 					ctx->saveSettings = true;
 					ncfg->Config ^= (NIN_CFG_CC_RUMBLE);
 					ctx->redraw = true;
 					break;
 
-				case 5:
+				case 6:
 					// Skip IPL
 					ctx->saveSettings = true;
 					ncfg->Config ^= (NIN_CFG_SKIP_IPL);
 					ctx->redraw = true;
 					break;
 
-				case 6:
+				case 7:
 					// BBA Emulation
 					ctx->saveSettings = true;
 					ncfg->Config ^= (NIN_CFG_BBA_EMU);
 					ctx->redraw = true;
 					break;
 
-				case 7:
+				case 8:
 					// BBA Network Profile
 					ctx->saveSettings = true;
 					ncfg->NetworkProfile++;
@@ -1579,6 +1600,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		// Triforce Arcade Mode.
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
 			    "%-18s:%-4s", "TRI Arcade Mode", (ncfg->Config & (NIN_CFG_ARCADE_MODE)) ? "On " : "Off");
+		ListLoopIndex++;
+		
+		// Triforce Analog Pedals.
+		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
+			    "%-18s:%-4s", "TRI Analog Pedals", (ncfg->Config & (NIN_CFG_TRI_ANALOG_PEDALS)) ? "On " : "Off");
 		ListLoopIndex++;
 
 		// Wiimote CC Rumble
