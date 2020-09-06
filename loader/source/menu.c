@@ -1161,7 +1161,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 8))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 9))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1188,7 +1188,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 7;
+				ctx->settings.posX = 8;
 			}
 		}
 
