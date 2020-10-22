@@ -151,7 +151,7 @@ static void updateMetaXml(void)
 		"\t<name>" META_NAME "</name>\r\n"
 		"\t<coder>" META_AUTHOR "</coder>\r\n"
 		"\t<version>%d.%d%s</version>\r\n"
-		"\t<release_date>20160710000000</release_date>\r\n"
+		"\t<release_date>2020-10-21</release_date>\r\n"
 		"\t<short_description>" META_SHORT "</short_description>\r\n"
 		"\t<long_description>" META_LONG1 "\r\n\r\n" META_LONG2 "</long_description>\r\n"
 		"\t<no_ios_reload/>\r\n"
