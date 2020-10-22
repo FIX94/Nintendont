@@ -1,7 +1,7 @@
 ### Nintendont with XBOX360 controller support
 * Only XBOX360 **wired version** is supported (VID=0x045e, PID=0x028e)
 * You control player 1.
-* Tested on Wii with Nintendont-XBOX360 and Super Mario Sunshine on SD card.
+* Tested on Wii with Super Mario Sunshine on SD card.
 
 ### HOWTO ###
 * Connect your XBOX360 controller then start Nintendont-XBOX360. (Order is optional.)
