@@ -1,46 +1,38 @@
-### Nintendont
-A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
+### Nintendont with XBOX360 controller support
+* Only XBOX360 **wired version** is supported (VID=0x045e, PID=0x028e)
+* You control player 1.
+* Tested on Wii with Nintendont-XBOX360 and Super Mario Sunshine on SD card.
 
-### Features:
-* Works on Wii and Wii U (in vWii mode)
-* Full-speed loading from a USB device or an SD card.
-* Loads 1:1 and shrunken .GCM/.ISO disc images.
-* Loads games as extracted files (FST format)
-* Loads CISO-format disc images. (uLoader CISO format)
-* Memory card emulation
-* Play audio via disc audio streaming
-* Bluetooth controller support (Classic Controller (Pro), Wii U Pro Controller)
-* HID controller support via USB
-* Custom button layout when using HID controllers
-* Cheat code support
-* Changeable configuration of various settings
-* Reset/Power off via button combo (R + Z + Start) (R + Z + B + D-Pad Down)
-* Advanced video mode patching, force progressive and force 16:9 widescreen
-* Auto boot from loader
-* Disc switching
-* Use the official Nintendo GameCube controller adapter
-* BBA Emulation (see [BBA Emulation Readme](BBA_Readme.md))
+### HOWTO ###
+* Connect your XBOX360 controller then start Nintendont-XBOX360. (Order is optional.)
+* The XBOX360 LED 1 should now light up and the gamepad should react.<br>
+  If you start a game the WiiMote LED says player 2.
+* If your controller doesn't work try one of these options:
+    1. Restart Nintendont-XBOX360 or your Wii.
+    2. Replug your controller.
+    3. Plug in your controller after you have started a game. 
+    4. If it is still not working, try my USB gamepad tester [RetrodeTest](https://github.com/revvv/snes9xgx-retrode/releases/download/0.5/RetrodeTest-0.2.zip)
+    to check if your Gamepad works at all.
+    5. Set `EndpointOut=0` in`/controller/045e_028e.ini`. This will disable LED and rumble.<br>
+    Also use this settings if your Wii crashes. (Rare crashes are normal, though.)
+  
+### Turn on rumble ###
+* If it doen't work by default, set `EndpointOut=1` in `SD:/controller/045e_028e.ini`.
 
-### Features: (Wii only)
-* Play retail discs
-* Play backups from writable DVD media (Old Wii only)
-* Use real memory cards
-* GBA-Link cable
-* WiiRd
-* Allow use of the Nintendo GameCube Microphone
+### Debugging ###
+* Enable _Debugger_ and _Log_ in Nintendont-XBOX360 settings.
+* Check log file `/ndebug.log`.
+* The log file is not always written: Best practice is to start a game, then plug in your controller, then quit.
 
-### What Nintendont will never support:
-* Game Boy Player
+#### Download ###
+* [Nintendont-XBOX360-1.0.zip](https://github.com/revvv/Nintendont-XBOX360/releases/download/1.0/Nintendont-XBOX360-1.0.zip)
+* Unpack it to your SD card.
+* Put games in folder `/games`
+* *Optional:* Configure button layout in `/controller/045e_028e.ini`.
 
-### Quick Installation:
-1. Get the [loader.dol](loader/loader.dol?raw=true), rename it to boot.dol and put it in /apps/Nintendont/ along with the files [meta.xml](nintendont/meta.xml?raw=true) and [icon.png](nintendont/icon.png?raw=true).
-2. Copy your GameCube games to the /games/ directory. Subdirectories are optional for 1-disc games in ISO/GCM and CISO format.
-   * For 2-disc games, you should create a subdirectory /games/MYGAME/ (where MYGAME can be anything), then name disc 1 as "game.iso" and disc 2 as "disc2.iso".
-   * For extracted FST, the FST must be located in a subdirectory, e.g. /games/FSTgame/sys/boot.bin .
-3. Connect your storage device to your Wii or Wii U and start The Homebrew Channel.
-4. Select Nintendont.
+### Compile
+Get these versions: devkitppc r29-1, devkitarm r47 and libogc 1.8.16 and execute _make_. 
 
-### Notes
-* The Wii and Wii U SD card slot is known to be slow. If you're using an SD card and are having performance issues, consider either using a USB SD reader or a USB hard drive.
-* USB flash drives are known to be problematic.
-* Nintendont runs best with storage devices formatted with 32 KB clusters. (Use either FAT32 or exFAT.)
+### Disclaimer
+This software comes without any warranty. I am not responsible for any damage to your devices. Please make backups!
+
