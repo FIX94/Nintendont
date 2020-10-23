@@ -17,7 +17,8 @@
     Also use this settings if your Wii crashes. (Rare crashes are normal, though.)
   
 ### Turn on rumble ###
-* If it doen't work by default, set `EndpointOut=1` in `SD:/controller/045e_028e.ini`.
+* If it doen't work by default, set `EndpointOut=2` in `SD:/controller/045e_028e.ini`.<br>
+  The default is `EndpointOut=1` which is surprisingly correct for my controller ;-)
 
 ### Debugging ###
 * Enable _Debugger_ and _Log_ in Nintendont-XBOX360 settings.
