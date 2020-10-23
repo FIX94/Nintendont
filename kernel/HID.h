@@ -106,7 +106,6 @@ void HIDPS3Init( void );
 void HIDXBOX360Init( void );
 void HIDPS3Read( void );
 void HIDXBOX360Read( void );
-void HIDXBOX360Read( void );
 void HIDIRQRead( void );
 void HIDPS3SetLED( u8 led );
 void HIDXBOX360SetLED( u8 led );
