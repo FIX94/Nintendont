@@ -397,10 +397,11 @@ s32 HIDOpen( u32 LoaderRequest )
 				}
 				else
 				{
-					HID_CTRL->DPAD		= ConfigGetValue( Data, "DPAD", 0 );
-					HID_CTRL->DigitalLR	= ConfigGetValue( Data, "DigitalLR", 0 );
-					HID_CTRL->Polltype	= ConfigGetValue( Data, "Polltype", 0 );
-					HID_CTRL->MultiIn	= ConfigGetValue( Data, "MultiIn", 0 );
+					HID_CTRL->DPAD			= ConfigGetValue( Data, "DPAD", 0 );
+					HID_CTRL->DigitalLR		= ConfigGetValue( Data, "DigitalLR", 0 );
+					HID_CTRL->DigitalCStick	= ConfigGetValue( Data, "DigitalCStick", 0 );
+					HID_CTRL->Polltype		= ConfigGetValue( Data, "Polltype", 0 );
+					HID_CTRL->MultiIn		= ConfigGetValue( Data, "MultiIn", 0 );
 
 					if( HID_CTRL->MultiIn )
 					{
@@ -417,61 +418,89 @@ s32 HIDOpen( u32 LoaderRequest )
 						continue;
 					}
 
+					HID_CTRL->Mod1.Offset	= ConfigGetValue( Data, "Mod1", 0 );
+					HID_CTRL->Mod1.Mask		= ConfigGetValue( Data, "Mod1", 1 );
+
+					HID_CTRL->Mod2.Offset	= ConfigGetValue( Data, "Mod2", 0 );
+					HID_CTRL->Mod2.Mask		= ConfigGetValue( Data, "Mod2", 1 );
+					
+					HID_CTRL->Mod3.Offset	= ConfigGetValue( Data, "Mod3", 0 );
+					HID_CTRL->Mod3.Mask		= ConfigGetValue( Data, "Mod3", 1 );
+
+
 					HID_CTRL->Power.Offset	= ConfigGetValue( Data, "Power", 0 );
 					HID_CTRL->Power.Mask	= ConfigGetValue( Data, "Power", 1 );
+					HID_CTRL->Power.Modif 	= ConfigGetValue( Data, "Power", 2 );
 
 					HID_CTRL->A.Offset	= ConfigGetValue( Data, "A", 0 );
 					HID_CTRL->A.Mask	= ConfigGetValue( Data, "A", 1 );
+					HID_CTRL->A.Modif 	= ConfigGetValue( Data, "A", 2 );
 
 					HID_CTRL->B.Offset	= ConfigGetValue( Data, "B", 0 );
 					HID_CTRL->B.Mask	= ConfigGetValue( Data, "B", 1 );
+					HID_CTRL->B.Modif 	= ConfigGetValue( Data, "B", 2 );
 
 					HID_CTRL->X.Offset	= ConfigGetValue( Data, "X", 0 );
 					HID_CTRL->X.Mask	= ConfigGetValue( Data, "X", 1 );
+					HID_CTRL->X.Modif 	= ConfigGetValue( Data, "X", 2 );
 
 					HID_CTRL->Y.Offset	= ConfigGetValue( Data, "Y", 0 );
 					HID_CTRL->Y.Mask	= ConfigGetValue( Data, "Y", 1 );
+					HID_CTRL->Y.Modif 	= ConfigGetValue( Data, "Y", 2 );
 
 					HID_CTRL->ZL.Offset	= ConfigGetValue( Data, "ZL", 0 );
 					HID_CTRL->ZL.Mask	= ConfigGetValue( Data, "ZL", 1 );
+					HID_CTRL->ZL.Modif 	= ConfigGetValue( Data, "ZL", 2 );
 
 					HID_CTRL->Z.Offset	= ConfigGetValue( Data, "Z", 0 );
 					HID_CTRL->Z.Mask	= ConfigGetValue( Data, "Z", 1 );
+					HID_CTRL->Z.Modif 	= ConfigGetValue( Data, "Z", 2 );
 
 					HID_CTRL->L.Offset	= ConfigGetValue( Data, "L", 0 );
 					HID_CTRL->L.Mask	= ConfigGetValue( Data, "L", 1 );
+					HID_CTRL->L.Modif 	= ConfigGetValue( Data, "L", 2 );
 
 					HID_CTRL->R.Offset	= ConfigGetValue( Data, "R", 0 );
 					HID_CTRL->R.Mask	= ConfigGetValue( Data, "R", 1 );
+					HID_CTRL->R.Modif 	= ConfigGetValue( Data, "R", 2 );
 
 					HID_CTRL->S.Offset	= ConfigGetValue( Data, "S", 0 );
 					HID_CTRL->S.Mask	= ConfigGetValue( Data, "S", 1 );
+					HID_CTRL->S.Modif 	= ConfigGetValue( Data, "S", 2 );
 
 					HID_CTRL->Left.Offset	= ConfigGetValue( Data, "Left", 0 );
 					HID_CTRL->Left.Mask		= ConfigGetValue( Data, "Left", 1 );
+					HID_CTRL->Left.Modif 	= ConfigGetValue( Data, "Left", 2 );
 
 					HID_CTRL->Down.Offset	= ConfigGetValue( Data, "Down", 0 );
 					HID_CTRL->Down.Mask		= ConfigGetValue( Data, "Down", 1 );
+					HID_CTRL->Down.Modif 	= ConfigGetValue( Data, "Down", 2 );
 
 					HID_CTRL->Right.Offset	= ConfigGetValue( Data, "Right", 0 );
 					HID_CTRL->Right.Mask	= ConfigGetValue( Data, "Right", 1 );
+					HID_CTRL->Right.Modif 	= ConfigGetValue( Data, "Right", 2 );
 
 					HID_CTRL->Up.Offset		= ConfigGetValue( Data, "Up", 0 );
 					HID_CTRL->Up.Mask		= ConfigGetValue( Data, "Up", 1 );
+					HID_CTRL->Up.Modif 		= ConfigGetValue( Data, "Up", 2 );
 
 					if( HID_CTRL->DPAD )
 					{
 						HID_CTRL->RightUp.Offset	= ConfigGetValue( Data, "RightUp", 0 );
 						HID_CTRL->RightUp.Mask		= ConfigGetValue( Data, "RightUp", 1 );
+						HID_CTRL->RightUp.Modif		= ConfigGetValue( Data, "RightUp", 2 );
 
 						HID_CTRL->DownRight.Offset	= ConfigGetValue( Data, "DownRight", 0 );
 						HID_CTRL->DownRight.Mask	= ConfigGetValue( Data, "DownRight", 1 );
+						HID_CTRL->DownRight.Modif	= ConfigGetValue( Data, "DownRight", 2 );
 
 						HID_CTRL->DownLeft.Offset	= ConfigGetValue( Data, "DownLeft", 0 );
 						HID_CTRL->DownLeft.Mask		= ConfigGetValue( Data, "DownLeft", 1 );
+						HID_CTRL->DownLeft.Modif	= ConfigGetValue( Data, "DownLeft", 2 );
 
 						HID_CTRL->UpLeft.Offset		= ConfigGetValue( Data, "UpLeft", 0 );
 						HID_CTRL->UpLeft.Mask		= ConfigGetValue( Data, "UpLeft", 1 );
+						HID_CTRL->UpLeft.Modif		= ConfigGetValue( Data, "UpLeft", 2 );
 					}
 
 					if( HID_CTRL->DPAD  &&	//DPAD == 1 and all offsets the same
@@ -509,13 +538,48 @@ s32 HIDOpen( u32 LoaderRequest )
 					HID_CTRL->StickY.Radius = (u64)HID_CTRL->StickY.Radius * 1280 / (128 - HID_CTRL->StickY.DeadZone);	//adjust for DeadZone
 				//		dbgprintf("HID:StickY:  Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->StickY.Offset, HID_CTRL->StickY.DeadZone, HID_CTRL->StickY.Radius);
 
+					if (HID_CTRL->DigitalCStick) {
+						HID_CTRL->CStickLeft.Offset	 = ConfigGetValue( Data, "CStickLeft", 0 );
+						HID_CTRL->CStickLeft.Mask	 = ConfigGetValue( Data, "CStickLeft", 1 );
+						HID_CTRL->CStickLeft.Modif 	 = ConfigGetValue( Data, "CStickLeft", 2 );
+
+						HID_CTRL->CStickDown.Offset	 = ConfigGetValue( Data, "CStickDown", 0 );
+						HID_CTRL->CStickDown.Mask	 = ConfigGetValue( Data, "CStickDown", 1 );
+						HID_CTRL->CStickDown.Modif 	 = ConfigGetValue( Data, "CStickDown", 2 );
+
+						HID_CTRL->CStickRight.Offset = ConfigGetValue( Data, "CStickRight", 0 );
+						HID_CTRL->CStickRight.Mask	 = ConfigGetValue( Data, "CStickRight", 1 );
+						HID_CTRL->CStickRight.Modif  = ConfigGetValue( Data, "CStickRight", 2 );
+
+						HID_CTRL->CStickUp.Offset	 = ConfigGetValue( Data, "CStickUp", 0 );
+						HID_CTRL->CStickUp.Mask		 = ConfigGetValue( Data, "CStickUp", 1 );
+						HID_CTRL->CStickUp.Modif 	 = ConfigGetValue( Data, "CStickUp", 2 );
+						
+						if( HID_CTRL->DPAD ){ // get values, however useful they are
+							HID_CTRL->CStickRightUp.Offset	 = ConfigGetValue( Data, "CStickRightUp", 0 );
+							HID_CTRL->CStickRightUp.Mask	 = ConfigGetValue( Data, "CStickRightUp", 1 );
+							HID_CTRL->CStickRightUp.Modif	 = ConfigGetValue( Data, "CStickRightUp", 2 );
+
+							HID_CTRL->CStickDownRight.Offset = ConfigGetValue( Data, "CStickDownRight", 0 );
+							HID_CTRL->CStickDownRight.Mask	 = ConfigGetValue( Data, "CStickDownRight", 1 );
+							HID_CTRL->CStickDownRight.Modif	 = ConfigGetValue( Data, "CStickDownRight", 2 );
+
+							HID_CTRL->CStickDownLeft.Offset	 = ConfigGetValue( Data, "CStickDownLeft", 0 );
+							HID_CTRL->CStickDownLeft.Mask	 = ConfigGetValue( Data, "CStickDownLeft", 1 );
+							HID_CTRL->CStickDownLeft.Modif	 = ConfigGetValue( Data, "CStickDownLeft", 2 );
+
+							HID_CTRL->CStickUpLeft.Offset	 = ConfigGetValue( Data, "CStickUpLeft", 0 );
+							HID_CTRL->CStickUpLeft.Mask	 	 = ConfigGetValue( Data, "CStickUpLeft", 1 );
+							HID_CTRL->CStickUpLeft.Modif	 = ConfigGetValue( Data, "CStickUpLeft", 2 );
+						}
+					}
 					HID_CTRL->CStickX.Offset	= ConfigGetValue( Data, "CStickX", 0 );
 					HID_CTRL->CStickX.DeadZone	= ConfigGetValue( Data, "CStickX", 1 );
 					HID_CTRL->CStickX.Radius	= ConfigGetDecValue( Data, "CStickX", 2 );
 					if (HID_CTRL->CStickX.Radius == 0)
 						HID_CTRL->CStickX.Radius = 80;
 					HID_CTRL->CStickX.Radius = (u64)HID_CTRL->CStickX.Radius * 1280 / (128 - HID_CTRL->CStickX.DeadZone);	//adjust for DeadZone
-				//		dbgprintf("HID:CStickX: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickX.Offset, HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius);
+					//	dbgprintf("HID:CStickX: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickX.Offset, HID_CTRL->CStickX.DeadZone, HID_CTRL->CStickX.Radius);
 
 					HID_CTRL->CStickY.Offset	= ConfigGetValue( Data, "CStickY", 0 );
 					HID_CTRL->CStickY.DeadZone	= ConfigGetValue( Data, "CStickY", 1 );
@@ -523,7 +587,7 @@ s32 HIDOpen( u32 LoaderRequest )
 					if (HID_CTRL->CStickY.Radius == 0)
 						HID_CTRL->CStickY.Radius = 80;
 					HID_CTRL->CStickY.Radius = (u64)HID_CTRL->CStickY.Radius * 1280 / (128 - HID_CTRL->CStickY.DeadZone);	//adjust for DeadZone
-				//		dbgprintf("HID:CStickY: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickY.Offset, HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius);
+					//	dbgprintf("HID:CStickY: Offset=%3X Deadzone=%3X Radius=%d\r\n", HID_CTRL->CStickY.Offset, HID_CTRL->CStickY.DeadZone, HID_CTRL->CStickY.Radius);
 
 					HID_CTRL->LAnalog	= ConfigGetValue( Data, "LAnalog", 0 );
 					HID_CTRL->RAnalog	= ConfigGetValue( Data, "RAnalog", 0 );

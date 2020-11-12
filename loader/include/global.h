@@ -27,6 +27,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "Config.h"
 #include "grrlib.h"
 
+#define DEFAULT_UDP_LOG_HOST "192.168.43.132"
+#define DEFAULT_UDP_LOG_PORT 9930
+#include "udp_log.h"
+
 #ifndef HW_RVL
 #define HW_RVL
 #endif

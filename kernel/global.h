@@ -24,7 +24,7 @@
 //#define DEBUG_EXI	1
 //#define DEBUG_SRAM 1
 //#define DEBUG_FST	1
-#define DEBUG_PATCH	1
+//#define DEBUG_PATCH	1
 //#define DEBUG_TIME 1
 //#define DEBUG_SOCK 1
 

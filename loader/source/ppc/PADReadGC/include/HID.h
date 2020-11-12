@@ -3,10 +3,12 @@
 
 #include "PS3Controller.h"
 
+
 typedef struct Layout
 {
 	u32 Offset;
 	u32 Mask;
+	u8 Modif;
 } layout;
 
 typedef struct StickLayout
@@ -24,8 +26,13 @@ typedef struct Controller
 	u32 DPAD;
 	u32 DPADMask;
 	u32 DigitalLR;
+	u32 DigitalCStick;
 	u32 MultiIn;
 	u32 MultiInValue;
+
+	layout Mod1;
+	layout Mod2;
+	layout Mod3;
 
 	layout Power;
 
@@ -49,6 +56,15 @@ typedef struct Controller
 	layout DownRight;
 	layout DownLeft;
 	layout UpLeft;
+
+	layout CStickUp;
+	layout CStickRight;
+	layout CStickLeft;
+	layout CStickDown;
+	layout CStickRightUp;
+	layout CStickDownRight;
+	layout CStickDownLeft;
+	layout CStickUpLeft;
 
 	stickLayout StickX;
 	stickLayout StickY;
