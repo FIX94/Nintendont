@@ -414,6 +414,31 @@ u32 PADRead(u32 calledByGame)
 	
 			if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
 				button |= PAD_BUTTON_LEFT;
+
+			//im really not sure if the code below is needed or if it is already covered by the code above - it is intended to cover the opposite directions simultaneously pressed but it might already be covered with the code above
+			//HID Test does show that it can detect those situations with the dance mat, but not the GC controller, so it should be possible to handle it accurately
+			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337)	//Nintendo WiiU Gamecube Adapter
+				  &&(HID_Packet[4] == 0) // if connected device is a dance mat
+			  	  &&(HID_Packet[5] == 0)
+			  	  &&(HID_Packet[6] == 0)
+			  	  &&(HID_Packet[7] == 0)
+			  	  &&(HID_Packet[8] == 0xFF)) // byte 9 fluctuates a bit so don't check it)
+			{
+					if (HID_Packet[2] == 0x0F) //If X, Y, A and B are pressed at the same time on dance mat
+					{
+						goto DoExit;
+					}
+				  	if (HID_Packet[2] == 0x30)
+				  	{
+				  		button |=PAD_BUTTON_LEFT;
+						button |=PAD_BUTTON_RIGHT;
+				  	}
+				  	if (HID_Packet[2] == 0xC0)
+				  	{
+						button |=PAD_BUTTON_UP;
+						button |=PAD_BUTTON_DOWN;
+			  		}
+			}
 		}
 		if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
 			button |= PAD_BUTTON_A;
@@ -540,12 +565,26 @@ u32 PADRead(u32 calledByGame)
 			substickY	= 127 - ((((HID_Packet[HID_CTRL->CStickY.Offset] & 0x03) << 3) | ((HID_Packet[5] & 0xE0) >> 5)) << 3);	//raw 03 04 ... 1F 10 11 ... 1C 1D (up, center, down)
 		}
 		else
-		if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))	//Nintendo wiiu Gamecube Adapter
+		if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337)) 	//Nintendo wiiu Gamecube Adapter
 		{
-			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1D 1E 1F ... 7F 80 81 ... E7 E8 E9 (left ... center ... right)
-			stickY		= HID_Packet[HID_CTRL->StickY.Offset] - 128;	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
-			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
-			substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
+			if ((HID_Packet[4] == 0) // if connected device is a dance mat
+			  &&(HID_Packet[5] == 0)
+			  &&(HID_Packet[6] == 0)
+			  &&(HID_Packet[7] == 0)
+			  &&(HID_Packet[8] == 0xFF)) // byte 9 fluctuates a bit so don't check it)
+			  {
+				stickX		= HID_Packet[HID_CTRL->StickX.Offset];	//raw 1D 1E 1F ... 7F 80 81 ... E7 E8 E9 (left ... center ... right)
+				stickY		= HID_Packet[HID_CTRL->StickY.Offset];	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
+				substickX	= HID_Packet[HID_CTRL->CStickX.Offset];	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
+				substickY	= HID_Packet[HID_CTRL->CStickY.Offset];	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
+			  }
+			else
+			{
+				stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1D 1E 1F ... 7F 80 81 ... E7 E8 E9 (left ... center ... right)
+				stickY		= HID_Packet[HID_CTRL->StickY.Offset] - 128;	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
+				substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
+				substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
+			}
 		}
 		else	//standard sticks
 		{
