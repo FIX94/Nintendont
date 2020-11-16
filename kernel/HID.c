@@ -224,7 +224,7 @@ s32 HIDOpen( u32 LoaderRequest )
 
 			u32 bEndpointAddress = *(vu8*)(HIDHeap+Offset+2);
 
-			if (bEndpointAddress != 0x81)
+			if (DeviceVID == 0x045e && DevicePID == 0x028e && bEndpointAddress != 0x81)
 			{
 				// XBOX360: ignore irrelevant endpoints
 				dbgprintf("HID:bEndpointAddress:%02X skipped\r\n", bEndpointAddress );
