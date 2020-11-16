@@ -453,6 +453,14 @@ u32 PADRead(u32 calledByGame)
 					button |= PAD_TRIGGER_R;
 			}
 		}
+		else if ((HID_CTRL->VID == 0x045e) && (HID_CTRL->PID == 0x028e))	//XBOX360 controller
+		{
+			// fully pressed triggers
+			if(HID_Packet[HID_CTRL->LAnalog] == 255)
+				button |= PAD_TRIGGER_L;
+			if(HID_Packet[HID_CTRL->RAnalog] == 255)
+				button |= PAD_TRIGGER_R;
+		}
 		else	//standard digital left and right trigger buttons
 		{
 			if(HID_Packet[HID_CTRL->L.Offset] & HID_CTRL->L.Mask)
