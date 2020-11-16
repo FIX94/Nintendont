@@ -41,6 +41,7 @@ static u32 PrevAdapterChannel2 = 0;
 static u32 PrevAdapterChannel3 = 0;
 static u32 PrevAdapterChannel4 = 0;
 static u32 PrevDRCButton = 0;
+static int xbox_swap = 0;
 
 #define DRC_SWAP (1<<16)
 
@@ -415,14 +416,37 @@ u32 PADRead(u32 calledByGame)
 			if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
 				button |= PAD_BUTTON_LEFT;
 		}
-		if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
-			button |= PAD_BUTTON_A;
-		if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)
-			button |= PAD_BUTTON_B;
-		if(HID_Packet[HID_CTRL->X.Offset] & HID_CTRL->X.Mask)
-			button |= PAD_BUTTON_X;
-		if(HID_Packet[HID_CTRL->Y.Offset] & HID_CTRL->Y.Mask)
-			button |= PAD_BUTTON_Y;
+
+		if ((HID_CTRL->VID == 0x045e) && (HID_CTRL->PID == 0x028e))	//XBOX360 controller
+		{
+			//XBOX: swap abxy when L+Back buttons are pressed
+			if((HID_Packet[3] & 0x01) && (HID_Packet[2] & 0x20))
+				xbox_swap = !xbox_swap;
+		}
+
+		if(xbox_swap)
+		{	/* turn buttons quarter clockwise */
+			if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)
+				button |= PAD_BUTTON_A;
+			if(HID_Packet[HID_CTRL->Y.Offset] & HID_CTRL->Y.Mask)
+				button |= PAD_BUTTON_B;
+			if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
+				button |= PAD_BUTTON_X;
+			if(HID_Packet[HID_CTRL->X.Offset] & HID_CTRL->X.Mask)
+				button |= PAD_BUTTON_Y;
+		}
+		else
+		{
+			if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
+				button |= PAD_BUTTON_A;
+			if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)
+				button |= PAD_BUTTON_B;
+			if(HID_Packet[HID_CTRL->X.Offset] & HID_CTRL->X.Mask)
+				button |= PAD_BUTTON_X;
+			if(HID_Packet[HID_CTRL->Y.Offset] & HID_CTRL->Y.Mask)
+				button |= PAD_BUTTON_Y;
+		}
+
 		if(HID_Packet[HID_CTRL->Z.Offset] & HID_CTRL->Z.Mask)
 			button |= PAD_TRIGGER_Z;
 
