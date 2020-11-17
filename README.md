@@ -26,7 +26,7 @@
 * The log file is not always written: Best practice is to start a game, then plug in your controller, then quit.
 
 #### Download ###
-* [Nintendont-XBOX360-1.1.zip](https://github.com/revvv/Nintendont-XBOX360/releases/download/1.1/Nintendont-XBOX360-1.1.zip)
+* [Nintendont-XBOX360-1.2.zip](https://github.com/revvv/Nintendont-XBOX360/releases/download/1.2/Nintendont-XBOX360-1.2.zip)
 * Unpack it to your SD card.
 * Put games in folder `/games`
 * *Optional:* Configure button layout in `/controller/045e_028e.ini`.
