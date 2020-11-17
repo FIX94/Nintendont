@@ -78,7 +78,7 @@ struct ipcmessage
 			struct ioctl_vector *argv;	// 18
 		} ioctlv;
 	};
-} __attribute__((packed)) ipcmessage; 
+} __attribute__((packed)); 
 
 #define IOS_OPEN				0x01
 #define IOS_CLOSE				0x02

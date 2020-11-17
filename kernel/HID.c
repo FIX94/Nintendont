@@ -1231,6 +1231,7 @@ void HIDUpdateRegisters(u32 LoaderRequest)
 				}
 			}
 		}
-		HID_Timer = read32(HW_TIMER);
+                 // crashes wiivc with hid controllers connected
+		//HID_Timer = read32(HW_TIMER);
 	}
 }
