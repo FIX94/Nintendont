@@ -111,10 +111,15 @@ extern char __hid_stack_addr, __hid_stack_size;
 #define HID_CFG_SIZE HID_STATUS+8
 #define HID_CFG_FILE 0x13003460
 
+// USB_HID: 1 = HID devices, 0 = VEN devices (XBOX360)
+#define USB_HID 0
+
 void HIDInit( void )
 {
-	//HIDHandle = IOS_Open("/dev/usb/hid", 0 );
-	HIDHandle = IOS_Open("/dev/usb/ven", 0 ); // XBOX360 controller is not listed as HID
+	if (USB_HID)
+		HIDHandle = IOS_Open("/dev/usb/hid", 0 );
+	else
+		HIDHandle = IOS_Open("/dev/usb/ven", 0 ); // XBOX360 controller is not listed as HID
 	if(HIDHandle < 0) return; //should never happen
 
 	ps3buf = (u8*)malloca( 64, 32 );
@@ -153,8 +158,11 @@ s32 HIDOpen( u32 LoaderRequest )
 	u32 HIDControllerConnected = 0, HIDKeyboardConnected = 0;
 
 	// length_heap from USBV5_GetDescriptors()
-	//s32 length_heap = 0x60; // HID
-	s32 length_heap = 0xC0; // VEN
+	s32 length_heap;
+	if (USB_HID)
+		length_heap = 0x60; // HID
+	else
+		length_heap = 0xC0; // VEN
 
 	s32 *io_buffer = (s32*)malloca(0x20, 32);
 	u8 *HIDHeap = (u8*)malloca(length_heap,32);
@@ -200,8 +208,11 @@ s32 HIDOpen( u32 LoaderRequest )
 			//BootStatusError(8, 0);
 
 			// Offset from USBV5_GetDescriptors()
-			//u32 Offset = 36; // HID
-			u32 Offset = 20; // VEN
+			u32 Offset;
+			if (USB_HID)
+				Offset = 36; // HID
+			else
+				Offset = 20; // VEN
 
 			u32 DeviceDescLength    = *(vu8*)(HIDHeap+Offset);
 			Offset += (DeviceDescLength+3)&(~3);
@@ -224,7 +235,8 @@ s32 HIDOpen( u32 LoaderRequest )
 
 			u32 bEndpointAddress = *(vu8*)(HIDHeap+Offset+2);
 
-			if (DeviceVID == 0x045e && DevicePID == 0x028e && bEndpointAddress != 0x81)
+			bool isXBOX = (DeviceVID == 0x045e && DevicePID == 0x028e);
+			if (isXBOX && bEndpointAddress != 0x81)
 			{
 				// XBOX360: ignore irrelevant endpoints
 				dbgprintf("HID:bEndpointAddress:%02X skipped\r\n", bEndpointAddress );
@@ -263,7 +275,7 @@ s32 HIDOpen( u32 LoaderRequest )
 					break;
 			}
 			else if(!HIDControllerConnected &&
-				//(bInterfaceProtocol != USB_PROTOCOL_KEYBOARD) && // commented out for XBOX360
+				(bInterfaceProtocol != USB_PROTOCOL_KEYBOARD || isXBOX) &&
 				(bInterfaceProtocol != USB_PROTOCOL_MOUSE))
 			{
 				memset32(&read_ctrl_req, 0, sizeof(struct _usb_msg));
@@ -293,7 +305,7 @@ s32 HIDOpen( u32 LoaderRequest )
 					RumbleEnabled = 1;
 					HIDPS3SetRumble( 0, 0, 0, 0 );
 				}
-				else if( DeviceVID == 0x045e && DevicePID == 0x028e && bEndpointAddress == 0x81)
+				else if( isXBOX && bEndpointAddress == 0x81)
 				{
 					// NOTE: There are 4 endpoints_out, but only 0x81 is relevant
 					dbgprintf("HID:XBOX 360 Controller detected\r\n");
@@ -582,7 +594,8 @@ s32 HIDOpen( u32 LoaderRequest )
 					}
 
 					// XBOX360: EndpointOut reported to be 0, but it should be 1 or 2 => let's make this configurable
-					bEndpointAddressOut = ConfigGetValue( Data, "EndpointOut", 0 );
+					if (isXBOX)
+						bEndpointAddressOut = ConfigGetValue( Data, "EndpointOut", 0 );
 
 					free(Data);
 
@@ -608,8 +621,8 @@ s32 HIDOpen( u32 LoaderRequest )
 				else
 					HIDRead = HIDPS3Read;
 
-				// we only support XBOX360
-				HIDRead = HIDXBOX360Read;
+				if (isXBOX)
+					HIDRead = HIDXBOX360Read;
 
 				if((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337))
 				{
@@ -628,8 +641,8 @@ s32 HIDOpen( u32 LoaderRequest )
 					else
 						HIDRumble = HIDPS3Rumble;
 
-					// we only support XBOX360
-					HIDRumble = HIDXBOX360Rumble;
+					if (isXBOX)
+						HIDRumble = HIDXBOX360Rumble;
 				}
 
 				HIDControllerConnected = 1;
