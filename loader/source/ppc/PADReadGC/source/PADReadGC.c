@@ -579,6 +579,29 @@ u32 PADRead(u32 calledByGame)
 			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
 			substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
 		}
+		else
+		if ((HID_CTRL->VID == 0x0403) && (HID_CTRL->PID == 0x97c1))	//Retrode
+		{
+			// map Retrode values to a known gamepad (VID=0x0079, PID=0x0011)
+			if (HID_Packet[HID_CTRL->StickX.Offset] == 0x9C)
+				HID_Packet[HID_CTRL->StickX.Offset] = 0x00;
+			else if (HID_Packet[HID_CTRL->StickX.Offset] == 0x64)
+				HID_Packet[HID_CTRL->StickX.Offset] = 0xFF;
+			else // 0 = no button pressed
+				HID_Packet[HID_CTRL->StickX.Offset] = 0x7F;
+
+			if (HID_Packet[HID_CTRL->StickY.Offset] == 0x9C)
+				HID_Packet[HID_CTRL->StickY.Offset] = 0x00;
+			else if (HID_Packet[HID_CTRL->StickY.Offset] == 0x64)
+				HID_Packet[HID_CTRL->StickY.Offset] = 0xFF;
+			else // 0 = no button pressed
+				HID_Packet[HID_CTRL->StickY.Offset] = 0x7F;
+
+			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
+			stickY		= 127 - HID_Packet[HID_CTRL->StickY.Offset];
+			substickX	= 0;
+			substickY	= 0;
+		}
 		else	//standard sticks
 		{
 			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
