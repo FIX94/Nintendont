@@ -396,11 +396,11 @@ void JVSIOCommand( char *DataIn, char *DataOut )
 							break;
 						case TRI_VS4:
 							if(i == 0)
-								val = -PadBuff[0].stickY + 0x7F; // Analog Y
+								val = -PadBuff[0].stickY + 0x80; // Analog Y
 							else if(i == 1)
 								val = PadBuff[0].stickX + 0x80; // Analog X
 							else if(i == 2)
-								val = -PadBuff[1].stickY + 0x7F; // Analog Y (P2)
+								val = -PadBuff[1].stickY + 0x80; // Analog Y (P2)
 							else if(i == 3)
 								val = PadBuff[1].stickX + 0x80; // Analog X (P2)
 							break;
