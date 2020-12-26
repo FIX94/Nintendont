@@ -1640,7 +1640,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			}
 			PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 30, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		} else {
-			if((IsWiiU() || !(ncfg->Config & (NIN_CFG_BBA_EMU))) && ctx->settings.posX == 7)
+			if((IsWiiU() || !(ncfg->Config & (NIN_CFG_BBA_EMU))) && ctx->settings.posX == 8)
 				cursor_color = DARK_GRAY;
 			PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		}
@@ -1651,7 +1651,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 9;
+			int line_num = 10;
 			do {
 				if (**desc != 0)
 				{
