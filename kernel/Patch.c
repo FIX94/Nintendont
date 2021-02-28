@@ -1025,13 +1025,16 @@ static bool GameNeedsHook()
 static inline bool PADSwitchRequired()
 {
 	return( (TITLE_ID) == 0x47434F ||	// Call of Duty
-			(TITLE_ID) == 0x475449 ||	// Tiger Woods PGA Tour 2003
+                        (TITLE_ID) == 0x475449 ||	// Tiger Woods PGA Tour 2003
 			(TITLE_ID) == 0x475734 );	// Tiger Woods PGA Tour 2004
+			
 }
 
 static inline bool PADForceConnected()
 {
-	return( (TITLE_ID) == 0x474C5A ); // 007 From Russia With Love
+	return( (TITLE_ID) == 0x474C5A || // 007 From Russia With Love
+                        (TITLE_ID) == 0x475735 ||	// Need For Speed Carbon
+			(TITLE_ID) == 0x474f57 );	// Nedd For Speed Most Wanted
 }
 
 static inline bool GameRelTimerPatches()
@@ -4450,9 +4453,11 @@ void PatchGame()
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
 	// Some games need special timings
 	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
-	// Init Cache if its a new ISO
-	if(TRIGame != TRI_SB)
-		ISOSetupCache();
+	if(ConfigGetConfig(NIN_CFG_REMLIMIT))
+        {
+		if((TITLE_ID) == 0x474146)
+			ISOSetupCache();
+	}
 	// Reset SI status
 	SIInit();
 	u32 SiInitSet = 0;
