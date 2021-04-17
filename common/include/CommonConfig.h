@@ -5,7 +5,7 @@
 #include "NintendontVersion.h"
 #include "Metadata.h"
 
-#define NIN_CFG_VERSION		0x00000009
+#define NIN_CFG_VERSION		0x0000000A
 
 #define NIN_CFG_MAXPAD 4
 
@@ -24,6 +24,7 @@ typedef struct NIN_CFG
 	signed char			VideoScale;
 	signed char			VideoOffset;
 	unsigned char		NetworkProfile;
+	unsigned int		WiiUGamepadSlot;
 } NIN_CFG;
 
 enum ninconfigbitpos
