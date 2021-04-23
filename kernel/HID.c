@@ -602,9 +602,9 @@ s32 HIDOpen( u32 LoaderRequest )
 						// EndpointOut reported to be 0, but it should be 1 or 2 => let's make this configurable
 						bEndpointAddressOut = ConfigGetValue( Data, "EndpointOut", 0 );
 						invert_lx = ConfigGetValue( Data, "invert_lx", 0 );
-						invert_ly = ConfigGetValue( Data, "invert_ly", 1 );
+						invert_ly = ConfigGetValue( Data, "invert_ly", 0 );
 						invert_rx = ConfigGetValue( Data, "invert_rx", 0 );
-						invert_ry = ConfigGetValue( Data, "invert_ry", 1 );
+						invert_ry = ConfigGetValue( Data, "invert_ry", 0 );
 					}
 					free(Data);
 
@@ -934,7 +934,7 @@ void HIDXBOX360Read()
 		u8 ry1 = mapIntervall(-32768, 32767, 0, 255, ry);
 
 		if (invert_lx)
-			lx1 = 255 - lx1; // not recommneded
+			lx1 = 255 - lx1; // not recommended
 		if (invert_ly)
 			ly1 = 255 - ly1; // recommended
 		if (invert_rx)
