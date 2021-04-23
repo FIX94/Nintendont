@@ -18,7 +18,8 @@
   
 ### Turn on rumble ###
 * If it doen't work by default, set `EndpointOut=2` in `/controller/045e_028e.ini`.<br>
-  The default is `EndpointOut=1` which is surprisingly correct for my controller ;-)
+  The default is `EndpointOut=1` which is surprisingly correct for my controller ;-)<br>
+  _There are controllers which are not compatible with this settings. Please send me lsmod output._
 
 ### Debugging ###
 * Enable _Debugger_ and _Log_ in Nintendont-XBOX360 settings.
@@ -26,10 +27,11 @@
 * The log file is not always written: Best practice is to start a game, then plug in your controller, then quit.
 
 #### Download ###
-* [Nintendont-XBOX360-1.2.zip](https://github.com/revvv/Nintendont-XBOX360/releases/download/1.2/Nintendont-XBOX360-1.2.zip)
+* [Nintendont-XBOX360-1.3.zip](https://github.com/revvv/Nintendont-XBOX360/releases/download/1.2/Nintendont-XBOX360-1.3.zip)
 * Unpack it to your SD card.
 * Put games in folder `/games`
-* *Optional:* Configure button layout in `/controller/045e_028e.ini`.
+* *Optional:* Configure button layout in `/controller/045e_028e.ini`.<br>
+  __NEW:__ Added configuration options to invert all axes.
 
 ### Compile
 Get these versions: devkitppc r29-1, devkitarm r47 and libogc 1.8.16 and execute _make_. 

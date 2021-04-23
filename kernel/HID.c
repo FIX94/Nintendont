@@ -59,6 +59,10 @@ static u8 *Packet = (u8*)NULL;
 static u32 RumbleType = 0;
 static u32 RumbleEnabled = 0;
 static u32 bEndpointAddressOut = 0;
+static u32 invert_lx = 0;
+static u32 invert_ly = 0;
+static u32 invert_rx = 0;
+static u32 invert_ry = 0;
 static u8 *RawRumbleDataOn = NULL;
 static u8 *RawRumbleDataOff = NULL;
 static u32 RawRumbleDataLen = 0;
@@ -592,11 +596,16 @@ s32 HIDOpen( u32 LoaderRequest )
 							RumbleTransfers = ConfigGetValue( Data, "RumbleTransfers", 0 );
 						}
 					}
-
-					// XBOX360: EndpointOut reported to be 0, but it should be 1 or 2 => let's make this configurable
+					
 					if (isXBOX)
+					{
+						// EndpointOut reported to be 0, but it should be 1 or 2 => let's make this configurable
 						bEndpointAddressOut = ConfigGetValue( Data, "EndpointOut", 0 );
-
+						invert_lx = ConfigGetValue( Data, "invert_lx", 0 );
+						invert_ly = ConfigGetValue( Data, "invert_ly", 1 );
+						invert_rx = ConfigGetValue( Data, "invert_rx", 0 );
+						invert_ry = ConfigGetValue( Data, "invert_ry", 1 );
+					}
 					free(Data);
 
 					dbgprintf("HID:Config file for VID:%04X PID:%04X loaded\r\n", HID_CTRL->VID, HID_CTRL->PID );
@@ -924,12 +933,14 @@ void HIDXBOX360Read()
 		u8 rx1 = mapIntervall(-32768, 32767, 0, 255, rx);
 		u8 ry1 = mapIntervall(-32768, 32767, 0, 255, ry);
 
-		// invert y
-		ly1 = 255 - ly1;
-		ry1 = 255 - ry1;
-
-		// invert x (optional)
-		rx1 = 255 - rx1; // for Super Mario Sunshine, for other games this might be confusing
+		if (invert_lx)
+			lx1 = 255 - lx1; // not recommneded
+		if (invert_ly)
+			ly1 = 255 - ly1; // recommended
+		if (invert_rx)
+			rx1 = 255 - rx1; // optional (for Super Mario Sunshine)
+		if (invert_ry)
+			ry1 = 255 - ry1; // recommended
 
 		Packet[6] = lx1;
 		Packet[7] = ly1;
