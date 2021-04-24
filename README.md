@@ -2,6 +2,7 @@
 * Only XBOX360 **wired version** is supported (VID=0x045e, PID=0x028e)
 * You control player 1.
 * Tested on Wii with Super Mario Sunshine on SD card.
+* If the button layout is not perfect, try _L+Back_ to turn buttons quarter clockwise. (Nintendont feature.)
 
 ### HOWTO ###
 * Connect your XBOX360 controller then start Nintendont-XBOX360. (Order is optional.)
@@ -17,9 +18,9 @@
     Also use this settings if your Wii crashes. (Rare crashes are normal, though.)
   
 ### Turn on rumble ###
-* If it doen't work by default, set `EndpointOut=2` in `/controller/045e_028e.ini`.<br>
+* If it doen't work by default, set `EndpointOut=2` in [/controller/045e_028e.ini](https://github.com/revvv/Nintendont-XBOX360/blob/master/controllerconfigs/045e_028e.ini).<br>
   The default is `EndpointOut=1` which is surprisingly correct for my controller ;-)<br>
-  _There are controllers which are not compatible with this settings. Please send me lsmod output._
+  _There are controllers which are not compatible with these settings. Please send me lsmod output._
 
 ### Debugging ###
 * Enable _Debugger_ and _Log_ in Nintendont-XBOX360 settings.
@@ -30,7 +31,7 @@
 * [Nintendont-XBOX360-1.3.zip](https://github.com/revvv/Nintendont-XBOX360/releases/download/1.3/Nintendont-XBOX360-1.3.zip)
 * Unpack it to your SD card.
 * Put games in folder `/games`
-* *Optional:* Configure button layout in `/controller/045e_028e.ini`.<br>
+* *Optional:* Configure button layout in [/controller/045e_028e.ini](https://github.com/revvv/Nintendont-XBOX360/blob/master/controllerconfigs/045e_028e.ini).<br>
   __NEW:__ Added configuration options to invert all axes.
 
 ### Compile
