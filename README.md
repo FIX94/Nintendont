@@ -20,7 +20,7 @@
 ### Turn on rumble ###
 * If it doen't work by default, set `EndpointOut=2` in [/controller/045e_028e.ini](https://github.com/revvv/Nintendont-XBOX360/blob/master/controllerconfigs/045e_028e.ini).<br>
   The default is `EndpointOut=1` which is surprisingly correct for my controller ;-)<br>
-  _There are controllers which are not compatible with these settings. Please send me lsmod output._
+  _There are controllers which are not compatible with these settings. Please send me your lsmod output._
 
 ### Debugging ###
 * Enable _Debugger_ and _Log_ in Nintendont-XBOX360 settings.
