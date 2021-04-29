@@ -14,13 +14,15 @@
     3. Plug in your controller after you have started a game. 
     4. If it is still not working, try my USB gamepad tester [RetrodeTest](https://github.com/revvv/snes9xgx-retrode/releases/download/0.5/RetrodeTest-0.2.zip)
     to check if your Gamepad works at all.
-    5. Set `EndpointOut=0` in`/controller/045e_028e.ini`. This will disable LED and rumble.<br>
+    5. Set `EndpointOut=0` in`/controller/045e_028e.ini`. This will disable rumble and LED will flash.<br>
     Also use this settings if your Wii crashes. (Rare crashes are normal, though.)
   
-### Turn on rumble ###
-* If it doen't work by default, set `EndpointOut=2` in [/controller/045e_028e.ini](https://github.com/revvv/Nintendont-XBOX360/blob/master/controllerconfigs/045e_028e.ini).<br>
+### Turn on LED and rumble ###
+* If the LED keeps flashing, this means that the LED cannot be set and also rumble will not work.
+  Try to set `EndpointOut=2` in [/controller/045e_028e.ini](https://github.com/revvv/Nintendont-XBOX360/blob/master/controllerconfigs/045e_028e.ini).<br>
   The default is `EndpointOut=1` which is surprisingly correct for my controller ;-)<br>
-  _There are controllers which are not compatible with these settings. Please send me your lsmod output._
+  There are controllers which are not compatible with these settings. You could try the values 1-8.<br>
+  Maybe check `lsusb -v -d 045e:028e` and grep for `OUT`. [Example output](https://gist.github.com/rombert/6902ab691e12ab478e31)
 
 ### Debugging ###
 * Enable _Debugger_ and _Log_ in Nintendont-XBOX360 settings.
