@@ -457,6 +457,10 @@ void UpdateNinCFG()
 		ncfg->NetworkProfile = 0;
 		ncfg->Version = 9;
 	}
+	if (ncfg->Version == 9) {
+		ncfg->WiiUGamepadSlot = NIN_CFG_MAXPAD;
+		ncfg->Version = 10;
+	}
 }
 
 int CreateNewFile(const char *Path, unsigned int size)

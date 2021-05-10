@@ -96,6 +96,7 @@ u32 PADRead(u32 calledByGame)
 	else //this file is only used for hid in the loader
 		MaxPads = 0;
 
+	u32 WiiUGamepadSlot = ((NIN_CFG*)0x93004000)->WiiUGamepadSlot;
 	u32 HIDPad = (*HID_STATUS == 0) ? HID_PAD_NONE : HID_PAD_NOT_SET;
 	u32 chan;
 
@@ -105,14 +106,18 @@ u32 PADRead(u32 calledByGame)
 	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
 	/* For Wii VC */
-	if(calledByGame && *drcAddress)
+	if(calledByGame && *drcAddress && WiiUGamepadSlot != NIN_CFG_MAXPAD)
 	{
-		used |= (1<<0); //always use channel 0
+		used |= (1<<WiiUGamepadSlot);
 		if(HIDPad == HID_PAD_NOT_SET)
 		{
-			//Force HID to player 2
-			*HIDMotor = (MotorCommand[1]&0x3);
-			HIDPad = 1;
+			//Force HID to the first slot without the WiiUGamepad.
+			u32 HIDChan = 0;
+			if (WiiUGamepadSlot == 0) {
+				HIDChan = 1;
+			}
+			*HIDMotor = (MotorCommand[HIDChan]&0x3);
+			HIDPad = HIDChan;
 		}
 		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
 		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
@@ -149,35 +154,35 @@ u32 PADRead(u32 calledByGame)
 		{
 			//Check half-press by holding L
 			if(drcbutton & WIIDRC_BUTTON_L)
-				Pad[0].triggerLeft = 0x7F;
+				Pad[WiiUGamepadSlot].triggerLeft = 0x7F;
 			else
 			{
 				button |= PAD_TRIGGER_L;
-				Pad[0].triggerLeft = 0xFF;
+				Pad[WiiUGamepadSlot].triggerLeft = 0xFF;
 			}
 		}
 		else
-			Pad[0].triggerLeft = 0;
+			Pad[WiiUGamepadSlot].triggerLeft = 0;
 		//also sets right analog trigger
 		if(drcbutton & WIIDRC_BUTTON_ZR)
 		{
 			//Check half-press by holding L
 			if(drcbutton & WIIDRC_BUTTON_L)
-				Pad[0].triggerRight = 0x7F;
+				Pad[WiiUGamepadSlot].triggerRight = 0x7F;
 			else
 			{
 				button |= PAD_TRIGGER_R;
-				Pad[0].triggerRight = 0xFF;
+				Pad[WiiUGamepadSlot].triggerRight = 0xFF;
 			}
 		}
 		else
-			Pad[0].triggerRight = 0;
+			Pad[WiiUGamepadSlot].triggerRight = 0;
 		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
 		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
 		if(drcbutton & WIIDRC_BUTTON_HOME) goto DoExit;
 		//write in mapped out buttons
-		Pad[0].button = button;
-		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
+		Pad[WiiUGamepadSlot].button = button;
+		if((Pad[WiiUGamepadSlot].button&0x1030) == 0x1030) //reset by pressing start, Z, R
 		{
 			/* reset status 3 */
 			*RESET_STATUS = 0x3DEA;
@@ -187,13 +192,13 @@ u32 PADRead(u32 calledByGame)
 		//do scale, deadzone and clamp
 		s8 tmp_stick8; s16 tmp_stick16;
 		_DRC_BUILD_TMPSTICK(i2cdata[4]);
-		Pad[0].stickX = tmp_stick8;
+		Pad[WiiUGamepadSlot].stickX = tmp_stick8;
 		_DRC_BUILD_TMPSTICK(i2cdata[5]);
-		Pad[0].stickY = tmp_stick8;
+		Pad[WiiUGamepadSlot].stickY = tmp_stick8;
 		_DRC_BUILD_TMPSTICK(i2cdata[6]);
-		Pad[0].substickX = tmp_stick8;
+		Pad[WiiUGamepadSlot].substickX = tmp_stick8;
 		_DRC_BUILD_TMPSTICK(i2cdata[7]);
-		Pad[0].substickY = tmp_stick8;
+		Pad[WiiUGamepadSlot].substickY = tmp_stick8;
 	}
 	else
 	{
@@ -361,6 +366,9 @@ u32 PADRead(u32 calledByGame)
 
 	for (chan = HIDPad; (chan < HID_PAD_NONE); (HID_CTRL->MultiIn == 3) ? (++chan) : (chan = HID_PAD_NONE)) // Run once unless MultiIn == 3
 	{
+		if (chan == WiiUGamepadSlot) {
+			continue;
+		}
 		if(HIDMemPrep == 0) // first run
 		{
 			HID_Packet = (vu8*)0x930050F0; // reset back to default offset
