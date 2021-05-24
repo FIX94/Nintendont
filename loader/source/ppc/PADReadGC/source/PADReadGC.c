@@ -111,14 +111,16 @@ u32 PADRead(u32 calledByGame)
 		used |= (1<<WiiUGamepadSlot);
 		if(HIDPad == HID_PAD_NOT_SET)
 		{
-			//Force HID to the first slot without the WiiUGamepad.
-			u32 HIDChan = 0;
-			if (WiiUGamepadSlot == 0) {
+                  u32 HIDChan = 0;             
+                       //Force HID to the first slot without the WiiUGamepad
+			if (WiiUGamepadSlot == 0)
+                          {
 				HIDChan = 1;
-			}
+			  }
 			*HIDMotor = (MotorCommand[HIDChan]&0x3);
 			HIDPad = HIDChan;
-		}
+                    
+	       }
 		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
 		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 		vu8 *i2cdata = (vu8*)(*drcAddress);
@@ -202,6 +204,7 @@ u32 PADRead(u32 calledByGame)
 	}
 	else
 	{
+              *HIDMotor = (MotorCommand[0]&0x3);
 		for (chan = 0; (chan < MaxPads); ++chan)
 		{
 			/* transfer the actual data */
@@ -366,9 +369,6 @@ u32 PADRead(u32 calledByGame)
 
 	for (chan = HIDPad; (chan < HID_PAD_NONE); (HID_CTRL->MultiIn == 3) ? (++chan) : (chan = HID_PAD_NONE)) // Run once unless MultiIn == 3
 	{
-		if (chan == WiiUGamepadSlot) {
-			continue;
-		}
 		if(HIDMemPrep == 0) // first run
 		{
 			HID_Packet = (vu8*)0x930050F0; // reset back to default offset
