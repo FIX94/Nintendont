@@ -458,7 +458,7 @@ void UpdateNinCFG()
 		ncfg->Version = 9;
 	}
 	if (ncfg->Version == 9) {
-		ncfg->WiiUGamepadSlot = NIN_CFG_MAXPAD;
+		ncfg->WiiUGamepadSlot = 0;
 		ncfg->Version = 10;
 	}
 }

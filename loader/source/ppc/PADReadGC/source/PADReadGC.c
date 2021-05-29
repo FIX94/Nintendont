@@ -108,6 +108,14 @@ u32 PADRead(u32 calledByGame)
 	/* For Wii VC */
 	if(calledByGame && *drcAddress && WiiUGamepadSlot != NIN_CFG_MAXPAD)
 	{
+
+              if (((NIN_CFG*)0x93004000)->Config & NIN_CFG_AUTO_BOOT)
+               {
+                if(HIDPad == HID_PAD_NONE)
+                WiiUGamepadSlot = 0;
+                else
+                WiiUGamepadSlot = 1;
+                }
 		used |= (1<<WiiUGamepadSlot);
 		if(HIDPad == HID_PAD_NOT_SET)
 		{
