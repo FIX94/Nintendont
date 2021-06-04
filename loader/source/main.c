@@ -48,6 +48,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "TRI.h"
 #include "Config.h"
 #include "wdvd.h"
+#include "b64/cdecode.h"
 
 #include "ff_utf8.h"
 #include "diskio.h"
@@ -568,9 +569,26 @@ int main(int argc, char **argv)
 
 	memset((void*)ncfg, 0, sizeof(NIN_CFG));
 	bool argsboot = false;
+	bool base64args = false;
 	if(argc > 1) //every 0x00 gets counted as one arg so just make sure its more than the path and copy
 	{
-		memcpy(ncfg, argv[1], sizeof(NIN_CFG));
+		if (strncmp("AQcM", argv[1], 4) == 0) {
+			// argv[1] is a base64 encoded string
+			base64args = true;
+			void* decode_buffer = malloc(strlen(argv[1]) * 6 / 8 + 1);
+			if (decode_buffer)
+			{
+				base64_decodestate state;
+				base64_init_decodestate(&state);
+				base64_decode_block(argv[1], strlen(argv[1]), decode_buffer, &state);
+				memcpy(ncfg, decode_buffer, sizeof(NIN_CFG));
+				free(decode_buffer);
+			}
+		}
+		else
+		{
+			memcpy(ncfg, argv[1], sizeof(NIN_CFG));
+		}
 		UpdateNinCFG(); //support for old versions with this
 		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD)
 		{
@@ -785,7 +803,10 @@ int main(int argc, char **argv)
 	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
 
 	// Update meta.xml.
-	updateMetaXml();
+	if (base64args == false)
+	{
+		updateMetaXml();
+	}
 
 	if(argsboot == false)
 	{
