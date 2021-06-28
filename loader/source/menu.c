@@ -1442,6 +1442,16 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 
+				case 8:
+					// Wii U Gamepad Slot
+					ctx->saveSettings = true;
+					ncfg->WiiUGamepadSlot++;
+					if (ncfg->WiiUGamepadSlot > NIN_CFG_MAXPAD) {
+						ncfg->WiiUGamepadSlot = 0;
+					}
+					ctx->redraw = true;
+					break;
+
 				default:
 					break;
 			}
@@ -1626,6 +1636,17 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		PrintFormat(MENU_SIZE, (IsWiiU() || !(ncfg->Config & (NIN_CFG_BBA_EMU))) ? DARK_GRAY : BLACK,
 				MENU_POS_X + 320, SettingY(ListLoopIndex),
 			    "%-18s:%-4s", "Network Profile", netProfile);
+		ListLoopIndex++;
+
+	
+		// Controller slot for the Wii U gamepad.
+		if (ncfg->WiiUGamepadSlot < NIN_CFG_MAXPAD) {
+			PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+320, SettingY(ListLoopIndex),
+					"%-18s:%d", "WiiU Gamepad Slot", (ncfg->WiiUGamepadSlot + 1));
+		} else {
+			PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+320, SettingY(ListLoopIndex),
+			"%-18s:%-4s", "WiiU Gamepad Slot", "None");	
+		}
 		ListLoopIndex++;
 
 		// Draw the cursor.

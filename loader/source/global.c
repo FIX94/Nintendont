@@ -458,6 +458,10 @@ void UpdateNinCFG()
 		ncfg->NetworkProfile = 0;
 		ncfg->Version = 9;
 	}
+	if (ncfg->Version == 9) {
+		ncfg->WiiUGamepadSlot = 0;
+		ncfg->Version = 10;
+	}
 }
 
 int CreateNewFile(const char *Path, unsigned int size)
