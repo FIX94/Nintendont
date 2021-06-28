@@ -1024,9 +1024,14 @@ int main(int argc, char **argv)
 
 	// Save the ISO shift value for multi-game discs.
 	*(vu32*)0xD300300C = ISOShift;
+	
+	//Check if game is Triforce game
+	u32 IsTRIGame = 0;
+	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
+		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
 //Set Language
-	if(ncfg->Language == NIN_LAN_AUTO || ncfg->Language >= NIN_LAN_LAST)
+	if( (ncfg->Language == NIN_LAN_AUTO || ncfg->Language >= NIN_LAN_LAST) && IsTRIGame == 0)
 	{
 		switch (CONF_GetLanguage())
 		{
@@ -1127,11 +1132,6 @@ if( ncfg->GameID == 0x47464f45 )	// The Fairly OddParents: Shadow Showdown
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-
-	//Check if game is Triforce game
-	u32 IsTRIGame = 0;
-	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
-		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
 	if (!(ncfg->Config & (NIN_CFG_SKIP_IPL)))
 	{
