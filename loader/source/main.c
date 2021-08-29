@@ -1055,11 +1055,7 @@ int main(int argc, char **argv)
 		else
 			ncfg->Language = NIN_LAN_ENGLISH;
 	}
-if( ncfg->GameID == 0x47464f45 )	// The Fairly OddParents: Shadow Showdown
-	{
-                //Fix dummy language files that give error no string with other than english console language being used
-		ncfg->Language = NIN_LAN_ENGLISH;
-	}
+
 	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
 	{
 		// Memory card emulation is enabled.
