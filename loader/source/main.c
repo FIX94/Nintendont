@@ -1122,17 +1122,25 @@ int main(int argc, char **argv)
 		__SYS_UnlockSram(1); // 1 -> write changes
 		while(!__SYS_SyncSram());
 	}
+	
+	//Check if game is Triforce game
+	u32 IsTRIGame = 0;
+	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
+		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
+	
+	if(IsTRIGame != 0)
+	{
+		// Create saves directory.
+		char BasePath[20];
+		snprintf(BasePath, sizeof(BasePath), "%s:/saves", GetRootDevice());
+		f_mkdir_char(BasePath);
+	}
 
 	#define GCN_IPL_SIZE 2097152
 	#define TRI_IPL_SIZE 1048576
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-
-	//Check if game is Triforce game
-	u32 IsTRIGame = 0;
-	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
-		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
 	if (!(ncfg->Config & (NIN_CFG_SKIP_IPL)))
 	{
