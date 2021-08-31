@@ -1055,8 +1055,13 @@ int main(int argc, char **argv)
 		else
 			ncfg->Language = NIN_LAN_ENGLISH;
 	}
+	
+	//Check if game is Triforce game
+	u32 IsTRIGame = 0;
+	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
+		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
-	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
+	if( (ncfg->Config & NIN_CFG_MEMCARDEMU) || IsTRIGame != 0 )
 	{
 		// Memory card emulation is enabled.
 		// Set up the memory card file.
@@ -1064,52 +1069,55 @@ int main(int argc, char **argv)
 		snprintf(BasePath, sizeof(BasePath), "%s:/saves", GetRootDevice());
 		f_mkdir_char(BasePath);
 
-		char MemCardName[8];
-		memset(MemCardName, 0, 8);
-		if ( ncfg->Config & NIN_CFG_MC_MULTI )
+		if(IsTRIGame == 0)
 		{
-			// "Multi" mode is enabled.
-			// Use one memory card for USA/PAL games,
-			// and another memory card for JPN games.
-			switch (BI2region)
+			char MemCardName[8];
+			memset(MemCardName, 0, 8);
+			if ( ncfg->Config & NIN_CFG_MC_MULTI )
 			{
-				case BI2_REGION_JAPAN:
-				case BI2_REGION_SOUTH_KOREA:
-				default:
-					// JPN games.
-					memcpy(MemCardName, "ninmemj", 7);
-					break;
+				// "Multi" mode is enabled.
+				// Use one memory card for USA/PAL games,
+				// and another memory card for JPN games.
+				switch (BI2region)
+				{
+					case BI2_REGION_JAPAN:
+					case BI2_REGION_SOUTH_KOREA:
+					default:
+						// JPN games.
+						memcpy(MemCardName, "ninmemj", 7);
+						break;
 
-				case BI2_REGION_USA:
-				case BI2_REGION_PAL:
-					// USA/PAL games.
-					memcpy(MemCardName, "ninmem", 6);
-					break;
+					case BI2_REGION_USA:
+					case BI2_REGION_PAL:
+						// USA/PAL games.
+						memcpy(MemCardName, "ninmem", 6);
+						break;
+				}
 			}
-		}
-		else
-		{
-			// One card per game.
-			memcpy(MemCardName, &(ncfg->GameID), 4);
-		}
-
-		char MemCard[32];
-		snprintf(MemCard, sizeof(MemCard), "%s/%s.raw", BasePath, MemCardName);
-		gprintf("Using %s as Memory Card.\r\n", MemCard);
-		FIL f;
-		if (f_open_char(&f, MemCard, FA_READ|FA_OPEN_EXISTING) != FR_OK)
-		{
-			// Memory card file not found. Create it.
-			if(GenerateMemCard(MemCard, BI2region) == false)
+			else
 			{
-				ClearScreen();
-				ShowMessageScreenAndExit("Failed to create Memory Card File!", 1);
+				// One card per game.
+				memcpy(MemCardName, &(ncfg->GameID), 4);
 			}
-		}
-		else
-		{
-			// Memory card file found.
-			f_close(&f);
+
+			char MemCard[32];
+			snprintf(MemCard, sizeof(MemCard), "%s/%s.raw", BasePath, MemCardName);
+			gprintf("Using %s as Memory Card.\r\n", MemCard);
+			FIL f;
+			if (f_open_char(&f, MemCard, FA_READ|FA_OPEN_EXISTING) != FR_OK)
+			{
+				// Memory card file not found. Create it.
+				if(GenerateMemCard(MemCard, BI2region) == false)
+				{
+					ClearScreen();
+					ShowMessageScreenAndExit("Failed to create Memory Card File!", 1);
+				}
+			}
+			else
+			{
+				// Memory card file found.
+				f_close(&f);
+			}
 		}
 	}
 	else
@@ -1128,11 +1136,6 @@ int main(int argc, char **argv)
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-
-	//Check if game is Triforce game
-	u32 IsTRIGame = 0;
-	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
-		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
 	if (!(ncfg->Config & (NIN_CFG_SKIP_IPL)))
 	{
