@@ -4453,10 +4453,13 @@ void PatchGame()
 	DoPatches( (void*)DOLMinOff, FullLength, 0 );
 	// Some games need special timings
 	EXISetTimings(TITLE_ID, GAME_ID & 0xFF);
-        
-	if((TITLE_ID) != 0x474645)
-			ISOSetupCache();
-
+        if(TRIGame != TRI_SB)
+        {
+	      if((TITLE_ID) != 0x474645)
+               {
+                 ISOSetupCache();
+                }
+        }
 	// Reset SI status
 	SIInit();
 	u32 SiInitSet = 0;
