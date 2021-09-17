@@ -97,6 +97,14 @@ void TRIReset()
 		W16((u32)OUR_SETTINGS_LOC+0x16,150);
 		sync_after_write(OUR_SETTINGS_LOC, 0x20);
 	}
+	//Virtua Striker 4 Japanese version fix
+	if(TRISettingsName == SETTINGS_VS4JAP)
+    	{
+        	//Disable Network
+		sync_before_read(OUR_SETTINGS_LOC, 0x20);
+		W16((u32)OUR_SETTINGS_LOC+0x10,0);
+		sync_after_write(OUR_SETTINGS_LOC, 0x20);
+    	}
 }
 
 void TRIBackupSettings()
