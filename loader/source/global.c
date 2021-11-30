@@ -346,7 +346,7 @@ bool LoadNinCFG(void)
 		case 7:
 		case 8:
 		case 9:
-			if (BytesRead != 540)
+			if (BytesRead != 544)
 				ConfigLoaded = false;
 			break;
 
