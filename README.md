@@ -1,5 +1,13 @@
-### Nintendont
+## Nintendont
 A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
+
+### Nightly builds
+
+|Download nightly builds from continuous integration: 	| [![Build Status][Build]][Actions] 
+|-------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+
+[Actions]: https://github.com/FIX94/Nintendont/actions
+[Build]: https://github.com/FIX94/Nintendont/workflows/Nintendont%20Build/badge.svg
 
 ### Features:
 * Works on Wii and Wii U (in vWii mode)
@@ -34,6 +42,7 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 
 ### Quick Installation:
 1. Get the [loader.dol](loader/loader.dol?raw=true), rename it to boot.dol and put it in /apps/Nintendont/ along with the files [meta.xml](nintendont/meta.xml?raw=true) and [icon.png](nintendont/icon.png?raw=true).
+   Or go to the Nightly builds [here](https://github.com/FIX94/Nintendont/actions/workflows/continuous-integration-workflow.yml), click on the latest workflow run name, download the file under Artifacts, extract it and put it in /apps/Nintendont/ on your SD card.
 2. Copy your GameCube games to the /games/ directory. Subdirectories are optional for 1-disc games in ISO/GCM and CISO format.
    * For 2-disc games, you should create a subdirectory /games/MYGAME/ (where MYGAME can be anything), then name disc 1 as "game.iso" and disc 2 as "disc2.iso".
    * For extracted FST, the FST must be located in a subdirectory, e.g. /games/FSTgame/sys/boot.bin .
