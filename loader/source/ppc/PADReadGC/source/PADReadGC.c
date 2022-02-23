@@ -191,6 +191,7 @@ u32 PADRead(u32 calledByGame)
 	}
 	else
 	{
+        *HIDMotor = (MotorCommand[0]&0x3);
 		for (chan = 0; (chan < MaxPads); ++chan)
 		{
 			/* transfer the actual data */
