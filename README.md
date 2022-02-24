@@ -30,11 +30,11 @@
 * The log file is not always written: Best practice is to start a game, then plug in your controller, then quit.
 
 #### Download ###
-* [Nintendont-XBOX360-1.3.zip](https://github.com/revvv/Nintendont-XBOX360/releases/download/1.3/Nintendont-XBOX360-1.3.zip)
+* [Release](https://github.com/revvv/Nintendont-XBOX360/releases/)
 * Unpack it to your SD card.
 * Put games in folder `/games`
 * *Optional:* Configure button layout in [/controller/045e_028e.ini](https://github.com/revvv/Nintendont-XBOX360/blob/master/controllerconfigs/045e_028e.ini).<br>
-  __NEW:__ Added configuration options to invert all axes.
+  __NEW:__ Fixed XBOX360 rumble for vWii
 
 ### Compile
 Get these versions: devkitppc r29-1, devkitarm r47 and libogc 1.8.16 and execute _make_. 
