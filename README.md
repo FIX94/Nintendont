@@ -34,8 +34,9 @@
 * Unpack it to your SD card.
 * Put games in folder `/games`
 * *Optional:* Configure button layout in [/controller/045e_028e.ini](https://github.com/revvv/Nintendont-XBOX360/blob/master/controllerconfigs/045e_028e.ini).<br>
-  __NEW:__ Fixed XBOX360 rumble for vWii
-
+  __NEW:__ Fixed XBOX360 rumble for vWii<br>
+  __NEW:__ Support 3rd party WiiMote + Nunchuk (labeled with "NEW2in1" and "Motion plus", distributed by Haiwai Consulting/Tiger-Zhou UG)
+  
 ### Compile
 Get these versions: devkitppc r29-1, devkitarm r47 and libogc 1.8.16 and execute _make_. 
 

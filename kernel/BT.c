@@ -398,7 +398,11 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 	}
 	else if(*(u8*)buffer == 0x22)	//acknowledge output report, return function result 
 	{
-		if(*((u8*)buffer+3) & 0x02)	//??message being acknowledged todo lucky all needed messages had 2 bit set
+		/*
+		 * Added my 3rd party WiiMote labeled with "NEW2in1" and "Motion plus",
+		 * distributed by Haiwai Consulting/Tiger-Zhou UG
+		 */
+		if(*((u8*)buffer+3) & 0x02 || true /* true added for 3rd part WiiMote (ack=0x11) */)	//??message being acknowledged todo lucky all needed messages had 2 bit set
 		{
 			if(stat->transferstate == TRANSFER_EXT2)
 			{
