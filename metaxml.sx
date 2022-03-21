@@ -5,11 +5,11 @@
 	<version>NIN_MAJOR_VERSION.NIN_MINOR_VERSION</version>
 	<release_date>TIMESTAMP</release_date>
 	<short_description>Gamecube Loader</short_description>
-	<long_description>Commiters: GerbilSoft, JoostinOnline, GreyRogue, Howard, Cyan, nastys 
+	<long_description>Nintendont allows you to run GameCube games on a Wii or Wii U from an SD or HDD device.
 
  Project website: https://github.com/FIX94/Nintendont 
 
-Nintendont allows you to run GameCube games on a Wii or Wii U from an SD or HDD device.</long_description>
+Committers: GerbilSoft, JoostinOnline, GreyRogue, Howard, Cyan, nastys, carnage702, AnthonyRyuki, DankRank, Chickoodel, akemin-dayo, SuperrSonic, KoldMonster12, cheatfreak47, capnfunky77, cesarmades, crazycaveman, Wolfy76700, AndyCasaceli, ShadowOne333, Aurelio92, darkalemanbr, jmapjp, sailormoon, Dr-Crow, cyberstudio10, corey-underdown</long_description>
 	<no_ios_reload/>
 	<ahb_access/>
 </app>

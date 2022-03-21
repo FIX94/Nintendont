@@ -108,7 +108,7 @@ $(BUILD):
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 	@mkdir -p ../build/apps/Nintendont/
 	@cp -p $(OUTPUT).dol ../build/apps/Nintendont/boot.dol
-	$(CC) -E -traditional-cpp -P -include ../common/include/NintendontVersion.h -DTIMESTAMP=`date +%Y%m%d%H%M%S` ../metaxml.sx | sed -n '/^<?xml/,$$p' > ../build/apps/Nintendont/meta.xml
+	$(CC) -E -traditional -P -include ../common/include/NintendontVersion.h -DTIMESTAMP=`date +%Y%m%d%H%M%S` ../metaxml.sx | sed -n '/^<?xml/,$$p' > ../build/apps/Nintendont/meta.xml
 
 #---------------------------------------------------------------------------------
 clean:
