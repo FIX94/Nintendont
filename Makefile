@@ -85,6 +85,9 @@ loader: multidol resetstub fatfs/libfat-ppc.a kernel kernelboot loader/source/pp
 	@echo "Building Nintendont loader"
 	@echo " "
 	$(MAKE) -C loader
+	mkdir -p build/apps/Nintendont/
+	cp -p nintendont/icon.png nintendont/titles.txt build/apps/Nintendont/
+	unzip -d build/controllers -q -n controllerconfigs/controllers.zip
 
 clean:
 	@echo " "
