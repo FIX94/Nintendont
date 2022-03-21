@@ -946,27 +946,31 @@ static bool __usbstorage_IsInserted(void)
 			// If not, it might be a Wii U drive.
 			retval = USBStorageOGC_Read(&__usbfd, __lun, 0, 1, sector_buf);
 			if (retval == 0) {
-				if (sector_buf[510] == 0x55 &&
-				    (sector_buf[511] == 0xAA || sector_buf[511] == 0xAB))
-				{
-					// Valid MBR and/or UStealth signature.
-					__mounted = true;
-					__vid = vid;
-					__pid = pid;
-					usb_last_used = gettime()-secs_to_ticks(100);
-					usleep(10000);
-				} else {
-					// Invalid signature.
+				// discard first read. I've seen a controller so buggy which returns the boot sector of LUN 1 when that of LUN 0 is asked for.
+				usb_last_used = gettime()-secs_to_ticks(100);
+				usleep(10000);
+				retval = USBStorageOGC_Read(&__usbfd, __lun, 0, 1, sector_buf);
+				if (retval == 0) {
+					if (sector_buf[510] == 0x55 &&
+					    (sector_buf[511] == 0xAA || sector_buf[511] == 0xAB))
+					{
+						// Valid MBR and/or UStealth signature.
+						__mounted = true;
+						__vid = vid;
+						__pid = pid;
+						usb_last_used = gettime()-secs_to_ticks(100);
+						usleep(10000);
+						break;	// found valid signature. Done!
+					}
+					// Else invalid signature.
 					// This may be a Wii U-formatted HDD.
-					__mounted = false;
-					__lun = 0;
 				}
-			} else {
-				// Read error.
-				__mounted = false;
-				__lun = 0;
+				// Else read error.
 			}
-			break;
+			// Else read error.
+			__mounted = false;
+			__lun = 0;
+			// continue scanning for next LUN instead of giving up
 		}
 
 		if (__mounted)

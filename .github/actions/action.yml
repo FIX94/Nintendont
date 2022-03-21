@@ -1,0 +1,7 @@
+name: 'Make Nintendont'
+description: 'Compiles Nintendont'
+
+runs:
+  using: 'docker'
+  image: 'devkitpro/devkitppc:latest'
+  entrypoint: make
