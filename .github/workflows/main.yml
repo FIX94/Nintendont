@@ -16,4 +16,4 @@ jobs:
         name: Nintendont
         path: |
           nintendont/
-          !nintendont/*.zip
+          !nintendont/gcn_md5.zip

@@ -2,8 +2,8 @@
 <app version="1">
 	<name>Nintendont</name>
 	<coder>FIX94, crediar</coder>
-	<version>4.431</version>
-	<release_date>20161218000000</release_date>
+	<version>NIN_MAJOR_VERSION.NIN_MINOR_VERSION</version>
+	<release_date>TIMESTAMP</release_date>
 	<short_description>Gamecube Loader</short_description>
 	<long_description>Commiters: GerbilSoft, JoostinOnline, GreyRogue, Howard, Cyan, nastys 
 
