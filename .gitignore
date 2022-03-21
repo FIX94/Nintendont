@@ -2,6 +2,7 @@
 *.o
 *.bin
 *.elf
+build/
 codehandler/*.h
 kernel/asm/*.h
 kernel/kernel.map

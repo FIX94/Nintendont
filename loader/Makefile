@@ -106,8 +106,10 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-	@cp $(OUTPUT).dol ../nintendont/boot.dol
-	$(CC) -E -traditional-cpp -P -include ../common/include/NintendontVersion.h -DTIMESTAMP=`date +%Y%m%d%H%M%S` ../metaxml.cxx > ../nintendont/meta.xml
+	@mkdir -p ../build
+	@cp $(OUTPUT).dol ../build/boot.dol
+	@cp ../nintendont/icon.png ../nintendont/titles.txt ../build/
+	$(CC) -E -traditional-cpp -P -include ../common/include/NintendontVersion.h -DTIMESTAMP=`date +%Y%m%d%H%M%S` ../metaxml.cxx | sed 's/\(<version>[0-9]*\)\s*\.\s*/\1\./' > ../build/meta.xml
 
 #---------------------------------------------------------------------------------
 clean:
