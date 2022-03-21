@@ -15,7 +15,7 @@ jobs:
       run: |
         git config user.name '${GITHUB_ACTOR}'
         git config user.email '${GITHUB_ACTOR}@users.noreply.github.com'
-        git add nintendont/loader.dol
+        git add loader/loader.dol
         git commit -m "loader.dol"
         git push
     - uses: actions/upload-artifact@v1
