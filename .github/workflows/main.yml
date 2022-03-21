@@ -1,0 +1,17 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Compile Nintendont
+      uses: ./.github/actions
+    - uses: actions/upload-artifact@v1
+      with: 
+        name: Nintendont
+        path: build/

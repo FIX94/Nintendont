@@ -106,7 +106,9 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-	@cp $(OUTPUT).dol ../nintendont/boot.dol
+	@mkdir -p ../build/apps/Nintendont/
+	@cp -p $(OUTPUT).dol ../build/apps/Nintendont/boot.dol
+	$(CC) -E -traditional-cpp -P -include ../common/include/NintendontVersion.h -DTIMESTAMP=`date +%Y%m%d%H%M%S` ../metaxml.sx | sed -n '/^<?xml/,$$p' > ../build/apps/Nintendont/meta.xml
 
 #---------------------------------------------------------------------------------
 clean:
