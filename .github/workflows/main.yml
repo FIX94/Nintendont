@@ -11,13 +11,18 @@ jobs:
     - uses: actions/checkout@v2
     - name: Compile Nintendont
       uses: ./.github/actions
+    # The build process updates NintendontVersion.h with minor version set to be
+    # the GitHub CI workflow number. More importantly, we get the main binary,
+    # loader.dol. Both of them needs to be committed back to the repo because
+    # the online update feature fetches directly from the repo. Assume major
+    # version is 7, update common/include/NintendontVersion.h too for a major
+    # version change.
     - name: Commit loader.dol
       run: |
         git config user.name '${{ github.actor }}'
         git config user.email '${{ github.actor }}@users.noreply.github.com'
-        git add -f loader/loader.dol
-        ( git commit -m "loader.dol 7.${{ github.run_number }}" && git push ) || true
-      # assume major version 7, update loader/Makefile too when changing
+        git add -f loader/loader.dol common/include/NintendontVersion.h
+        ( git commit -m "loader.dol v7.${{ github.run_number }}" && git push ) || true
     - uses: actions/upload-artifact@v1
       with: 
         name: Nintendont

@@ -3,5 +3,7 @@ description: 'Compiles Nintendont'
 
 runs:
   using: 'docker'
-  image: 'devkitpro/devkitppc:latest'
+  # Oldest tag I can find. Latest has a lot of compiler warnings.
+  # It is better to fix those warnings than to use an old compiler, of course.
+  image: 'devkitpro/devkitppc:20180522'
   entrypoint: make

@@ -1,13 +1,12 @@
 #ifndef __NINTENDONT_VERSION_H__
 #define __NINTENDONT_VERSION_H__
 
-// make fills in the version using info from GitHub CI. This default is the developer's version.
-#if !defined(NIN_MAJOR_VERSION)
-#   define NIN_MAJOR_VERSION		7
-#endif
-#if !defined(NIN_MINOR_VERSION)
-#   define NIN_MINOR_VERSION		9999
-#endif
+/* Minor version to be automatically filled in by GitHub CI. Any major version
+ * change will have to update main.yml. Online updates fetch this file directly
+ * from the repo and scanf these version numbers. */
+#define NIN_MAJOR_VERSION			7
+#define NIN_MINOR_VERSION			0
+
 #define NIN_VERSION		((NIN_MAJOR_VERSION << 16) | NIN_MINOR_VERSION)
 
 #define STRINGIZE2(s) #s

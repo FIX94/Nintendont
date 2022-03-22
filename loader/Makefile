@@ -15,6 +15,7 @@ include $(DEVKITPPC)/wii_rules
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
 # INCLUDES is a list of directories containing extra header files
+# ARTIFACTS is to package a zip for the user to unpack to their SD card/HDD
 #---------------------------------------------------------------------------------
 TARGET		:= $(notdir $(CURDIR))
 BUILD		:= build
@@ -22,13 +23,12 @@ SOURCES		:= source
 SOURCES		+= source/unzip
 DATA		:= data
 INCLUDES	:= include ../fatfs
+ARTIFACTS	:= ../build/apps/Nintendont
+NINTENTDONTVERSION_H := ../common/include/NintendontVersion.h
 
 #---------------------------------------------------------------------------------
 # metadata
 #---------------------------------------------------------------------------------
-# assume major version 7, update .github/workflows/main.yml too when changing
-NIN_MAJOR_VERSION	?=	7
-NIN_MINOR_VERSION	:=	$(if $(GITHUB_RUN_NUMBER),$(GITHUB_RUN_NUMBER),9999)
 # If dol does not come from FIX94 we identify source on the screen
 NIN_SPECIAL_VERSION	:=	$(if $(and $(GITHUB_REPOSITORY_OWNER),$(findstring FIX94,$(GITHUB_REPOSITORY_OWNER))),,\"-$(GITHUB_REPOSITORY_OWNER)\")
 # As preprocessor defines, DATETIME is unquoted, META_DATETIME is quoted
@@ -41,8 +41,6 @@ DATETIME			:=	$(shell date +%Y%m%d%H%M%S)
 ASFLAGS := $(MACHDEP) -mregnames -D_LANGUAGE_ASSEMBLY
 CFLAGS	:= -O3 -g -std=gnu89 -Wno-format-truncation \
 	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN \
-	   -DNIN_MAJOR_VERSION=$(NIN_MAJOR_VERSION) \
-	   -DNIN_MINOR_VERSION=$(NIN_MINOR_VERSION) \
 	   -DNIN_SPECIAL_VERSION=$(NIN_SPECIAL_VERSION) \
 	   -DMETA_DATETIME=\"$(DATETIME)\"
 CXXFLAGS := $(CFLAGS)
@@ -118,18 +116,23 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 .PHONY: $(BUILD) clean
 
 #---------------------------------------------------------------------------------
-# build loader.dol and output meta.xml using C preprocessor on a template
+# 1, change version number
+# 2, build loader.dol
+# 3, output meta.xml using C preprocessor on a template
 $(BUILD):
+	if [ -n "$(GITHUB_RUN_NUMBER)" ]; then \
+		sed -i 's/#define NIN_MINOR_VERSION.*$$/#define NIN_MINOR_VERSION\t\t\t$(GITHUB_RUN_NUMBER)/' $(NINTENTDONTVERSION_H); \
+	fi
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-	@mkdir -p ../build/apps/Nintendont/
-	@cp -p $(OUTPUT).dol ../build/apps/Nintendont/boot.dol
+	@[ -d $(ARTIFACTS) ] || mkdir -p $(ARTIFACTS)
+	@cp -p $(OUTPUT).dol $(ARTIFACTS)/boot.dol
 	$(CC) -E -traditional -P \
-		-include ../common/include/NintendontVersion.h \
+		-include $(NINTENTDONTVERSION_H) \
 		-DDATETIME=$(DATETIME) \
 		../metaxml.sx \
 		| sed -n '/^<?xml/,$$p' \
-		> ../build/apps/Nintendont/meta.xml
+		> $(ARTIFACTS)/meta.xml
 
 #---------------------------------------------------------------------------------
 clean:
