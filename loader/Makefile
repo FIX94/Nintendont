@@ -29,7 +29,8 @@ INCLUDES	:= include ../fatfs
 
 ASFLAGS := $(MACHDEP) -mregnames -D_LANGUAGE_ASSEMBLY
 CFLAGS	:= -O3 -g -std=gnu89 -Wno-format-truncation \
-	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN
+	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN \
+	   -DMETA_DATETIME=\"$(META_DATETIME)\"
 CXXFLAGS := $(CFLAGS)
 
 # NOTE: Do NOT change to := - needed for proper expansion of $(CURDIR) later.
@@ -103,6 +104,11 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 .PHONY: $(BUILD) clean
 
 #---------------------------------------------------------------------------------
+# get date/time
+#---------------------------------------------------------------------------------
+export META_DATETIME	:=	$(shell date +%Y%m%d%H%M%S)
+
+#---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
@@ -110,7 +116,7 @@ $(BUILD):
 	@cp -p $(OUTPUT).dol ../build/apps/Nintendont/boot.dol
 	$(CC) -E -traditional -P \
 		-include ../common/include/NintendontVersion.h \
-		-DTIMESTAMP=`date +%Y%m%d%H%M%S` \
+		-DMETA_DATETIME=$(META_DATETIME) \
 		../metaxml.sx \
 		| sed -n '/^<?xml/,$$p' \
 		> ../build/apps/Nintendont/meta.xml

@@ -8,6 +8,5 @@ kernel/asm/*.h
 kernel/kernel.map
 loader/build/
 loader/data/kernel.zip
-nintendont/*.dol
 fatfs/*.a
 codehandler/*.h
