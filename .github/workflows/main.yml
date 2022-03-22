@@ -16,7 +16,8 @@ jobs:
         git config user.name '${{ github.actor }}'
         git config user.email '${{ github.actor }}@users.noreply.github.com'
         git add -f loader/loader.dol
-        ( git commit -m "loader.dol" && git push ) || true
+        ( git commit -m "loader.dol 7.${{ github.run_number }}" && git push ) || true
+      # assume major version 7, update loader/Makefile too when changing
     - uses: actions/upload-artifact@v1
       with: 
         name: Nintendont

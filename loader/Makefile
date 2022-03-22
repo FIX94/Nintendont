@@ -24,13 +24,27 @@ DATA		:= data
 INCLUDES	:= include ../fatfs
 
 #---------------------------------------------------------------------------------
+# metadata
+#---------------------------------------------------------------------------------
+# assume major version 7, update .github/workflows/main.yml too when changing
+NIN_MAJOR_VERSION	?=	7
+NIN_MINOR_VERSION	:=	$(if $(GITHUB_RUN_NUMBER),$(GITHUB_RUN_NUMBER),9999)
+# If dol does not come from FIX94 we identify source on the screen
+NIN_SPECIAL_VERSION	:=	$(if $(and $(GITHUB_REPOSITORY_OWNER),$(findstring FIX94,$(GITHUB_REPOSITORY_OWNER))),,\"-$(GITHUB_REPOSITORY_OWNER)\")
+# As preprocessor defines, DATETIME is unquoted, META_DATETIME is quoted
+DATETIME			:=	$(shell date +%Y%m%d%H%M%S)
+
+#---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 
 ASFLAGS := $(MACHDEP) -mregnames -D_LANGUAGE_ASSEMBLY
 CFLAGS	:= -O3 -g -std=gnu89 -Wno-format-truncation \
 	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN \
-	   -DMETA_DATETIME=\"$(META_DATETIME)\"
+	   -DNIN_MAJOR_VERSION=$(NIN_MAJOR_VERSION) \
+	   -DNIN_MINOR_VERSION=$(NIN_MINOR_VERSION) \
+	   -DNIN_SPECIAL_VERSION=$(NIN_SPECIAL_VERSION) \
+	   -DMETA_DATETIME=\"$(DATETIME)\"
 CXXFLAGS := $(CFLAGS)
 
 # NOTE: Do NOT change to := - needed for proper expansion of $(CURDIR) later.
@@ -104,11 +118,7 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 .PHONY: $(BUILD) clean
 
 #---------------------------------------------------------------------------------
-# get date/time
-#---------------------------------------------------------------------------------
-export META_DATETIME	:=	$(shell date +%Y%m%d%H%M%S)
-
-#---------------------------------------------------------------------------------
+# build loader.dol and output meta.xml using C preprocessor on a template
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
@@ -116,7 +126,7 @@ $(BUILD):
 	@cp -p $(OUTPUT).dol ../build/apps/Nintendont/boot.dol
 	$(CC) -E -traditional -P \
 		-include ../common/include/NintendontVersion.h \
-		-DMETA_DATETIME=$(META_DATETIME) \
+		-DDATETIME=$(DATETIME) \
 		../metaxml.sx \
 		| sed -n '/^<?xml/,$$p' \
 		> ../build/apps/Nintendont/meta.xml
