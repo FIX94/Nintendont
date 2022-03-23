@@ -116,13 +116,9 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 .PHONY: $(BUILD) clean
 
 #---------------------------------------------------------------------------------
-# 1, change version number
-# 2, build loader.dol
-# 3, output meta.xml using C preprocessor on a template
+# 1, build loader.dol
+# 2, output meta.xml using C preprocessor on a template
 $(BUILD):
-	if [ -n "$(GITHUB_RUN_NUMBER)" ]; then \
-		sed -i 's/#define NIN_MINOR_VERSION.*$$/#define NIN_MINOR_VERSION\t\t\t$(GITHUB_RUN_NUMBER)/' $(NINTENTDONTVERSION_H); \
-	fi
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 	@[ -d $(ARTIFACTS) ] || mkdir -p $(ARTIFACTS)

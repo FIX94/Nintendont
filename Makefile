@@ -15,10 +15,21 @@ SUBPROJECTS := multidol kernel/asm resetstub \
 	fatfs/libfat-arm.a fatfs/libfat-ppc.a \
 	codehandler kernel kernelboot \
 	loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface loader
+# This is where titles.txt and icon.png will be copied to
+ARTIFACTS := build/app/Nintendont
 .PHONY: all forced clean $(SUBPROJECTS)
 
-all: loader
+all: nintendontversion loader copy_files
 forced: clean all
+
+# change version number
+nintendontversion:
+	@echo " "
+	@echo "Update version number (if available)"
+	@echo " "
+	if [ -n "$(GITHUB_RUN_NUMBER)" ]; then \
+		sed -i 's/#define NIN_MINOR_VERSION.*$$/#define NIN_MINOR_VERSION\t\t\t$(GITHUB_RUN_NUMBER)/' $(NINTENTDONTVERSION_H); \
+	fi
 
 multidol:
 	@echo " "
@@ -85,8 +96,15 @@ loader: multidol resetstub fatfs/libfat-ppc.a kernel kernelboot loader/source/pp
 	@echo "Building Nintendont loader"
 	@echo " "
 	$(MAKE) -C loader
-	mkdir -p build/apps/Nintendont/
-	cp -p nintendont/icon.png nintendont/titles.txt build/apps/Nintendont/
+
+# After building, assemble a build directory. GitHub will zip it and it can be
+# downloaded and extracted to a SD card or HDD.
+copy_files:
+	@echo " "
+	@echo "Copying files"
+	@echo " "
+	mkdir -p $(ARTIFACTS)
+	cp -p nintendont/icon.png nintendont/titles.txt $(ARTIFACTS)
 	unzip -d build/controllers -q -n controllerconfigs/controllers.zip
 
 clean:
