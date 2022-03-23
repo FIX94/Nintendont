@@ -17,6 +17,7 @@ SUBPROJECTS := multidol kernel/asm resetstub \
 	loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface loader
 # This is where titles.txt and icon.png will be copied to
 ARTIFACTS := build/app/Nintendont
+NINTENTDONTVERSION_H := common/include/NintendontVersion.h
 .PHONY: all forced clean $(SUBPROJECTS)
 
 all: nintendontversion loader copy_files
