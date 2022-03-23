@@ -5,7 +5,7 @@
  * change will have to update main.yml. Online updates fetch this file directly
  * from the repo and scanf these version numbers. */
 #define NIN_MAJOR_VERSION			7
-#define NIN_MINOR_VERSION			10
+#define NIN_MINOR_VERSION			12
 
 #define NIN_VERSION		((NIN_MAJOR_VERSION << 16) | NIN_MINOR_VERSION)
 
