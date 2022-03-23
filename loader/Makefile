@@ -32,7 +32,7 @@ NINTENTDONTVERSION_H := ../common/include/NintendontVersion.h
 # If dol does not come from FIX94 we identify source on the screen
 NIN_SPECIAL_VERSION	:=	$(if $(and $(GITHUB_REPOSITORY_OWNER),$(findstring FIX94,$(GITHUB_REPOSITORY_OWNER))),,\"-$(GITHUB_REPOSITORY_OWNER)\")
 # As preprocessor defines, DATETIME is unquoted, META_DATETIME is quoted
-DATETIME			:=	$(shell date +%Y%m%d%H%M%S)
+DATETIME			:=	$(shell git show -s --format=%cI | grep -o -E "[[:digit:]]*" - | head -n 6 | paste -sd '')
 
 #---------------------------------------------------------------------------------
 # options for code generation
