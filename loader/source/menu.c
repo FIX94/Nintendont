@@ -1975,6 +1975,7 @@ bool SelectDevAndGame(void)
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 9, "Clearing Cache");
             FIL f;
             UINT wrote;
+            int zeroValue = 0;
             static const char* const SdStr = "sd";
             static const char* const UsbStr = "usb";
             snprintf(filename, sizeof(filename), "%s:/gamecache.bin", SdStr);
