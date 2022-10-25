@@ -107,6 +107,7 @@ extern u32 drcAddress;
 extern u32 drcAddressAligned;
 u32 IsN64Emu = 0;
 u32 isKirby = 0;
+u32 isdisneyskt = 0;
 
 // SHA-1 hashes of known DSP modules.
 static const unsigned char DSPHashes[][20] =
@@ -1033,6 +1034,8 @@ static inline bool PADSwitchRequired()
 static inline bool PADForceConnected()
 {
 	return( (TITLE_ID) == 0x474C5A || // 007 From Russia With Love
+                        (TITLE_ID) == 0x474153 ||	// sonic dx jap
+                        (TITLE_ID) == 0x475853 ||	// sonic dx usa and pal
                         (TITLE_ID) == 0x475735 ||	// Need For Speed Carbon
 			(TITLE_ID) == 0x474f57 );	// Nedd For Speed Most Wanted
 }
@@ -1489,6 +1492,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	}
 	/* requires lots of additional timer patches for BBA */
 	isKirby = (TITLE_ID == 0x474B59);
+        if(TITLE_ID == 0x474458)
+       isdisneyskt = 0x474458;
 
 	sync_before_read(Buffer, Length);
 
