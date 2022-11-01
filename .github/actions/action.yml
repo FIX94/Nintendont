@@ -1,0 +1,8 @@
+name: 'Make Nintendont'
+description: 'Compiles Nintendont'
+
+runs:
+  using: 'docker'
+  # Oldest tag I can find with both devkitARM and devkitPPC.
+  image: 'devkitpro/devkitppc:20210619'
+  entrypoint: make

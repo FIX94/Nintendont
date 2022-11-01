@@ -15,6 +15,7 @@ include $(DEVKITPPC)/wii_rules
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
 # INCLUDES is a list of directories containing extra header files
+# ARTIFACTS is to package a zip for the user to unpack to their SD card/HDD
 #---------------------------------------------------------------------------------
 TARGET		:= $(notdir $(CURDIR))
 BUILD		:= build
@@ -22,6 +23,16 @@ SOURCES		:= source
 SOURCES		+= source/unzip
 DATA		:= data
 INCLUDES	:= include ../fatfs
+ARTIFACTS	:= ../build/apps/Nintendont
+NINTENTDONTVERSION_H := ../common/include/NintendontVersion.h
+
+#---------------------------------------------------------------------------------
+# metadata
+#---------------------------------------------------------------------------------
+# If dol does not come from FIX94 we identify source on the screen
+NIN_SPECIAL_VERSION	:=	$(if $(and $(GITHUB_REPOSITORY_OWNER),$(findstring FIX94,$(GITHUB_REPOSITORY_OWNER))),,\"-$(GITHUB_REPOSITORY_OWNER)\")
+# As preprocessor defines, DATETIME is unquoted, META_DATETIME is quoted
+DATETIME			:=	$(shell git show -s --format=%cI | grep -o -E "[[:digit:]]*" - | head -n 6 | paste -sd '')
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -29,7 +40,9 @@ INCLUDES	:= include ../fatfs
 
 ASFLAGS := $(MACHDEP) -mregnames -D_LANGUAGE_ASSEMBLY
 CFLAGS	:= -O3 -g -std=gnu89 -Wno-format-truncation \
-	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN
+	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN \
+	   -DNIN_SPECIAL_VERSION=$(NIN_SPECIAL_VERSION) \
+	   -DMETA_DATETIME=\"$(DATETIME)\"
 CXXFLAGS := $(CFLAGS)
 
 # NOTE: Do NOT change to := - needed for proper expansion of $(CURDIR) later.
@@ -103,10 +116,19 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 .PHONY: $(BUILD) clean
 
 #---------------------------------------------------------------------------------
+# 1, build loader.dol
+# 2, output meta.xml using C preprocessor on a template
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-	@cp $(OUTPUT).dol ../nintendont/boot.dol
+	@[ -d $(ARTIFACTS) ] || mkdir -p $(ARTIFACTS)
+	@cp -p $(OUTPUT).dol $(ARTIFACTS)/boot.dol
+	$(CC) -E -traditional -P \
+		-include $(NINTENTDONTVERSION_H) \
+		-DDATETIME=$(DATETIME) \
+		../metaxml.sx \
+		| sed -n '/^<?xml/,$$p' \
+		> $(ARTIFACTS)/meta.xml
 
 #---------------------------------------------------------------------------------
 clean:
