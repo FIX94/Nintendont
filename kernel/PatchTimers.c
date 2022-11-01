@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "PatchTimers.h"
 
 extern u32 isKirby;
+extern u32 isdisneyskt;
 
 static bool write64A( u32 Offset, u64 Value, u64 CurrentValue )
 {
@@ -298,11 +299,14 @@ bool PatchTimers(u32 FirstVal, u32 Buffer, bool checkFloats)
 		u32 NextP = CheckFor(Buffer, 0x38009E34);
 		if(NextP > 0)
 		{
+                         if(isdisneyskt != 0x474458)
+                         {
 			W16AH(Buffer + 2, U32_TIMER_CLOCK_MSECS_WII);
 			W16L(NextP + 2, U32_TIMER_CLOCK_MSECS_WII);
 			dbgprintf("PatchTimers:[Timer Clock addi ms] applied (0x%08X)\r\n", Buffer );
 			return true;
-		}
+		         }
+                }
 	}
 	/* RADTimerRead split into subparts */
 	if( FirstVal == 0x3C000001 )
