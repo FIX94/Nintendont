@@ -1,6 +1,14 @@
 ### Nintendont
 A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 
+### Table of contents
+ - [Features](#features)
+ - [Features (Wii only)](#features-wii-only)
+ - [What Nintendont will never support](#what-nintendont-will-never-support)
+ - [Quick Installation](#quick-installation)
+ - [Compiling](#compiling)
+ - [Notes](#notes)
+
 ### Features:
 * Works on Wii and Wii U (in vWii mode)
 * Full-speed loading from a USB device or an SD card.
