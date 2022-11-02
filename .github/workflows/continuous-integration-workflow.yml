@@ -1,0 +1,31 @@
+name: Nintendont Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build Nintendont
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitppc:latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Build Nintendont dol
+      run: |
+        make -j2
+        
+    - name: Copy Nintendont artifacts
+      run: | 
+        mkdir -p dist/Nintendont/apps/Nintendont
+        cp nintendont/icon.png dist/Nintendont/apps/Nintendont/
+        cp nintendont/meta.xml dist/Nintendont/apps/Nintendont/
+        cp loader/loader.dol dist/Nintendont/apps/Nintendont/boot.dol
+    - name: Upload Nintendont artifacts
+      uses: actions/upload-artifact@v3
+      with: 
+        name: Nintendont
+        path: |
+         dist/Nintendont/
