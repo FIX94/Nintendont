@@ -1655,26 +1655,30 @@ u32 PADRead(u32 calledByGame)
 					button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
 				}
 
-				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= 0x34) {
+				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= 0x40) {
 					button |= PAD_TRIGGER_L;
 					Pad[chan].triggerLeft = 0xFF;
 				}
 
-				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= 0x34) {
+				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= 0x40) {
 					button |= PAD_TRIGGER_R;
 					Pad[chan].triggerRight = 0xFF;
 				}
 
 				ApplyCardinalMask(&Pad[chan]);
 			}
-			else if (*TitleID == 0x47505A)
+			else if (*TitleID == 0x474533)
 			{
-				// Nintendo Puzzle Collection
-				if (!(button & PAD_TRIGGER_L))
-					Pad[chan].triggerLeft = 0;
-				if (!(button & PAD_TRIGGER_R))
-					Pad[chan].triggerRight = 0;
-		}
+				if (BTPad[chan].triggerL >= 0x40) {
+					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
+
+				if (BTPad[chan].triggerR >= 0x40) {
+					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
+			}
 #endif
 #ifndef LI_NOEXIT
 			if(BTPad[chan].button & BT_BUTTON_HOME)
