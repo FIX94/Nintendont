@@ -1,3 +1,35 @@
+## Nintendont - libertyernie's build (preprocessor flags version)
+
+Available preprocessor flags in this branch (define these in NintendontVersion.h):
+
+* `LI_NOSWAP`: removes the controller shortcuts that allow you to swap buttons (Y/B vs. B/A)
+* `LI_NOEXIT`: removes the ability to exit Nintendont without turning off or resetting the console
+* `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller, Classic Controller Pro, and Wii U GamePad
+    * The Legend of Zelda: Four Swords Adventures
+	    * D-Pad => Left Stick
+		* Select => D-Pad Down
+    * Super Puzzle Bobble / Bust-A-Move 3000 / Bust-A-Move All-Stars
+        * Both left shoulder buttons -> full L press
+        * Both right shoulder buttons -> full R press
+        * D-pad diagonals -> D-pad horizontals
+        * Analog stick diagonals -> analog stick horizontals or verticals (whichever is closer)
+* `LI_BASE64`: lets you load a base64-encoded nincfg.bin from meta.xml (also see [NinCFGEditor](https://github.com/libertyernie/NinCFGEditor))
+* `LI_SHOULDER`: tweaks the button mappings for the Classic Controller, Classic Controller Pro, and Wii U GamePad
+    * Large left shoulder button: full L press
+    * Small left shoulder button: half L press
+    * Large right shoulder button: full R press
+    * Small right shoulder button: half R press
+    * Home: Start (only if `LI_NOEXIT` is also used)
+    * Select / Minus: Z
+
+To build on Windows, you might need to set the "windows" variable so the build process can find zip.exe:
+
+    $ windows=1 make
+
+You'll also want to make sure the devkitpro folder with libwinpthread-1.dll is in your PATH.
+
+.dol files (if any) are in the Releases section on GitHub.
+
 ### Nintendont
 A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 

@@ -27,6 +27,8 @@ static vu32* PADIsBarrel = (vu32*)0xD3003130;
 static vu32* PADBarrelEnabled = (vu32*)0xD3003140;
 static vu32* PADBarrelPress = (vu32*)0xD3003150;
 
+static vu32* TitleID = (vu32*)0x932C0498;
+
 static volatile struct BTPadCont *BTPad = (volatile struct BTPadCont*)0x932F0000;
 static vu32* BTMotor = (vu32*)0x93003040;
 static vu32* BTPadFree = (vu32*)0x93003050;
@@ -76,6 +78,25 @@ const s8 DEADZONE = 0x1A;
 	if(tmp_stick16 > 0x7F) tmp_stick8 = 0x7F; \
 	else if(tmp_stick16 < -0x80) tmp_stick8 = -0x80; \
 	else tmp_stick8 = (s8)tmp_stick16;
+
+#ifdef LI_CUSTOM_CONTROLS
+void ApplyCardinalMask(PADStatus* pad) {
+	s8 x = pad->stickX;
+	if (x < 0) x = -x;
+	s8 y = pad->stickY;
+	if (y < 0) y = -y;
+
+	if (y > x) {
+		// Up / Down
+		pad->stickX = 0;
+	}
+	else
+	{
+		// Left / Right
+		pad->stickY = 0;
+	}
+}
+#endif
 
 u32 PADRead(u32 calledByGame)
 {
@@ -141,6 +162,7 @@ u32 PADRead(u32 calledByGame)
 		if((!(PrevDRCButton & WIIDRC_BUTTON_MINUS)) && drcbutton & WIIDRC_BUTTON_MINUS)
 			PrevDRCButton ^= DRC_SWAP;
 		PrevDRCButton = (PrevDRCButton & DRC_SWAP) | drcbutton;
+#ifndef LI_NOSWAP
 		if(PrevDRCButton & DRC_SWAP)
 		{	/* turn buttons quarter clockwise */
 			if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_A;
@@ -149,6 +171,7 @@ u32 PADRead(u32 calledByGame)
 			if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_Y;
 		}
 		else
+#endif
 		{
 			if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
 			if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
@@ -159,6 +182,32 @@ u32 PADRead(u32 calledByGame)
 		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
 		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
 		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
+#ifdef LI_SHOULDER
+		if (drcbutton & WIIDRC_BUTTON_ZL) {
+			button |= PAD_TRIGGER_L;
+			Pad[WiiUGamepadSlot].triggerLeft = 0xFF;
+		}
+		else if (drcbutton & WIIDRC_BUTTON_L) {
+			Pad[WiiUGamepadSlot].triggerLeft = 0x7F;
+		}
+		else {
+			Pad[WiiUGamepadSlot].triggerLeft = 0;
+		}
+
+		if (drcbutton & WIIDRC_BUTTON_ZR) {
+			button |= PAD_TRIGGER_R;
+			Pad[WiiUGamepadSlot].triggerRight = 0xFF;
+		}
+		else if (drcbutton & WIIDRC_BUTTON_R) {
+			Pad[WiiUGamepadSlot].triggerRight = 0x7F;
+		}
+		else {
+			Pad[WiiUGamepadSlot].triggerRight = 0;
+		}
+
+		if (drcbutton & WIIDRC_BUTTON_MINUS)
+			button |= PAD_TRIGGER_Z;
+#else
 		//also sets left analog trigger
 		if(drcbutton & WIIDRC_BUTTON_ZL)
 		{
@@ -188,8 +237,13 @@ u32 PADRead(u32 calledByGame)
 		else
 			Pad[WiiUGamepadSlot].triggerRight = 0;
 		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
+#endif
 		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
+#ifndef LI_NOEXIT
 		if(drcbutton & WIIDRC_BUTTON_HOME) goto DoExit;
+#elif defined LI_SHOULDER
+		if(drcbutton & WIIDRC_BUTTON_HOME) button |= PAD_BUTTON_START;
+#endif
 		//write in mapped out buttons
 		Pad[WiiUGamepadSlot].button = button;
 		if((Pad[WiiUGamepadSlot].button&0x1030) == 0x1030) //reset by pressing start, Z, R
@@ -209,6 +263,59 @@ u32 PADRead(u32 calledByGame)
 		Pad[WiiUGamepadSlot].substickX = tmp_stick8;
 		_DRC_BUILD_TMPSTICK(i2cdata[7]);
 		Pad[WiiUGamepadSlot].substickY = tmp_stick8;
+
+#ifdef LI_CUSTOM_CONTROLS
+		int gpslot = WiiUGamepadSlot;
+
+		if (*TitleID == 0x473453) {
+			// The Legend of Zelda: Four Swords Adventures
+
+			if (drcbutton & (WIIDRC_BUTTON_UP | WIIDRC_BUTTON_DOWN | WIIDRC_BUTTON_LEFT | WIIDRC_BUTTON_RIGHT)) {
+				// D-pad pressed - override joystick
+				Pad[gpslot].stickX = 0;
+				Pad[gpslot].stickY = 0;
+				if (drcbutton & WIIDRC_BUTTON_UP) {
+					Pad[gpslot].stickY += 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_DOWN) {
+					Pad[gpslot].stickY -= 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_LEFT) {
+					Pad[gpslot].stickX -= 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_RIGHT) {
+					Pad[gpslot].stickX += 0x7F;
+				}
+			}
+
+			// Hide D-pad from game (will be used to emulate joystick)
+			Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+
+			// Map Select to D-pad down
+			if (drcbutton & WIIDRC_BUTTON_MINUS)
+				Pad[gpslot].button |= PAD_BUTTON_DOWN;
+		}
+		else if (*TitleID == 0x47564D || *TitleID == 0x473353)
+		{
+			// Bust-a-Move 3000
+			if (Pad[gpslot].button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
+			{
+				Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
+			}
+
+			if ((drcbutton & WIIDRC_BUTTON_L) || (drcbutton & WIIDRC_BUTTON_ZL)) {
+				button |= PAD_TRIGGER_L;
+				Pad[gpslot].triggerLeft = 0xFF;
+			}
+
+			if ((drcbutton & WIIDRC_BUTTON_R) || (drcbutton & WIIDRC_BUTTON_ZR)) {
+				button |= PAD_TRIGGER_R;
+				Pad[gpslot].triggerRight = 0xFF;
+			}
+
+			ApplyCardinalMask(&Pad[gpslot]);
+		}
+#endif
 	}
 	else
 	{
@@ -309,12 +416,13 @@ u32 PADRead(u32 calledByGame)
 				else
 					Pad[chan].triggerRight = 0;
 			}
-
+#ifndef LI_NOEXIT
 			/* exit by pressing B,Z,R,PAD_BUTTON_DOWN */
 			if((Pad[chan].button&0x234) == 0x234)
 			{
 				goto DoExit;
 			}
+#endif
 			if((Pad[chan].button&0x1c00) == 0x1c00 || ((*PadUsed & (1 << chan)) == 0))
 			{
 				OffsetX[chan] = Pad[chan].stickX;
@@ -439,12 +547,13 @@ u32 PADRead(u32 calledByGame)
 				}
 			}
 		}
-
+#ifndef LI_NOEXIT
 		if(calledByGame && HID_CTRL->Power.Mask &&	//exit if power configured and all power buttons pressed
-		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
+			((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
 		{
 			goto DoExit;
 		}
+#endif
 		used |= (1<<chan);
 
 		Rumble |= ((1<<31)>>chan);
@@ -810,6 +919,39 @@ u32 PADRead(u32 calledByGame)
 
 		u16 button = 0;
 
+#ifdef LI_SHOULDER
+		if (BTPad[chan].used & (C_CC | C_CCP)) {
+			u16 LARGE_L = (BTPad[chan].used & C_CCP) ? BT_TRIGGER_ZL : BT_TRIGGER_L;
+			u16 SMALL_L = (BTPad[chan].used & C_CCP) ? BT_TRIGGER_L : BT_TRIGGER_ZL;
+			u16 LARGE_R = (BTPad[chan].used & C_CCP) ? BT_TRIGGER_ZR : BT_TRIGGER_R;
+			u16 SMALL_R = (BTPad[chan].used & C_CCP) ? BT_TRIGGER_R : BT_TRIGGER_ZR;
+
+			if (BTPad[chan].button & LARGE_L) {
+				button |= PAD_TRIGGER_L;
+				Pad[chan].triggerLeft = 0xFF;
+			}
+			else if (BTPad[chan].button & SMALL_L) {
+				Pad[chan].triggerLeft = 0x7F;
+			}
+			else {
+				Pad[chan].triggerLeft = 0;
+			}
+
+			if (BTPad[chan].button & LARGE_R) {
+				button |= PAD_TRIGGER_R;
+				Pad[chan].triggerRight = 0xFF;
+			}
+			else if (BTPad[chan].button & SMALL_R) {
+				Pad[chan].triggerRight = 0x7F;
+			}
+			else {
+				Pad[chan].triggerRight = 0;
+			}
+
+			if (BTPad[chan].button & BT_BUTTON_SELECT)
+				button |= PAD_TRIGGER_Z;
+		}
+#else
 		if(BTPad[chan].used & C_CC)
 		{
 			Pad[chan].triggerLeft = BTPad[chan].triggerL;
@@ -854,6 +996,7 @@ u32 PADRead(u32 calledByGame)
 			if(BTPad[chan].button & BT_TRIGGER_R)
 				button |= PAD_TRIGGER_Z;
 		}
+#endif
 
 // Nunchuck Buttons
 		if((BTPad[chan].used & C_NUN) && !(BTPad[chan].button & WM_BUTTON_TWO))	//nunchuck not being configured
@@ -1378,13 +1521,17 @@ u32 PADRead(u32 calledByGame)
 //				}break;
 			}
 			if(BTPad[chan].button & WM_BUTTON_ONE)
-				button |= PAD_BUTTON_START;
-			if(BTPad[chan].button & WM_BUTTON_HOME)
+				button |= PAD_BUTTON_START;	
+#ifndef LI_NOEXIT
+			//2+HOME to exit
+			if((BTPad[chan].button & WM_BUTTON_TWO) && (BTPad[chan].button & WM_BUTTON_HOME))
 				goto DoExit;
+#endif
 		}	//end nunchuck configs
 
 		if(BTPad[chan].used & (C_CC | C_CCP))
 		{
+#ifndef LI_NOSWAP
 			if(BTPad[chan].used & C_SWAP)
 			{	/* turn buttons quarter clockwise */
 				if(BTPad[chan].button & BT_BUTTON_B)
@@ -1397,6 +1544,7 @@ u32 PADRead(u32 calledByGame)
 					button |= PAD_BUTTON_Y;
 			}
 			else
+#endif
 			{
 				if(BTPad[chan].button & BT_BUTTON_A)
 					button |= PAD_BUTTON_A;
@@ -1418,9 +1566,63 @@ u32 PADRead(u32 calledByGame)
 				button |= PAD_BUTTON_DOWN;
 			if(BTPad[chan].button & BT_DPAD_UP)
 				button |= PAD_BUTTON_UP;
+#ifdef LI_CUSTOM_CONTROLS
+			if (*TitleID == 0x473453) {
+				// The Legend of Zelda: Four Swords Adventures
 
+				if (BTPad[chan].button & (BT_DPAD_UP | BT_DPAD_DOWN | BT_DPAD_LEFT | BT_DPAD_RIGHT)) {
+					// D-pad pressed - override joystick
+					Pad[chan].stickX = 0;
+					Pad[chan].stickY = 0;
+					if (BTPad[chan].button & BT_DPAD_UP) {
+						Pad[chan].stickY += 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_DOWN) {
+						Pad[chan].stickY -= 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_LEFT) {
+						Pad[chan].stickX -= 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_RIGHT) {
+						Pad[chan].stickX += 0x7F;
+					}
+				}
+
+				// Hide D-pad from game (will be used to emulate joystick)
+				button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+
+				// Map Select to D-pad down
+				if (BTPad[chan].button & BT_BUTTON_SELECT)
+					button |= PAD_BUTTON_DOWN;
+			}
+			else if (*TitleID == 0x47564D || *TitleID == 0x473353)
+			{
+				// Bust-a-Move 3000
+				if (button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
+				{
+					button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
+				}
+
+				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL)) {
+					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
+
+				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR)) {
+					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
+
+				ApplyCardinalMask(&Pad[chan]);
+			}
+#endif
+#ifndef LI_NOEXIT
 			if(BTPad[chan].button & BT_BUTTON_HOME)
 				goto DoExit;
+#elif defined LI_SHOULDER
+		if(BTPad[chan].button & BT_BUTTON_HOME)
+			button |= PAD_BUTTON_START;
+#endif
 		}
 
 		Pad[chan].button = button;
@@ -1439,11 +1641,13 @@ u32 PADRead(u32 calledByGame)
 			Pad[chan].stickY = Pad[chan].triggerLeft;
 		#endif
 
+#ifndef LI_NOEXIT
 		//exit by pressing B,Z,R,PAD_BUTTON_DOWN
 		if((Pad[chan].button&0x234) == 0x234)
 		{
 			goto DoExit;
 		}
+#endif
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
@@ -1488,6 +1692,7 @@ u32 PADRead(u32 calledByGame)
 	}
 	return Rumble;
 
+#ifndef LI_NOEXIT
 DoExit:
 	/* disable interrupts */
 	disableIRQs();
@@ -1511,6 +1716,7 @@ DoExit:
 	/* jump to it */
 	bootStub();
 	return 0;
+#endif
 DoShutdown:
 	/* disable interrupts */
 	disableIRQs();

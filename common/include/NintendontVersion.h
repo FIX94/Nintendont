@@ -12,6 +12,12 @@
 
 // "Special" version.
 // This should only be set in custom builds, i.e. not mainline.
-//#define NIN_SPECIAL_VERSION			"-BBABeta13"
+#define NIN_SPECIAL_VERSION			"-libertyernie"
+
+#define LI_NOSWAP
+#define LI_NOEXIT
+#define LI_CUSTOM_CONTROLS
+#define LI_BASE64
+#define LI_SHOULDER
 
 #endif
