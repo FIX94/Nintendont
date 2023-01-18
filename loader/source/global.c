@@ -339,6 +339,18 @@ bool LoadNinCFG(void)
 				ConfigLoaded = false;
 			break;
 
+#ifdef LI_BASE64
+		case 3:
+		case 4:
+		case 5:
+		case 6:
+		case 7:
+		case 8:
+		case 9:
+			if (BytesRead != 544)
+				ConfigLoaded = false;
+			break;
+#endif
 		default:
 			if (BytesRead != sizeof(NIN_CFG))
 				ConfigLoaded = false;
@@ -456,6 +468,10 @@ void UpdateNinCFG()
 		ncfg->Config &= ~NIN_CFG_BBA_EMU;
 		ncfg->NetworkProfile = 0;
 		ncfg->Version = 9;
+	}
+	if (ncfg->Version == 9) {
+		ncfg->WiiUGamepadSlot = 0;
+		ncfg->Version = 10;
 	}
 }
 

@@ -258,6 +258,11 @@ void DIinit( bool FirstTime )
 	GAME_ID6 = R16(4);
 	TITLE_ID = (GAME_ID >> 8);
 
+#ifdef LI_CUSTOM_CONTROLS
+	*(vu32*)0x132C0498 = TITLE_ID;
+	sync_after_write((void*)0x132C0498, sizeof(vu32));
+#endif
+
 	GCAMKeyA = read32(0);
 	GCAMKeyB = read32(4);
 	GCAMKeyC = read32(8);

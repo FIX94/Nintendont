@@ -1,3 +1,45 @@
+## Nintendont - libertyernie's build (preprocessor flags version)
+
+Available preprocessor flags in this branch (define these in NintendontVersion.h):
+
+* `LI_NOSWAP`: removes the controller shortcuts that allow you to swap buttons (Y/B vs. B/A)
+* `LI_NOEXIT`: removes the ability to exit Nintendont without turning off or resetting the console
+* `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller, Classic Controller Pro, and Wii U GamePad
+    * The Legend of Zelda: Four Swords Adventures
+	    * D-Pad => Left Stick
+		* Select => D-Pad Down
+    * Super Puzzle Bobble / Bust-A-Move 3000 / Bust-A-Move All-Stars
+        * Both left shoulder buttons (on Classic Controller, pressed down at least 20%) -> full L press
+        * Both right shoulder buttons (on Classic Controller, pressed down at least 20%) -> full R press
+        * D-pad diagonals -> D-pad horizontals
+        * Analog stick diagonals -> analog stick horizontals or verticals (whichever is closer)
+    * Nintendo Puzzle Collection
+        * on Classic Controller, L and R do not activate unless pressed all the way (digitally)
+* `LI_BASE64`: lets you load a base64-encoded nincfg.bin from meta.xml (also see [NinCFGEditor](https://github.com/libertyernie/NinCFGEditor))
+* `LI_SHOULDER`: tweaks the button mappings on certain controllers
+    * Classic Controller:
+        * L -> L (analog)
+        * R -> R (analog)
+        * ZL -> half L press (0x7F)
+        * ZR -> half R press (0x7F)
+        * Home -> Start (if `LI_NOEXIT` is used)
+        * Select -> Z
+    * Classic Controller Pro / Wii U GamePad:
+        * ZL -> full L press (0xFF)
+        * ZR -> full R press (0xFF)
+        * L -> half L press (0x7F)
+        * R -> half R press (0x7F)
+        * Home -> Start (if `LI_NOEXIT` is used)
+        * Select -> Z
+
+To build on Windows, you might need to set the "windows" variable so the build process can find zip.exe:
+
+    $ windows=1 make
+
+You'll also want to make sure the devkitpro folder with libwinpthread-1.dll is in your PATH.
+
+.dol files (if any) are in the Releases section on GitHub.
+
 ### Nintendont with XBOX360 controller support
 * Only XBOX360 **wired version** is supported (VID=0x045e, PID=0x028e)
 * You control player 1.

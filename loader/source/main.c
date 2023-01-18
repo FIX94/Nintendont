@@ -48,6 +48,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "TRI.h"
 #include "Config.h"
 #include "wdvd.h"
+#ifdef LI_BASE64
+#include "b64/cdecode.h"
+#endif
 
 #include "ff_utf8.h"
 #include "diskio.h"
@@ -568,9 +571,28 @@ int main(int argc, char **argv)
 
 	memset((void*)ncfg, 0, sizeof(NIN_CFG));
 	bool argsboot = false;
+	bool base64args = false;
 	if(argc > 1) //every 0x00 gets counted as one arg so just make sure its more than the path and copy
 	{
-		memcpy(ncfg, argv[1], sizeof(NIN_CFG));
+#ifdef LI_BASE64
+		if (strncmp("AQcM", argv[1], 4) == 0) {
+			// argv[1] is a base64 encoded string
+			base64args = true;
+			void* decode_buffer = malloc(strlen(argv[1]) * 6 / 8 + 1);
+			if (decode_buffer)
+			{
+				base64_decodestate state;
+				base64_init_decodestate(&state);
+				base64_decode_block(argv[1], strlen(argv[1]), decode_buffer, &state);
+				memcpy(ncfg, decode_buffer, sizeof(NIN_CFG));
+				free(decode_buffer);
+			}
+		}
+#endif
+		if (!base64args)
+		{
+			memcpy(ncfg, argv[1], sizeof(NIN_CFG));
+		}
 		UpdateNinCFG(); //support for old versions with this
 		if(ncfg->Magicbytes == 0x01070CF6 && ncfg->Version == NIN_CFG_VERSION && ncfg->MaxPads <= NIN_CFG_MAXPAD)
 		{
@@ -785,7 +807,10 @@ int main(int argc, char **argv)
 	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
 
 	// Update meta.xml.
-	updateMetaXml();
+	if (base64args == false)
+	{
+		updateMetaXml();
+	}
 
 	if(argsboot == false)
 	{
@@ -1028,27 +1053,32 @@ int main(int argc, char **argv)
 //Set Language
 	if(ncfg->Language == NIN_LAN_AUTO || ncfg->Language >= NIN_LAN_LAST)
 	{
-		switch (CONF_GetLanguage())
+		if(BI2region == BI2_REGION_PAL)
 		{
-			case CONF_LANG_GERMAN:
-				ncfg->Language = NIN_LAN_GERMAN;
-				break;
-			case CONF_LANG_FRENCH:
-				ncfg->Language = NIN_LAN_FRENCH;
-				break;
-			case CONF_LANG_SPANISH:
-				ncfg->Language = NIN_LAN_SPANISH;
-				break;
-			case CONF_LANG_ITALIAN:
-				ncfg->Language = NIN_LAN_ITALIAN;
-				break;
-			case CONF_LANG_DUTCH:
-				ncfg->Language = NIN_LAN_DUTCH;
-				break;
-			default:
-				ncfg->Language = NIN_LAN_ENGLISH;
-				break;
+			switch (CONF_GetLanguage())
+			{
+				case CONF_LANG_GERMAN:
+					ncfg->Language = NIN_LAN_GERMAN;
+					break;
+				case CONF_LANG_FRENCH:
+					ncfg->Language = NIN_LAN_FRENCH;
+					break;
+				case CONF_LANG_SPANISH:
+					ncfg->Language = NIN_LAN_SPANISH;
+					break;
+				case CONF_LANG_ITALIAN:
+					ncfg->Language = NIN_LAN_ITALIAN;
+					break;
+				case CONF_LANG_DUTCH:
+					ncfg->Language = NIN_LAN_DUTCH;
+					break;
+				default:
+					ncfg->Language = NIN_LAN_ENGLISH;
+					break;
+			}
 		}
+		else
+			ncfg->Language = NIN_LAN_ENGLISH;
 	}
 
 	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
@@ -1117,17 +1147,25 @@ int main(int argc, char **argv)
 		__SYS_UnlockSram(1); // 1 -> write changes
 		while(!__SYS_SyncSram());
 	}
+	
+	//Check if game is Triforce game
+	u32 IsTRIGame = 0;
+	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
+		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
+	
+	if(IsTRIGame != 0)
+	{
+		// Create saves directory.
+		char BasePath[20];
+		snprintf(BasePath, sizeof(BasePath), "%s:/saves", GetRootDevice());
+		f_mkdir_char(BasePath);
+	}
 
 	#define GCN_IPL_SIZE 2097152
 	#define TRI_IPL_SIZE 1048576
 	void *iplbuf = NULL;
 	bool useipl = false;
 	bool useipltri = false;
-
-	//Check if game is Triforce game
-	u32 IsTRIGame = 0;
-	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
-		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 
 	if (!(ncfg->Config & (NIN_CFG_SKIP_IPL)))
 	{

@@ -27,6 +27,8 @@ static vu32* PADIsBarrel = (vu32*)0xD3003130;
 static vu32* PADBarrelEnabled = (vu32*)0xD3003140;
 static vu32* PADBarrelPress = (vu32*)0xD3003150;
 
+static vu32* TitleID = (vu32*)0x932C0498;
+
 static volatile struct BTPadCont *BTPad = (volatile struct BTPadCont*)0x932F0000;
 static vu32* BTMotor = (vu32*)0x93003040;
 static vu32* BTPadFree = (vu32*)0x93003050;
@@ -42,6 +44,11 @@ static u32 PrevAdapterChannel3 = 0;
 static u32 PrevAdapterChannel4 = 0;
 static u32 PrevDRCButton = 0;
 static int xbox_swap = 0;
+
+static s8 OffsetX[NIN_CFG_MAXPAD] = {0};
+static s8 OffsetY[NIN_CFG_MAXPAD] = {0};
+static s8 OffsetCX[NIN_CFG_MAXPAD] = {0};
+static s8 OffsetCY[NIN_CFG_MAXPAD] = {0};
 
 #define DRC_SWAP (1<<16)
 
@@ -73,6 +80,25 @@ const s8 DEADZONE = 0x1A;
 	else if(tmp_stick16 < -0x80) tmp_stick8 = -0x80; \
 	else tmp_stick8 = (s8)tmp_stick16;
 
+#ifdef LI_CUSTOM_CONTROLS
+void ApplyCardinalMask(PADStatus* pad) {
+	s8 x = pad->stickX;
+	if (x < 0) x = -x;
+	s8 y = pad->stickY;
+	if (y < 0) y = -y;
+
+	if (y > x) {
+		// Up / Down
+		pad->stickX = 0;
+	}
+	else
+	{
+		// Left / Right
+		pad->stickY = 0;
+	}
+}
+#endif
+
 u32 PADRead(u32 calledByGame)
 {
 	// Registers r1,r13-r31 automatically restored if used.
@@ -92,22 +118,39 @@ u32 PADRead(u32 calledByGame)
 	else //this file is only used for hid in the loader
 		MaxPads = 0;
 
+	u32 WiiUGamepadSlot = ((NIN_CFG*)0x93004000)->WiiUGamepadSlot;
 	u32 HIDPad = (*HID_STATUS == 0) ? HID_PAD_NONE : HID_PAD_NOT_SET;
 	u32 chan;
+
+	s16 tempStick;
 
 	memInvalidate = (u32)SIInited;
 	asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 
 	/* For Wii VC */
-	if(calledByGame && *drcAddress)
+	if(calledByGame && *drcAddress && WiiUGamepadSlot != NIN_CFG_MAXPAD)
 	{
-		used |= (1<<0); //always use channel 0
+
+              if (((NIN_CFG*)0x93004000)->Config & NIN_CFG_AUTO_BOOT)
+               {
+                if(HIDPad == HID_PAD_NONE)
+                WiiUGamepadSlot = 0;
+                else
+                WiiUGamepadSlot = 1;
+                }
+		used |= (1<<WiiUGamepadSlot);
 		if(HIDPad == HID_PAD_NOT_SET)
 		{
-			//Force HID to player 2
-			*HIDMotor = (MotorCommand[1]&0x3);
-			HIDPad = 1;
-		}
+                  u32 HIDChan = 0;             
+                       //Force HID to the first slot without the WiiUGamepad
+			if (WiiUGamepadSlot == 0)
+                          {
+				HIDChan = 1;
+			  }
+			*HIDMotor = (MotorCommand[HIDChan]&0x3);
+			HIDPad = HIDChan;
+                    
+	       }
 		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
 		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 		vu8 *i2cdata = (vu8*)(*drcAddress);
@@ -120,6 +163,7 @@ u32 PADRead(u32 calledByGame)
 		if((!(PrevDRCButton & WIIDRC_BUTTON_MINUS)) && drcbutton & WIIDRC_BUTTON_MINUS)
 			PrevDRCButton ^= DRC_SWAP;
 		PrevDRCButton = (PrevDRCButton & DRC_SWAP) | drcbutton;
+#ifndef LI_NOSWAP
 		if(PrevDRCButton & DRC_SWAP)
 		{	/* turn buttons quarter clockwise */
 			if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_A;
@@ -128,6 +172,7 @@ u32 PADRead(u32 calledByGame)
 			if(drcbutton & WIIDRC_BUTTON_X) button |= PAD_BUTTON_Y;
 		}
 		else
+#endif
 		{
 			if(drcbutton & WIIDRC_BUTTON_A) button |= PAD_BUTTON_A;
 			if(drcbutton & WIIDRC_BUTTON_B) button |= PAD_BUTTON_B;
@@ -138,40 +183,71 @@ u32 PADRead(u32 calledByGame)
 		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
 		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
 		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
+#ifdef LI_SHOULDER
+		if (drcbutton & WIIDRC_BUTTON_ZL) {
+			button |= PAD_TRIGGER_L;
+			Pad[WiiUGamepadSlot].triggerLeft = 0xFF;
+		}
+		else if (drcbutton & WIIDRC_BUTTON_L) {
+			Pad[WiiUGamepadSlot].triggerLeft = 0x7F;
+		}
+		else {
+			Pad[WiiUGamepadSlot].triggerLeft = 0;
+		}
+
+		if (drcbutton & WIIDRC_BUTTON_ZR) {
+			button |= PAD_TRIGGER_R;
+			Pad[WiiUGamepadSlot].triggerRight = 0xFF;
+		}
+		else if (drcbutton & WIIDRC_BUTTON_R) {
+			Pad[WiiUGamepadSlot].triggerRight = 0x7F;
+		}
+		else {
+			Pad[WiiUGamepadSlot].triggerRight = 0;
+		}
+
+		if (drcbutton & WIIDRC_BUTTON_MINUS)
+			button |= PAD_TRIGGER_Z;
+#else
 		//also sets left analog trigger
 		if(drcbutton & WIIDRC_BUTTON_ZL)
 		{
 			//Check half-press by holding L
 			if(drcbutton & WIIDRC_BUTTON_L)
-				Pad[0].triggerLeft = 0x7F;
+				Pad[WiiUGamepadSlot].triggerLeft = 0x7F;
 			else
 			{
 				button |= PAD_TRIGGER_L;
-				Pad[0].triggerLeft = 0xFF;
+				Pad[WiiUGamepadSlot].triggerLeft = 0xFF;
 			}
 		}
 		else
-			Pad[0].triggerLeft = 0;
+			Pad[WiiUGamepadSlot].triggerLeft = 0;
 		//also sets right analog trigger
 		if(drcbutton & WIIDRC_BUTTON_ZR)
 		{
 			//Check half-press by holding L
 			if(drcbutton & WIIDRC_BUTTON_L)
-				Pad[0].triggerRight = 0x7F;
+				Pad[WiiUGamepadSlot].triggerRight = 0x7F;
 			else
 			{
 				button |= PAD_TRIGGER_R;
-				Pad[0].triggerRight = 0xFF;
+				Pad[WiiUGamepadSlot].triggerRight = 0xFF;
 			}
 		}
 		else
-			Pad[0].triggerRight = 0;
+			Pad[WiiUGamepadSlot].triggerRight = 0;
 		if(drcbutton & WIIDRC_BUTTON_R) button |= PAD_TRIGGER_Z;
+#endif
 		if(drcbutton & WIIDRC_BUTTON_PLUS) button |= PAD_BUTTON_START;
+#ifndef LI_NOEXIT
 		if(drcbutton & WIIDRC_BUTTON_HOME) goto DoExit;
+#elif defined LI_SHOULDER
+		if(drcbutton & WIIDRC_BUTTON_HOME) button |= PAD_BUTTON_START;
+#endif
 		//write in mapped out buttons
-		Pad[0].button = button;
-		if((Pad[0].button&0x1030) == 0x1030) //reset by pressing start, Z, R
+		Pad[WiiUGamepadSlot].button = button;
+		if((Pad[WiiUGamepadSlot].button&0x1030) == 0x1030) //reset by pressing start, Z, R
 		{
 			/* reset status 3 */
 			*RESET_STATUS = 0x3DEA;
@@ -181,13 +257,66 @@ u32 PADRead(u32 calledByGame)
 		//do scale, deadzone and clamp
 		s8 tmp_stick8; s16 tmp_stick16;
 		_DRC_BUILD_TMPSTICK(i2cdata[4]);
-		Pad[0].stickX = tmp_stick8;
+		Pad[WiiUGamepadSlot].stickX = tmp_stick8;
 		_DRC_BUILD_TMPSTICK(i2cdata[5]);
-		Pad[0].stickY = tmp_stick8;
+		Pad[WiiUGamepadSlot].stickY = tmp_stick8;
 		_DRC_BUILD_TMPSTICK(i2cdata[6]);
-		Pad[0].substickX = tmp_stick8;
+		Pad[WiiUGamepadSlot].substickX = tmp_stick8;
 		_DRC_BUILD_TMPSTICK(i2cdata[7]);
-		Pad[0].substickY = tmp_stick8;
+		Pad[WiiUGamepadSlot].substickY = tmp_stick8;
+
+#ifdef LI_CUSTOM_CONTROLS
+		int gpslot = WiiUGamepadSlot;
+
+		if (*TitleID == 0x473453) {
+			// The Legend of Zelda: Four Swords Adventures
+
+			if (drcbutton & (WIIDRC_BUTTON_UP | WIIDRC_BUTTON_DOWN | WIIDRC_BUTTON_LEFT | WIIDRC_BUTTON_RIGHT)) {
+				// D-pad pressed - override joystick
+				Pad[gpslot].stickX = 0;
+				Pad[gpslot].stickY = 0;
+				if (drcbutton & WIIDRC_BUTTON_UP) {
+					Pad[gpslot].stickY += 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_DOWN) {
+					Pad[gpslot].stickY -= 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_LEFT) {
+					Pad[gpslot].stickX -= 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_RIGHT) {
+					Pad[gpslot].stickX += 0x7F;
+				}
+			}
+
+			// Hide D-pad from game (will be used to emulate joystick)
+			Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+
+			// Map Select to D-pad down
+			if (drcbutton & WIIDRC_BUTTON_MINUS)
+				Pad[gpslot].button |= PAD_BUTTON_DOWN;
+		}
+		else if (*TitleID == 0x47564D || *TitleID == 0x473353)
+		{
+			// Bust-a-Move 3000
+			if (Pad[gpslot].button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
+			{
+				Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
+			}
+
+			if ((drcbutton & WIIDRC_BUTTON_L) || (drcbutton & WIIDRC_BUTTON_ZL)) {
+				button |= PAD_TRIGGER_L;
+				Pad[gpslot].triggerLeft = 0xFF;
+			}
+
+			if ((drcbutton & WIIDRC_BUTTON_R) || (drcbutton & WIIDRC_BUTTON_ZR)) {
+				button |= PAD_TRIGGER_R;
+				Pad[gpslot].triggerRight = 0xFF;
+			}
+
+			ApplyCardinalMask(&Pad[gpslot]);
+		}
+#endif
 	}
 	else
 	{
@@ -288,12 +417,53 @@ u32 PADRead(u32 calledByGame)
 				else
 					Pad[chan].triggerRight = 0;
 			}
-
+#ifndef LI_NOEXIT
 			/* exit by pressing B,Z,R,PAD_BUTTON_DOWN */
 			if((Pad[chan].button&0x234) == 0x234)
 			{
 				goto DoExit;
 			}
+#endif
+			if((Pad[chan].button&0x1c00) == 0x1c00 || ((*PadUsed & (1 << chan)) == 0))
+			{
+				OffsetX[chan] = Pad[chan].stickX;
+				OffsetY[chan] = Pad[chan].stickY;
+				OffsetCX[chan] = Pad[chan].substickX;
+				OffsetCY[chan] = Pad[chan].substickY;
+			}
+
+			tempStick = (s8)Pad[chan].stickX;
+			tempStick -= OffsetX[chan];
+			if (tempStick > 0x7F)
+				tempStick = 0x7F;
+			else if (tempStick < -0x80)
+				tempStick = -0x80;
+			Pad[chan].stickX = (s8)tempStick;
+
+			tempStick = (s8)Pad[chan].stickY;
+			tempStick -= OffsetY[chan];
+			if (tempStick > 0x7F)
+				tempStick = 0x7F;
+			else if (tempStick < -0x80)
+				tempStick = -0x80;
+			Pad[chan].stickY = (s8)tempStick;
+
+			tempStick = (s8)Pad[chan].substickX;
+			tempStick -= OffsetCX[chan];
+			if (tempStick > 0x7F)
+				tempStick = 0x7F;
+			else if (tempStick < -0x80)
+				tempStick = -0x80;
+			Pad[chan].substickX = (s8)tempStick;
+
+			tempStick = (s8)Pad[chan].substickY;
+			tempStick -= OffsetCY[chan];
+			if (tempStick > 0x7F)
+				tempStick = 0x7F;
+			else if (tempStick < -0x80)
+				tempStick = -0x80;
+			Pad[chan].substickY = (s8)tempStick;
+
 			if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 			{
 				/* reset status 3 */
@@ -329,7 +499,7 @@ u32 PADRead(u32 calledByGame)
 		if (HID_CTRL->MultiIn == 2)		//multiple controllers connected to a single usb port
 		{
 			used |= (1<<(PrevAdapterChannel1 + chan)) | (1<<(PrevAdapterChannel2 + chan)) | (1<<(PrevAdapterChannel3 + chan))| (1<<(PrevAdapterChannel4 + chan));	//depending on adapter it may only send every 4th time
-			chan = chan + HID_Packet[0] - 1;	// the controller number is in the first byte 
+			chan = chan + HID_Packet[0] - 1;	// the controller number is in the first byte
 			if (chan >= NIN_CFG_MAXPAD)		//if would be higher than the maxnumber of controllers
 				continue;	//toss it and try next usb port
 			PrevAdapterChannel1 = PrevAdapterChannel2;
@@ -378,12 +548,13 @@ u32 PADRead(u32 calledByGame)
 				}
 			}
 		}
-
+#ifndef LI_NOEXIT
 		if(calledByGame && HID_CTRL->Power.Mask &&	//exit if power configured and all power buttons pressed
-		((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
+			((HID_Packet[HID_CTRL->Power.Offset] & HID_CTRL->Power.Mask) == HID_CTRL->Power.Mask))
 		{
 			goto DoExit;
 		}
+#endif
 		used |= (1<<chan);
 
 		Rumble |= ((1<<31)>>chan);
@@ -393,13 +564,13 @@ u32 PADRead(u32 calledByGame)
 		{
 			if( HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->Left.Mask )
 				button |= PAD_BUTTON_LEFT;
-	
+
 			if( HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->Right.Mask )
 				button |= PAD_BUTTON_RIGHT;
-	
+
 			if( HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->Down.Mask )
 				button |= PAD_BUTTON_DOWN;
-	
+
 			if( HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->Up.Mask )
 				button |= PAD_BUTTON_UP;
 		}
@@ -407,13 +578,13 @@ u32 PADRead(u32 calledByGame)
 		{
 			if(((HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Up.Mask)		 || ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask)			|| ((HID_Packet[HID_CTRL->RightUp.Offset]	& HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
 				button |= PAD_BUTTON_UP;
-	
+
 			if(((HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Right.Mask) || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->RightUp.Offset] & HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
 				button |= PAD_BUTTON_RIGHT;
-	
+
 			if(((HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Down.Mask)	 || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask))
 				button |= PAD_BUTTON_DOWN;
-	
+
 			if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
 				button |= PAD_BUTTON_LEFT;
 		}
@@ -508,7 +679,7 @@ u32 PADRead(u32 calledByGame)
 				if (PADBarrelPress[0+chan] == 0)	// bongos not pressed last 6 cycles (dont pickup bongo noise as clap)
 					button |= PAD_TRIGGER_R;	//force button presss todo: bogo should only be using analog
 		}
-		
+
 		if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 			button |= PAD_BUTTON_START;
 		Pad[chan].button = button;
@@ -536,7 +707,7 @@ u32 PADRead(u32 calledByGame)
 			substickY	= 127 - HID_Packet[HID_CTRL->CStickY.Offset];	//raw 00 01...7F 80 ... FE FF (up...center...down)
 		}
 		else
-		if ((HID_CTRL->VID == 0x0926) && (HID_CTRL->PID == 0x2526))	//Mayflash 3 in 1 Magic Joy Box 
+		if ((HID_CTRL->VID == 0x0926) && (HID_CTRL->PID == 0x2526))	//Mayflash 3 in 1 Magic Joy Box
 		{
 			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;	//raw 1A 1B...80 81 ... E4 E5 (left...center...right)
 			stickY		= 127 - HID_Packet[HID_CTRL->StickY.Offset];	//raw 0E 0F...7E 7F ... E4 E5 (up...center...down)
@@ -579,6 +750,45 @@ u32 PADRead(u32 calledByGame)
 			stickY		= HID_Packet[HID_CTRL->StickY.Offset] - 128;	//raw EE ED EC ... 82 81 80 7F 7E ... 1A 19 18 (up, center, down)
 			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;	//raw 22 23 24 ... 7F 80 81 ... D2 D3 D4 (left ... center ... right)
 			substickY	= HID_Packet[HID_CTRL->CStickY.Offset] - 128;	//raw DB DA D9 ... 81 80 7F ... 2B 2A 29 (up, center, down)
+			if((Pad[chan].button&0x1c00) == 0x1c00 || ((*PadUsed & (1 << chan)) == 0))
+			{
+				OffsetX[chan] = stickX;
+				OffsetY[chan] = stickY;
+				OffsetCX[chan] = substickX;
+				OffsetCY[chan] = substickY;
+			}
+
+			tempStick = (s8)stickX;
+			tempStick -= OffsetX[chan];
+			if (tempStick > 0x7F)
+				tempStick = 0x7F;
+			else if (tempStick < -0x80)
+				tempStick = -0x80;
+			stickX = (s8)tempStick;
+
+			tempStick = (s8)stickY;
+			tempStick -= OffsetY[chan];
+			if (tempStick > 0x7F)
+				tempStick = 0x7F;
+			else if (tempStick < -0x80)
+				tempStick = -0x80;
+			stickY = (s8)tempStick;
+
+			tempStick = (s8)substickX;
+			tempStick -= OffsetCX[chan];
+			if (tempStick > 0x7F)
+				tempStick = 0x7F;
+			else if (tempStick < -0x80)
+				tempStick = -0x80;
+			substickX = (s8)tempStick;
+
+			tempStick = (s8)substickY;
+			tempStick -= OffsetCY[chan];
+			if (tempStick > 0x7F)
+				tempStick = 0x7F;
+			else if (tempStick < -0x80)
+				tempStick = -0x80;
+			substickY = (s8)tempStick;
 		}
 		else
 		if ((HID_CTRL->VID == 0x0403) && (HID_CTRL->PID == 0x97c1))	//Retrode
@@ -610,28 +820,28 @@ u32 PADRead(u32 calledByGame)
 			substickX	= HID_Packet[HID_CTRL->CStickX.Offset] - 128;
 			substickY	= 127 - HID_Packet[HID_CTRL->CStickY.Offset];
 		}
-	
+
 		s8 tmp_stick = 0;
 		if(stickX > HID_CTRL->StickX.DeadZone && stickX > 0)
 			tmp_stick = (double)(stickX - HID_CTRL->StickX.DeadZone) * HID_CTRL->StickX.Radius / 1000;
 		else if(stickX < -HID_CTRL->StickX.DeadZone && stickX < 0)
 			tmp_stick = (double)(stickX + HID_CTRL->StickX.DeadZone) * HID_CTRL->StickX.Radius / 1000;
 		Pad[chan].stickX = tmp_stick;
-	
+
 		tmp_stick = 0;
 		if(stickY > HID_CTRL->StickY.DeadZone && stickY > 0)
 			tmp_stick = (double)(stickY - HID_CTRL->StickY.DeadZone) * HID_CTRL->StickY.Radius / 1000;
 		else if(stickY < -HID_CTRL->StickY.DeadZone && stickY < 0)
 			tmp_stick = (double)(stickY + HID_CTRL->StickY.DeadZone) * HID_CTRL->StickY.Radius / 1000;
 		Pad[chan].stickY = tmp_stick;
-	
+
 		tmp_stick = 0;
 		if(substickX > HID_CTRL->CStickX.DeadZone && substickX > 0)
 			tmp_stick = (double)(substickX - HID_CTRL->CStickX.DeadZone) * HID_CTRL->CStickX.Radius / 1000;
 		else if(substickX < -HID_CTRL->CStickX.DeadZone && substickX < 0)
 			tmp_stick = (double)(substickX + HID_CTRL->CStickX.DeadZone) * HID_CTRL->CStickX.Radius / 1000;
 		Pad[chan].substickX = tmp_stick;
-	
+
 		tmp_stick = 0;
 		if(substickY > HID_CTRL->CStickY.DeadZone && substickY > 0)
 			tmp_stick = (double)(substickY - HID_CTRL->CStickY.DeadZone) * HID_CTRL->CStickY.Radius / 1000;
@@ -666,10 +876,10 @@ u32 PADRead(u32 calledByGame)
 		{	/* much to do with analog */
 			u8 tmp_triggerL = 0;
 			u8 tmp_triggerR = 0;
-			if (((HID_CTRL->VID == 0x0926) && (HID_CTRL->PID == 0x2526))	//Mayflash 3 in 1 Magic Joy Box 
-			 || ((HID_CTRL->VID == 0x2006) && (HID_CTRL->PID == 0x0118)))	//Trio Linker Plus 
+			if (((HID_CTRL->VID == 0x0926) && (HID_CTRL->PID == 0x2526))	//Mayflash 3 in 1 Magic Joy Box
+			 || ((HID_CTRL->VID == 0x2006) && (HID_CTRL->PID == 0x0118)))	//Trio Linker Plus
 			{
-				tmp_triggerL =  HID_Packet[HID_CTRL->LAnalog] & 0xF0;	//high nibble raw 1x 2x ... Dx Ex 
+				tmp_triggerL =  HID_Packet[HID_CTRL->LAnalog] & 0xF0;	//high nibble raw 1x 2x ... Dx Ex
 				tmp_triggerR = (HID_Packet[HID_CTRL->RAnalog] & 0x0F) * 16 ;	//low nibble raw x1 x2 ...xD xE
 				if(Pad[chan].button & PAD_TRIGGER_L)
 					tmp_triggerL = 255;
@@ -764,6 +974,36 @@ u32 PADRead(u32 calledByGame)
 
 		u16 button = 0;
 
+#ifdef LI_SHOULDER
+		if (BTPad[chan].used & C_CC) {
+			Pad[chan].triggerLeft = (BTPad[chan].button & BT_TRIGGER_ZL) && (BTPad[chan].triggerL < 0x7F)
+				? 0x7F
+				: BTPad[chan].triggerL;
+			Pad[chan].triggerRight = (BTPad[chan].button & BT_TRIGGER_ZR) && (BTPad[chan].triggerR < 0x7F)
+				? 0x7F
+				: BTPad[chan].triggerR;
+			if (BTPad[chan].button & BT_TRIGGER_L)
+				button |= PAD_TRIGGER_L;
+			if (BTPad[chan].button & BT_TRIGGER_R)
+				button |= PAD_TRIGGER_R;
+			if (BTPad[chan].button & BT_BUTTON_SELECT)
+				button |= PAD_TRIGGER_Z;
+		}
+		else if (BTPad[chan].used & C_CCP) {
+			Pad[chan].triggerLeft = (BTPad[chan].button & BT_TRIGGER_ZL) ? 0xFF
+				: (BTPad[chan].button & BT_TRIGGER_L) ? 0x7F
+				: 0;
+			Pad[chan].triggerRight = (BTPad[chan].button & BT_TRIGGER_ZR) ? 0xFF
+				: (BTPad[chan].button & BT_TRIGGER_R) ? 0x7F
+				: 0;
+			if (BTPad[chan].button & BT_TRIGGER_ZL)
+				button |= PAD_TRIGGER_L;
+			if (BTPad[chan].button & BT_TRIGGER_ZR)
+				button |= PAD_TRIGGER_R;
+			if (BTPad[chan].button & BT_BUTTON_SELECT)
+				button |= PAD_TRIGGER_Z;
+		}
+#else
 		if(BTPad[chan].used & C_CC)
 		{
 			Pad[chan].triggerLeft = BTPad[chan].triggerL;
@@ -808,7 +1048,8 @@ u32 PADRead(u32 calledByGame)
 			if(BTPad[chan].button & BT_TRIGGER_R)
 				button |= PAD_TRIGGER_Z;
 		}
-		
+#endif
+
 // Nunchuck Buttons
 		if((BTPad[chan].used & C_NUN) && !(BTPad[chan].button & WM_BUTTON_TWO))	//nunchuck not being configured
 		{
@@ -816,7 +1057,7 @@ u32 PADRead(u32 calledByGame)
 			{
 				case 0:	// (2)
 				default:
-				{	//Howards general config 
+				{	//Howards general config
 					//A=A B=B Z=Z +=X -=Y Dpad=Standard
 					//C not pressed L R tilt tied to L R analog triggers.
 					//C		pressed tilt control the cStick
@@ -831,7 +1072,7 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].substickX = 0x78;
 						else
 							Pad[chan].substickX = (BTPad[chan].xAccel - 512) * 0xF0 / (674 - 350);
-	
+
 						/* yAccel  up=280 C=512 down=720 */
 						if(BTPad[chan].yAccel < 344)
 							Pad[chan].substickY = -0x78;
@@ -852,17 +1093,17 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].triggerLeft = (475 - BTPad[chan].xAccel) * 0xF0 / (475 - 340);
 						else
 							Pad[chan].triggerLeft = 0;
-						
+
 						if(BTPad[chan].xAccel > 670)
 						{
 							button |= PAD_TRIGGER_R;
 							Pad[chan].triggerRight = 0xFF;
 						}
 						else if(BTPad[chan].xAccel > 550)
-							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550); 
+							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550);
 						else
 							Pad[chan].triggerRight = 0;
-						
+
 						if (!(BTPad[chan].used & C_ISWAP))	//not using IR
 						{
 							Pad[chan].substickX = 0;
@@ -900,15 +1141,15 @@ u32 PADRead(u32 calledByGame)
 						Pad[chan].substickX = 0;
 						Pad[chan].substickY = 0;
 					}
-						
+
 					if(BTPad[chan].button & WM_BUTTON_A)
 						button |= PAD_BUTTON_A;
 					if(BTPad[chan].button & WM_BUTTON_B)
 						button |= PAD_BUTTON_B;
 					if(BTPad[chan].button & NUN_BUTTON_C)
-						button |= PAD_BUTTON_X;				
+						button |= PAD_BUTTON_X;
 					if(BTPad[chan].button & NUN_BUTTON_Z)
-						button |= PAD_BUTTON_Y; 
+						button |= PAD_BUTTON_Y;
 					if(BTPad[chan].button & WM_BUTTON_MINUS)
 						button |= PAD_TRIGGER_Z;
 
@@ -920,7 +1161,7 @@ u32 PADRead(u32 calledByGame)
 						button |= PAD_BUTTON_RIGHT;
 					if(BTPad[chan].button & WM_BUTTON_LEFT)
 						button |= PAD_BUTTON_LEFT;
-						
+
 					//Pad[chan].triggerLeft = BTPad[chan].triggerL;
 					if(BTPad[chan].button & WM_BUTTON_PLUS)
 					{
@@ -932,7 +1173,7 @@ u32 PADRead(u32 calledByGame)
 				}break;
 				case 2:	// (2 & right)
 				{	//config asked for by naggers
-					//A=A 
+					//A=A
 					//C not pressed U=Z D=B R=X L=Y B=R Z=L
 					//C		pressed Dpad=Standard B=R1/2 Z=L1/2 tilt controls cStick
 					if((BTPad[chan].button & NUN_BUTTON_Z) &&
@@ -945,7 +1186,7 @@ u32 PADRead(u32 calledByGame)
 						Pad[chan].triggerLeft = 0xFF;
 					}
 //					else if(BTPad[chan].button & WM_BUTTON_MINUS)
-//						Pad[chan].triggerLeft = 0x7F; 
+//						Pad[chan].triggerLeft = 0x7F;
 					else
 						Pad[chan].triggerLeft = 0;
 
@@ -962,10 +1203,10 @@ u32 PADRead(u32 calledByGame)
 //						Pad[chan].triggerRight = 0x7F;
 					else
 						Pad[chan].triggerRight = 0;
-					
+
 					if(BTPad[chan].button & WM_BUTTON_A)
 						button |= PAD_BUTTON_A;
-					
+
 					if(BTPad[chan].button & NUN_BUTTON_C)
 					{
 						if (!(BTPad[chan].used & C_ISWAP))	//not using IR
@@ -978,7 +1219,7 @@ u32 PADRead(u32 calledByGame)
 								Pad[chan].substickX = 0x78;
 							else
 								Pad[chan].substickX = (BTPad[chan].xAccel - 512) * 0xF0 / (674 - 350);
-		
+
 							/* yAccel  up=280 C=512 down=720 */
 							if(BTPad[chan].yAccel < 344)
 								Pad[chan].substickY = -0x78;
@@ -1004,7 +1245,7 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].substickX = 0;
 							Pad[chan].substickY = 0;
 						}
-							
+
 						if(BTPad[chan].button & WM_BUTTON_UP)
 							button |= PAD_TRIGGER_Z;
 						if(BTPad[chan].button & WM_BUTTON_DOWN)
@@ -1031,7 +1272,7 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].substickX = 0x78;
 						else
 							Pad[chan].substickX = (BTPad[chan].xAccel - 512) * 0xF0 / (674 - 350);
-	
+
 						/* yAccel  up=280 C=512 down=720 */
 						if(BTPad[chan].yAccel < 344)
 							Pad[chan].substickY = -0x78;
@@ -1053,7 +1294,7 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].triggerLeft = (485 - BTPad[chan].yAccel) * 0xF0 / (485 - 357);
 						else
 							Pad[chan].triggerLeft = 0;
-						
+
 						//gas pedal
 						if(BTPad[chan].yAccel > 668)
 						{
@@ -1061,10 +1302,10 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].triggerRight = 0xFF;
 						}
 						else if(BTPad[chan].yAccel > 540)
-							Pad[chan].triggerRight = (BTPad[chan].yAccel - 540) * 0xF0 / (668 - 540); 
+							Pad[chan].triggerRight = (BTPad[chan].yAccel - 540) * 0xF0 / (668 - 540);
 						else
 							Pad[chan].triggerRight = 0;
-							
+
 						if (!(BTPad[chan].used & C_ISWAP))	//not using IR
 						{
 							Pad[chan].substickX = 0;
@@ -1108,7 +1349,7 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].substickX = 0x78;
 						else
 							Pad[chan].substickX = (BTPad[chan].xAccel - 512) * 0xF0 / (674 - 350);
-	
+
 						/* yAccel  up=280 C=512 down=720 */
 						if(BTPad[chan].yAccel < 344)
 							Pad[chan].substickY = -0x78;
@@ -1129,17 +1370,17 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].triggerLeft = (475 - BTPad[chan].xAccel) * 0xF0 / (475 - 340);
 						else
 							Pad[chan].triggerLeft = 0;
-						
+
 						if(BTPad[chan].xAccel > 670)
 						{
 							button |= PAD_TRIGGER_R;
 							Pad[chan].triggerRight = 0xFF;
 						}
 						else if(BTPad[chan].xAccel > 550)
-							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550); 
+							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550);
 						else
 							Pad[chan].triggerRight = 0;
-							
+
 						if (!(BTPad[chan].used & C_ISWAP))	//not using IR
 						{
 							Pad[chan].substickX = 0;
@@ -1168,11 +1409,11 @@ u32 PADRead(u32 calledByGame)
 						button |= PAD_BUTTON_UP;
 				}break;
 				case 5:	// (2 & minus)
-				{	//Troopage config 
+				{	//Troopage config
 					//A=A
 					//C not pressed +=X -=B Z=L    B=R    Dpad=cStick
 					//C		pressed +=Y -=Z Z=1/2L B=1/2R Dpad=Standard
-					if(BTPad[chan].button & NUN_BUTTON_C)	
+					if(BTPad[chan].button & NUN_BUTTON_C)
 					{
 						if(BTPad[chan].button & WM_BUTTON_PLUS)
 							button |= PAD_BUTTON_Y;
@@ -1186,8 +1427,8 @@ u32 PADRead(u32 calledByGame)
 						if(BTPad[chan].button & WM_BUTTON_MINUS)
 							button |= PAD_BUTTON_B;
 					}
-					
-					if((BTPad[chan].button & NUN_BUTTON_C)	
+
+					if((BTPad[chan].button & NUN_BUTTON_C)
 					  || (BTPad[chan].used & C_ISWAP))		//using IR
 					{
 						if (!(BTPad[chan].used & C_ISWAP))	//not using IR
@@ -1195,7 +1436,7 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].substickX = 0;
 							Pad[chan].substickY = 0;
 						}
-						
+
 						if(BTPad[chan].button & WM_BUTTON_LEFT)
 							button |= PAD_BUTTON_LEFT;
 						if(BTPad[chan].button & WM_BUTTON_RIGHT)
@@ -1214,7 +1455,7 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].substickX = 0x78;
 						else
 							Pad[chan].substickX = 0;
-	
+
 						if(BTPad[chan].button & WM_BUTTON_DOWN)
 							Pad[chan].substickY = -0x78;
 						else if(BTPad[chan].button & WM_BUTTON_UP)
@@ -1245,21 +1486,21 @@ u32 PADRead(u32 calledByGame)
 
 					if(BTPad[chan].button & WM_BUTTON_A)
 						button |= PAD_BUTTON_A;
-				}break;	
+				}break;
 				case 6:	// (2 & 1)
 				{	//FPS using IR as cStick alt based on naggers
 					//A=A B=R Z=L +=R1/2 -=L1/2
 					//C not pressed U=Z D=B R=X L=Y
 					//C		pressed Dpad=Standard, L R tilt tied to L R analog triggers.
 					//IR controls the cStick
-					
+
 					if(BTPad[chan].button & NUN_BUTTON_Z)
 					{
 						button |= PAD_TRIGGER_L;
 						Pad[chan].triggerLeft = 0xFF;
 					}
 					else if(BTPad[chan].button & WM_BUTTON_MINUS)
-						Pad[chan].triggerLeft = 0x7F; 
+						Pad[chan].triggerLeft = 0x7F;
 					else if(BTPad[chan].button & NUN_BUTTON_C)
 					{
 						//	use tilt as AnalogL
@@ -1276,7 +1517,7 @@ u32 PADRead(u32 calledByGame)
 					}
 					else
 						Pad[chan].triggerLeft = 0;
-					
+
 					if(BTPad[chan].button & WM_BUTTON_B)
 					{
 						button |= PAD_TRIGGER_R;
@@ -1294,13 +1535,13 @@ u32 PADRead(u32 calledByGame)
 							Pad[chan].triggerRight = 0xFF;
 						}
 						else if(BTPad[chan].xAccel > 550)
-							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550); 
+							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550);
 						else
 							Pad[chan].triggerRight = 0;
 					}
 					else
 						Pad[chan].triggerRight = 0;
-	
+
 					if(BTPad[chan].button & WM_BUTTON_A)
 						button |= PAD_BUTTON_A;
 
@@ -1333,12 +1574,16 @@ u32 PADRead(u32 calledByGame)
 			}
 			if(BTPad[chan].button & WM_BUTTON_ONE)
 				button |= PAD_BUTTON_START;	
-			if(BTPad[chan].button & WM_BUTTON_HOME)
+#ifndef LI_NOEXIT
+			//2+HOME to exit
+			if((BTPad[chan].button & WM_BUTTON_TWO) && (BTPad[chan].button & WM_BUTTON_HOME))
 				goto DoExit;
+#endif
 		}	//end nunchuck configs
 
 		if(BTPad[chan].used & (C_CC | C_CCP))
 		{
+#ifndef LI_NOSWAP
 			if(BTPad[chan].used & C_SWAP)
 			{	/* turn buttons quarter clockwise */
 				if(BTPad[chan].button & BT_BUTTON_B)
@@ -1351,6 +1596,7 @@ u32 PADRead(u32 calledByGame)
 					button |= PAD_BUTTON_Y;
 			}
 			else
+#endif
 			{
 				if(BTPad[chan].button & BT_BUTTON_A)
 					button |= PAD_BUTTON_A;
@@ -1363,7 +1609,7 @@ u32 PADRead(u32 calledByGame)
 			}
 			if(BTPad[chan].button & BT_BUTTON_START)
 				button |= PAD_BUTTON_START;
-			
+
 			if(BTPad[chan].button & BT_DPAD_LEFT)
 				button |= PAD_BUTTON_LEFT;
 			if(BTPad[chan].button & BT_DPAD_RIGHT)
@@ -1372,11 +1618,73 @@ u32 PADRead(u32 calledByGame)
 				button |= PAD_BUTTON_DOWN;
 			if(BTPad[chan].button & BT_DPAD_UP)
 				button |= PAD_BUTTON_UP;
-			
+#ifdef LI_CUSTOM_CONTROLS
+			if (*TitleID == 0x473453) {
+				// The Legend of Zelda: Four Swords Adventures
+
+				if (BTPad[chan].button & (BT_DPAD_UP | BT_DPAD_DOWN | BT_DPAD_LEFT | BT_DPAD_RIGHT)) {
+					// D-pad pressed - override joystick
+					Pad[chan].stickX = 0;
+					Pad[chan].stickY = 0;
+					if (BTPad[chan].button & BT_DPAD_UP) {
+						Pad[chan].stickY += 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_DOWN) {
+						Pad[chan].stickY -= 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_LEFT) {
+						Pad[chan].stickX -= 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_RIGHT) {
+						Pad[chan].stickX += 0x7F;
+					}
+				}
+
+				// Hide D-pad from game (will be used to emulate joystick)
+				button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+
+				// Map Select to D-pad down
+				if (BTPad[chan].button & BT_BUTTON_SELECT)
+					button |= PAD_BUTTON_DOWN;
+			}
+			else if (*TitleID == 0x47564D || *TitleID == 0x473353)
+			{
+				// Bust-a-Move 3000
+				if (button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
+				{
+					button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
+				}
+
+				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= 0x34) {
+					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
+
+				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= 0x34) {
+					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
+
+				ApplyCardinalMask(&Pad[chan]);
+			}
+			else if (*TitleID == 0x47505A)
+			{
+				// Nintendo Puzzle Collection
+				if (!(button & PAD_TRIGGER_L))
+					Pad[chan].triggerLeft = 0;
+				if (!(button & PAD_TRIGGER_R))
+					Pad[chan].triggerRight = 0;
+		}
+#endif
+#ifndef LI_NOEXIT
 			if(BTPad[chan].button & BT_BUTTON_HOME)
 				goto DoExit;
-		}	
-		
+#elif defined LI_SHOULDER
+		if(BTPad[chan].button & BT_BUTTON_HOME)
+			button |= PAD_BUTTON_START;
+#endif
+		}
+
 		Pad[chan].button = button;
 
 //#define DEBUG_cStick	1
@@ -1385,7 +1693,7 @@ u32 PADRead(u32 calledByGame)
 			Pad[chan].stickX = Pad[chan].substickX;
 			Pad[chan].stickY = Pad[chan].substickY;
 		#endif
-		
+
 //#define DEBUG_Triggers	1
 		#ifdef DEBUG_Triggers
 			//mirrors triggers on main Stick so f-Zero GX calibration can be used
@@ -1393,11 +1701,13 @@ u32 PADRead(u32 calledByGame)
 			Pad[chan].stickY = Pad[chan].triggerLeft;
 		#endif
 
-		//exit by pressing B,Z,R,PAD_BUTTON_DOWN 
+#ifndef LI_NOEXIT
+		//exit by pressing B,Z,R,PAD_BUTTON_DOWN
 		if((Pad[chan].button&0x234) == 0x234)
 		{
 			goto DoExit;
 		}
+#endif
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
@@ -1442,6 +1752,7 @@ u32 PADRead(u32 calledByGame)
 	}
 	return Rumble;
 
+#ifndef LI_NOEXIT
 DoExit:
 	/* disable interrupts */
 	disableIRQs();
@@ -1465,6 +1776,7 @@ DoExit:
 	/* jump to it */
 	bootStub();
 	return 0;
+#endif
 DoShutdown:
 	/* disable interrupts */
 	disableIRQs();
@@ -1508,22 +1820,22 @@ static void kbDoSpecial(u8 *in, u8 *out)
 
 static const unsigned char kb_matrix[256] =
 {
-    0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 
-    0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 
-    0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x61, 0x4C, 0x50, 0x51, 0x59, 0x34, 0x35, 0x37, 
-    0x38, 0x52, 0x3B, 0x39, 0x3A, 0x4F, 0x3C, 0x3D, 0x3E, 0x53, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 
-    0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x36, 0x0A, 0x00, 0x4D, 0x06, 0x08, 0x4E, 0x07, 0x09, 0x5F, 
-    0x5C, 0x5D, 0x5E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x61, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 
-    0x31, 0x32, 0x33, 0x3D, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x5B, 0x36, 0x5A, 0x58, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B,
+    0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B,
+    0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x61, 0x4C, 0x50, 0x51, 0x59, 0x34, 0x35, 0x37,
+    0x38, 0x52, 0x3B, 0x39, 0x3A, 0x4F, 0x3C, 0x3D, 0x3E, 0x53, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45,
+    0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x36, 0x0A, 0x00, 0x4D, 0x06, 0x08, 0x4E, 0x07, 0x09, 0x5F,
+    0x5C, 0x5D, 0x5E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x61, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30,
+    0x31, 0x32, 0x33, 0x3D, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, 0x5B, 0x36, 0x5A, 0x58, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 } ;
 
 static u8 *kb_input = (u8*)0x93026C60;

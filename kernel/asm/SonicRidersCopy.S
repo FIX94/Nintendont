@@ -5,7 +5,7 @@
 SonicRidersCopy:
 #original instruction
 	mr		r31,	r7
-#7 might be enough too, going safe
+#7 works but going safe
 	slwi	r5,	r5,	8
 waitLoop:
 	subi	r5,	r5,	1
