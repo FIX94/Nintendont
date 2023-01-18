@@ -920,34 +920,31 @@ u32 PADRead(u32 calledByGame)
 		u16 button = 0;
 
 #ifdef LI_SHOULDER
-		if (BTPad[chan].used & (C_CC | C_CCP)) {
-			u16 LARGE_L = (BTPad[chan].used & C_CCP) ? BT_TRIGGER_ZL : BT_TRIGGER_L;
-			u16 SMALL_L = (BTPad[chan].used & C_CCP) ? BT_TRIGGER_L : BT_TRIGGER_ZL;
-			u16 LARGE_R = (BTPad[chan].used & C_CCP) ? BT_TRIGGER_ZR : BT_TRIGGER_R;
-			u16 SMALL_R = (BTPad[chan].used & C_CCP) ? BT_TRIGGER_R : BT_TRIGGER_ZR;
-
-			if (BTPad[chan].button & LARGE_L) {
+		if (BTPad[chan].used & C_CC) {
+			Pad[chan].triggerLeft = (BTPad[chan].button & BT_TRIGGER_ZL) && (BTPad[chan].triggerL < 0x7F)
+				? 0x7F
+				: BTPad[chan].triggerL;
+			Pad[chan].triggerRight = (BTPad[chan].button & BT_TRIGGER_ZR) && (BTPad[chan].triggerR < 0x7F)
+				? 0x7F
+				: BTPad[chan].triggerR;
+			if (BTPad[chan].button & BT_TRIGGER_L)
 				button |= PAD_TRIGGER_L;
-				Pad[chan].triggerLeft = 0xFF;
-			}
-			else if (BTPad[chan].button & SMALL_L) {
-				Pad[chan].triggerLeft = 0x7F;
-			}
-			else {
-				Pad[chan].triggerLeft = 0;
-			}
-
-			if (BTPad[chan].button & LARGE_R) {
+			if (BTPad[chan].button & BT_TRIGGER_R)
 				button |= PAD_TRIGGER_R;
-				Pad[chan].triggerRight = 0xFF;
-			}
-			else if (BTPad[chan].button & SMALL_R) {
-				Pad[chan].triggerRight = 0x7F;
-			}
-			else {
-				Pad[chan].triggerRight = 0;
-			}
-
+			if (BTPad[chan].button & BT_BUTTON_SELECT)
+				button |= PAD_TRIGGER_Z;
+		}
+		else if (BTPad[chan].used & C_CCP) {
+			Pad[chan].triggerLeft = (BTPad[chan].button & BT_TRIGGER_ZL) ? 0xFF
+				: (BTPad[chan].button & BT_TRIGGER_L) ? 0x7F
+				: 0;
+			Pad[chan].triggerRight = (BTPad[chan].button & BT_TRIGGER_ZR) ? 0xFF
+				: (BTPad[chan].button & BT_TRIGGER_R) ? 0x7F
+				: 0;
+			if (BTPad[chan].button & BT_TRIGGER_ZL)
+				button |= PAD_TRIGGER_L;
+			if (BTPad[chan].button & BT_TRIGGER_ZR)
+				button |= PAD_TRIGGER_R;
 			if (BTPad[chan].button & BT_BUTTON_SELECT)
 				button |= PAD_TRIGGER_Z;
 		}

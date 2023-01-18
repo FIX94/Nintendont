@@ -14,13 +14,21 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * D-pad diagonals -> D-pad horizontals
         * Analog stick diagonals -> analog stick horizontals or verticals (whichever is closer)
 * `LI_BASE64`: lets you load a base64-encoded nincfg.bin from meta.xml (also see [NinCFGEditor](https://github.com/libertyernie/NinCFGEditor))
-* `LI_SHOULDER`: tweaks the button mappings for the Classic Controller, Classic Controller Pro, and Wii U GamePad
-    * Large left shoulder button: full L press
-    * Small left shoulder button: half L press
-    * Large right shoulder button: full R press
-    * Small right shoulder button: half R press
-    * Home: Start (only if `LI_NOEXIT` is also used)
-    * Select / Minus: Z
+* `LI_SHOULDER`: tweaks the button mappings on certain controllers
+    * Classic Controller:
+        * L -> L (analog)
+        * R -> R (analog)
+        * ZL -> half L press (0x7F)
+        * ZR -> half R press (0x7F)
+        * Home -> Start (if `LI_NOEXIT` is used)
+        * Select -> Z
+    * Classic Controller Pro / Wii U GamePad:
+        * ZL -> full L press (0xFF)
+        * ZR -> full R press (0xFF)
+        * L -> half L press (0x7F)
+        * R -> half R press (0x7F)
+        * Home -> Start (if `LI_NOEXIT` is used)
+        * Select -> Z
 
 To build on Windows, you might need to set the "windows" variable so the build process can find zip.exe:
 
