@@ -97,6 +97,23 @@ void ApplyCardinalMask(PADStatus* pad) {
 		pad->stickY = 0;
 	}
 }
+
+void ApplyToLeftStick(PADStatus* pad, int up, int down, int left, int right) {
+	pad->stickX = 0;
+	pad->stickY = 0;
+	if (up) {
+		pad->stickY += 0x7F;
+	}
+	if (down) {
+		pad->stickY -= 0x7F;
+	}
+	if (left) {
+		pad->stickX -= 0x7F;
+	}
+	if (right) {
+		pad->stickX += 0x7F;
+	}
+}
 #endif
 
 u32 PADRead(u32 calledByGame)
@@ -266,52 +283,41 @@ u32 PADRead(u32 calledByGame)
 		Pad[WiiUGamepadSlot].substickY = tmp_stick8;
 
 #ifdef LI_CUSTOM_CONTROLS
-		int gpslot = WiiUGamepadSlot;
-
 		if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 			// The Legend of Zelda: Four Swords Adventures
 			// Mario Party 4
 
 			if (drcbutton & (WIIDRC_BUTTON_UP | WIIDRC_BUTTON_DOWN | WIIDRC_BUTTON_LEFT | WIIDRC_BUTTON_RIGHT)) {
 				// D-pad pressed - override joystick
-				Pad[gpslot].stickX = 0;
-				Pad[gpslot].stickY = 0;
-				if (drcbutton & WIIDRC_BUTTON_UP) {
-					Pad[gpslot].stickY += 0x7F;
-				}
-				if (drcbutton & WIIDRC_BUTTON_DOWN) {
-					Pad[gpslot].stickY -= 0x7F;
-				}
-				if (drcbutton & WIIDRC_BUTTON_LEFT) {
-					Pad[gpslot].stickX -= 0x7F;
-				}
-				if (drcbutton & WIIDRC_BUTTON_RIGHT) {
-					Pad[gpslot].stickX += 0x7F;
-				}
+				ApplyToLeftStick(&Pad[WiiUGamepadSlot],
+					drcbutton & WIIDRC_BUTTON_UP,
+					drcbutton & WIIDRC_BUTTON_DOWN,
+					drcbutton & WIIDRC_BUTTON_LEFT,
+					drcbutton & WIIDRC_BUTTON_RIGHT);
 			}
 
 			// Hide D-pad from game (will be used to emulate joystick)
-			Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+			Pad[WiiUGamepadSlot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
 		}
 		else if (*TitleID == 0x47564D || *TitleID == 0x473353)
 		{
 			// Bust-a-Move 3000
-			if (Pad[gpslot].button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
+			if (Pad[WiiUGamepadSlot].button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
 			{
-				Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
+				Pad[WiiUGamepadSlot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
 			}
 
 			if ((drcbutton & WIIDRC_BUTTON_L) || (drcbutton & WIIDRC_BUTTON_ZL)) {
 				button |= PAD_TRIGGER_L;
-				Pad[gpslot].triggerLeft = 0xFF;
+				Pad[WiiUGamepadSlot].triggerLeft = 0xFF;
 			}
 
 			if ((drcbutton & WIIDRC_BUTTON_R) || (drcbutton & WIIDRC_BUTTON_ZR)) {
 				button |= PAD_TRIGGER_R;
-				Pad[gpslot].triggerRight = 0xFF;
+				Pad[WiiUGamepadSlot].triggerRight = 0xFF;
 			}
 
-			ApplyCardinalMask(&Pad[gpslot]);
+			ApplyCardinalMask(&Pad[WiiUGamepadSlot]);
 		}
 #endif
 	}
@@ -1631,21 +1637,11 @@ u32 PADRead(u32 calledByGame)
 				// Mario Party 4
 
 				if (BTPad[chan].button & (BT_DPAD_UP | BT_DPAD_DOWN | BT_DPAD_LEFT | BT_DPAD_RIGHT)) {
-					// D-pad pressed - override joystick
-					Pad[chan].stickX = 0;
-					Pad[chan].stickY = 0;
-					if (BTPad[chan].button & BT_DPAD_UP) {
-						Pad[chan].stickY += 0x7F;
-					}
-					if (BTPad[chan].button & BT_DPAD_DOWN) {
-						Pad[chan].stickY -= 0x7F;
-					}
-					if (BTPad[chan].button & BT_DPAD_LEFT) {
-						Pad[chan].stickX -= 0x7F;
-					}
-					if (BTPad[chan].button & BT_DPAD_RIGHT) {
-						Pad[chan].stickX += 0x7F;
-					}
+					ApplyToLeftStick(&Pad[chan],
+						BTPad[chan].button & BT_DPAD_UP,
+						BTPad[chan].button & BT_DPAD_DOWN,
+						BTPad[chan].button & BT_DPAD_LEFT,
+						BTPad[chan].button & BT_DPAD_RIGHT);
 				}
 
 				// Hide D-pad from game (will be used to emulate joystick)
@@ -1659,12 +1655,12 @@ u32 PADRead(u32 calledByGame)
 					button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
 				}
 
-				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= 0x34) {
+				if ((BTPad[chan].button & (BT_TRIGGER_L | BT_TRIGGER_ZL)) || BTPad[chan].triggerL >= 0x34) {
 					button |= PAD_TRIGGER_L;
 					Pad[chan].triggerLeft = 0xFF;
 				}
 
-				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= 0x34) {
+				if ((BTPad[chan].button & (BT_TRIGGER_R | BT_TRIGGER_ZR)) || BTPad[chan].triggerR >= 0x34) {
 					button |= PAD_TRIGGER_R;
 					Pad[chan].triggerRight = 0xFF;
 				}
