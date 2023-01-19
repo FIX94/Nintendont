@@ -7,15 +7,18 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
 * `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller, Classic Controller Pro, and Wii U GamePad
     * The Legend of Zelda: Four Swords Adventures
 	    * D-Pad => Left Stick
-		* Select => D-Pad Down
+    * Mario Party 4
+	    * D-Pad => Left Stick
     * Super Puzzle Bobble / Bust-A-Move 3000 / Bust-A-Move All-Stars
-        * Both left shoulder buttons (on Classic Controller, pressed down at least 25%) -> full L press
-        * Both right shoulder buttons (on Classic Controller, pressed down at least 25%) -> full R press
+        * Both left shoulder buttons (on Classic Controller, pressed down at least 20%) -> full L press
+        * Both right shoulder buttons (on Classic Controller, pressed down at least 20%) -> full R press
         * D-pad diagonals -> D-pad horizontals
         * Analog stick diagonals -> analog stick horizontals or verticals (whichever is closer)
     * Midway Arcade Treasures 3
         * Classic Controller L (pressed down at least 25%) -> full L press
         * Classic Controller R (pressed down at least 25%) -> full R press
+    * Nintendo Puzzle Collection
+        * on Classic Controller, L and R do not activate unless pressed all the way (digitally)
 * `LI_BASE64`: lets you load a base64-encoded nincfg.bin from meta.xml (also see [NinCFGEditor](https://github.com/libertyernie/NinCFGEditor))
 * `LI_SHOULDER`: tweaks the button mappings on certain controllers
     * Classic Controller:
@@ -32,6 +35,7 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * R -> half R press (0x7F)
         * Home -> Start (if `LI_NOEXIT` is used)
         * Select -> Z
+* LI_ANALOG_SHOULDER_FULL: simulates a full analog L/R press on the Classic Controller whenever a digital (full) press is detected
 
 To build on Windows, you might need to set the "windows" variable so the build process can find zip.exe:
 

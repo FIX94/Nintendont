@@ -268,8 +268,9 @@ u32 PADRead(u32 calledByGame)
 #ifdef LI_CUSTOM_CONTROLS
 		int gpslot = WiiUGamepadSlot;
 
-		if (*TitleID == 0x473453) {
+		if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 			// The Legend of Zelda: Four Swords Adventures
+			// Mario Party 4
 
 			if (drcbutton & (WIIDRC_BUTTON_UP | WIIDRC_BUTTON_DOWN | WIIDRC_BUTTON_LEFT | WIIDRC_BUTTON_RIGHT)) {
 				// D-pad pressed - override joystick
@@ -291,10 +292,6 @@ u32 PADRead(u32 calledByGame)
 
 			// Hide D-pad from game (will be used to emulate joystick)
 			Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
-
-			// Map Select to D-pad down
-			if (drcbutton & WIIDRC_BUTTON_MINUS)
-				Pad[gpslot].button |= PAD_BUTTON_DOWN;
 		}
 		else if (*TitleID == 0x47564D || *TitleID == 0x473353)
 		{
@@ -1050,6 +1047,16 @@ u32 PADRead(u32 calledByGame)
 		}
 #endif
 
+#ifdef LI_ANALOG_SHOULDER_FULL
+		if (BTPad[chan].used & C_CC)
+		{
+			if (BTPad[chan].button & BT_TRIGGER_L)
+				Pad[chan].triggerLeft = 0xFF;
+			if (BTPad[chan].button & BT_TRIGGER_R)
+				Pad[chan].triggerRight = 0xFF;
+		}
+#endif
+
 // Nunchuck Buttons
 		if((BTPad[chan].used & C_NUN) && !(BTPad[chan].button & WM_BUTTON_TWO))	//nunchuck not being configured
 		{
@@ -1619,8 +1626,9 @@ u32 PADRead(u32 calledByGame)
 			if(BTPad[chan].button & BT_DPAD_UP)
 				button |= PAD_BUTTON_UP;
 #ifdef LI_CUSTOM_CONTROLS
-			if (*TitleID == 0x473453) {
+			if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 				// The Legend of Zelda: Four Swords Adventures
+				// Mario Party 4
 
 				if (BTPad[chan].button & (BT_DPAD_UP | BT_DPAD_DOWN | BT_DPAD_LEFT | BT_DPAD_RIGHT)) {
 					// D-pad pressed - override joystick
@@ -1642,10 +1650,6 @@ u32 PADRead(u32 calledByGame)
 
 				// Hide D-pad from game (will be used to emulate joystick)
 				button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
-
-				// Map Select to D-pad down
-				if (BTPad[chan].button & BT_BUTTON_SELECT)
-					button |= PAD_BUTTON_DOWN;
 			}
 			else if (*TitleID == 0x47564D || *TitleID == 0x473353)
 			{
@@ -1655,12 +1659,12 @@ u32 PADRead(u32 calledByGame)
 					button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
 				}
 
-				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= 0x40) {
+				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= 0x34) {
 					button |= PAD_TRIGGER_L;
 					Pad[chan].triggerLeft = 0xFF;
 				}
 
-				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= 0x40) {
+				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= 0x34) {
 					button |= PAD_TRIGGER_R;
 					Pad[chan].triggerRight = 0xFF;
 				}
@@ -1679,13 +1683,21 @@ u32 PADRead(u32 calledByGame)
 					Pad[chan].triggerRight = 0xFF;
 				}
 			}
+			else if (*TitleID == 0x47505A)
+			{
+				// Nintendo Puzzle Collection
+				if (!(button & PAD_TRIGGER_L))
+					Pad[chan].triggerLeft = 0;
+				if (!(button & PAD_TRIGGER_R))
+					Pad[chan].triggerRight = 0;
+			}
 #endif
 #ifndef LI_NOEXIT
 			if(BTPad[chan].button & BT_BUTTON_HOME)
 				goto DoExit;
 #elif defined LI_SHOULDER
-		if(BTPad[chan].button & BT_BUTTON_HOME)
-			button |= PAD_BUTTON_START;
+			if(BTPad[chan].button & BT_BUTTON_HOME)
+				button |= PAD_BUTTON_START;
 #endif
 		}
 
