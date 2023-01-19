@@ -992,7 +992,7 @@ u32 PADRead(u32 calledByGame)
 		}
 #endif
 
-#if LI_ANALOG_SHOULDER_FULL
+#ifdef LI_ANALOG_SHOULDER_FULL
 		if (BTPad[chan].used & C_CC)
 		{
 			if (BTPad[chan].button & BT_TRIGGER_L)
