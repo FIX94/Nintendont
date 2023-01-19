@@ -290,10 +290,6 @@ u32 PADRead(u32 calledByGame)
 
 			// Hide D-pad from game (will be used to emulate joystick)
 			Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
-
-			// Map Select to D-pad down
-			if (drcbutton & WIIDRC_BUTTON_MINUS)
-				Pad[gpslot].button |= PAD_BUTTON_DOWN;
 		}
 		else if (*TitleID == 0x47564D || *TitleID == 0x473353)
 		{
@@ -1597,10 +1593,6 @@ u32 PADRead(u32 calledByGame)
 
 				// Hide D-pad from game (will be used to emulate joystick)
 				button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
-
-				// Map Select to D-pad down
-				if (BTPad[chan].button & BT_BUTTON_SELECT)
-					button |= PAD_BUTTON_DOWN;
 			}
 			else if (*TitleID == 0x47564D || *TitleID == 0x473353)
 			{
@@ -1641,14 +1633,14 @@ u32 PADRead(u32 calledByGame)
 					Pad[chan].triggerLeft = 0;
 				if (!(button & PAD_TRIGGER_R))
 					Pad[chan].triggerRight = 0;
-		}
+			}
 #endif
 #ifndef LI_NOEXIT
 			if(BTPad[chan].button & BT_BUTTON_HOME)
 				goto DoExit;
 #elif defined LI_SHOULDER
-		if(BTPad[chan].button & BT_BUTTON_HOME)
-			button |= PAD_BUTTON_START;
+			if(BTPad[chan].button & BT_BUTTON_HOME)
+				button |= PAD_BUTTON_START;
 #endif
 		}
 

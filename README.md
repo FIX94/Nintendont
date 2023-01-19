@@ -7,7 +7,6 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
 * `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller, Classic Controller Pro, and Wii U GamePad
     * The Legend of Zelda: Four Swords Adventures
 	    * D-Pad => Left Stick
-		* Select => D-Pad Down
     * Super Puzzle Bobble / Bust-A-Move 3000 / Bust-A-Move All-Stars
         * Both left shoulder buttons (on Classic Controller, pressed down at least 20%) -> full L press
         * Both right shoulder buttons (on Classic Controller, pressed down at least 20%) -> full R press
