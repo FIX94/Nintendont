@@ -19,5 +19,6 @@
 #define LI_CUSTOM_CONTROLS
 #define LI_BASE64
 #define LI_SHOULDER
+#define LI_ANALOG_SHOULDER_FULL
 
 #endif

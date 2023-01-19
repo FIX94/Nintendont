@@ -34,6 +34,7 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * R -> half R press (0x7F)
         * Home -> Start (if `LI_NOEXIT` is used)
         * Select -> Z
+* LI_ANALOG_SHOULDER_FULL: simulates a full analog L/R press on the Classic Controller whenever a digital (full) press is detected
 
 To build on Windows, you might need to set the "windows" variable so the build process can find zip.exe:
 

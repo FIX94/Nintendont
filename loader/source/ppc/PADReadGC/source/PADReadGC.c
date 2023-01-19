@@ -995,6 +995,16 @@ u32 PADRead(u32 calledByGame)
 		}
 #endif
 
+#if LI_ANALOG_SHOULDER_FULL
+		if (BTPad[chan].used & C_CC)
+		{
+			if (BTPad[chan].button & BT_TRIGGER_L)
+				Pad[chan].triggerLeft = 0xFF;
+			if (BTPad[chan].button & BT_TRIGGER_R)
+				Pad[chan].triggerRight = 0xFF;
+		}
+#endif
+
 // Nunchuck Buttons
 		if((BTPad[chan].used & C_NUN) && !(BTPad[chan].button & WM_BUTTON_TWO))	//nunchuck not being configured
 		{
