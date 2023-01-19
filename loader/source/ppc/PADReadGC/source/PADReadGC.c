@@ -267,8 +267,9 @@ u32 PADRead(u32 calledByGame)
 #ifdef LI_CUSTOM_CONTROLS
 		int gpslot = WiiUGamepadSlot;
 
-		if (*TitleID == 0x473453) {
+		if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 			// The Legend of Zelda: Four Swords Adventures
+			// Mario Party 4
 
 			if (drcbutton & (WIIDRC_BUTTON_UP | WIIDRC_BUTTON_DOWN | WIIDRC_BUTTON_LEFT | WIIDRC_BUTTON_RIGHT)) {
 				// D-pad pressed - override joystick
@@ -1570,8 +1571,9 @@ u32 PADRead(u32 calledByGame)
 			if(BTPad[chan].button & BT_DPAD_UP)
 				button |= PAD_BUTTON_UP;
 #ifdef LI_CUSTOM_CONTROLS
-			if (*TitleID == 0x473453) {
+			if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 				// The Legend of Zelda: Four Swords Adventures
+				// Mario Party 4
 
 				if (BTPad[chan].button & (BT_DPAD_UP | BT_DPAD_DOWN | BT_DPAD_LEFT | BT_DPAD_RIGHT)) {
 					// D-pad pressed - override joystick
