@@ -457,9 +457,20 @@ void UpdateNinCFG()
 		ncfg->NetworkProfile = 0;
 		ncfg->Version = 9;
 	}
-	if (ncfg->Version == 9) {
+	if (ncfg->Version == 9)
+	{
 		ncfg->WiiUGamepadSlot = 0;
 		ncfg->Version = 10;
+	}
+	if (ncfg->Version == 10)
+	{
+		// NIN_CFG with version 10 may have loaded
+		// garbage bytes into WiiUGamepadSlot so sanitize
+		// the slot if necessary.
+		if (ncfg->WiiUGamepadSlot > NIN_CFG_MAXPAD)
+		{
+			ncfg->WiiUGamepadSlot = 0;
+		}
 	}
 }
 

@@ -108,27 +108,23 @@ u32 PADRead(u32 calledByGame)
 	/* For Wii VC */
 	if(calledByGame && *drcAddress && WiiUGamepadSlot != NIN_CFG_MAXPAD)
 	{
+		// If there is an HIDPad, bump WiiUGamepadSlot to
+		// slot 1 if necessary so the HID pad can be slot 0.
+		if(HIDPad != HID_PAD_NONE && WiiUGamepadSlot == 0)
+			WiiUGamepadSlot = 1;
 
-              if (((NIN_CFG*)0x93004000)->Config & NIN_CFG_AUTO_BOOT)
-               {
-                if(HIDPad == HID_PAD_NONE)
-                WiiUGamepadSlot = 0;
-                else
-                WiiUGamepadSlot = 1;
-                }
 		used |= (1<<WiiUGamepadSlot);
 		if(HIDPad == HID_PAD_NOT_SET)
 		{
-                  u32 HIDChan = 0;             
-                       //Force HID to the first slot without the WiiUGamepad
+			u32 HIDChan = 0;
+			//Force HID to the first slot without the WiiUGamepad
 			if (WiiUGamepadSlot == 0)
-                          {
+			{
 				HIDChan = 1;
-			  }
+			}
 			*HIDMotor = (MotorCommand[HIDChan]&0x3);
 			HIDPad = HIDChan;
-                    
-	       }
+		}
 		memInvalidate = *drcAddressAligned; //pre-aligned to 0x20 grid
 		asm volatile("dcbi 0,%0; sync" : : "b"(memInvalidate) : "memory");
 		vu8 *i2cdata = (vu8*)(*drcAddress);
