@@ -1632,6 +1632,8 @@ u32 PADRead(u32 calledByGame)
 			if(BTPad[chan].button & BT_DPAD_UP)
 				button |= PAD_BUTTON_UP;
 #ifdef LI_CUSTOM_CONTROLS
+			const int simulated_full_press_threshold = 0x40;
+
 			if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 				// The Legend of Zelda: Four Swords Adventures
 				// Mario Party 4
@@ -1655,12 +1657,12 @@ u32 PADRead(u32 calledByGame)
 					button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
 				}
 
-				if ((BTPad[chan].button & (BT_TRIGGER_L | BT_TRIGGER_ZL)) || BTPad[chan].triggerL >= 0x34) {
+				if ((BTPad[chan].button & (BT_TRIGGER_L | BT_TRIGGER_ZL)) || BTPad[chan].triggerL >= simulated_full_press_threshold) {
 					button |= PAD_TRIGGER_L;
 					Pad[chan].triggerLeft = 0xFF;
 				}
 
-				if ((BTPad[chan].button & (BT_TRIGGER_R | BT_TRIGGER_ZR)) || BTPad[chan].triggerR >= 0x34) {
+				if ((BTPad[chan].button & (BT_TRIGGER_R | BT_TRIGGER_ZR)) || BTPad[chan].triggerR >= simulated_full_press_threshold) {
 					button |= PAD_TRIGGER_R;
 					Pad[chan].triggerRight = 0xFF;
 				}
@@ -1669,12 +1671,13 @@ u32 PADRead(u32 calledByGame)
 			}
 			else if (*TitleID == 0x474533)
 			{
-				if (BTPad[chan].triggerL >= 0x40) {
+				// Midway Arcade Treasures 3
+				if (BTPad[chan].triggerL >= simulated_full_press_threshold) {
 					button |= PAD_TRIGGER_L;
 					Pad[chan].triggerLeft = 0xFF;
 				}
 
-				if (BTPad[chan].triggerR >= 0x40) {
+				if (BTPad[chan].triggerR >= simulated_full_press_threshold) {
 					button |= PAD_TRIGGER_R;
 					Pad[chan].triggerRight = 0xFF;
 				}
@@ -1682,9 +1685,9 @@ u32 PADRead(u32 calledByGame)
 			else if (*TitleID == 0x47505A)
 			{
 				// Nintendo Puzzle Collection
-				if (!(button & PAD_TRIGGER_L))
+				if (!(BTPad[chan].button & (BT_TRIGGER_L | BT_TRIGGER_ZL)))
 					Pad[chan].triggerLeft = 0;
-				if (!(button & PAD_TRIGGER_R))
+				if (!(BTPad[chan].button & (BT_TRIGGER_R | BT_TRIGGER_ZR)))
 					Pad[chan].triggerRight = 0;
 			}
 #endif
