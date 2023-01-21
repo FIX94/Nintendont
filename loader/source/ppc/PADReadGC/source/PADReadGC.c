@@ -1605,12 +1605,12 @@ u32 PADRead(u32 calledByGame)
 					button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
 				}
 
-				if ((BTPad[chan].button & (BT_TRIGGER_L | BT_TRIGGER_ZL)) || BTPad[chan].triggerL >= simulated_full_press_threshold) {
+				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= simulated_full_press_threshold) {
 					button |= PAD_TRIGGER_L;
 					Pad[chan].triggerLeft = 0xFF;
 				}
 
-				if ((BTPad[chan].button & (BT_TRIGGER_R | BT_TRIGGER_ZR)) || BTPad[chan].triggerR >= simulated_full_press_threshold) {
+				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= simulated_full_press_threshold) {
 					button |= PAD_TRIGGER_R;
 					Pad[chan].triggerRight = 0xFF;
 				}
