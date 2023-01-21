@@ -263,6 +263,7 @@ u32 PADRead(u32 calledByGame)
 #endif
 		//write in mapped out buttons
 		Pad[WiiUGamepadSlot].button = button;
+#ifndef LI_NORESET
 		if((Pad[WiiUGamepadSlot].button&0x1030) == 0x1030) //reset by pressing start, Z, R
 		{
 			/* reset status 3 */
@@ -270,6 +271,7 @@ u32 PADRead(u32 calledByGame)
 		}
 		else /* for held status */
 			*RESET_STATUS = 0;
+#endif
 		//do scale, deadzone and clamp
 		s8 tmp_stick8; s16 tmp_stick16;
 		_DRC_BUILD_TMPSTICK(i2cdata[4]);
@@ -465,7 +467,7 @@ u32 PADRead(u32 calledByGame)
 			else if (tempStick < -0x80)
 				tempStick = -0x80;
 			Pad[chan].substickY = (s8)tempStick;
-
+#ifndef LI_NORESET
 			if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 			{
 				/* reset status 3 */
@@ -473,6 +475,7 @@ u32 PADRead(u32 calledByGame)
 			}
 			else /* for held status */
 				*RESET_STATUS = 0;
+#endif
 			/* clear unneeded button attributes */
 			Pad[chan].button &= 0x9F7F;
 			/* set current command */
@@ -654,7 +657,7 @@ u32 PADRead(u32 calledByGame)
 		if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 			button |= PAD_BUTTON_START;
 		Pad[chan].button = button;
-
+#ifndef LI_NORESET
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
@@ -662,7 +665,7 @@ u32 PADRead(u32 calledByGame)
 		}
 		else /* for held status */
 			*RESET_STATUS = 0;
-
+#endif
 		/* then analog sticks */
 		s8 stickX, stickY, substickX, substickY;
 		if (PADIsBarrel[chan])
@@ -1668,6 +1671,7 @@ u32 PADRead(u32 calledByGame)
 			goto DoExit;
 		}
 #endif
+#ifndef LI_NORESET
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
@@ -1675,6 +1679,7 @@ u32 PADRead(u32 calledByGame)
 		}
 		else // for held status
 			*RESET_STATUS = 0;
+#endif
 	}
 
 	/* Some games always need the controllers "used" */

@@ -16,6 +16,7 @@
 
 #define LI_NOSWAP
 #define LI_NOEXIT
+#define LI_NORESET
 #define LI_CUSTOM_CONTROLS
 #define LI_BASE64
 #define LI_SHOULDER
