@@ -96,23 +96,6 @@ void ApplyCardinalMask(PADStatus* pad) {
 		pad->stickY = 0;
 	}
 }
-
-void ApplyToLeftStick(PADStatus* pad, int up, int down, int left, int right) {
-	pad->stickX = 0;
-	pad->stickY = 0;
-	if (up) {
-		pad->stickY += 0x7F;
-	}
-	if (down) {
-		pad->stickY -= 0x7F;
-	}
-	if (left) {
-		pad->stickX -= 0x7F;
-	}
-	if (right) {
-		pad->stickX += 0x7F;
-	}
-}
 #endif
 
 u32 PADRead(u32 calledByGame)
@@ -263,7 +246,6 @@ u32 PADRead(u32 calledByGame)
 #endif
 		//write in mapped out buttons
 		Pad[WiiUGamepadSlot].button = button;
-#ifndef LI_NORESET
 		if((Pad[WiiUGamepadSlot].button&0x1030) == 0x1030) //reset by pressing start, Z, R
 		{
 			/* reset status 3 */
@@ -271,7 +253,6 @@ u32 PADRead(u32 calledByGame)
 		}
 		else /* for held status */
 			*RESET_STATUS = 0;
-#endif
 		//do scale, deadzone and clamp
 		s8 tmp_stick8; s16 tmp_stick16;
 		_DRC_BUILD_TMPSTICK(i2cdata[4]);
@@ -284,41 +265,52 @@ u32 PADRead(u32 calledByGame)
 		Pad[WiiUGamepadSlot].substickY = tmp_stick8;
 
 #ifdef LI_CUSTOM_CONTROLS
+		int gpslot = WiiUGamepadSlot;
+
 		if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 			// The Legend of Zelda: Four Swords Adventures
 			// Mario Party 4
 
 			if (drcbutton & (WIIDRC_BUTTON_UP | WIIDRC_BUTTON_DOWN | WIIDRC_BUTTON_LEFT | WIIDRC_BUTTON_RIGHT)) {
 				// D-pad pressed - override joystick
-				ApplyToLeftStick(&Pad[WiiUGamepadSlot],
-					drcbutton & WIIDRC_BUTTON_UP,
-					drcbutton & WIIDRC_BUTTON_DOWN,
-					drcbutton & WIIDRC_BUTTON_LEFT,
-					drcbutton & WIIDRC_BUTTON_RIGHT);
+				Pad[gpslot].stickX = 0;
+				Pad[gpslot].stickY = 0;
+				if (drcbutton & WIIDRC_BUTTON_UP) {
+					Pad[gpslot].stickY += 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_DOWN) {
+					Pad[gpslot].stickY -= 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_LEFT) {
+					Pad[gpslot].stickX -= 0x7F;
+				}
+				if (drcbutton & WIIDRC_BUTTON_RIGHT) {
+					Pad[gpslot].stickX += 0x7F;
+				}
 			}
 
 			// Hide D-pad from game (will be used to emulate joystick)
-			Pad[WiiUGamepadSlot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+			Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
 		}
 		else if (*TitleID == 0x47564D || *TitleID == 0x473353)
 		{
 			// Bust-a-Move 3000
-			if (Pad[WiiUGamepadSlot].button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
+			if (Pad[gpslot].button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
 			{
-				Pad[WiiUGamepadSlot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
+				Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
 			}
 
 			if ((drcbutton & WIIDRC_BUTTON_L) || (drcbutton & WIIDRC_BUTTON_ZL)) {
 				button |= PAD_TRIGGER_L;
-				Pad[WiiUGamepadSlot].triggerLeft = 0xFF;
+				Pad[gpslot].triggerLeft = 0xFF;
 			}
 
 			if ((drcbutton & WIIDRC_BUTTON_R) || (drcbutton & WIIDRC_BUTTON_ZR)) {
 				button |= PAD_TRIGGER_R;
-				Pad[WiiUGamepadSlot].triggerRight = 0xFF;
+				Pad[gpslot].triggerRight = 0xFF;
 			}
 
-			ApplyCardinalMask(&Pad[WiiUGamepadSlot]);
+			ApplyCardinalMask(&Pad[gpslot]);
 		}
 #endif
 	}
@@ -467,7 +459,7 @@ u32 PADRead(u32 calledByGame)
 			else if (tempStick < -0x80)
 				tempStick = -0x80;
 			Pad[chan].substickY = (s8)tempStick;
-#ifndef LI_NORESET
+
 			if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 			{
 				/* reset status 3 */
@@ -475,7 +467,6 @@ u32 PADRead(u32 calledByGame)
 			}
 			else /* for held status */
 				*RESET_STATUS = 0;
-#endif
 			/* clear unneeded button attributes */
 			Pad[chan].button &= 0x9F7F;
 			/* set current command */
@@ -657,7 +648,7 @@ u32 PADRead(u32 calledByGame)
 		if(HID_Packet[HID_CTRL->S.Offset] & HID_CTRL->S.Mask)
 			button |= PAD_BUTTON_START;
 		Pad[chan].button = button;
-#ifndef LI_NORESET
+
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
@@ -665,7 +656,7 @@ u32 PADRead(u32 calledByGame)
 		}
 		else /* for held status */
 			*RESET_STATUS = 0;
-#endif
+
 		/* then analog sticks */
 		s8 stickX, stickY, substickX, substickY;
 		if (PADIsBarrel[chan])
@@ -1580,18 +1571,26 @@ u32 PADRead(u32 calledByGame)
 			if(BTPad[chan].button & BT_DPAD_UP)
 				button |= PAD_BUTTON_UP;
 #ifdef LI_CUSTOM_CONTROLS
-			const int simulated_full_press_threshold = 0x40;
-
 			if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 				// The Legend of Zelda: Four Swords Adventures
 				// Mario Party 4
 
 				if (BTPad[chan].button & (BT_DPAD_UP | BT_DPAD_DOWN | BT_DPAD_LEFT | BT_DPAD_RIGHT)) {
-					ApplyToLeftStick(&Pad[chan],
-						BTPad[chan].button & BT_DPAD_UP,
-						BTPad[chan].button & BT_DPAD_DOWN,
-						BTPad[chan].button & BT_DPAD_LEFT,
-						BTPad[chan].button & BT_DPAD_RIGHT);
+					// D-pad pressed - override joystick
+					Pad[chan].stickX = 0;
+					Pad[chan].stickY = 0;
+					if (BTPad[chan].button & BT_DPAD_UP) {
+						Pad[chan].stickY += 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_DOWN) {
+						Pad[chan].stickY -= 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_LEFT) {
+						Pad[chan].stickX -= 0x7F;
+					}
+					if (BTPad[chan].button & BT_DPAD_RIGHT) {
+						Pad[chan].stickX += 0x7F;
+					}
 				}
 
 				// Hide D-pad from game (will be used to emulate joystick)
@@ -1605,12 +1604,12 @@ u32 PADRead(u32 calledByGame)
 					button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
 				}
 
-				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= simulated_full_press_threshold) {
+				if ((BTPad[chan].button & BT_TRIGGER_L) || (BTPad[chan].button & BT_TRIGGER_ZL) || BTPad[chan].triggerL >= 0x34) {
 					button |= PAD_TRIGGER_L;
 					Pad[chan].triggerLeft = 0xFF;
 				}
 
-				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= simulated_full_press_threshold) {
+				if ((BTPad[chan].button & BT_TRIGGER_R) || (BTPad[chan].button & BT_TRIGGER_ZR) || BTPad[chan].triggerR >= 0x34) {
 					button |= PAD_TRIGGER_R;
 					Pad[chan].triggerRight = 0xFF;
 				}
@@ -1619,13 +1618,12 @@ u32 PADRead(u32 calledByGame)
 			}
 			else if (*TitleID == 0x474533)
 			{
-				// Midway Arcade Treasures 3
-				if (BTPad[chan].triggerL >= simulated_full_press_threshold) {
+				if (BTPad[chan].triggerL >= 0x40) {
 					button |= PAD_TRIGGER_L;
 					Pad[chan].triggerLeft = 0xFF;
 				}
 
-				if (BTPad[chan].triggerR >= simulated_full_press_threshold) {
+				if (BTPad[chan].triggerR >= 0x40) {
 					button |= PAD_TRIGGER_R;
 					Pad[chan].triggerRight = 0xFF;
 				}
@@ -1633,9 +1631,9 @@ u32 PADRead(u32 calledByGame)
 			else if (*TitleID == 0x47505A)
 			{
 				// Nintendo Puzzle Collection
-				if (!(BTPad[chan].button & (BT_TRIGGER_L | BT_TRIGGER_ZL)))
+				if (!(button & PAD_TRIGGER_L))
 					Pad[chan].triggerLeft = 0;
-				if (!(BTPad[chan].button & (BT_TRIGGER_R | BT_TRIGGER_ZR)))
+				if (!(button & PAD_TRIGGER_R))
 					Pad[chan].triggerRight = 0;
 			}
 #endif
@@ -1671,7 +1669,6 @@ u32 PADRead(u32 calledByGame)
 			goto DoExit;
 		}
 #endif
-#ifndef LI_NORESET
 		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
 		{
 			/* reset status 3 */
@@ -1679,7 +1676,6 @@ u32 PADRead(u32 calledByGame)
 		}
 		else // for held status
 			*RESET_STATUS = 0;
-#endif
 	}
 
 	/* Some games always need the controllers "used" */
