@@ -4,6 +4,7 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
 
 * `LI_NOSWAP`: removes the controller shortcuts that allow you to swap buttons (Y/B vs. B/A)
 * `LI_NOEXIT`: removes the ability to exit Nintendont without turning off or resetting the console
+* `LI_NORESET`: removes the ability to reset the game with a controller button combo (at least on certain controllers)
 * `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller, Classic Controller Pro, and Wii U GamePad
     * The Legend of Zelda: Four Swords Adventures
 	    * D-Pad => Left Stick
