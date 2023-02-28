@@ -10,22 +10,22 @@
 6. Release 2 (ends configuration)
 
 **Howard's** (Default - Pressing 2)
-![Howard's Config](Wiimote_&_Nunchuk_imgs/Howard%20(Default).webp)
+![Howard's Config](wiimote_config_imgs/Howard%20(Default).webp)
 
 **Shooter** (Pressing 2 & 1)
-![Shooter Config](Wiimote_&_Nunchuk_imgs/Shooter%20(2%20&%201).webp)
+![Shooter Config](wiimote_config_imgs/Shooter%20(2%20&%201).webp)
 
 **Nagger's** (Pressing 2 & D-Pad →)
-![Nagger's Config](Wiimote_&_Nunchuk_imgs/Nagger%20(2%20&%20RIGHT).webp)
+![Nagger's Config](wiimote_config_imgs/Nagger%20(2%20&%20RIGHT).webp)
 
 **Abz'** (Pressing 2 & D-Pad ←)
-![Abz' Config](Wiimote_&_Nunchuk_imgs/Abz%20(2%20&%20LEFT).webp)
+![Abz' Config](wiimote_config_imgs/Abz%20(2%20&%20LEFT).webp)
 
 **Troopage's** (Pressing 2 & -)
-![Troopage's Config](Wiimote_&_Nunchuk_imgs/Troopage%20(2%20&%20-).webp)
+![Troopage's Config](wiimote_config_imgs/Troopage%20(2%20&%20-).webp)
 
 **Digital Racing** (Pressing 2 & D-Pad ↓)
-![Digital Racing Config](Wiimote_&_Nunchuk_imgs/Digital%20Racing%20(2%20&%20DOWN).webp)
+![Digital Racing Config](wiimote_config_imgs/Digital%20Racing%20(2%20&%20DOWN).webp)
 
 **Analog Racing** (Pressing 2 & D-Pad ↑)
-![Analog Racing Config](Wiimote_&_Nunchuk_imgs/Analog%20Racing%20(2%20&%20UP).webp)
+![Analog Racing Config](wiimote_config_imgs/Analog%20Racing%20(2%20&%20UP).webp)
