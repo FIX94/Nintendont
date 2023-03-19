@@ -558,6 +558,8 @@ s32 HIDOpen( u32 LoaderRequest )
 
 				if( HID_CTRL->Polltype == 0 )
 					MemPacketSize = 128;
+				else if (HID_CTRL->MultiIn == 4)
+					MemPacketSize = 128;
 				else
 					MemPacketSize = wMaxPacketSize;
 
@@ -823,6 +825,8 @@ ctrlrumblerepeat:
 
 void HIDIRQRead()
 {
+	u8 controllerNumber;
+
 	switch( HID_CTRL->MultiIn )
 	{
 		default:
@@ -836,6 +840,27 @@ void HIDIRQRead()
 		case 2: // multiple controllers from a single adapter first byte contains controller number
 			if ((Packet[0] < HID_CTRL->MultiInValue) || (Packet[0] > NIN_CFG_MAXPAD))
 				goto dohidirqread;
+			break;
+		case 4:	// Multiple controllers from a single adapter, under seperate packets, to be merged into a single HID_Packet.
+				// The first byte of each packet contains the controller number; the first pad is assumed to have index 1.
+				// MultiInValue is used to set the number of pads (from 1 to 4). E.g. a basic PS2 splitter would have 2.
+				// When the packets are merged to the single HID_Packet, they will be aligned on 32 byte boundaries. 
+				// The wMaxPacketSize for each split packet must therefore be 32 bytes or less for this to work.
+
+			controllerNumber = Packet[0];
+
+			// Unwanted packet => try again
+			if ((controllerNumber < 1) || (controllerNumber > HID_CTRL->MultiInValue))
+				goto dohidirqread;
+			
+			// Wanted packet => merge it in on its 32 byte boundary
+			memcpy(HID_Packet + (32 * (controllerNumber-1)), Packet, wMaxPacketSize);
+
+			// Final packet => sync all the packets
+			if (controllerNumber == HID_CTRL->MultiInValue)
+				sync_after_write(HID_Packet, 128);
+			
+			goto dohidirqread;
 			break;
 	}
 	memcpy(HID_Packet, Packet, wMaxPacketSize);
