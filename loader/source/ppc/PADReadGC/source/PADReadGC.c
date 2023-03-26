@@ -314,6 +314,30 @@ u32 PADRead(u32 calledByGame)
 
 			ApplyCardinalMask(&Pad[gpslot]);
 		}
+		else if (*TitleID == 0x475348)
+		{
+			// Spy Hunter
+			Pad[gpslot].button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_TRIGGER_Z);
+			Pad[gpslot].triggerLeft = 0;
+			Pad[gpslot].triggerRight = 0;
+			if ((drcbutton & WIIDRC_BUTTON_ZL) || (drcbutton & WIIDRC_BUTTON_R)) {
+				Pad[gpslot].button |= PAD_TRIGGER_L;
+				Pad[gpslot].triggerLeft = 0xFF;
+			}
+			if ((drcbutton & WIIDRC_BUTTON_ZR) || (drcbutton & WIIDRC_BUTTON_L)) {
+				Pad[gpslot].button |= PAD_TRIGGER_R;
+				Pad[gpslot].triggerRight = 0xFF;
+			}
+			if ((drcbutton & WIIDRC_BUTTON_ZL) || (drcbutton & WIIDRC_BUTTON_L)) {
+				Pad[gpslot].button |= PAD_TRIGGER_Z;
+			}
+			if (drcbutton & WIIDRC_BUTTON_X) {
+				Pad[gpslot].button |= PAD_BUTTON_Y;
+			}
+			if (drcbutton & WIIDRC_BUTTON_Y) {
+				Pad[gpslot].button |= PAD_BUTTON_X;
+			}
+		}
 #endif
 	}
 	else
@@ -1641,6 +1665,41 @@ u32 PADRead(u32 calledByGame)
 					Pad[chan].triggerLeft = 0;
 				if (!(BTPad[chan].button & (BT_TRIGGER_R | BT_TRIGGER_ZR)))
 					Pad[chan].triggerRight = 0;
+			}
+			else if (*TitleID == 0x475348)
+			{
+				button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_TRIGGER_Z);
+				Pad[chan].triggerLeft = 0;
+				Pad[chan].triggerRight = 0;
+				int largeL = (BTPad[chan].used & C_CC)
+					? (BTPad[chan].button & BT_TRIGGER_L)
+					: (BTPad[chan].button & BT_TRIGGER_ZL);
+				int smallL = (BTPad[chan].used & C_CC)
+					? (BTPad[chan].button & BT_TRIGGER_ZL)
+					: (BTPad[chan].button & BT_TRIGGER_L);
+				int largeR = (BTPad[chan].used & C_CC)
+					? (BTPad[chan].button & BT_TRIGGER_R)
+					: (BTPad[chan].button & BT_TRIGGER_ZR);
+				int smallR = (BTPad[chan].used & C_CC)
+					? (BTPad[chan].button & BT_TRIGGER_ZR)
+					: (BTPad[chan].button & BT_TRIGGER_R);
+				if (largeR || smallL) {
+					Pad[chan].button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
+				if (smallR || largeL) {
+					Pad[chan].button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
+				if (largeL || smallL) {
+					Pad[chan].button |= PAD_TRIGGER_Z;
+				}
+				if (BTPad[chan].button & BT_BUTTON_X) {
+					Pad[chan].button |= PAD_BUTTON_Y;
+				}
+				if (BTPad[chan].button & BT_BUTTON_Y) {
+					Pad[chan].button |= PAD_BUTTON_X;
+				}
 			}
 #endif
 #ifndef LI_NOEXIT
