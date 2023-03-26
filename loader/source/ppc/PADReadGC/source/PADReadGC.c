@@ -385,6 +385,30 @@ u32 PADRead(u32 calledByGame)
 			if (BTPad[chan].button & BT_BUTTON_SELECT)
 				Pad[gpslot].button |= PAD_BUTTON_UP;
 		}
+		else if (*TitleID == 0x474d53 || *TitleID == 0x474c4d)
+		{
+			// Super Mario Sunshine
+			// Luigi's Mansion
+			Pad[gpslot].button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
+
+			if (drcbutton & WIIDRC_BUTTON_ZL) {
+				Pad[gpslot].triggerLeft = 0xFE;
+			}
+
+			if (drcbutton & WIIDRC_BUTTON_ZR) {
+				Pad[gpslot].triggerRight = 0xFE;
+			}
+
+			if (drcbutton & WIIDRC_BUTTON_L) {
+				Pad[gpslot].button |= PAD_TRIGGER_L;
+				Pad[gpslot].triggerLeft = 0xFF;
+			}
+
+			if (drcbutton & WIIDRC_BUTTON_R) {
+				Pad[gpslot].button |= PAD_TRIGGER_R;
+				Pad[gpslot].triggerRight = 0xFF;
+			}
+		}
 #endif
 	}
 	else
@@ -1766,6 +1790,30 @@ u32 PADRead(u32 calledByGame)
 
 				if (BTPad[chan].button & BT_BUTTON_SELECT)
 					button |= PAD_BUTTON_UP;
+			}
+			else if (*TitleID == 0x474d53 || *TitleID == 0x474c4d)
+			{
+				// Super Mario Sunshine
+				// Luigi's Mansion
+				button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
+
+				if (largeL) {
+					Pad[chan].triggerLeft = 0xFE;
+				}
+
+				if (largeR) {
+					Pad[chan].triggerRight = 0xFE;
+				}
+
+				if (smallL) {
+					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
+
+				if (smallR) {
+					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
 			}
 #endif
 #ifndef LI_NOEXIT
