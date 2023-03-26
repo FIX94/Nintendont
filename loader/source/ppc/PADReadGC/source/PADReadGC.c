@@ -108,10 +108,10 @@ void DRCDPadToStick(PADStatus* pad, u16 drcbutton, u8 scale) {
 
 void BTDPadToStick(PADStatus* pad, u32 button, u8 scale) {
 	DPadToStick(pad,
-		button & PAD_BUTTON_LEFT,
-		button & PAD_BUTTON_RIGHT,
-		button & PAD_BUTTON_DOWN,
-		button & PAD_BUTTON_UP,
+		button & BT_DPAD_LEFT,
+		button & BT_DPAD_RIGHT,
+		button & BT_DPAD_DOWN,
+		button & BT_DPAD_UP,
 		scale);
 }
 
@@ -370,10 +370,16 @@ u32 PADRead(u32 calledByGame)
 				Pad[gpslot].button |= PAD_TRIGGER_L;
 				Pad[gpslot].triggerLeft = 0xFF;
 			}
+			else {
+				Pad[gpslot].triggerLeft = 0;
+			}
 
 			if (drcbutton & WIIDRC_BUTTON_ZR) {
 				Pad[gpslot].button |= PAD_TRIGGER_R;
 				Pad[gpslot].triggerRight = 0xFF;
+			}
+			else {
+				Pad[gpslot].triggerRight = 0;
 			}
 
 			if ((drcbutton & WIIDRC_BUTTON_L) && Pad[gpslot].triggerLeft < 0x3F)
@@ -390,6 +396,8 @@ u32 PADRead(u32 calledByGame)
 			// Super Mario Sunshine
 			// Luigi's Mansion
 			Pad[gpslot].button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
+			Pad[gpslot].triggerLeft = 0;
+			Pad[gpslot].triggerRight = 0;
 
 			if (drcbutton & WIIDRC_BUTTON_ZL) {
 				Pad[gpslot].triggerLeft = 0xFE;
@@ -1774,11 +1782,19 @@ u32 PADRead(u32 calledByGame)
 
 				if (largeL) {
 					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
+				else
+				{
 					Pad[chan].triggerLeft = analogL;
 				}
 
 				if (largeR) {
 					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
+				else
+				{
 					Pad[chan].triggerRight = analogR;
 				}
 
@@ -1796,6 +1812,8 @@ u32 PADRead(u32 calledByGame)
 				// Super Mario Sunshine
 				// Luigi's Mansion
 				button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
+				Pad[chan].triggerLeft = 0;
+				Pad[chan].triggerRight = 0;
 
 				if (largeL) {
 					Pad[chan].triggerLeft = 0xFE;
