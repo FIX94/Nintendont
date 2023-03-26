@@ -2,6 +2,7 @@
 
 Available preprocessor flags in this branch (define these in NintendontVersion.h):
 
+* `LI_NONUNCHUK`: removes Nunchuk support
 * `LI_NOSWAP`: removes the controller shortcuts that allow you to swap buttons (Y/B vs. B/A)
 * `LI_NOEXIT`: removes the ability to exit Nintendont without turning off or resetting the console
 * `LI_NORESET`: removes the ability to reset the game with a controller button combo (at least on certain controllers)
@@ -20,6 +21,22 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * Classic Controller R (pressed down at least 25%) -> full R press
     * Nintendo Puzzle Collection
         * on Classic Controller, L and R do not activate unless one of the corresponding shoulder buttons is pressed all the way (digitally)
+    * Spy Hunter
+        * Large L button -> full L press + Z
+        * Small L button -> full R press + Z
+        * Large R button -> full R press
+        * Small R button -> full L press
+        * Y and X swapped
+    * Super Smash Bros. Melee
+        * Large L button -> analog or full L press
+        * Small L button -> 25% L press
+        * Large R button -> analog or full R press
+        * Small R button -> Z
+        * D-pad -> Left stick (75% tilt)
+        * Select -> D-pad up
+    * Super Mario Sunshine / Luigi's Mansion
+        * Large L and R buttons -> nearly-full analog presses (0xFE / 254)
+        * Small L and R buttons -> full analog and digital presses
 * `LI_BASE64`: lets you load a base64-encoded nincfg.bin from meta.xml (also see [NinCFGEditor](https://github.com/libertyernie/NinCFGEditor))
 * `LI_SHOULDER`: tweaks the button mappings on certain controllers
     * Classic Controller:

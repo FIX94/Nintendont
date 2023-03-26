@@ -97,6 +97,43 @@ void ApplyCardinalMask(PADStatus* pad) {
 		pad->stickY = 0;
 	}
 }
+
+void DRCDPadToStick(PADStatus* pad, u16 drcbutton, u8 scale) {
+	DPadToStick(pad,
+		drcbutton & WIIDRC_BUTTON_LEFT,
+		drcbutton & WIIDRC_BUTTON_RIGHT,
+		drcbutton & WIIDRC_BUTTON_DOWN,
+		drcbutton & WIIDRC_BUTTON_UP,
+		scale);
+}
+
+void BTDPadToStick(PADStatus* pad, u32 button, u8 scale) {
+	DPadToStick(pad,
+		button & PAD_BUTTON_LEFT,
+		button & PAD_BUTTON_RIGHT,
+		button & PAD_BUTTON_DOWN,
+		button & PAD_BUTTON_UP,
+		scale);
+}
+
+void DPadToStick(PADStatus* pad, int left, int right, int down, int up, u8 scale) {
+	if (left || right || down || up) {
+		pad->stickX = 0;
+		pad->stickY = 0;
+		if (up) {
+			pad->stickY += scale;
+		}
+		if (down) {
+			pad->stickY -= scale;
+		}
+		if (left) {
+			pad->stickX -= scale;
+		}
+		if (right) {
+			pad->stickX += scale;
+		}
+	}
+}
 #endif
 
 u32 PADRead(u32 calledByGame)
@@ -274,23 +311,7 @@ u32 PADRead(u32 calledByGame)
 			// The Legend of Zelda: Four Swords Adventures
 			// Mario Party 4
 
-			if (drcbutton & (WIIDRC_BUTTON_UP | WIIDRC_BUTTON_DOWN | WIIDRC_BUTTON_LEFT | WIIDRC_BUTTON_RIGHT)) {
-				// D-pad pressed - override joystick
-				Pad[gpslot].stickX = 0;
-				Pad[gpslot].stickY = 0;
-				if (drcbutton & WIIDRC_BUTTON_UP) {
-					Pad[gpslot].stickY += 0x7F;
-				}
-				if (drcbutton & WIIDRC_BUTTON_DOWN) {
-					Pad[gpslot].stickY -= 0x7F;
-				}
-				if (drcbutton & WIIDRC_BUTTON_LEFT) {
-					Pad[gpslot].stickX -= 0x7F;
-				}
-				if (drcbutton & WIIDRC_BUTTON_RIGHT) {
-					Pad[gpslot].stickX += 0x7F;
-				}
-			}
+			DRCDPadToStick(&Pad[gpslot], drcbutton, 0x7F);
 
 			// Hide D-pad from game (will be used to emulate joystick)
 			Pad[gpslot].button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
@@ -314,6 +335,80 @@ u32 PADRead(u32 calledByGame)
 			}
 
 			ApplyCardinalMask(&Pad[gpslot]);
+		}
+		else if (*TitleID == 0x475348)
+		{
+			// Spy Hunter
+			Pad[gpslot].button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_TRIGGER_Z);
+			Pad[gpslot].triggerLeft = 0;
+			Pad[gpslot].triggerRight = 0;
+			if ((drcbutton & WIIDRC_BUTTON_ZL) || (drcbutton & WIIDRC_BUTTON_R)) {
+				Pad[gpslot].button |= PAD_TRIGGER_L;
+				Pad[gpslot].triggerLeft = 0xFF;
+			}
+			if ((drcbutton & WIIDRC_BUTTON_ZR) || (drcbutton & WIIDRC_BUTTON_L)) {
+				Pad[gpslot].button |= PAD_TRIGGER_R;
+				Pad[gpslot].triggerRight = 0xFF;
+			}
+			if ((drcbutton & WIIDRC_BUTTON_ZL) || (drcbutton & WIIDRC_BUTTON_L)) {
+				Pad[gpslot].button |= PAD_TRIGGER_Z;
+			}
+			if (drcbutton & WIIDRC_BUTTON_X) {
+				Pad[gpslot].button |= PAD_BUTTON_Y;
+			}
+			if (drcbutton & WIIDRC_BUTTON_Y) {
+				Pad[gpslot].button |= PAD_BUTTON_X;
+			}
+		}
+		else if (*TitleID == 0x47414c)
+		{
+			// Super Smash Bros. Melee
+			Pad[gpslot].button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_TRIGGER_Z | PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+
+			DRCDPadToStick(&Pad[gpslot], drcbutton, 0x5F);
+
+			if (drcbutton & WIIDRC_BUTTON_ZL) {
+				Pad[gpslot].button |= PAD_TRIGGER_L;
+				Pad[gpslot].triggerLeft = 0xFF;
+			}
+
+			if (drcbutton & WIIDRC_BUTTON_ZR) {
+				Pad[gpslot].button |= PAD_TRIGGER_R;
+				Pad[gpslot].triggerRight = 0xFF;
+			}
+
+			if ((drcbutton & WIIDRC_BUTTON_L) && Pad[gpslot].triggerLeft < 0x3F)
+				Pad[gpslot].triggerLeft = 0x3F;
+
+			if (drcbutton & WIIDRC_BUTTON_R)
+				Pad[gpslot].button |= PAD_TRIGGER_Z;
+
+			if (BTPad[chan].button & BT_BUTTON_SELECT)
+				Pad[gpslot].button |= PAD_BUTTON_UP;
+		}
+		else if (*TitleID == 0x474d53 || *TitleID == 0x474c4d)
+		{
+			// Super Mario Sunshine
+			// Luigi's Mansion
+			Pad[gpslot].button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
+
+			if (drcbutton & WIIDRC_BUTTON_ZL) {
+				Pad[gpslot].triggerLeft = 0xFE;
+			}
+
+			if (drcbutton & WIIDRC_BUTTON_ZR) {
+				Pad[gpslot].triggerRight = 0xFE;
+			}
+
+			if (drcbutton & WIIDRC_BUTTON_L) {
+				Pad[gpslot].button |= PAD_TRIGGER_L;
+				Pad[gpslot].triggerLeft = 0xFF;
+			}
+
+			if (drcbutton & WIIDRC_BUTTON_R) {
+				Pad[gpslot].button |= PAD_TRIGGER_R;
+				Pad[gpslot].triggerRight = 0xFF;
+			}
 		}
 #endif
 	}
@@ -1060,6 +1155,7 @@ u32 PADRead(u32 calledByGame)
 		}
 #endif
 
+#ifndef LI_NONUNCHUK
 // Nunchuck Buttons
 		if((BTPad[chan].used & C_NUN) && !(BTPad[chan].button & WM_BUTTON_TWO))	//nunchuck not being configured
 		{
@@ -1590,6 +1686,7 @@ u32 PADRead(u32 calledByGame)
 				goto DoExit;
 #endif
 		}	//end nunchuck configs
+#endif
 
 		if(BTPad[chan].used & (C_CC | C_CCP))
 		{
@@ -1631,27 +1728,29 @@ u32 PADRead(u32 calledByGame)
 #ifdef LI_CUSTOM_CONTROLS
 			const int simulated_full_press_threshold = 0x40;
 
+			int largeL = (BTPad[chan].used & C_CC)
+				? (BTPad[chan].button & BT_TRIGGER_L)
+				: (BTPad[chan].button & BT_TRIGGER_ZL);
+			int smallL = (BTPad[chan].used & C_CC)
+				? (BTPad[chan].button & BT_TRIGGER_ZL)
+				: (BTPad[chan].button & BT_TRIGGER_L);
+			int largeR = (BTPad[chan].used & C_CC)
+				? (BTPad[chan].button & BT_TRIGGER_R)
+				: (BTPad[chan].button & BT_TRIGGER_ZR);
+			int smallR = (BTPad[chan].used & C_CC)
+				? (BTPad[chan].button & BT_TRIGGER_ZR)
+				: (BTPad[chan].button & BT_TRIGGER_R);
+			int analogL = (BTPad[chan].used & C_CC)
+				? BTPad[chan].triggerL
+				: largeL;
+			int analogR = (BTPad[chan].used & C_CC)
+				? BTPad[chan].triggerR
+				: largeR;
+
 			if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 				// The Legend of Zelda: Four Swords Adventures
 				// Mario Party 4
-
-				if (BTPad[chan].button & (BT_DPAD_UP | BT_DPAD_DOWN | BT_DPAD_LEFT | BT_DPAD_RIGHT)) {
-					// D-pad pressed - override joystick
-					Pad[chan].stickX = 0;
-					Pad[chan].stickY = 0;
-					if (BTPad[chan].button & BT_DPAD_UP) {
-						Pad[chan].stickY += 0x7F;
-					}
-					if (BTPad[chan].button & BT_DPAD_DOWN) {
-						Pad[chan].stickY -= 0x7F;
-					}
-					if (BTPad[chan].button & BT_DPAD_LEFT) {
-						Pad[chan].stickX -= 0x7F;
-					}
-					if (BTPad[chan].button & BT_DPAD_RIGHT) {
-						Pad[chan].stickX += 0x7F;
-					}
-				}
+				BTDPadToStick(&Pad[chan], BTPad[chan].button, 0x7F);
 
 				// Hide D-pad from game (will be used to emulate joystick)
 				button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
@@ -1696,6 +1795,80 @@ u32 PADRead(u32 calledByGame)
 					Pad[chan].triggerLeft = 0;
 				if (!(BTPad[chan].button & (BT_TRIGGER_R | BT_TRIGGER_ZR)))
 					Pad[chan].triggerRight = 0;
+			}
+			else if (*TitleID == 0x475348)
+			{
+				// Spy Hunter
+				button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_TRIGGER_Z);
+				Pad[chan].triggerLeft = 0;
+				Pad[chan].triggerRight = 0;
+				if (largeR || smallL) {
+					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
+				if (smallR || largeL) {
+					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
+				if (largeL || smallL) {
+					button |= PAD_TRIGGER_Z;
+				}
+				if (BTPad[chan].button & BT_BUTTON_X) {
+					button |= PAD_BUTTON_Y;
+				}
+				if (BTPad[chan].button & BT_BUTTON_Y) {
+					button |= PAD_BUTTON_X;
+				}
+			}
+			else if (*TitleID == 0x47414c)
+			{
+				// Super Smash Bros. Melee
+				button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_TRIGGER_Z | PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+
+				BTDPadToStick(&Pad[chan], BTPad[chan].button, 0x5F);
+
+				if (largeL) {
+					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = analogL;
+				}
+
+				if (largeR) {
+					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = analogR;
+				}
+
+				if (smallL && Pad[chan].triggerLeft < 0x3F)
+					Pad[chan].triggerLeft = 0x3F;
+
+				if (smallR)
+					button |= PAD_TRIGGER_Z;
+
+				if (BTPad[chan].button & BT_BUTTON_SELECT)
+					button |= PAD_BUTTON_UP;
+			}
+			else if (*TitleID == 0x474d53 || *TitleID == 0x474c4d)
+			{
+				// Super Mario Sunshine
+				// Luigi's Mansion
+				button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
+
+				if (largeL) {
+					Pad[chan].triggerLeft = 0xFE;
+				}
+
+				if (largeR) {
+					Pad[chan].triggerRight = 0xFE;
+				}
+
+				if (smallL) {
+					button |= PAD_TRIGGER_L;
+					Pad[chan].triggerLeft = 0xFF;
+				}
+
+				if (smallR) {
+					button |= PAD_TRIGGER_R;
+					Pad[chan].triggerRight = 0xFF;
+				}
 			}
 #endif
 #ifndef LI_NOEXIT
