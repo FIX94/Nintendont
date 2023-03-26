@@ -1076,6 +1076,7 @@ u32 PADRead(u32 calledByGame)
 		}
 #endif
 
+#ifndef LI_NONUNCHUK
 // Nunchuck Buttons
 		if((BTPad[chan].used & C_NUN) && !(BTPad[chan].button & WM_BUTTON_TWO))	//nunchuck not being configured
 		{
@@ -1606,6 +1607,7 @@ u32 PADRead(u32 calledByGame)
 				goto DoExit;
 #endif
 		}	//end nunchuck configs
+#endif
 
 		if(BTPad[chan].used & (C_CC | C_CCP))
 		{
