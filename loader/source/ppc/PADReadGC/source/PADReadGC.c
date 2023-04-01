@@ -80,23 +80,6 @@ const s8 DEADZONE = 0x1A;
 	else tmp_stick8 = (s8)tmp_stick16;
 
 #ifdef LI_CUSTOM_CONTROLS
-void ApplyCardinalMask(PADStatus* pad) {
-	s8 x = pad->stickX;
-	if (x < 0) x = -x;
-	s8 y = pad->stickY;
-	if (y < 0) y = -y;
-
-	if (y > x) {
-		// Up / Down
-		pad->stickX = 0;
-	}
-	else
-	{
-		// Left / Right
-		pad->stickY = 0;
-	}
-}
-
 void DRCDPadToStick(PADStatus* pad, u16 drcbutton, u8 scale) {
 	DPadToStick(pad,
 		drcbutton & WIIDRC_BUTTON_LEFT,
@@ -137,6 +120,8 @@ void DPadToStick(PADStatus* pad, int left, int right, int down, int up, u8 scale
 
 void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	u16 button = out->button;
+	u8 triggerLeft = out->triggerLeft;
+	u8 triggerRight = out->triggerRight;
 
 #ifndef LI_NOSWAP
 	if (pad.used & C_SWAP)
@@ -174,7 +159,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	if (pad.button & BT_DPAD_UP)
 		button |= PAD_BUTTON_UP;
 #ifdef LI_CUSTOM_CONTROLS
-	u8 simulated_full_press_threshold = 0x40;
+	const u8 simulated_full_press_threshold = 0x40;
 
 	int largeL = (pad.used & C_CC)
 		? (pad.button & BT_TRIGGER_L)
@@ -188,12 +173,6 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	int smallR = (pad.used & C_CC)
 		? (pad.button & BT_TRIGGER_ZR)
 		: (pad.button & BT_TRIGGER_R);
-	u8 analogL = (pad.used & C_CC)
-		? pad.triggerL
-		: largeL ? 0xFF : 0;
-	u8 analogR = (pad.used & C_CC)
-		? pad.triggerR
-		: largeR ? 0xFF : 0;
 
 	if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 		// The Legend of Zelda: Four Swords Adventures
@@ -213,50 +192,63 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 
 		if ((pad.button & BT_TRIGGER_L) || (pad.button & BT_TRIGGER_ZL) || pad.triggerL >= simulated_full_press_threshold) {
 			button |= PAD_TRIGGER_L;
-			out->triggerLeft = 0xFF;
+			triggerLeft = 0xFF;
 		}
 
 		if ((pad.button & BT_TRIGGER_R) || (pad.button & BT_TRIGGER_ZR) || pad.triggerR >= simulated_full_press_threshold) {
 			button |= PAD_TRIGGER_R;
-			out->triggerRight = 0xFF;
+			triggerRight = 0xFF;
 		}
 
-		ApplyCardinalMask(out);
+		s16 x = pad.xAxisL;
+		if (x < 0) x = -x;
+		s16 y = pad.yAxisL;
+		if (y < 0) y = -y;
+
+		if (y > x) {
+			// Up / Down
+			out->stickX = 0;
+		}
+		else
+		{
+			// Left / Right
+			out->stickY = 0;
+		}
 	}
 	else if (*TitleID == 0x474533)
 	{
 		// Midway Arcade Treasures 3
 		if (pad.triggerL >= simulated_full_press_threshold) {
 			button |= PAD_TRIGGER_L;
-			out->triggerLeft = 0xFF;
+			triggerLeft = 0xFF;
 		}
 
 		if (pad.triggerR >= simulated_full_press_threshold) {
 			button |= PAD_TRIGGER_R;
-			out->triggerRight = 0xFF;
+			triggerRight = 0xFF;
 		}
 	}
 	else if (*TitleID == 0x47505A)
 	{
 		// Nintendo Puzzle Collection
 		if (!(pad.button & (BT_TRIGGER_L | BT_TRIGGER_ZL)))
-			out->triggerLeft = 0;
+			triggerLeft = 0;
 		if (!(pad.button & (BT_TRIGGER_R | BT_TRIGGER_ZR)))
-			out->triggerRight = 0;
+			triggerRight = 0;
 	}
 	else if (*TitleID == 0x475348)
 	{
 		// Spy Hunter
 		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_TRIGGER_Z);
-		out->triggerLeft = 0;
-		out->triggerRight = 0;
+		triggerLeft = 0;
+		triggerRight = 0;
 		if (largeR || smallL) {
 			button |= PAD_TRIGGER_L;
-			out->triggerLeft = 0xFF;
+			triggerLeft = 0xFF;
 		}
 		if (smallR || largeL) {
 			button |= PAD_TRIGGER_R;
-			out->triggerRight = 0xFF;
+			triggerRight = 0xFF;
 		}
 		if (largeL || smallL) {
 			button |= PAD_TRIGGER_Z;
@@ -281,16 +273,16 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		}
 		else
 		{
-			out->triggerLeft = analogL;
+			out->triggerLeft = pad.triggerL;
 		}
 
 		if (largeR) {
 			button |= PAD_TRIGGER_R;
-			out->triggerRight = 0xFF;
+			triggerRight = 0xFF;
 		}
 		else
 		{
-			out->triggerRight = analogR;
+			triggerRight = pad.triggerR;
 		}
 
 		if (smallL && out->triggerLeft < 0x3F)
@@ -307,25 +299,25 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		// Super Mario Sunshine
 		// Luigi's Mansion
 		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
-		out->triggerLeft = 0;
-		out->triggerRight = 0;
+		triggerLeft = 0;
+		triggerRight = 0;
 
 		if (largeL) {
-			out->triggerLeft = 0xFE;
+			triggerLeft = 0xFE;
 		}
 
 		if (largeR) {
-			out->triggerRight = 0xFE;
+			triggerRight = 0xFE;
 		}
 
 		if (smallL) {
 			button |= PAD_TRIGGER_L;
-			out->triggerLeft = 0xFF;
+			triggerLeft = 0xFF;
 		}
 
 		if (smallR) {
 			button |= PAD_TRIGGER_R;
-			out->triggerRight = 0xFF;
+			triggerRight = 0xFF;
 		}
 	}
 #endif
@@ -338,6 +330,8 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 #endif
 
 	out->button = button;
+	out->triggerLeft = triggerLeft;
+	out->triggerRight = triggerRight;
 }
 
 u32 PADRead(u32 calledByGame)
@@ -1776,14 +1770,12 @@ u32 PADRead(u32 calledByGame)
 		}	//end nunchuck configs
 #endif
 
+		Pad[chan].button = button;
+
 		if(BTPad[chan].used & (C_CC | C_CCP))
 		{
-			Pad[chan].button = button;
 			HandleClassicController(BTPad[chan], &Pad[chan]);
-			button = Pad[chan].button;
 		}
-
-		Pad[chan].button = button;
 
 //#define DEBUG_cStick	1
 		#ifdef DEBUG_cStick
