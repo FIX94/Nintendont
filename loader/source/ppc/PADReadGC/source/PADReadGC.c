@@ -43,6 +43,11 @@ static u32 PrevAdapterChannel2 = 0;
 static u32 PrevAdapterChannel3 = 0;
 static u32 PrevAdapterChannel4 = 0;
 static u32 PrevDRCButton = 0;
+#ifdef LI_XBOX360
+#ifndef LI_NOSWAP
+static int xbox_swap = 0;
+#endif
+#endif
 
 static s8 OffsetX[NIN_CFG_MAXPAD] = {0};
 static s8 OffsetY[NIN_CFG_MAXPAD] = {0};
@@ -517,7 +522,7 @@ u32 PADRead(u32 calledByGame)
 	}
 	else
 	{
-              *HIDMotor = (MotorCommand[0]&0x3);
+        *HIDMotor = (MotorCommand[0]&0x3);
 		for (chan = 0; (chan < MaxPads); ++chan)
 		{
 			/* transfer the actual data */
@@ -801,14 +806,40 @@ u32 PADRead(u32 calledByGame)
 			if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
 				button |= PAD_BUTTON_LEFT;
 		}
-		if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
-			button |= PAD_BUTTON_A;
-		if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)
-			button |= PAD_BUTTON_B;
-		if(HID_Packet[HID_CTRL->X.Offset] & HID_CTRL->X.Mask)
-			button |= PAD_BUTTON_X;
-		if(HID_Packet[HID_CTRL->Y.Offset] & HID_CTRL->Y.Mask)
-			button |= PAD_BUTTON_Y;
+#ifdef LI_XBOX360
+#ifndef LI_NOSWAP
+		if ((HID_CTRL->VID == 0x045e) && (HID_CTRL->PID == 0x028e))	//XBOX360 controller
+		{
+			//XBOX: swap abxy when L+Back buttons are pressed
+			if((HID_Packet[3] & 0x01) && (HID_Packet[2] & 0x20))
+				xbox_swap = !xbox_swap;
+		}
+
+		if(xbox_swap)
+		{	/* turn buttons quarter clockwise */
+			if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)
+				button |= PAD_BUTTON_A;
+			if(HID_Packet[HID_CTRL->Y.Offset] & HID_CTRL->Y.Mask)
+				button |= PAD_BUTTON_B;
+			if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
+				button |= PAD_BUTTON_X;
+			if(HID_Packet[HID_CTRL->X.Offset] & HID_CTRL->X.Mask)
+				button |= PAD_BUTTON_Y;
+		}
+		else
+#endif
+#endif
+		{
+			if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
+				button |= PAD_BUTTON_A;
+			if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)
+				button |= PAD_BUTTON_B;
+			if(HID_Packet[HID_CTRL->X.Offset] & HID_CTRL->X.Mask)
+				button |= PAD_BUTTON_X;
+			if(HID_Packet[HID_CTRL->Y.Offset] & HID_CTRL->Y.Mask)
+				button |= PAD_BUTTON_Y;
+		}
+
 		if(HID_Packet[HID_CTRL->Z.Offset] & HID_CTRL->Z.Mask)
 			button |= PAD_TRIGGER_Z;
 
@@ -838,6 +869,14 @@ u32 PADRead(u32 calledByGame)
 				if(HID_Packet[HID_CTRL->R.Offset] >= HID_CTRL->R.Mask)
 					button |= PAD_TRIGGER_R;
 			}
+		}
+		else if ((HID_CTRL->VID == 0x045e) && (HID_CTRL->PID == 0x028e))	//XBOX360 controller
+		{
+			// fully pressed triggers
+			if(HID_Packet[HID_CTRL->LAnalog] == 255)
+				button |= PAD_TRIGGER_L;
+			if(HID_Packet[HID_CTRL->RAnalog] == 255)
+				button |= PAD_TRIGGER_R;
 		}
 		else	//standard digital left and right trigger buttons
 		{
@@ -972,6 +1011,31 @@ u32 PADRead(u32 calledByGame)
 				tempStick = -0x80;
 			substickY = (s8)tempStick;
 		}
+#ifdef LI_XBOX360
+		else
+		if ((HID_CTRL->VID == 0x0403) && (HID_CTRL->PID == 0x97c1))	//Retrode
+		{
+			// map Retrode values to a known gamepad (VID=0x0079, PID=0x0011)
+			if (HID_Packet[HID_CTRL->StickX.Offset] == 0x9C)
+				HID_Packet[HID_CTRL->StickX.Offset] = 0x00;
+			else if (HID_Packet[HID_CTRL->StickX.Offset] == 0x64)
+				HID_Packet[HID_CTRL->StickX.Offset] = 0xFF;
+			else // 0 = no button pressed
+				HID_Packet[HID_CTRL->StickX.Offset] = 0x7F;
+
+			if (HID_Packet[HID_CTRL->StickY.Offset] == 0x9C)
+				HID_Packet[HID_CTRL->StickY.Offset] = 0x00;
+			else if (HID_Packet[HID_CTRL->StickY.Offset] == 0x64)
+				HID_Packet[HID_CTRL->StickY.Offset] = 0xFF;
+			else // 0 = no button pressed
+				HID_Packet[HID_CTRL->StickY.Offset] = 0x7F;
+
+			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
+			stickY		= 127 - HID_Packet[HID_CTRL->StickY.Offset];
+			substickX	= 0;
+			substickY	= 0;
+		}
+#endif
 		else	//standard sticks
 		{
 			stickX		= HID_Packet[HID_CTRL->StickX.Offset] - 128;
