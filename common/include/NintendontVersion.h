@@ -14,7 +14,7 @@
 // This should only be set in custom builds, i.e. not mainline.
 #define NIN_SPECIAL_VERSION			"-libertyernie"
 
-#define LI_NONUNCHUK
+#define LI_GAMEPADASCCPRO
 #define LI_NOSWAP
 #define LI_NOEXIT
 #define LI_NORESET
