@@ -174,7 +174,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	if (pad.button & BT_DPAD_UP)
 		button |= PAD_BUTTON_UP;
 #ifdef LI_CUSTOM_CONTROLS
-	const int simulated_full_press_threshold = 0x40;
+	u8 simulated_full_press_threshold = 0x40;
 
 	int largeL = (pad.used & C_CC)
 		? (pad.button & BT_TRIGGER_L)
@@ -188,12 +188,12 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	int smallR = (pad.used & C_CC)
 		? (pad.button & BT_TRIGGER_ZR)
 		: (pad.button & BT_TRIGGER_R);
-	int analogL = (pad.used & C_CC)
+	u8 analogL = (pad.used & C_CC)
 		? pad.triggerL
-		: largeL;
-	int analogR = (pad.used & C_CC)
+		: largeL ? 0xFF : 0;
+	u8 analogR = (pad.used & C_CC)
 		? pad.triggerR
-		: largeR;
+		: largeR ? 0xFF : 0;
 
 	if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 		// The Legend of Zelda: Four Swords Adventures
