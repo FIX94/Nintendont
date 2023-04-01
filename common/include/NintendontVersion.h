@@ -2,7 +2,7 @@
 #define __NINTENDONT_VERSION_H__
 
 #define NIN_MAJOR_VERSION			6
-#define NIN_MINOR_VERSION			499
+#define NIN_MINOR_VERSION			500
 
 #define NIN_VERSION		((NIN_MAJOR_VERSION << 16) | NIN_MINOR_VERSION)
 
@@ -14,7 +14,7 @@
 // This should only be set in custom builds, i.e. not mainline.
 #define NIN_SPECIAL_VERSION			"-libertyernie"
 
-#define LI_NONUNCHUK
+#define LI_GAMEPADASCCPRO
 #define LI_NOSWAP
 #define LI_NOEXIT
 #define LI_NORESET
