@@ -80,38 +80,20 @@ const s8 DEADZONE = 0x1A;
 	else tmp_stick8 = (s8)tmp_stick16;
 
 #ifdef LI_CUSTOM_CONTROLS
-void DRCDPadToStick(PADStatus* pad, u16 drcbutton, u8 scale) {
-	DPadToStick(pad,
-		drcbutton & WIIDRC_BUTTON_LEFT,
-		drcbutton & WIIDRC_BUTTON_RIGHT,
-		drcbutton & WIIDRC_BUTTON_DOWN,
-		drcbutton & WIIDRC_BUTTON_UP,
-		scale);
-}
-
 void BTDPadToStick(PADStatus* pad, u32 button, u8 scale) {
-	DPadToStick(pad,
-		button & BT_DPAD_LEFT,
-		button & BT_DPAD_RIGHT,
-		button & BT_DPAD_DOWN,
-		button & BT_DPAD_UP,
-		scale);
-}
-
-void DPadToStick(PADStatus* pad, int left, int right, int down, int up, u8 scale) {
-	if (left || right || down || up) {
+	if (button & (BT_DPAD_LEFT | BT_DPAD_RIGHT | BT_DPAD_DOWN | BT_DPAD_UP)) {
 		pad->stickX = 0;
 		pad->stickY = 0;
-		if (up) {
+		if (button & BT_DPAD_UP) {
 			pad->stickY += scale;
 		}
-		if (down) {
+		if (button & BT_DPAD_DOWN) {
 			pad->stickY -= scale;
 		}
-		if (left) {
+		if (button & BT_DPAD_LEFT) {
 			pad->stickX -= scale;
 		}
-		if (right) {
+		if (button & BT_DPAD_RIGHT) {
 			pad->stickX += scale;
 		}
 	}
