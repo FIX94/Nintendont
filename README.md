@@ -3,10 +3,11 @@
 Available preprocessor flags in this branch (define these in NintendontVersion.h):
 
 * `LI_NONUNCHUK`: removes Nunchuk support
+* `LI_GAMEPADASCCPRO`: removes Wii U GamePad mapping code and instead reuses the Classic Controller Pro code path (experimental)
 * `LI_NOSWAP`: removes the controller shortcuts that allow you to swap buttons (Y/B vs. B/A)
 * `LI_NOEXIT`: removes the ability to exit Nintendont without turning off or resetting the console
 * `LI_NORESET`: removes the ability to reset the game with a controller button combo (at least on certain controllers)
-* `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller, Classic Controller Pro, and Wii U GamePad
+* `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller and Classic Controller Pro
     * The Legend of Zelda: Four Swords Adventures
 	    * D-Pad => Left Stick
     * Mario Party 4
@@ -46,14 +47,14 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * ZR -> half R press (0x7F)
         * Home -> Start (if `LI_NOEXIT` is used)
         * Select -> Z
-    * Classic Controller Pro / Wii U GamePad:
+    * Classic Controller Pro:
         * ZL -> full L press (0xFF)
         * ZR -> full R press (0xFF)
         * L -> half L press (0x7F)
         * R -> half R press (0x7F)
         * Home -> Start (if `LI_NOEXIT` is used)
         * Select -> Z
-* LI_ANALOG_SHOULDER_FULL: simulates a full analog L/R press on the Classic Controller whenever a digital (full) press is detected
+* `LI_ANALOG_SHOULDER_FULL`: simulates a full analog L/R press on the Classic Controller whenever a digital (full) press is detected
 
 To build on Windows, you might need to set the "windows" variable so the build process can find zip.exe:
 
