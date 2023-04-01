@@ -43,7 +43,9 @@ static u32 PrevAdapterChannel2 = 0;
 static u32 PrevAdapterChannel3 = 0;
 static u32 PrevAdapterChannel4 = 0;
 static u32 PrevDRCButton = 0;
+#ifndef LI_NOSWAP
 static int xbox_swap = 0;
+#endif
 
 static s8 OffsetX[NIN_CFG_MAXPAD] = {0};
 static s8 OffsetY[NIN_CFG_MAXPAD] = {0};
@@ -826,7 +828,7 @@ u32 PADRead(u32 calledByGame)
 			if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
 				button |= PAD_BUTTON_LEFT;
 		}
-
+#ifndef LI_NOSWAP
 		if ((HID_CTRL->VID == 0x045e) && (HID_CTRL->PID == 0x028e))	//XBOX360 controller
 		{
 			//XBOX: swap abxy when L+Back buttons are pressed
@@ -846,6 +848,7 @@ u32 PADRead(u32 calledByGame)
 				button |= PAD_BUTTON_Y;
 		}
 		else
+#endif
 		{
 			if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
 				button |= PAD_BUTTON_A;
