@@ -307,6 +307,37 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 			triggerRight = 0xFF;
 		}
 	}
+	else if (*TitleID == 0x474d34)
+	{
+		// Mario Kart: Double Dash!!
+		if (largeL || (pad.button & BT_DPAD_UP) || (pad.button & BT_DPAD_DOWN)) {
+			button |= PAD_BUTTON_X;
+		}
+
+		// Adding any more code past this point makes binary too large
+
+		if (pad.button & BT_DPAD_LEFT) {
+			button |= PAD_TRIGGER_L;
+			triggerLeft = 0xFF;
+		}
+
+		if (largeR || (pad.button & BT_DPAD_RIGHT)) {
+			button |= PAD_TRIGGER_R;
+			triggerRight = 0xFF;
+		}
+
+		if (smallL || smallR) {
+			button |= PAD_TRIGGER_Z;
+		}
+
+		if (pad.button & BT_DPAD_UP) {
+			out->stickY = 0x7F;
+		}
+
+		if (pad.button & BT_DPAD_DOWN) {
+			out->stickY = -0x7F;
+		}
+	}
 #endif
 #ifndef LI_NOEXIT
 	if (pad.button & BT_BUTTON_HOME)
