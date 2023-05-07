@@ -252,7 +252,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		// Super Smash Bros. Melee
 		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_TRIGGER_Z | PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
 
-		BTDPadToStick(out, pad.button, 0x5F);
+		BTDPadToStick(out, pad.button, 0x3F);
 
 		if (largeL) {
 			button |= PAD_TRIGGER_L;
