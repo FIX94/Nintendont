@@ -1383,9 +1383,43 @@ u32 PADRead(u32 calledByGame)
 							button |= PAD_BUTTON_Y;
 					}
 				}break;
-//				case 7:	// (2 & plus)
-//				{
-//				}break;
+				case 7:	// (2 & plus)
+				{	//Mariokart Config
+					//A=A B=R C=Z Z=X -=B +=Y Dpad=Standard
+					if (!(BTPad[chan].used & C_ISWAP))	//not using IR
+					{
+						Pad[chan].substickX = 0;
+						Pad[chan].substickY = 0;
+					}
+
+					if(BTPad[chan].button & WM_BUTTON_A)
+						button |= PAD_BUTTON_A;
+					if(BTPad[chan].button & WM_BUTTON_B)
+					{
+						button |= PAD_TRIGGER_R;
+						Pad[chan].triggerRight = 0xFF;
+					}
+					else
+						Pad[chan].triggerRight = 0;
+
+					if(BTPad[chan].button & NUN_BUTTON_C)
+						button |= PAD_TRIGGER_Z;
+					if(BTPad[chan].button & NUN_BUTTON_Z)
+						button |= PAD_BUTTON_X;
+					if(BTPad[chan].button & WM_BUTTON_MINUS)
+						button |= PAD_BUTTON_B;
+					if(BTPad[chan].button & WM_BUTTON_PLUS)
+						button |= PAD_BUTTON_Y;
+					if(BTPad[chan].button & WM_BUTTON_DOWN)
+						button |= PAD_BUTTON_DOWN;
+					if(BTPad[chan].button & WM_BUTTON_UP)
+						button |= PAD_BUTTON_UP;
+					if(BTPad[chan].button & WM_BUTTON_RIGHT)
+						button |= PAD_BUTTON_RIGHT;
+					if(BTPad[chan].button & WM_BUTTON_LEFT)
+						button |= PAD_BUTTON_LEFT;
+
+				} break;
 			}
 			if(BTPad[chan].button & WM_BUTTON_ONE)
 				button |= PAD_BUTTON_START;
