@@ -222,6 +222,11 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		// Save the revision number.
 		gi->Revision = buf[0x07];
 
+		// Save the maker code.
+		memcpy(gi->MakerCode, &buf[0x4], 2);
+
+		gi->DiscNumber = discNumber;
+
 		// Check if this is a multi-game image.
 		// Reference: https://gbatemp.net/threads/wit-wiimms-iso-tools-gamecube-disc-support.251630/#post-3088119
 		const bool is_multigame = IsMultiGameDisc((const char*)buf);
@@ -1843,6 +1848,9 @@ static int SelectGame(void)
 		strncpy(ncfg->GamePath, StartChar, sizeof(ncfg->GamePath));
 		ncfg->GamePath[sizeof(ncfg->GamePath)-1] = 0;
 		memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
+		memcpy(&(ncfg->GameMakerCode), gi[SelectedGame].MakerCode, 2);
+		ncfg->GameRevision = gi[SelectedGame].Revision;
+		ncfg->GameDiscNumber = gi[SelectedGame].DiscNumber;
 		DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
 	}
 	// Free allocated memory in the game list.

@@ -57,6 +57,8 @@ typedef struct GameInfo
 	char ID[6];		// ID6 of the game.
 	uint8_t Revision;	// Disc revision.
 	uint8_t Flags;		// See GameInfoFlags.
+	char MakerCode[2];
+	uint8_t DiscNumber;
 
 	char *Name;		// Game name. (If NameAlloc, strdup()'d.)
 	char *Path;		// File path.
