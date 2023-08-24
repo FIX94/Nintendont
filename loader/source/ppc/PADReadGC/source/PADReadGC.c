@@ -108,11 +108,6 @@ u32 PADRead(u32 calledByGame)
 	/* For Wii VC */
 	if(calledByGame && *drcAddress && WiiUGamepadSlot != NIN_CFG_MAXPAD)
 	{
-		// If there is an HIDPad, bump WiiUGamepadSlot to
-		// slot 1 if necessary so the HID pad can be slot 0.
-		if(HIDPad != HID_PAD_NONE && WiiUGamepadSlot == 0)
-			WiiUGamepadSlot = 1;
-
 		used |= (1<<WiiUGamepadSlot);
 		if(HIDPad == HID_PAD_NOT_SET)
 		{
