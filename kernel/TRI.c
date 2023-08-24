@@ -699,7 +699,7 @@ void TRISetupGames()
 	{
 		dbgprintf("TRI:Virtua Striker 4 (Export GDT-0014)\r\n");
 		TRIGame = TRI_VS4;
-		SystemRegion = REGION_USA;
+		SystemRegion = REGION_EXPORT;
 		TRISettingsName = SETTINGS_VS4EXP;
 		TRISettingsLoc = 0x05C5CA0-0x2CA8; //NOTE:logic turned around!
 		TRISettingsSize = 0x2B;
@@ -730,7 +730,7 @@ void TRISetupGames()
 	{
 		dbgprintf("TRI:Virtua Striker 4 (Export GDT-0015)\r\n");
 		TRIGame = TRI_VS4;
-		SystemRegion = REGION_USA;
+		SystemRegion = REGION_EXPORT;
 		TRISettingsName = SETTINGS_VS4EXP;
 		TRISettingsLoc = 0x05C5FE0-0x2CA8; //NOTE:logic turned around!
 		TRISettingsSize = 0x2B;
@@ -837,7 +837,7 @@ void TRISetupGames()
 	{
 		dbgprintf("TRI:Virtua Striker 4 Ver 2006 (Export)\r\n");
 		TRIGame = TRI_VS4;
-		SystemRegion = REGION_USA;
+		SystemRegion = REGION_EXPORT;
 		TRISettingsName = SETTINGS_VS4V06EXP;
 		TRISettingsLoc = 0x0684B40-0xEE4;
 		TRISettingsSize = 0x2B;
