@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "FPad.h"
 #include "menu.h"
 #include "MemCard.h"
+#include "MemCardPro.h"
 #include "Patches.h"
 #include "kernel_zip.h"
 #include "kernelboot_bin.h"
@@ -1121,6 +1122,14 @@ int main(int argc, char **argv)
 		sram->lang = ncfg->Language;
 		__SYS_UnlockSram(1); // 1 -> write changes
 		while(!__SYS_SyncSram());
+
+		// Send game ID to MemCard Pro GC
+		s32 chan;
+		for ( chan = 0; chan < 2; chan++) {
+			if (CheckForMemCardPro(chan)) {
+				SetMemCardProGameInfo(chan, ncfg);
+			}
+		}
 	}
 	
 	//Check if game is Triforce game
