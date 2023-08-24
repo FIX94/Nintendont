@@ -305,6 +305,38 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	char filename[MAXPATHLEN];	// Current filename.
 	u8 buf[0x100];			// Disc header.
 	int gamecount = 0;		// Current game count.
+	u32 i;
+	FIL f;
+	UINT wrote;
+
+	snprintf(filename, sizeof(filename), "%s:/gamecache.bin", GetRootDevice());
+	if (f_open_char(&f, filename, FA_OPEN_EXISTING | FA_READ) == FR_OK) {
+        f_read(&f, &gamecount, sizeof(gamecount), &wrote);
+    }
+    if (gamecount > 0)
+    {
+		for (i = 0; i < gamecount; ++i) {
+            uint8_t Revision;
+            uint8_t Flags;
+			char Name[255];
+			char Path[255];
+			char ID[6];
+			f_read(&f, &ID, 6, &wrote);
+			f_read(&f, &Name, 255, &wrote);
+			f_read(&f, &Revision, 1, &wrote);
+			f_read(&f, &Flags, 1, &wrote);
+			f_read(&f, &Path, 255, &wrote);
+			gi[i].Revision = Revision;
+			gi[i].Flags = Flags;
+			gi[i].Name = strdup((const char*)&Name);
+			memcpy(gi[i].ID, ID, 6);
+			gi[i].Path = strdup(Path);
+		}
+		f_close(&f);
+		if (pGameCount)
+			*pGameCount = gamecount;
+		return DEV_OK;
+	}
 
 	if( isWiiVC )
 	{
@@ -515,6 +547,24 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 	if(gamecount == 0)
 		return DEV_NO_TITLES;
 
+	snprintf(filename, sizeof(filename), "%s:/gamecache.bin", GetRootDevice());
+	if (f_open_char(&f, filename, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+		f_write(&f, &gamecount, sizeof(gamecount), &wrote);
+		for (i = 0; i < gamecount; ++i) {
+			const void *Revision = &gi[i].Revision;
+			const void *Flags = &gi[i].Flags;
+			const char Name[255] = "";
+			strcpy(Name, gi[i].Name);
+			const char Path[255] = "";
+			strcpy(Path, gi[i].Path);
+			f_write(&f, gi[i].ID, 6, &wrote);
+			f_write(&f, Name, 255, &wrote);
+			f_write(&f, Revision, 1, &wrote);
+			f_write(&f, Flags, 1, &wrote);
+			f_write(&f, Path, 255, &wrote);
+		}
+		f_close(&f);
+	}
 	return DEV_OK;
 }
 
@@ -596,7 +646,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 	if (FPAD_Down_Repeat(ctx))
 	{
 		// Down: Move the cursor down by 1 entry.
-		
+
 		// Remove the current arrow.
 		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
 
@@ -773,7 +823,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 			}
 		}
 
-		if(ctx->games.gamecount && (ctx->games.scrollX + ctx->games.posX) >= 0 
+		if(ctx->games.gamecount && (ctx->games.scrollX + ctx->games.posX) >= 0
 			&& (ctx->games.scrollX + ctx->games.posX) < ctx->games.gamecount)
 		{
 			ctx->games.canBeBooted = true;
@@ -1152,7 +1202,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
 		}
-	
+
 		ctx->redraw = true;
 
 	}
@@ -1612,14 +1662,14 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			    "%-18s:%-4s", "Network Profile", netProfile);
 		ListLoopIndex++;
 
-	
+
 		// Controller slot for the Wii U gamepad.
 		if (ncfg->WiiUGamepadSlot < NIN_CFG_MAXPAD) {
 			PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+320, SettingY(ListLoopIndex),
 					"%-18s:%d", "WiiU Gamepad Slot", (ncfg->WiiUGamepadSlot + 1));
 		} else {
 			PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+320, SettingY(ListLoopIndex),
-			"%-18s:%-4s", "WiiU Gamepad Slot", "None");	
+			"%-18s:%-4s", "WiiU Gamepad Slot", "None");
 		}
 		ListLoopIndex++;
 
@@ -1870,6 +1920,7 @@ static int SelectGame(void)
  */
 bool SelectDevAndGame(void)
 {
+	char filename[MAXPATHLEN];	// Current filename.
 	// Select the source device. (SD or USB)
 	bool SaveSettings = false;
 	bool redraw = true;	// Need to draw the menu the first time.
@@ -1884,7 +1935,7 @@ bool SelectDevAndGame(void)
 		{
 			UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 			PrintInfo();
-			PrintButtonActions("Exit", "Select", NULL, NULL);
+			PrintButtonActions("Exit", "Select", NULL, "Clear Cache");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 6, UseSD ? ARROW_LEFT : "");
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 53 * 6 - 8, MENU_POS_Y + 20 * 7, UseSD ? "" : ARROW_LEFT);
 			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
@@ -1917,6 +1968,25 @@ bool SelectDevAndGame(void)
 		else if (FPAD_Up(0))
 		{
 			ncfg->Config = ncfg->Config & ~NIN_CFG_USB;
+			redraw = true;
+		}
+		else if (FPAD_X(0))
+		{
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 9, "Clearing Cache");
+            FIL f;
+            UINT wrote;
+            int zeroValue = 0;
+            static const char* const SdStr = "sd";
+            static const char* const UsbStr = "usb";
+            snprintf(filename, sizeof(filename), "%s:/gamecache.bin", SdStr);
+			if (f_unlink(filename) != 0)
+                if (f_open_char(&f, filename, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
+                    {f_write(&f, &zeroValue, sizeof(zeroValue), &wrote); f_close(&f);}
+			snprintf(filename, sizeof(filename), "%s:/gamecache.bin", UsbStr);
+            if (f_unlink(filename) != 0)
+                if (f_open_char(&f, filename, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
+                    {f_write(&f, &zeroValue, sizeof(zeroValue), &wrote);f_close(&f);}
+			PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 10, "Done");
 			redraw = true;
 		}
 	}
