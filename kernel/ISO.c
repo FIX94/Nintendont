@@ -98,22 +98,12 @@ static union {
 	uint16_t ciso_block_map[CISO_MAP_SIZE];
 	u32 ziso_block_map[ZISO_IDX_CACHE_SIZE]; // we use this as a cache on ZISO
 } block_map;
-static unsigned char ISO_Type = TYPE_ISO;	// Set to 1 for CISO mode.
+static unsigned char ISO_Type = TYPE_ISO;	// Set to 1 for CISO mode. 2 for ZISO.
 static u64 uncompressed_size = 0;
 static u32 ziso_align = 0;
 static int ziso_idx_start_block = -1;
 static u8 ziso_com_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
 static u8 ziso_dec_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
-
-static void logtext(char* text){
-	return;
-	FIL fil;
-	u32 write;
-	f_open_char(&fil, "/nintenlog.txt", FA_OPEN_ALWAYS|FA_WRITE|FA_CREATE_ALWAYS|FA_OPEN_APPEND);
-	f_write(&fil, text, strlen(text), &write);
-	f_sync(&fil);
-	f_close(&fil);
-}
 
 /**
  * Read directly from the ISO file.
@@ -138,36 +128,6 @@ static UINT read_raw_data(void *Buffer, u32 Length, u64 Offset64){
 
 	return read;
 }
-
-/*
-static void ziso_read_block(u32 lsn){
-	FIL* in = &GameFile;
-	u32 data[2]; // 0=offset, 1=size
-	u32 read;
-
-	// read two block offsets
-	f_lseek(in, sizeof(ZISO_t) + sizeof(u32)*lsn);
-	f_read(in, data, sizeof(data), &read);
-
-	data[0] = __builtin_bswap32(data[0]);
-	data[1] = __builtin_bswap32(data[1]);
-
-	u32 topbit = data[0]&0x80000000; // extract top bit for decompressor
-	data[0] = (data[0]&0x7FFFFFFF);
-	data[1] = (data[1]&0x7FFFFFFF);
-
-	data[1] -= data[0]; // calculate size
-
-	// read compressed block
-	f_lseek(in, data[0]);
-	f_read(in, ziso_com_buf, data[1], &read);
-
-	// decompress block
-	if (topbit) memcpy(ziso_dec_buf, ziso_com_buf, ZISO_BLOCK_SIZE); // check for NC area
-	else LZ4_decompress_fast((const char*)ziso_com_buf, (char*)ziso_dec_buf, ZISO_BLOCK_SIZE); // decompress block
-
-}
-*/
 
 static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 {
