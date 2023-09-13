@@ -114,10 +114,13 @@ static u8 ziso_dec_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
  */
 static UINT read_raw_data(void *Buffer, u32 Length, u64 Offset64){
 	UINT read;
-	if(wiiVCInternal)
-		WDVD_FST_LSeek( Offset64 );
-	else
-		f_lseek( &GameFile, Offset64 );
+	if(LastOffset64 != Offset64)
+	{
+		if(wiiVCInternal)
+			WDVD_FST_LSeek( Offset64 );
+		else
+			f_lseek( &GameFile, Offset64 );
+	}
 	if(wiiVCInternal)
 	{
 		sync_before_read( Buffer, Length );
@@ -138,52 +141,10 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 	if (ISO_Type == TYPE_ISO)
 	{
 		// Standard ISO/GCM file.
-		if(LastOffset64 != Offset64)
-		{
-			if(wiiVCInternal)
-				WDVD_FST_LSeek( Offset64 );
-			else
-				f_lseek( &GameFile, Offset64 );
-		}
-		if(wiiVCInternal)
-		{
-			sync_before_read( Buffer, Length );
-			read = WDVD_FST_Read( Buffer, Length );
-		}
-		else
-			f_read( &GameFile, Buffer, Length, &read );
+		read = read_raw_data(Buffer, Length, Offset64);
 	}
 	else if (ISO_Type == TYPE_ZSO){
 		// ZISO
-		/*
-		unsigned int cur_block;
-		int pos, ret, read_bytes;
-		u64 offset = Offset64;
-		unsigned int size = Length;
-		u64 total_sectors = uncompressed_size / ZISO_BLOCK_SIZE;
-		u8* addr = (u8*)Buffer;
-
-		while(size > 0)
-		{
-			cur_block = offset / ZISO_BLOCK_SIZE;
-			pos = offset & (ZISO_BLOCK_SIZE - 1);
-
-			if(cur_block >= total_sectors)
-			{
-				// EOF reached
-				break;
-			}
-
-			ziso_read_block(cur_block);
-
-			read_bytes = MIN(size, (ZISO_BLOCK_SIZE - pos));
-			memcpy(addr, &ziso_dec_buf[pos], read_bytes);
-			size -= read_bytes;
-			addr += read_bytes;
-			offset += read_bytes;
-		}
-		*/
-		logtext("reading ziso data\n");
 		u32 cur_block;
 		u32 pos, read_bytes;
 		u8* com_buf = ziso_com_buf;
@@ -210,13 +171,11 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 		
 		// refresh index table if needed
 		if (ziso_idx_start_block < 0 || starting_block < ziso_idx_start_block || starting_block-ziso_idx_start_block+1 >= ZISO_IDX_CACHE_SIZE-1){
-			logtext("refreshing index cache (0)\n");
 			read_raw_data(block_map.ziso_block_map, ZISO_IDX_CACHE_SIZE*sizeof(u32), starting_block * sizeof(u32) + sizeof(ZISO_t));
 			ziso_idx_start_block = starting_block;
 		}
 
 		// Calculate total size of compressed data
-		logtext("calculating compressed size\n");
 		u32 o_start = (
 			bswap32(block_map.ziso_block_map[starting_block-ziso_idx_start_block])
 			&0x7FFFFFFF
@@ -232,7 +191,6 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 
 		// try to read at once as much compressed data as possible
 		if (size > ZISO_BLOCK_SIZE*2){ // only if going to read more than two blocks
-			logtext("doing fast read\n");
 			if (size < compressed_size) compressed_size = size-ZISO_BLOCK_SIZE; // adjust chunk size if compressed data is still bigger than uncompressed
 			c_buf = top_addr - compressed_size; // read into the end of the user buffer
 			read_raw_data(c_buf, compressed_size, o_start);
@@ -245,12 +203,10 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 
 			// check if we need to refresh index table
 			if (cur_block-ziso_idx_start_block >= ZISO_IDX_CACHE_SIZE-1){
-				logtext("refresh index table (1)\n");
 				read_raw_data(block_map.ziso_block_map, ZISO_IDX_CACHE_SIZE*sizeof(u32), cur_block*sizeof(u32) + sizeof(ZISO_t));
 				ziso_idx_start_block = cur_block;
 			}
 			
-			logtext("calculate offset and size\n");
 			// read compressed block offset and size
 			u32 b_offset = bswap32(block_map.ziso_block_map[cur_block-ziso_idx_start_block]);
 			u32 b_size = bswap32(block_map.ziso_block_map[cur_block-ziso_idx_start_block+1]);
@@ -265,7 +221,6 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 					compressed_size = o_end-b_offset; // recalculate remaining compressed data
 					if (size < compressed_size) compressed_size = size-ZISO_BLOCK_SIZE; // adjust if still bigger than uncompressed
 					if (compressed_size >= b_size){
-						logtext("refresh ziso data\n");
 						c_buf = top_addr - compressed_size; // read into the end of the user buffer
 						read_raw_data(c_buf, compressed_size, b_offset);
 					}
@@ -274,29 +229,24 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 
 			// read block, skipping header if needed
 			if (c_buf >= addr && c_buf+b_size <= top_addr){
-				logtext("fast read\n");
 				memcpy(com_buf, c_buf, b_size); // fast read
 				c_buf += b_size;
 			}
 			else{ // slow read
-				logtext("slow read\n");
 				b_size = read_raw_data(com_buf, b_size, b_offset);
 				if (c_buf) c_buf += b_size;
 			}
 
-			logtext("process block\n");
 			if (topbit) memcpy(dec_buf, com_buf, ZISO_BLOCK_SIZE); // check for NC area
 		    else LZ4_decompress_fast((const char*)com_buf, (char*)dec_buf, ZISO_BLOCK_SIZE); // decompress block
 
 			// read data from block into buffer
-			logtext("copy block\n");
 			read_bytes = MIN(size, (ZISO_BLOCK_SIZE - pos));
 			memcpy(addr, dec_buf + pos, read_bytes);
 			size -= read_bytes;
 			addr += read_bytes;
 			offset += read_bytes;
 		}
-		logtext("ziso done\n");
 	}
 	else if (ISO_Type == TYPE_CSO)
 	{
