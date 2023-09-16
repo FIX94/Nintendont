@@ -34,7 +34,7 @@ typedef enum
 	GIFLAG_FORMAT_FST	= (2 << 0),	// Extracted FST
 	GIFLAG_FORMAT_CISO	= (3 << 0),	// CISO format
 	GIFLAG_FORMAT_MULTI	= (4 << 0),	// Multi-game disc
-	GIFLAG_FORMAT_ZISO	= (5 << 0),	// ZISO format
+	GIFLAG_FORMAT_JISO	= (5 << 0),	// JISO format
 	GIFLAG_FORMAT_MASK	= (7 << 0),
 
 	// Game region. (from bi2.bin)

@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "GCNCard.h"
 #include "debug.h"
 #include "wdvd.h"
-#include "lz4.h"
+#include "minilzo.h"
 
 #include "ff_utf8.h"
 
@@ -62,7 +62,7 @@ bool Datel = false;
 enum {
 	TYPE_ISO,
 	TYPE_CSO,
-	TYPE_ZSO,
+	TYPE_JSO,
 };
 
 // CISO: On-disc structure.
@@ -78,32 +78,38 @@ typedef struct _CISO_t {
 	u8 map[CISO_MAP_SIZE];	// Block map;
 } CISO_t;
 
-// ZISO
-#define ZISO_MAGIC 0x5A49534F /* "ZISO" */
-#define ZISO_IDX_CACHE_SIZE 256
-#define ZISO_BLOCK_SIZE 2048
-typedef struct _ZISO_t {
-    u32 magic;  // 0
-    u32 header_size;  // 4
-    u64 total_bytes; // 8
-    u32 block_size; // 16
-    u8 ver; // 20
-    u8 align;  // 21
-    u8 rsv_06[2];  // 22
-} ZISO_t;
+// JISO
+#define JISO_MAGIC 0x4A49534F /* "JISO" */
+#define JISO_IDX_CACHE_SIZE 256
+#define JISO_MAX_BLOCK_SIZE 8192
+typedef struct _JISO_t {
+    u32 magic; // [0x000] 'JISO'
+    u8 unk_x001; // [0x004] 0x03?
+    u8 unk_x002; // [0x005] 0x01?
+    u16 block_size; // [0x006] Block size, usually 2048.
+    // TODO: Are block_headers and method 8-bit or 16-bit?
+    u8 block_headers; // [0x008] Block headers. (1 if present; 0 if not.)
+    u8 unk_x009; // [0x009]
+    u8 method; // [0x00A] Method. (See JisoAlgorithm_e.)
+    u8 unk_x00b; // [0x00B]
+    u32 uncompressed_size; // [0x00C] Uncompressed data size.
+    u8 md5sum[16]; // [0x010] MD5 hash of the original image.
+    u32 header_size; // [0x020] Header size? (0x30)
+    u8 unknown[12]; // [0x024]
+} JISO_t;
 
 // CISO: Block map.
 // Supports files up to 2 GB when using 2 MB blocks.
 static union {
 	uint16_t ciso_block_map[CISO_MAP_SIZE];
-	u32 ziso_block_map[ZISO_IDX_CACHE_SIZE]; // we use this as a cache on ZISO
+	u32 jiso_block_map[JISO_IDX_CACHE_SIZE]; // we use this as a cache on JISO
 } block_map;
-static unsigned char ISO_Type = TYPE_ISO;	// Set to 1 for CISO mode. 2 for ZISO.
+static unsigned char ISO_Type = TYPE_ISO;	// Set to 1 for CISO mode. 2 for JISO.
 static u64 uncompressed_size = 0;
-static u32 ziso_align = 0;
-static int ziso_idx_start_block = -1;
-static u8 ziso_com_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
-static u8 ziso_dec_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
+static u32 jiso_block_size = 0;
+static int jiso_idx_start_block = -1;
+static u8 jiso_com_buf[JISO_MAX_BLOCK_SIZE] __attribute__((aligned(64)));
+static u8 jiso_dec_buf[JISO_MAX_BLOCK_SIZE] __attribute__((aligned(64)));
 
 /**
  * Read directly from the ISO file.
@@ -143,12 +149,12 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 		// Standard ISO/GCM file.
 		read = read_raw_data(Buffer, Length, Offset64);
 	}
-	else if (ISO_Type == TYPE_ZSO){
-		// ZISO
+	else if (ISO_Type == TYPE_JSO){
+		// JISO
 		u32 cur_block;
 		u32 pos, read_bytes;
-		u8* com_buf = ziso_com_buf;
-		u8* dec_buf = ziso_dec_buf;
+		u8* com_buf = jiso_com_buf;
+		u8* dec_buf = jiso_dec_buf;
 		u8* c_buf = NULL;
 		u8* addr = (u8*)Buffer;
 		u8* top_addr = addr+Length;
@@ -166,60 +172,54 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 		}
 
 		// IO speedup tricks
-		u32 starting_block = offset / ZISO_BLOCK_SIZE;
-		u32 ending_block = ((offset+size)/ZISO_BLOCK_SIZE);
+		u32 starting_block = offset / jiso_block_size;
+		u32 ending_block = ((offset+size)/jiso_block_size);
 		
 		// refresh index table if needed
-		if (ziso_idx_start_block < 0 || starting_block < ziso_idx_start_block || starting_block-ziso_idx_start_block+1 >= ZISO_IDX_CACHE_SIZE-1){
-			read_raw_data(block_map.ziso_block_map, ZISO_IDX_CACHE_SIZE*sizeof(u32), starting_block * sizeof(u32) + sizeof(ZISO_t));
-			ziso_idx_start_block = starting_block;
+		if (jiso_idx_start_block < 0 || starting_block < jiso_idx_start_block || starting_block-jiso_idx_start_block+1 >= JISO_IDX_CACHE_SIZE-1){
+			read_raw_data(block_map.jiso_block_map, JISO_IDX_CACHE_SIZE*sizeof(u32), starting_block * sizeof(u32) + sizeof(JISO_t));
+			jiso_idx_start_block = starting_block;
 		}
 
 		// Calculate total size of compressed data
-		u32 o_start = (
-			bswap32(block_map.ziso_block_map[starting_block-ziso_idx_start_block])
-			&0x7FFFFFFF
-			)<<ziso_align;
+		u32 o_start = bswap32(block_map.jiso_block_map[starting_block-jiso_idx_start_block]);
 		// last block index might be outside the block offset cache, better read it from disk
 		u32 o_end;
-		if (ending_block-ziso_idx_start_block < ZISO_IDX_CACHE_SIZE-1){
-			o_end = block_map.ziso_block_map[ending_block-ziso_idx_start_block];
+		if (ending_block-jiso_idx_start_block < JISO_IDX_CACHE_SIZE-1){
+			o_end = block_map.jiso_block_map[ending_block-jiso_idx_start_block];
 		}
-		else read_raw_data(&o_end, sizeof(u32), ending_block*sizeof(u32)+sizeof(ZISO_t)); // read last two offsets
-		o_end = (bswap32(o_end)&0x7FFFFFFF)<<ziso_align;
+		else read_raw_data(&o_end, sizeof(u32), ending_block*sizeof(u32)+sizeof(JISO_t)); // read last two offsets
+		o_end = bswap32(o_end);
 		u32 compressed_size = o_end-o_start;
 
 		// try to read at once as much compressed data as possible
-		if (size > ZISO_BLOCK_SIZE*2){ // only if going to read more than two blocks
-			if (size < compressed_size) compressed_size = size-ZISO_BLOCK_SIZE; // adjust chunk size if compressed data is still bigger than uncompressed
+		if (size > jiso_block_size*2){ // only if going to read more than two blocks
+			if (size < compressed_size) compressed_size = size-jiso_block_size; // adjust chunk size if compressed data is still bigger than uncompressed
 			c_buf = top_addr - compressed_size; // read into the end of the user buffer
 			read_raw_data(c_buf, compressed_size, o_start);
 		}
 
 		while(size > 0) {
 			// calculate block number and offset within block
-			cur_block = offset / ZISO_BLOCK_SIZE;
-			pos = offset & (ZISO_BLOCK_SIZE - 1);
+			cur_block = offset / jiso_block_size;
+			pos = offset & (jiso_block_size - 1);
 
 			// check if we need to refresh index table
-			if (cur_block-ziso_idx_start_block >= ZISO_IDX_CACHE_SIZE-1){
-				read_raw_data(block_map.ziso_block_map, ZISO_IDX_CACHE_SIZE*sizeof(u32), cur_block*sizeof(u32) + sizeof(ZISO_t));
-				ziso_idx_start_block = cur_block;
+			if (cur_block-jiso_idx_start_block >= JISO_IDX_CACHE_SIZE-1){
+				read_raw_data(block_map.jiso_block_map, JISO_IDX_CACHE_SIZE*sizeof(u32), cur_block*sizeof(u32) + sizeof(JISO_t));
+				jiso_idx_start_block = cur_block;
 			}
 			
 			// read compressed block offset and size
-			u32 b_offset = bswap32(block_map.ziso_block_map[cur_block-ziso_idx_start_block]);
-			u32 b_size = bswap32(block_map.ziso_block_map[cur_block-ziso_idx_start_block+1]);
-			u32 topbit = b_offset&0x80000000; // extract top bit for decompressor
-			b_offset = (b_offset&0x7FFFFFFF) << ziso_align;
-			b_size = (b_size&0x7FFFFFFF) << ziso_align;
+			u32 b_offset = bswap32(block_map.jiso_block_map[cur_block-jiso_idx_start_block]);
+			u32 b_size = bswap32(block_map.jiso_block_map[cur_block-jiso_idx_start_block+1]);
 			b_size -= b_offset;
 
 			// check if we need to (and can) read another chunk of data
 			if (c_buf < addr || c_buf+b_size > top_addr){
-				if (size > b_size+ZISO_BLOCK_SIZE){ // only if more than two blocks left, otherwise just use normal reading
+				if (size > b_size+jiso_block_size){ // only if more than two blocks left, otherwise just use normal reading
 					compressed_size = o_end-b_offset; // recalculate remaining compressed data
-					if (size < compressed_size) compressed_size = size-ZISO_BLOCK_SIZE; // adjust if still bigger than uncompressed
+					if (size < compressed_size) compressed_size = size-jiso_block_size; // adjust if still bigger than uncompressed
 					if (compressed_size >= b_size){
 						c_buf = top_addr - compressed_size; // read into the end of the user buffer
 						read_raw_data(c_buf, compressed_size, b_offset);
@@ -237,11 +237,12 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 				if (c_buf) c_buf += b_size;
 			}
 
-			if (topbit) memcpy(dec_buf, com_buf, ZISO_BLOCK_SIZE); // check for NC area
-		    else LZ4_decompress_fast((const char*)com_buf, (char*)dec_buf, ZISO_BLOCK_SIZE); // decompress block
+			u32 dst_len = jiso_block_size;
+			if (b_size == jiso_block_size) memcpy(dec_buf, com_buf, jiso_block_size); // check for NC area
+		    else lzo1x_decompress((const char*)com_buf, b_size, (char*)dec_buf, &dst_len, 0); // decompress block
 
 			// read data from block into buffer
-			read_bytes = MIN(size, (ZISO_BLOCK_SIZE - pos));
+			read_bytes = MIN(size, (jiso_block_size - pos));
 			memcpy(addr, dec_buf + pos, read_bytes);
 			size -= read_bytes;
 			addr += read_bytes;
@@ -484,12 +485,12 @@ bool ISOInit()
 			ISO_Type = TYPE_CSO;
 		}
 	}
-	else if (tmp_ciso->magic == ZISO_MAGIC) {
-		ZISO_t* ziso_header = (ZISO_t*)tmp_ciso;
-		uncompressed_size = bswap64(ziso_header->total_bytes);
-		ziso_align = ziso_header->align;
-		ziso_idx_start_block = -1;
-		ISO_Type = TYPE_ZSO;
+	else if (tmp_ciso->magic == JISO_MAGIC) {
+		JISO_t* jiso_header = (JISO_t*)tmp_ciso;
+		uncompressed_size = bswap64(jiso_header->uncompressed_size);
+		jiso_block_size = bswap16(jiso_header->block_size);
+		jiso_idx_start_block = -1;
+		ISO_Type = TYPE_JSO;
 	}
 	free(tmp_ciso);
 
@@ -593,7 +594,7 @@ void ISOSeek(u32 Offset)
 			else
 				f_lseek( &GameFile, physAddr );
 		}
-		else if (ISO_Type == TYPE_ZSO){
+		else if (ISO_Type == TYPE_JSO){
 			// TODO (?)
 			LastOffset64 = Offset64;
 		}

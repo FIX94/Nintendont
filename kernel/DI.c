@@ -93,9 +93,9 @@ static u8 *const DIMMMemory = (u8*)0x12B80000;
 // Multi-disc filenames.
 static const char disc_filenames[10][16] = {
 	// Disc 1
-	"game.ciso", "game.cso", "game.gcm", "game.iso", "game.zso",
+	"game.ciso", "game.cso", "game.gcm", "game.iso", "game.jso",
 	// Disc 2
-	"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso", "disc2.zso"
+	"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso", "disc2.jso"
 };
 
 // Filename portions for 2-disc mode.
