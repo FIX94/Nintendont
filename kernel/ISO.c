@@ -24,9 +24,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "GCNCard.h"
 #include "debug.h"
 #include "wdvd.h"
-#include "lz4.h"
 
 #include "ff_utf8.h"
+
+#include "libdeflate/libdeflate.h"
 
 extern u32 TRIGame;
 extern u32 DiscRequested;
@@ -62,7 +63,7 @@ bool Datel = false;
 enum {
 	TYPE_ISO,
 	TYPE_CSO,
-	TYPE_ZSO,
+	TYPE_DAX,
 };
 
 // CISO: On-disc structure.
@@ -78,32 +79,43 @@ typedef struct _CISO_t {
 	u8 map[CISO_MAP_SIZE];	// Block map;
 } CISO_t;
 
-// ZISO
-#define ZISO_MAGIC 0x5A49534F /* "ZISO" */
-#define ZISO_IDX_CACHE_SIZE 256
-#define ZISO_BLOCK_SIZE 2048
-typedef struct _ZISO_t {
-    u32 magic;  // 0
-    u32 header_size;  // 4
-    u64 total_bytes; // 8
-    u32 block_size; // 16
-    u8 ver; // 20
-    u8 align;  // 21
-    u8 rsv_06[2];  // 22
-} ZISO_t;
+// DAX
+#define DAX_MAGIC 0x44415800 /* "DAX" */
+#define DAX_IDX_CACHE_SIZE 512
+#define DAX_BLOCK_SIZE 0x2000 //8192
+#define DAX_COM_SIZE 0x2400
+typedef struct _DAX_t {
+    u32 magic;
+    u32 uncompressed_size;
+    u32 version; 
+    u32 nc_areas; 
+    u32 unused[4]; 
+} DAX_t;
 
 // CISO: Block map.
 // Supports files up to 2 GB when using 2 MB blocks.
 static union {
 	uint16_t ciso_block_map[CISO_MAP_SIZE];
-	u32 ziso_block_map[ZISO_IDX_CACHE_SIZE]; // we use this as a cache on ZISO
+	u32 dax_block_map[DAX_IDX_CACHE_SIZE]; // we use this as a cache on DAX
 } block_map;
-static unsigned char ISO_Type = TYPE_ISO;	// Set to 1 for CISO mode. 2 for ZISO.
+static unsigned char ISO_Type = TYPE_ISO;	// Set to 1 for CISO mode. 2 for DAX.
 static u64 uncompressed_size = 0;
-static u32 ziso_align = 0;
-static int ziso_idx_start_block = -1;
-static u8 ziso_com_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
-static u8 ziso_dec_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
+static int dax_idx_start_block = -1;
+static u32 dax_total_blocks = 0;
+static u32 dax_version = 0;
+static u8 dax_com_buf[DAX_COM_SIZE] __attribute__((aligned(64)));
+static u8 dax_dec_buf[DAX_BLOCK_SIZE] __attribute__((aligned(64)));
+
+typedef void *(*malloc_func_t)(size_t);
+typedef void (*free_func_t)(void *);
+struct libdeflate_decompressor *decompressor;
+malloc_func_t libdeflate_default_malloc_func = &malloc;
+free_func_t libdeflate_default_free_func = &free;
+
+static void dax_decompress(void* src, u32 src_len, void* dst, u32 dst_len){
+	size_t size;
+	libdeflate_zlib_decompress(decompressor, src, src_len, dst, dst_len, &size);
+}
 
 /**
  * Read directly from the ISO file.
@@ -143,12 +155,12 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 		// Standard ISO/GCM file.
 		read = read_raw_data(Buffer, Length, Offset64);
 	}
-	else if (ISO_Type == TYPE_ZSO){
-		// ZISO
+	else if (ISO_Type == TYPE_DAX){
+		// DAX
 		u32 cur_block;
 		u32 pos, read_bytes;
-		u8* com_buf = ziso_com_buf;
-		u8* dec_buf = ziso_dec_buf;
+		u8* com_buf = dax_com_buf;
+		u8* dec_buf = dax_dec_buf;
 		u8* c_buf = NULL;
 		u8* addr = (u8*)Buffer;
 		u8* top_addr = addr+Length;
@@ -166,60 +178,58 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 		}
 
 		// IO speedup tricks
-		u32 starting_block = offset / ZISO_BLOCK_SIZE;
-		u32 ending_block = ((offset+size)/ZISO_BLOCK_SIZE);
+		u32 starting_block = offset / DAX_BLOCK_SIZE;
+		u32 ending_block = ((offset+size)/DAX_BLOCK_SIZE);
 		
 		// refresh index table if needed
-		if (ziso_idx_start_block < 0 || starting_block < ziso_idx_start_block || starting_block-ziso_idx_start_block+1 >= ZISO_IDX_CACHE_SIZE-1){
-			read_raw_data(block_map.ziso_block_map, ZISO_IDX_CACHE_SIZE*sizeof(u32), starting_block * sizeof(u32) + sizeof(ZISO_t));
-			ziso_idx_start_block = starting_block;
+		if (dax_idx_start_block < 0 || starting_block < dax_idx_start_block || starting_block-dax_idx_start_block+1 >= DAX_IDX_CACHE_SIZE-1){
+			read_raw_data(block_map.dax_block_map, DAX_IDX_CACHE_SIZE*sizeof(u32), starting_block * sizeof(u32) + sizeof(DAX_t));
+			dax_idx_start_block = starting_block;
 		}
 
 		// Calculate total size of compressed data
-		u32 o_start = (
-			bswap32(block_map.ziso_block_map[starting_block-ziso_idx_start_block])
-			&0x7FFFFFFF
-			)<<ziso_align;
+		u32 o_start = bswap32(block_map.dax_block_map[starting_block-dax_idx_start_block]);
 		// last block index might be outside the block offset cache, better read it from disk
 		u32 o_end;
-		if (ending_block-ziso_idx_start_block < ZISO_IDX_CACHE_SIZE-1){
-			o_end = block_map.ziso_block_map[ending_block-ziso_idx_start_block];
+		if (ending_block-dax_idx_start_block < DAX_IDX_CACHE_SIZE-1){
+			o_end = block_map.dax_block_map[ending_block-dax_idx_start_block];
 		}
-		else read_raw_data(&o_end, sizeof(u32), ending_block*sizeof(u32)+sizeof(ZISO_t)); // read last two offsets
-		o_end = (bswap32(o_end)&0x7FFFFFFF)<<ziso_align;
+		else read_raw_data(&o_end, sizeof(u32), ending_block*sizeof(u32)+sizeof(DAX_t)); // read last two offsets
+		o_end = bswap32(o_end);
 		u32 compressed_size = o_end-o_start;
 
 		// try to read at once as much compressed data as possible
-		if (size > ZISO_BLOCK_SIZE*2){ // only if going to read more than two blocks
-			if (size < compressed_size) compressed_size = size-ZISO_BLOCK_SIZE; // adjust chunk size if compressed data is still bigger than uncompressed
+		if (size > DAX_BLOCK_SIZE*2){ // only if going to read more than two blocks
+			if (size < compressed_size) compressed_size = size-DAX_BLOCK_SIZE; // adjust chunk size if compressed data is still bigger than uncompressed
 			c_buf = top_addr - compressed_size; // read into the end of the user buffer
 			read_raw_data(c_buf, compressed_size, o_start);
 		}
 
 		while(size > 0) {
 			// calculate block number and offset within block
-			cur_block = offset / ZISO_BLOCK_SIZE;
-			pos = offset & (ZISO_BLOCK_SIZE - 1);
+			cur_block = offset / DAX_BLOCK_SIZE;
+			pos = offset & (DAX_BLOCK_SIZE - 1);
 
 			// check if we need to refresh index table
-			if (cur_block-ziso_idx_start_block >= ZISO_IDX_CACHE_SIZE-1){
-				read_raw_data(block_map.ziso_block_map, ZISO_IDX_CACHE_SIZE*sizeof(u32), cur_block*sizeof(u32) + sizeof(ZISO_t));
-				ziso_idx_start_block = cur_block;
+			if (cur_block-dax_idx_start_block >= DAX_IDX_CACHE_SIZE-1){
+				read_raw_data(block_map.dax_block_map, DAX_IDX_CACHE_SIZE*sizeof(u32), cur_block*sizeof(u32) + sizeof(DAX_t));
+				dax_idx_start_block = cur_block;
 			}
 			
 			// read compressed block offset and size
-			u32 b_offset = bswap32(block_map.ziso_block_map[cur_block-ziso_idx_start_block]);
-			u32 b_size = bswap32(block_map.ziso_block_map[cur_block-ziso_idx_start_block+1]);
-			u32 topbit = b_offset&0x80000000; // extract top bit for decompressor
-			b_offset = (b_offset&0x7FFFFFFF) << ziso_align;
-			b_size = (b_size&0x7FFFFFFF) << ziso_align;
+			u32 b_offset = bswap32(block_map.dax_block_map[cur_block-dax_idx_start_block]);
+			u32 b_size = bswap32(block_map.dax_block_map[cur_block-dax_idx_start_block+1]);
 			b_size -= b_offset;
+
+			if (cur_block == dax_total_blocks-1)
+            	// fix for last DAX block (you can't trust the value of b_size since there's no offset for last_block+1)
+            	b_size = DAX_COM_SIZE;
 
 			// check if we need to (and can) read another chunk of data
 			if (c_buf < addr || c_buf+b_size > top_addr){
-				if (size > b_size+ZISO_BLOCK_SIZE){ // only if more than two blocks left, otherwise just use normal reading
+				if (size > b_size+DAX_BLOCK_SIZE){ // only if more than two blocks left, otherwise just use normal reading
 					compressed_size = o_end-b_offset; // recalculate remaining compressed data
-					if (size < compressed_size) compressed_size = size-ZISO_BLOCK_SIZE; // adjust if still bigger than uncompressed
+					if (size < compressed_size) compressed_size = size-DAX_BLOCK_SIZE; // adjust if still bigger than uncompressed
 					if (compressed_size >= b_size){
 						c_buf = top_addr - compressed_size; // read into the end of the user buffer
 						read_raw_data(c_buf, compressed_size, b_offset);
@@ -237,11 +247,11 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 				if (c_buf) c_buf += b_size;
 			}
 
-			if (topbit) memcpy(dec_buf, com_buf, ZISO_BLOCK_SIZE); // check for NC area
-		    else LZ4_decompress_fast((const char*)com_buf, (char*)dec_buf, ZISO_BLOCK_SIZE); // decompress block
+			if (dax_version && b_size == DAX_BLOCK_SIZE) memcpy(dec_buf, com_buf, DAX_BLOCK_SIZE); // check for NC area
+		    else dax_decompress((const char*)com_buf, b_size, (char*)dec_buf, DAX_BLOCK_SIZE); // decompress block
 
 			// read data from block into buffer
-			read_bytes = MIN(size, (ZISO_BLOCK_SIZE - pos));
+			read_bytes = MIN(size, (DAX_BLOCK_SIZE - pos));
 			memcpy(addr, dec_buf + pos, read_bytes);
 			size -= read_bytes;
 			addr += read_bytes;
@@ -484,12 +494,14 @@ bool ISOInit()
 			ISO_Type = TYPE_CSO;
 		}
 	}
-	else if (tmp_ciso->magic == ZISO_MAGIC) {
-		ZISO_t* ziso_header = (ZISO_t*)tmp_ciso;
-		uncompressed_size = bswap64(ziso_header->total_bytes);
-		ziso_align = ziso_header->align;
-		ziso_idx_start_block = -1;
-		ISO_Type = TYPE_ZSO;
+	else if (tmp_ciso->magic == DAX_MAGIC) {
+		DAX_t* dax_header = (DAX_t*)tmp_ciso;
+		uncompressed_size = bswap64(dax_header->uncompressed_size);
+		dax_idx_start_block = -1;
+		dax_total_blocks = uncompressed_size / DAX_BLOCK_SIZE;
+		dax_version = dax_header->version;
+		ISO_Type = TYPE_DAX;
+		decompressor = libdeflate_alloc_decompressor();
 	}
 	free(tmp_ciso);
 
@@ -593,7 +605,7 @@ void ISOSeek(u32 Offset)
 			else
 				f_lseek( &GameFile, physAddr );
 		}
-		else if (ISO_Type == TYPE_ZSO){
+		else if (ISO_Type == TYPE_DAX){
 			// TODO (?)
 			LastOffset64 = Offset64;
 		}

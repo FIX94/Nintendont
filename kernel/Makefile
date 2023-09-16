@@ -22,7 +22,7 @@ else
 	ZIP = zip
 endif
 
-CFLAGS	:= -mbig-endian -O3 -std=gnu89 -g -I. -Wall \
+CFLAGS	:= -mbig-endian -O3 -std=gnu99 -g -I. -Wall \
 	   -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft \
 	   -fdata-sections -ffunction-sections -fno-builtin-toupper -fno-builtin-memcpy \
 	   -fno-builtin-memset -fno-builtin-memcmp -fno-builtin-malloc -fno-builtin-free
@@ -36,7 +36,8 @@ OBJECTS	:= start.o common.o alloc.o GCAM.o JVSIO.o JVSIOMessage.o FST.o DI.o Rea
 	   Patch.o PatchTimers.o TRI.o PatchWidescreen.o ISO.o Stream.o adp.o \
 	   EXI.o SRAM.o GCNCard.o SI.o HID.o diskio.o Config.o utils_asm.o ES.o NAND.o \
 	   main.o syscalls.o ReadSpeed.o vsprintf.o string.o prs.o \
-	   SDI.o usb.o usbstorage.o wdvd.o sock.o lz4.o
+	   SDI.o usb.o usbstorage.o wdvd.o sock.o \
+	   libdeflate/adler32.o libdeflate/crc32.o libdeflate/deflate_decompress.o libdeflate/zlib_decompress.o
 LIBS	:= ../fatfs/libfatfs-arm.a be/libc.a be/libgcc.a
 ZIPFILE	:= ../loader/data/kernel.zip
 

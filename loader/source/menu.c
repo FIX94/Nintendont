@@ -37,8 +37,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //#include <fat.h>
 #include <di/di.h>
 
+#include <zlib.h>
+
 #include "menu.h"
-#include "lz4.h"
 #include "../../common/include/CommonConfigStrings.h"
 #include "ff_utf8.h"
 #include "ShowGameInfo.h"
@@ -67,27 +68,26 @@ const u32 DiscFormatColors[8] =
 	0x00551AFF,	// Extracted FST
 	0x001A55FF,	// CISO
 	0x551A55FF,	// Multi-Game
-	0x001A5544,	// ZISO
+	0x00115511,	// DAX
 	GRAY,		// undefined
 	GRAY,		// undefined
 };
 
-// ZISO
-#define ZISO_IDX_CACHE_SIZE 256
-#define ZISO_BLOCK_SIZE 2048
-typedef struct _ZISO_t {
-    u32 magic;  // 0
-    u32 header_size;  // 4
-    u64 total_bytes; // 8
-    u32 block_size; // 16
-    u8 ver; // 20
-    u8 align;  // 21
-    u8 rsv_06[2];  // 22
-} ZISO_t;
+// DAX
+#define DAX_IDX_CACHE_SIZE 256
+#define DAX_BLOCK_SIZE 0x2000 //8192
+#define DAX_COM_SIZE 0x2400
+typedef struct _DAX_t {
+	u32 magic;
+    u32 uncompressed_size;
+    u32 version; 
+    u32 nc_areas; 
+    u32 unused[4]; 
+} DAX_t;
 static u64 uncompressed_size = 0;
-static u32 ziso_align = 0;
-static u8 ziso_com_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
-static u8 ziso_dec_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
+static u32 dax_version = 0;
+static u8 dax_com_buf[DAX_COM_SIZE] __attribute__((aligned(64)));
+static u8 dax_dec_buf[DAX_BLOCK_SIZE] __attribute__((aligned(64)));
 
 /**
  * Print information about the selected device.
@@ -146,30 +146,38 @@ int compare_names(const void *a, const void *b)
 	return ret;
 }
 
-static void ziso_read_block(FIL* in, u32 lsn){
+static void dax_decompress(void* src, void* dst, u32 dst_len){
+    z_stream zst;
+    memset(&zst, 0, sizeof(zst));
+    inflateInit2(&zst, 15);
+    
+    zst.next_in = src;
+    zst.avail_in = -1;
+    zst.next_out = dst;
+    zst.avail_out = dst_len;
+    int status = inflate(&zst, Z_FINISH);
+}
+
+static void dax_read_block(FIL* in, u32 lsn){
 	u32 data[2]; // 0=offset, 1=size
 	u32 read;
 
 	// read two block offsets
-	f_lseek(in, sizeof(ZISO_t) + sizeof(u32)*lsn);
+	f_lseek(in, sizeof(DAX_t) + sizeof(u32)*lsn);
 	f_read(in, data, sizeof(data), &read);
 
 	data[0] = __builtin_bswap32(data[0]);
 	data[1] = __builtin_bswap32(data[1]);
 
-	u32 topbit = data[0]&0x80000000; // extract top bit for decompressor
-	data[0] = (data[0]&0x7FFFFFFF) << ziso_align;
-	data[1] = (data[1]&0x7FFFFFFF) << ziso_align;
-
 	data[1] -= data[0]; // calculate size
 
 	// read compressed block
 	f_lseek(in, data[0]);
-	f_read(in, ziso_com_buf, data[1], &read);
+	f_read(in, dax_com_buf, data[1], &read);
 
 	// decompress block
-	if (topbit) memcpy(ziso_dec_buf, ziso_com_buf, ZISO_BLOCK_SIZE); // check for NC area
-	else LZ4_decompress_fast((const char*)ziso_com_buf, (char*)ziso_dec_buf, ZISO_BLOCK_SIZE); // decompress block
+	if (dax_version && data[1] == DAX_BLOCK_SIZE) memcpy(dax_dec_buf, dax_com_buf, DAX_BLOCK_SIZE); // check for NC area
+	else dax_decompress((const char*)dax_com_buf, (char*)dax_dec_buf, DAX_BLOCK_SIZE); // decompress block
 
 }
 
@@ -208,7 +216,7 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	// Check for CISO magic with 2 MB block size.
 	// NOTE: CISO block size is little-endian.
 	static const uint8_t CISO_MAGIC[8] = {'C','I','S','O',0x00,0x00,0x20,0x00};
-	static const uint8_t ZISO_MAGIC[4] = {'Z','I','S','O'};
+	static const uint8_t DAX_MAGIC[4] = {'D','A','X',0x00};
 	if (!memcmp(buf, CISO_MAGIC, sizeof(CISO_MAGIC)) &&
 	    !IsGCGame(buf))
 	{
@@ -229,14 +237,14 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 
 		gi->Flags = GIFLAG_FORMAT_CISO;
 	}
-	else if (!memcmp(buf, ZISO_MAGIC, sizeof(ZISO_MAGIC))){
-		ZISO_t* ziso_header = (ZISO_t*)buf;
-		uncompressed_size = __builtin_bswap64(ziso_header->total_bytes);
-		ziso_align = ziso_header->align;
-		ziso_read_block(&in, 0);
-		memcpy(buf, ziso_dec_buf, sizeof(buf));
+	else if (!memcmp(buf, DAX_MAGIC, sizeof(DAX_MAGIC))){
+		DAX_t* dax_header = (DAX_t*)buf;
+		uncompressed_size = __builtin_bswap64(dax_header->uncompressed_size);
+		dax_version = dax_header->version;
+		dax_read_block(&in, 0);
+		memcpy(buf, dax_dec_buf, sizeof(buf));
 		BI2region_addr = 0;
-		gi->Flags = GIFLAG_FORMAT_ZISO;
+		gi->Flags = GIFLAG_FORMAT_DAX;
 	}
 	else
 	{
@@ -269,8 +277,8 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 			}
 		}
 		else{
-			// must be ZISO
-			BI2region = (ziso_dec_buf[0x458]<<24) | (ziso_dec_buf[0x459]<<16) | (ziso_dec_buf[0x45A]<<8) | (ziso_dec_buf[0x45B]);
+			// must be DAX
+			BI2region = (dax_dec_buf[0x458]<<24) | (dax_dec_buf[0x459]<<16) | (dax_dec_buf[0x45A]<<8) | (dax_dec_buf[0x45B]);
 		}
 
 		// Save the region code for later.
@@ -288,9 +296,9 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		const bool is_multigame = IsMultiGameDisc((const char*)buf);
 		if (is_multigame)
 		{
-			if (gi->Flags == GIFLAG_FORMAT_CISO || gi->Flags == GIFLAG_FORMAT_ZISO)
+			if (gi->Flags == GIFLAG_FORMAT_CISO || gi->Flags == GIFLAG_FORMAT_DAX)
 			{
-				// Multi-game + CISO/ZISO is NOT supported.
+				// Multi-game + CISO/DAX is NOT supported.
 				ret = false;
 			}
 			else
@@ -467,8 +475,8 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			bool found = false;
 
 			static const char disc_filenames[10][16] = {
-				"game.ciso", "game.cso", "game.gcm", "game.iso", "game.zso",
-				"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso", "disc2.zso"
+				"game.ciso", "game.cso", "game.gcm", "game.iso", "game.dax",
+				"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso", "disc2.dax"
 			};
 
 			u32 i;
@@ -796,7 +804,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X+(21*10), MENU_POS_Y + 20*3, "FST");
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[3], MENU_POS_X+(25*10), MENU_POS_Y + 20*3, "CISO");
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
-		PrintFormat(DEFAULT_SIZE, DiscFormatColors[5], MENU_POS_X+(36*10), MENU_POS_Y + 20*3, "ZISO");
+		PrintFormat(DEFAULT_SIZE, DiscFormatColors[5], MENU_POS_X+(36*10), MENU_POS_Y + 20*3, "DAX");
 
 		// Starting position.
 		int gamelist_y = MENU_POS_Y + 20*5 + 10;
