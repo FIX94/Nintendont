@@ -64,6 +64,7 @@ const s8 DEADZONE = 0x1A;
 #define C_NSWAP2	(1<<6)
 #define C_NSWAP3	(1<<7)
 #define C_ISWAP		(1<<8)
+#define C_ZSWAP		(1<<9)
 
 #define ALIGN32(x) 	(((u32)x) & (~31))
 
@@ -830,9 +831,10 @@ u32 PADRead(u32 calledByGame)
 		}
 		else if(BTPad[chan].used & C_CCP)	//digital triggers
 		{
-			if(BTPad[chan].button & BT_TRIGGER_ZL)
+			u8 swapTriggers = (BTPad[chan].used & C_ZSWAP) != 0;
+			if(BTPad[chan].button & (swapTriggers ? BT_TRIGGER_L : BT_TRIGGER_ZL))
 			{
-				if(BTPad[chan].button & BT_TRIGGER_L)
+				if(BTPad[chan].button & (swapTriggers ? BT_TRIGGER_ZL : BT_TRIGGER_L))
 					Pad[chan].triggerLeft = 0x7F;
 				else
 				{
@@ -843,9 +845,9 @@ u32 PADRead(u32 calledByGame)
 			else
 				Pad[chan].triggerLeft = 0;
 
-			if(BTPad[chan].button & BT_TRIGGER_ZR)
+			if(BTPad[chan].button & (swapTriggers ? BT_TRIGGER_R : BT_TRIGGER_ZR))
 			{
-				if(BTPad[chan].button & BT_TRIGGER_L)
+				if(BTPad[chan].button & (swapTriggers ? BT_TRIGGER_ZL : BT_TRIGGER_L))
 					Pad[chan].triggerRight = 0x7F;
 				else
 				{
@@ -856,7 +858,7 @@ u32 PADRead(u32 calledByGame)
 			else
 				Pad[chan].triggerRight = 0;
 
-			if(BTPad[chan].button & BT_TRIGGER_R)
+			if(BTPad[chan].button & (swapTriggers ? BT_TRIGGER_ZR : BT_TRIGGER_R))
 				button |= PAD_TRIGGER_Z;
 		}
 
