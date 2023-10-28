@@ -314,8 +314,6 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 			button |= PAD_BUTTON_X;
 		}
 
-		// Adding any more code past this point makes binary too large
-
 		if (pad.button & BT_DPAD_LEFT) {
 			button |= PAD_TRIGGER_L;
 			triggerLeft = 0xFF;

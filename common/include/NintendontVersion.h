@@ -15,6 +15,7 @@
 #define NIN_SPECIAL_VERSION			"-libertyernie"
 
 #define LI_XBOX360
+#define LI_NONUNCHUK
 #define LI_GAMEPADASCCPRO
 #define LI_NOSWAP
 #define LI_NOEXIT
