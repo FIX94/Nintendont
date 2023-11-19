@@ -85,21 +85,21 @@ const s8 DEADZONE = 0x1A;
 	else tmp_stick8 = (s8)tmp_stick16;
 
 #ifdef LI_CUSTOM_CONTROLS
-void BTDPadToStick(PADStatus* pad, u32 button, u8 scaleVertical, u8 scaleHorizontal) {
+void BTDPadToStick(PADStatus* pad, u32 button, u8 scale) {
 	if (button & (BT_DPAD_LEFT | BT_DPAD_RIGHT | BT_DPAD_DOWN | BT_DPAD_UP)) {
 		pad->stickX = 0;
 		pad->stickY = 0;
 		if (button & BT_DPAD_UP) {
-			pad->stickY += scaleVertical;
+			pad->stickY += scale;
 		}
 		if (button & BT_DPAD_DOWN) {
-			pad->stickY -= scaleVertical;
+			pad->stickY -= scale;
 		}
 		if (button & BT_DPAD_LEFT) {
-			pad->stickX -= scaleHorizontal;
+			pad->stickX -= scale;
 		}
 		if (button & BT_DPAD_RIGHT) {
-			pad->stickX += scaleHorizontal;
+			pad->stickX += scale;
 		}
 	}
 }
@@ -164,7 +164,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 		// The Legend of Zelda: Four Swords Adventures
 		// Mario Party 4
-		BTDPadToStick(out, pad.button, 0x7F, 0x7F);
+		BTDPadToStick(out, pad.button, 0x7F);
 
 		// Hide D-pad from game (will be used to emulate joystick)
 		button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
@@ -251,7 +251,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		// Super Smash Bros. Melee
 		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_TRIGGER_Z | PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
 
-		BTDPadToStick(out, pad.button, 0x3F, 0x3F);
+		BTDPadToStick(out, pad.button, 0x3F);
 
 		if (largeL) {
 			button |= PAD_TRIGGER_L;
@@ -309,6 +309,9 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	else if (*TitleID == 0x474d34)
 	{
 		// Mario Kart: Double Dash!!
+		button &= ~PAD_TRIGGER_L;
+		triggerLeft = 0;
+
 		if (largeL || (pad.button & BT_DPAD_UP) || (pad.button & BT_DPAD_DOWN)) {
 			button |= PAD_BUTTON_X;
 		}
@@ -327,7 +330,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 			button |= PAD_TRIGGER_Z;
 		}
 
-		BTDPadToStick(out, pad.button, 0x7F, 0x32);
+		BTDPadToStick(out, pad.button, 0x7F);
 	}
 #endif
 #ifndef LI_NOEXIT
