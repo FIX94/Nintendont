@@ -43,10 +43,9 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * Large R button -> full R press
         * Small L button -> Z
         * Small R button -> Z
-        * D-pad left -> full L press, partial left tilt
-        * D-pad right -> full R press, partial right tilt
-        * D-pad up -> full up tilt
-        * D-pad down -> full down tilt
+        * D-pad -> left analog stick full tilt
+        * D-pad left -> full L press
+        * D-pad right -> full R press
 * `LI_BASE64`: lets you load a base64-encoded nincfg.bin from meta.xml (also see [NinCFGEditor](https://github.com/libertyernie/NinCFGEditor))
 * `LI_SHOULDER`: tweaks the button mappings on certain controllers
     * Classic Controller:
