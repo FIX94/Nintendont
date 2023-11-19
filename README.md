@@ -38,6 +38,15 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
     * Super Mario Sunshine / Luigi's Mansion
         * Small L and large R buttons -> nearly-full analog presses (0xFE / 254)
         * Large L and small R buttons -> full analog and digital presses
+    * Mario Kart: Double Dash!!
+        * Large L button -> X
+        * Large R button -> full R press
+        * Small L button -> Z
+        * Small R button -> Z
+        * D-pad left -> full L press, partial left tilt
+        * D-pad right -> full R press, partial right tilt
+        * D-pad up -> full up tilt
+        * D-pad down -> full down tilt
 * `LI_BASE64`: lets you load a base64-encoded nincfg.bin from meta.xml (also see [NinCFGEditor](https://github.com/libertyernie/NinCFGEditor))
 * `LI_SHOULDER`: tweaks the button mappings on certain controllers
     * Classic Controller:
