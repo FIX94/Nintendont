@@ -289,7 +289,8 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		triggerRight = 0;
 
 		if (largeL) {
-			triggerLeft = 0xFE;
+			button |= PAD_TRIGGER_L;
+			triggerLeft = 0xFF;
 		}
 
 		if (largeR) {
@@ -297,8 +298,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		}
 
 		if (smallL) {
-			button |= PAD_TRIGGER_L;
-			triggerLeft = 0xFF;
+			triggerLeft = 0xFE;
 		}
 
 		if (smallR) {
