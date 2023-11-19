@@ -229,21 +229,20 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_TRIGGER_Z);
 		triggerLeft = 0;
 		triggerRight = 0;
-		if (largeR || smallL) {
-			button |= PAD_TRIGGER_L;
-			triggerLeft = 0xFF;
-		}
-		if (smallR || largeL) {
+		if (smallR) {
+			button |= PAD_TRIGGER_Z;
 			button |= PAD_TRIGGER_R;
 			triggerRight = 0xFF;
 		}
-		if (largeL || smallL) {
+		if (smallL) {
 			button |= PAD_TRIGGER_Z;
+			button |= PAD_TRIGGER_L;
+			triggerLeft = 0xFF;
 		}
 		if (pad.button & BT_BUTTON_X) {
 			button |= PAD_BUTTON_Y;
 		}
-		if (pad.button & BT_BUTTON_Y) {
+		if ((pad.button & BT_BUTTON_Y) || (pad.button & BT_BUTTON_SELECT)) {
 			button |= PAD_BUTTON_X;
 		}
 	}

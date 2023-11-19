@@ -24,11 +24,10 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
     * Nintendo Puzzle Collection
         * on Classic Controller, L and R do not activate unless one of the corresponding shoulder buttons is pressed all the way (digitally)
     * Spy Hunter
-        * Large L button -> full L press + Z
-        * Small L button -> full R press + Z
-        * Large R button -> full R press
-        * Small R button -> full L press
+        * Small L button -> full L press + Z
+        * Small R button -> full R press + Z
         * Y and X swapped
+        * Select -> X
     * Super Smash Bros. Melee
         * Large L button -> analog or full L press
         * Small L button -> 25% L press

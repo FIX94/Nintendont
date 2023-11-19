@@ -12,3 +12,4 @@ nintendont/boot.dol
 fatfs/*.a
 codehandler/*.h
 .vs
+libwinpthread-1.dll
