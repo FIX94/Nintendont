@@ -876,41 +876,41 @@ u32 PADRead(u32 calledByGame)
 					{
 						//tilt as cStick
 						/* xAccel  L=300 C=512 R=740 */
-						if(BTPad[chan].xAccel < 350)
+						if(BTPad[chan].xAccel[1] < 350)
 							Pad[chan].substickX = -0x78;
-						else if(BTPad[chan].xAccel > 674)
+						else if(BTPad[chan].xAccel[1] > 674)
 							Pad[chan].substickX = 0x78;
 						else
-							Pad[chan].substickX = (BTPad[chan].xAccel - 512) * 0xF0 / (674 - 350);
+							Pad[chan].substickX = (BTPad[chan].xAccel[1] - 512) * 0xF0 / (674 - 350);
 
 						/* yAccel  up=280 C=512 down=720 */
-						if(BTPad[chan].yAccel < 344)
+						if(BTPad[chan].yAccel[1] < 344)
 							Pad[chan].substickY = -0x78;
-						else if(BTPad[chan].yAccel > 680)
+						else if(BTPad[chan].yAccel[1] > 680)
 							Pad[chan].substickY = 0x78;
 						else
-							Pad[chan].substickY = (BTPad[chan].yAccel - 512) * 0xF0 / (680 - 344);
+							Pad[chan].substickY = (BTPad[chan].yAccel[1] - 512) * 0xF0 / (680 - 344);
 					}
 					else	//	use tilt as AnalogL and AnalogR
 					{
 						/* xAccel  L=300 C=512 R=740 */
-						if(BTPad[chan].xAccel < 340)
+						if(BTPad[chan].xAccel[1] < 340)
 						{
 							button |= PAD_TRIGGER_L;
 							Pad[chan].triggerLeft = 0xFF;
 						}
-						else if(BTPad[chan].xAccel < 475)
-							Pad[chan].triggerLeft = (475 - BTPad[chan].xAccel) * 0xF0 / (475 - 340);
+						else if(BTPad[chan].xAccel[1] < 475)
+							Pad[chan].triggerLeft = (475 - BTPad[chan].xAccel[1]) * 0xF0 / (475 - 340);
 						else
 							Pad[chan].triggerLeft = 0;
 
-						if(BTPad[chan].xAccel > 670)
+						if(BTPad[chan].xAccel[1] > 670)
 						{
 							button |= PAD_TRIGGER_R;
 							Pad[chan].triggerRight = 0xFF;
 						}
-						else if(BTPad[chan].xAccel > 550)
-							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550);
+						else if(BTPad[chan].xAccel[1] > 550)
+							Pad[chan].triggerRight = (BTPad[chan].xAccel[1] - 550) * 0xF0 / (670 - 550);
 						else
 							Pad[chan].triggerRight = 0;
 
@@ -1023,20 +1023,20 @@ u32 PADRead(u32 calledByGame)
 						{
 							//tilt as cStick
 							/* xAccel  L=300 C=512 R=740 */
-							if(BTPad[chan].xAccel < 350)
+							if(BTPad[chan].xAccel[1] < 350)
 								Pad[chan].substickX = -0x78;
-							else if(BTPad[chan].xAccel > 674)
+							else if(BTPad[chan].xAccel[1] > 674)
 								Pad[chan].substickX = 0x78;
 							else
-								Pad[chan].substickX = (BTPad[chan].xAccel - 512) * 0xF0 / (674 - 350);
+								Pad[chan].substickX = (BTPad[chan].xAccel[1] - 512) * 0xF0 / (674 - 350);
 
 							/* yAccel  up=280 C=512 down=720 */
-							if(BTPad[chan].yAccel < 344)
+							if(BTPad[chan].yAccel[1] < 344)
 								Pad[chan].substickY = -0x78;
-							else if(BTPad[chan].yAccel > 680)
+							else if(BTPad[chan].yAccel[1] > 680)
 								Pad[chan].substickY = 0x78;
 							else
-								Pad[chan].substickY = (BTPad[chan].yAccel - 512) * 0xF0 / (680 - 344);
+								Pad[chan].substickY = (BTPad[chan].yAccel[1] - 512) * 0xF0 / (680 - 344);
 						}
 
 						if(BTPad[chan].button & WM_BUTTON_LEFT)
@@ -1076,43 +1076,43 @@ u32 PADRead(u32 calledByGame)
 					{
 						//tilt as cStick
 						/* xAccel  L=300 C=512 R=740 */
-						if(BTPad[chan].xAccel < 350)
+						if(BTPad[chan].xAccel[1] < 350)
 							Pad[chan].substickX = -0x78;
-						else if(BTPad[chan].xAccel > 674)
+						else if(BTPad[chan].xAccel[1] > 674)
 							Pad[chan].substickX = 0x78;
 						else
-							Pad[chan].substickX = (BTPad[chan].xAccel - 512) * 0xF0 / (674 - 350);
+							Pad[chan].substickX = (BTPad[chan].xAccel[1] - 512) * 0xF0 / (674 - 350);
 
 						/* yAccel  up=280 C=512 down=720 */
-						if(BTPad[chan].yAccel < 344)
+						if(BTPad[chan].yAccel[1] < 344)
 							Pad[chan].substickY = -0x78;
-						else if(BTPad[chan].yAccel > 680)
+						else if(BTPad[chan].yAccel[1] > 680)
 							Pad[chan].substickY = 0x78;
 						else
-							Pad[chan].substickY = (BTPad[chan].yAccel - 512) * 0xF0 / (680 - 344);
+							Pad[chan].substickY = (BTPad[chan].yAccel[1] - 512) * 0xF0 / (680 - 344);
 					}
 					else	//	gas use forward and back ward tilt as AnalogL and AnalogR
 					{
 						/* yAccel  up=280 C=512 down=720 */
 						//break pedal
-						if(BTPad[chan].yAccel < 357)
+						if(BTPad[chan].yAccel[1] < 357)
 						{
 							button |= PAD_TRIGGER_L;
 							Pad[chan].triggerLeft = 0xFF;
 						}
-						else if(BTPad[chan].yAccel < 485)
-							Pad[chan].triggerLeft = (485 - BTPad[chan].yAccel) * 0xF0 / (485 - 357);
+						else if(BTPad[chan].yAccel[1] < 485)
+							Pad[chan].triggerLeft = (485 - BTPad[chan].yAccel[1]) * 0xF0 / (485 - 357);
 						else
 							Pad[chan].triggerLeft = 0;
 
 						//gas pedal
-						if(BTPad[chan].yAccel > 668)
+						if(BTPad[chan].yAccel[1] > 668)
 						{
 							button |= PAD_TRIGGER_R;
 							Pad[chan].triggerRight = 0xFF;
 						}
-						else if(BTPad[chan].yAccel > 540)
-							Pad[chan].triggerRight = (BTPad[chan].yAccel - 540) * 0xF0 / (668 - 540);
+						else if(BTPad[chan].yAccel[1] > 540)
+							Pad[chan].triggerRight = (BTPad[chan].yAccel[1] - 540) * 0xF0 / (668 - 540);
 						else
 							Pad[chan].triggerRight = 0;
 
@@ -1153,41 +1153,41 @@ u32 PADRead(u32 calledByGame)
 					{
 						//tilt as cStick
 						/* xAccel  L=300 C=512 R=740 */
-						if(BTPad[chan].xAccel < 350)
+						if(BTPad[chan].xAccel[1] < 350)
 							Pad[chan].substickX = -0x78;
-						else if(BTPad[chan].xAccel > 674)
+						else if(BTPad[chan].xAccel[1] > 674)
 							Pad[chan].substickX = 0x78;
 						else
-							Pad[chan].substickX = (BTPad[chan].xAccel - 512) * 0xF0 / (674 - 350);
+							Pad[chan].substickX = (BTPad[chan].xAccel[1] - 512) * 0xF0 / (674 - 350);
 
 						/* yAccel  up=280 C=512 down=720 */
-						if(BTPad[chan].yAccel < 344)
+						if(BTPad[chan].yAccel[1] < 344)
 							Pad[chan].substickY = -0x78;
-						else if(BTPad[chan].yAccel > 680)
+						else if(BTPad[chan].yAccel[1] > 680)
 							Pad[chan].substickY = 0x78;
 						else
-							Pad[chan].substickY = (BTPad[chan].yAccel - 512) * 0xF0 / (680 - 344);
+							Pad[chan].substickY = (BTPad[chan].yAccel[1] - 512) * 0xF0 / (680 - 344);
 					}
 					else	//	use tilt as AnalogL and AnalogR
 					{
 						/* xAccel  L=300 C=512 R=740 */
-						if(BTPad[chan].xAccel < 340)
+						if(BTPad[chan].xAccel[1] < 340)
 						{
 							button |= PAD_TRIGGER_L;
 							Pad[chan].triggerLeft = 0xFF;
 						}
-						else if(BTPad[chan].xAccel < 475)
-							Pad[chan].triggerLeft = (475 - BTPad[chan].xAccel) * 0xF0 / (475 - 340);
+						else if(BTPad[chan].xAccel[1] < 475)
+							Pad[chan].triggerLeft = (475 - BTPad[chan].xAccel[1]) * 0xF0 / (475 - 340);
 						else
 							Pad[chan].triggerLeft = 0;
 
-						if(BTPad[chan].xAccel > 670)
+						if(BTPad[chan].xAccel[1] > 670)
 						{
 							button |= PAD_TRIGGER_R;
 							Pad[chan].triggerRight = 0xFF;
 						}
-						else if(BTPad[chan].xAccel > 550)
-							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550);
+						else if(BTPad[chan].xAccel[1] > 550)
+							Pad[chan].triggerRight = (BTPad[chan].xAccel[1] - 550) * 0xF0 / (670 - 550);
 						else
 							Pad[chan].triggerRight = 0;
 
@@ -1315,13 +1315,13 @@ u32 PADRead(u32 calledByGame)
 					{
 						//	use tilt as AnalogL
 						/* xAccel  L=300 C=512 R=740 */
-						if(BTPad[chan].xAccel < 340)
+						if(BTPad[chan].xAccel[1] < 340)
 						{
 							button |= PAD_TRIGGER_L;
 							Pad[chan].triggerLeft = 0xFF;
 						}
-						else if(BTPad[chan].xAccel < 475)
-							Pad[chan].triggerLeft = (475 - BTPad[chan].xAccel) * 0xF0 / (475 - 340);
+						else if(BTPad[chan].xAccel[1] < 475)
+							Pad[chan].triggerLeft = (475 - BTPad[chan].xAccel[1]) * 0xF0 / (475 - 340);
 						else
 							Pad[chan].triggerLeft = 0;
 					}
@@ -1339,13 +1339,13 @@ u32 PADRead(u32 calledByGame)
 					{
 						//	use tilt as AnalogR
 						/* xAccel  L=300 C=512 R=740 */
-						if(BTPad[chan].xAccel > 670)
+						if(BTPad[chan].xAccel[1] > 670)
 						{
 							button |= PAD_TRIGGER_R;
 							Pad[chan].triggerRight = 0xFF;
 						}
-						else if(BTPad[chan].xAccel > 550)
-							Pad[chan].triggerRight = (BTPad[chan].xAccel - 550) * 0xF0 / (670 - 550);
+						else if(BTPad[chan].xAccel[1] > 550)
+							Pad[chan].triggerRight = (BTPad[chan].xAccel[1] - 550) * 0xF0 / (670 - 550);
 						else
 							Pad[chan].triggerRight = 0;
 					}

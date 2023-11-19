@@ -49,9 +49,9 @@ struct BTPadCont {
 	u32 button;
 	u8 triggerL;
 	u8 triggerR;
-	s16 xAccel;
-	s16 yAccel;
-	s16 zAccel;
+	s16 xAccel[2];
+	s16 yAccel[2];
+	s16 zAccel[2];
 } ALIGNED(32);
 
 #define BT_DPAD_UP              0x0001
