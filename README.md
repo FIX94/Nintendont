@@ -41,9 +41,10 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * Small L and R buttons -> full analog press on corresponding L/R, no digital press
         * Large L and R buttons -> full analog and digitial press on corresponding L/R
         * Select -> Z
-    * Luigi's Mansion
-        * Small L and large R buttons -> nearly-full analog presses (0xFE / 254)
-        * Large L and small R buttons -> full analog and digital presses
+    * Luigi's Mansion (Classic Controller Pro only)
+        * L or R -> full analog + digital R press
+        * ZL or ZR -> full analog L press
+        * ZL and ZR -> full analog + digital L press
     * Mario Kart: Double Dash!!
         * X -> X
         * Y -> A, L, R

@@ -308,26 +308,23 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	else if (*TitleID == 0x474c4d)
 	{
 		// Luigi's Mansion
-		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
-		triggerLeft = 0;
-		triggerRight = 0;
+		if (!(pad.used & C_CC)) {
+			button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
+			triggerLeft = 0;
+			triggerRight = 0;
 
-		if (largeL) {
-			button |= PAD_TRIGGER_L;
-			triggerLeft = 0xFF;
-		}
+			if (largeL || largeR) {
+				button |= PAD_TRIGGER_R;
+				triggerLeft = 0xFF;
+			}
 
-		if (largeR) {
-			triggerRight = 0xFE;
-		}
+			if (smallL || smallR) {
+				triggerLeft = 0xFF;
+			}
 
-		if (smallL) {
-			triggerLeft = 0xFE;
-		}
-
-		if (smallR) {
-			button |= PAD_TRIGGER_R;
-			triggerRight = 0xFF;
+			if (smallL && smallR) {
+				button |= PAD_TRIGGER_L;
+			}
 		}
 	}
 	else if (*TitleID == 0x474d34)
