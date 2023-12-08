@@ -333,25 +333,48 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	else if (*TitleID == 0x474d34)
 	{
 		// Mario Kart: Double Dash!!
+		button &= ~PAD_BUTTON_Y;
 		button &= ~PAD_TRIGGER_L;
+		button &= ~PAD_TRIGGER_R;
 		triggerLeft = 0;
+		triggerRight = 0;
 
-		if (largeL || (pad.button & BT_DPAD_UP) || (pad.button & BT_DPAD_DOWN)) {
+		if (pad.button & BT_BUTTON_Y) {
+			// pivot
+			button |= PAD_BUTTON_A;
+			button |= PAD_TRIGGER_R;
+			button |= PAD_TRIGGER_R;
+		}
+
+		if (largeL || pad.triggerL >= simulated_full_press_threshold) {
+			// item
 			button |= PAD_BUTTON_X;
 		}
 
-		if (pad.button & BT_DPAD_LEFT) {
-			button |= PAD_TRIGGER_L;
-			triggerLeft = 0xFF;
-		}
-
-		if (largeR || (pad.button & BT_DPAD_RIGHT)) {
+		if (largeR || pad.triggerR >= simulated_full_press_threshold) {
+			// hop/drift
 			button |= PAD_TRIGGER_R;
-			triggerRight = 0xFF;
 		}
 
 		if (smallL || smallR) {
 			button |= PAD_TRIGGER_Z;
+		}
+
+		if (pad.button & BT_DPAD_LEFT) {
+			button |= PAD_TRIGGER_L;
+		}
+
+		if (pad.button & BT_DPAD_RIGHT) {
+			button |= PAD_TRIGGER_R;
+		}
+
+		if (pad.button & (BT_DPAD_UP | BT_DPAD_DOWN)) {
+			// item forwards or backwards
+			button |= PAD_BUTTON_X;
+		}
+
+		if (pad.button & BT_BUTTON_SELECT) {
+			button |= PAD_BUTTON_X;
 		}
 
 		BTDPadToStick(out, pad.button, 0x7F);

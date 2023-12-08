@@ -45,8 +45,10 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * Small L and large R buttons -> nearly-full analog presses (0xFE / 254)
         * Large L and small R buttons -> full analog and digital presses
     * Mario Kart: Double Dash!!
+        * X -> X
+        * Y -> A, L, R
         * Large L button -> X
-        * Large R button -> full R press
+        * Large R button -> R
         * Small L button -> Z
         * Small R button -> Z
         * D-pad up -> X + left stick up
