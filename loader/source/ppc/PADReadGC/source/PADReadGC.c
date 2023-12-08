@@ -281,9 +281,32 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		if (pad.button & BT_BUTTON_SELECT)
 			button |= PAD_BUTTON_UP;
 	}
-	else if (*TitleID == 0x474d53 || *TitleID == 0x474c4d)
+	else if (*TitleID == 0x474d53)
 	{
 		// Super Mario Sunshine
+		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_TRIGGER_Z);
+
+		if (smallL)
+			triggerLeft = 0xFF;
+
+		if (largeL) {
+			triggerLeft = 0xFF;
+			button |= PAD_TRIGGER_L;
+		}
+
+		if (smallR)
+			triggerRight = 0xFF;
+
+		if (largeR) {
+			triggerRight = 0xFF;
+			button |= PAD_TRIGGER_R;
+		}
+
+		if (pad.button & BT_BUTTON_SELECT)
+			button |= PAD_TRIGGER_Z;
+	}
+	else if (*TitleID == 0x474c4d)
+	{
 		// Luigi's Mansion
 		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
 		triggerLeft = 0;

@@ -37,7 +37,11 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * Small R button -> Z
         * D-pad -> Left stick (75% tilt)
         * Select -> D-pad up
-    * Super Mario Sunshine / Luigi's Mansion
+    * Super Mario Sunshine
+        * Small L and R buttons -> full analog press on corresponding L/R, no digital press
+        * Large L and R buttons -> full analog and digitial press on corresponding L/R
+        * Select -> Z
+    * Luigi's Mansion
         * Small L and large R buttons -> nearly-full analog presses (0xFE / 254)
         * Large L and small R buttons -> full analog and digital presses
     * Mario Kart: Double Dash!!
