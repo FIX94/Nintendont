@@ -90,16 +90,16 @@ void BTDPadToStick(PADStatus* pad, u32 button, u8 scale) {
 		pad->stickX = 0;
 		pad->stickY = 0;
 		if (button & BT_DPAD_UP) {
-			pad->stickY += scale;
+			pad->stickY = scale;
 		}
 		if (button & BT_DPAD_DOWN) {
-			pad->stickY -= scale;
+			pad->stickY = -scale;
 		}
 		if (button & BT_DPAD_LEFT) {
-			pad->stickX -= scale;
+			pad->stickX = -scale;
 		}
 		if (button & BT_DPAD_RIGHT) {
-			pad->stickX += scale;
+			pad->stickX = scale;
 		}
 	}
 }
@@ -113,12 +113,12 @@ void BTDPadToStick(PADStatus* pad, u32 button, u8 scale) {
 #define press_gamecube_right_trigger() { button |= PAD_TRIGGER_R; triggerRight = 0xFF; }
 
 #define map_classic_controller_to_gamecube(cc_button, gc_button) {\
-	if (pad.button & cc_button) {\
+	if (pad.button & (cc_button)) {\
 		press_gamecube_button(gc_button);\
 	}\
 }
 
-#define reset_gamecube_button(pad_button) button &= ~pad_button;
+#define reset_gamecube_button(pad_button) button &= ~(pad_button);
 
 #define reset_gamecube_dpad() button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT)
 
@@ -271,20 +271,24 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	{
 		// Super Smash Bros. Melee
 		reset_gamecube_dpad();
-		reset_gamecube_shoulder_buttons();
+		reset_gamecube_button(PAD_TRIGGER_L);
+		reset_gamecube_button(PAD_TRIGGER_R);
 		reset_gamecube_button(PAD_TRIGGER_Z);
+		triggerLeft = pad.triggerL;
+		triggerRight = pad.triggerR;
 
 		BTDPadToStick(out, pad.button, 0x3F);
 
-		if (classic_controller_has(BT_SMALL_L)) {
-			triggerLeft = 0x3F;
-		}
 		if (classic_controller_has(BT_LARGE_L)) {
 			press_gamecube_left_trigger();
+		} else if (classic_controller_has(BT_SMALL_L)) {
+			triggerLeft = 0x3F;
 		}
+
 		if (classic_controller_has(BT_LARGE_R)) {
 			press_gamecube_right_trigger();
 		}
+
 		map_classic_controller_to_gamecube(BT_SMALL_R, PAD_TRIGGER_Z);
 		map_classic_controller_to_gamecube(BT_BUTTON_SELECT, PAD_BUTTON_UP);
 	}

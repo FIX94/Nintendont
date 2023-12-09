@@ -70,12 +70,12 @@ If `LI_SHOULDER` is also enabled, the following changes will be made as well:
     * Y or Select -> X
 * Super Smash Bros. Melee
     * D-pad unmapped
-    * Default shoulder buttons unmapped
-    * Default Z button unmapped
+    * Default L, R, and Z buttons unmapped
+    * Analog L and R inputs reset to native controller's inputs
     * D-pad -> left analog stick, 25% tilt
+    * Large L button -> full L press
     * Small L button -> 25% L press
-    * Large L button -> L
-    * Large R button -> R
+    * Large R button -> full R press
     * Small R button -> Z
     * Select -> D-pad up
 * Super Mario Sunshine

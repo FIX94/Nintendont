@@ -23,8 +23,10 @@
 
 #if defined(LI_XBOX360)
 #define NIN_SPECIAL_VERSION			"-li-green"
-#else if (!defined(LI_XBOX360) && !defined(LI_NONUNCHUK))
-#define NIN_SPECIAL_VERSION			"-li-blue"
+#elif !defined(LI_NONUNCHUK)
+#define NIN_SPECIAL_VERSION			"-li-navy"
+#elif defined(LI_SHOULDER)
+#define NIN_SPECIAL_VERSION			"-li-teal"
 #endif
 
 #endif
