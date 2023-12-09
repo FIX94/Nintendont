@@ -272,6 +272,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		// Super Smash Bros. Melee
 		reset_gamecube_dpad();
 		reset_gamecube_shoulder_buttons();
+		reset_gamecube_button(PAD_TRIGGER_Z);
 
 		BTDPadToStick(out, pad.button, 0x3F);
 
@@ -325,7 +326,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		// Mario Kart: Double Dash!!
 		reset_gamecube_shoulder_buttons();
 		reset_gamecube_dpad();
-		reset_gamecube_button(PAD_BUTTON_Y);
+		reset_gamecube_button(PAD_BUTTON_Y | PAD_TRIGGER_Z);
 
 		BTDPadToStick(out, pad.button, 0x7F);
 
@@ -335,31 +336,21 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		}
 
 		// item
-		if (classic_controller_has(BT_LARGE_L) || pad.triggerL >= 0x40) {
+		if (classic_controller_has(BT_DPAD_UP | BT_DPAD_DOWN | BT_BUTTON_SELECT | BT_LARGE_L) || pad.triggerL >= 0x40) {
 			press_gamecube_button(PAD_BUTTON_X);
 		}
 
-		// drift
-		if (classic_controller_has(BT_LARGE_R) || pad.triggerR >= 0x40) {
+		// co-op and drift
+		if (classic_controller_has(BT_DPAD_LEFT)) {
+			press_gamecube_button(PAD_TRIGGER_L);
+		}
+		if (classic_controller_has(BT_DPAD_RIGHT | BT_LARGE_R) || pad.triggerR >= 0x40) {
 			press_gamecube_button(PAD_TRIGGER_R);
 		}
 
 		// swap
 		if (classic_controller_has(BT_SMALL_L | BT_SMALL_R)) {
 			press_gamecube_button(PAD_TRIGGER_Z);
-		}
-
-		// co-op
-		if (classic_controller_has(BT_DPAD_LEFT)) {
-			press_gamecube_button(PAD_TRIGGER_L);
-		}
-		if (classic_controller_has(BT_DPAD_RIGHT)) {
-			press_gamecube_button(PAD_TRIGGER_R);
-		}
-
-		// item
-		if (classic_controller_has(BT_DPAD_UP | BT_DPAD_DOWN | BT_BUTTON_SELECT)) {
-			press_gamecube_button(PAD_BUTTON_X);
 		}
 	}
 #endif

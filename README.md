@@ -50,40 +50,36 @@ Classic Controller and Classic Controller Pro button mappings:
 If `LI_SHOULDER` is also enabled, the following changes will be made as well:
 
 * Bust-a-Move 3000
-    * Default shoulder buttons unmapped
     * Either L button, at least 25% -> full L press
     * Either R button, at least 25% -> full R press
-* Bust-a-Move 3000
+    * Diagonal inputs prevented on the D-pad (vertical preferred)
+    * Diagonal inputs prevented on the left stick (reduced to up/down/left/right)
+* Midway Arcade Treasures 3
     * Large L button, at least 25% -> full L press
     * Large R button, at least 25% -> full R press
 * Nintendo Puzzle Collection
-    * Default shoulder buttons unmapped
-    * Either L button -> L
-    * Either R button -> R
+    * Analog trigger inputs supressed unless one of the corresponding shoulder buttons is digitally pressed
 * Spy Hunter
     * Default shoulder buttons unmapped
+    * Default Z button unmapped
+    * Default X and Y buttons unmapped
     * Either L button -> L
     * Either R button -> R
-    * Default Z button unmapped
     * Small L or R button -> Z (in addition to L or R)
-    * Default X and Y buttons unmapped
     * X -> Y
-    * Y -> X
-    * Select -> X
+    * Y or Select -> X
 * Super Smash Bros. Melee
     * D-pad unmapped
     * Default shoulder buttons unmapped
     * Default Z button unmapped
     * D-pad -> left analog stick, 25% tilt
+    * Small L button -> 25% L press
     * Large L button -> L
     * Large R button -> R
-    * Small L button -> 25% L press
     * Small R button -> Z
     * Select -> D-pad up
 * Super Mario Sunshine
-    * Default shoulder buttons unmapped
     * Default Z button unmapped
-    * Large L button -> L
     * Small L button -> 100% analog L press (no digital press)
     * Small R button -> 100% analog R press (no digital press)
     * Select -> Z
@@ -91,25 +87,17 @@ If `LI_SHOULDER` is also enabled, the following changes will be made as well:
     * Default shoulder buttons unmapped
     * ZL or ZR -> R
     * L or R -> 100% L press (no digital press)
-    * L and R -> full L press
+    * L and R -> digital L press
 * Mario Kart: Double Dash!!
     * Default shoulder buttons unmapped
-    * Default Y button unmapped
-    * Y -> A + L + R
-    * Large L button, at least 25% -> X
-    * Large R button -> R
-    * Small L button -> Z
-    * Small R button -> Z
     * D-pad unmapped
+    * Default Y and Z buttons unmapped
     * D-pad -> left analog stick, full tilt
-    * D-pad left -> L
-    * D-pad right -> R
-    * D-pad up -> X
-    * D-pad down -> X
-    * Select -> X
-
-Analog value of L or R maintained unless otherwise noted; simulated digital
-presses include a full analog press.
+    * Y -> A + L + R
+    * Up, Down, Select, large L button, or at least 25% L press -> X
+    * Left -> digital L press
+    * Right -> digital R press
+    * Small L or R buttons -> Z
 
 ## Nintendont
 A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
