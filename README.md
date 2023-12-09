@@ -8,54 +8,7 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
 * `LI_NOSWAP`: removes the controller shortcuts that allow you to swap buttons (Y/B vs. B/A)
 * `LI_NOEXIT`: removes the ability to exit Nintendont without turning off or resetting the console
 * `LI_NORESET`: removes the ability to reset the game with a controller button combo (at least on certain controllers)
-* `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller and Classic Controller Pro
-    * The Legend of Zelda: Four Swords Adventures
-	    * D-Pad => Left Stick
-    * Mario Party 4
-	    * D-Pad => Left Stick
-    * Super Puzzle Bobble / Bust-A-Move 3000 / Bust-A-Move All-Stars
-        * Both left shoulder buttons (on Classic Controller, pressed down at least 25%) -> full L press
-        * Both right shoulder buttons (on Classic Controller, pressed down at least 25%) -> full R press
-        * D-pad diagonals -> D-pad horizontals
-        * Analog stick diagonals -> analog stick horizontals or verticals (whichever is closer)
-    * Midway Arcade Treasures 3
-        * Classic Controller L (pressed down at least 25%) -> full L press
-        * Classic Controller R (pressed down at least 25%) -> full R press
-    * Nintendo Puzzle Collection
-        * on Classic Controller, L and R do not activate unless one of the corresponding shoulder buttons is pressed all the way (digitally)
-    * Spy Hunter
-        * Large L button -> full L press
-        * Large R button -> full R press
-        * Small L button -> full L press + Z
-        * Small R button -> full R press + Z
-        * Y and X swapped
-        * Select -> X
-    * Super Smash Bros. Melee
-        * Large L button -> analog or full L press
-        * Small L button -> 25% L press
-        * Large R button -> analog or full R press
-        * Small R button -> Z
-        * D-pad -> Left stick (75% tilt)
-        * Select -> D-pad up
-    * Super Mario Sunshine
-        * Small L and R buttons -> full analog press on corresponding L/R, no digital press
-        * Large L and R buttons -> full analog and digitial press on corresponding L/R
-        * Select -> Z
-    * Luigi's Mansion (Classic Controller Pro only)
-        * L or R -> full analog + digital R press
-        * ZL or ZR -> full analog L press
-        * ZL and ZR -> full analog + digital L press
-    * Mario Kart: Double Dash!!
-        * X -> X
-        * Y -> A, L, R
-        * Large L button -> X
-        * Large R button -> R
-        * Small L button -> Z
-        * Small R button -> Z
-        * D-pad up -> X + left stick up
-        * D-pad down -> X + left stick down
-        * D-pad left -> L + left stick left
-        * D-pad right -> R + left stick right
+* `LI_CUSTOM_CONTROLS`: adds special controller overrides for the Classic Controller and Classic Controller Pro (see below)
 * `LI_BASE64`: lets you load a base64-encoded nincfg.bin from meta.xml (also see [NinCFGEditor](https://github.com/libertyernie/NinCFGEditor))
 * `LI_SHOULDER`: tweaks the button mappings on certain controllers
     * Classic Controller:
@@ -82,7 +35,83 @@ You'll also want to make sure the devkitpro folder with libwinpthread-1.dll is i
 
 .dol files (if any) are in the Releases section on GitHub.
 
-### Nintendont
+### LI_CUSTOM_CONTROLS
+
+When this preprocessor flag is enabled, the following changes will be made to
+Classic Controller and Classic Controller Pro button mappings:
+
+* The Legend of Zelda: Four Swords Adventures
+    * D-pad unmapped
+    * D-pad -> left analog stick, full tilt
+* Mario Party 4
+    * D-pad unmapped
+    * D-pad -> left analog stick, full tilt
+
+If `LI_SHOULDER` is also enabled, the following changes will be made as well:
+
+* Bust-a-Move 3000
+    * Default shoulder buttons unmapped
+    * Either L button, at least 25% -> full L press
+    * Either R button, at least 25% -> full R press
+* Bust-a-Move 3000
+    * Large L button, at least 25% -> full L press
+    * Large R button, at least 25% -> full R press
+* Nintendo Puzzle Collection
+    * Default shoulder buttons unmapped
+    * Either L button -> L
+    * Either R button -> R
+* Spy Hunter
+    * Default shoulder buttons unmapped
+    * Either L button -> L
+    * Either R button -> R
+    * Default Z button unmapped
+    * Small L or R button -> Z (in addition to L or R)
+    * Default X and Y buttons unmapped
+    * X -> Y
+    * Y -> X
+    * Select -> X
+* Super Smash Bros. Melee
+    * D-pad unmapped
+    * Default shoulder buttons unmapped
+    * Default Z button unmapped
+    * D-pad -> left analog stick, 25% tilt
+    * Large L button -> L
+    * Large R button -> R
+    * Small L button -> 25% L press
+    * Small R button -> Z
+    * Select -> D-pad up
+* Super Mario Sunshine
+    * Default shoulder buttons unmapped
+    * Default Z button unmapped
+    * Large L button -> L
+    * Small L button -> 100% analog L press (no digital press)
+    * Small R button -> 100% analog R press (no digital press)
+    * Select -> Z
+* Luigi's Mansion (Classic Controller Pro only)
+    * Default shoulder buttons unmapped
+    * ZL or ZR -> R
+    * L or R -> 100% L press (no digital press)
+    * L and R -> full L press
+* Mario Kart: Double Dash!!
+    * Default shoulder buttons unmapped
+    * Default Y button unmapped
+    * Y -> A + L + R
+    * Large L button, at least 25% -> X
+    * Large R button -> R
+    * Small L button -> Z
+    * Small R button -> Z
+    * D-pad unmapped
+    * D-pad -> left analog stick, full tilt
+    * D-pad left -> L
+    * D-pad right -> R
+    * D-pad up -> X
+    * D-pad down -> X
+    * Select -> X
+
+Analog value of L or R maintained unless otherwise noted; simulated digital
+presses include a full analog press.
+
+## Nintendont
 A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 
 ### Features:

@@ -103,6 +103,92 @@ void BTDPadToStick(PADStatus* pad, u32 button, u8 scale) {
 		}
 	}
 }
+
+#define gs_unmap(pad_button) button &= ~pad_button;
+
+#define gs_apply(gc_button) {\
+	button |= gc_button;\
+	if (gc_button == PAD_TRIGGER_L) {\
+		triggerLeft = 0xFF;\
+	}\
+	if (gc_button == PAD_TRIGGER_R) {\
+		triggerRight = 0xFF;\
+	}\
+}
+
+#define gs_map(cc_button, gc_button) {\
+	if (pad.button & cc_button) {\
+		gs_apply(gc_button);\
+	}\
+}
+
+#define gs_map_analog(cc_button, threshold, gc_button) {\
+	gs_map(cc_button, gc_button);\
+	if (cc_button == BT_TRIGGER_L && pad.triggerL >= threshold) {\
+		gs_apply(gc_button);\
+	}\
+	if (cc_button == BT_TRIGGER_R && pad.triggerR >= threshold) {\
+		gs_apply(gc_button);\
+	}\
+}
+
+#define gs_dpad_unmap() button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT)
+
+#define gs_dpad_diagonal_to_vertical() {\
+	if (button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT)) {\
+		button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);\
+	}\
+}
+
+#define gs_left_stick_prevent_diagonal() {\
+	s16 x = pad.xAxisL;\
+	if (x < 0) x = -x;\
+	s16 y = pad.yAxisL;\
+	if (y < 0) y = -y;\
+	if (y > x) {\
+		out->stickX = 0;\
+	}\
+	else\
+	{\
+		out->stickY = 0;\
+	}\
+}
+
+#define gs_shoulder_unmap() {\
+	button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);\
+	triggerLeft = 0;\
+	triggerRight = 0;\
+}
+
+#define gs_map_to_left_shoulder(cc) {\
+	if (pad.button & cc) {\
+		triggerLeft = 0xFF;\
+		button |= PAD_TRIGGER_L;\
+	} else if (cc == BT_TRIGGER_L && triggerLeft < pad.triggerL) {\
+		triggerLeft = pad.triggerL;\
+	}\
+}
+
+#define gs_map_to_right_shoulder(cc) {\
+	if (pad.button & cc) {\
+		triggerRight = 0xFF;\
+		button |= PAD_TRIGGER_R;\
+	} else if (cc == BT_TRIGGER_R && triggerRight < pad.triggerR) {\
+		triggerRight = pad.triggerR;\
+	}\
+}
+
+#define gs_map_to_left_shoulder_partial(cc, threshold) {\
+	if (pad.button & cc) {\
+		triggerLeft = threshold;\
+	}\
+}
+
+#define gs_map_to_right_shoulder_partial(cc, threshold) {\
+	if (pad.button & cc) {\
+		triggerRight = threshold;\
+	}\
+}
 #endif
 
 void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
@@ -146,236 +232,153 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	if (pad.button & BT_DPAD_UP)
 		button |= PAD_BUTTON_UP;
 #ifdef LI_CUSTOM_CONTROLS
-	const u8 simulated_full_press_threshold = 0x40;
-
-	int largeL = (pad.used & C_CC)
-		? (pad.button & BT_TRIGGER_L)
-		: (pad.button & BT_TRIGGER_ZL);
-	int smallL = (pad.used & C_CC)
-		? (pad.button & BT_TRIGGER_ZL)
-		: (pad.button & BT_TRIGGER_L);
-	int largeR = (pad.used & C_CC)
-		? (pad.button & BT_TRIGGER_R)
-		: (pad.button & BT_TRIGGER_ZR);
-	int smallR = (pad.used & C_CC)
-		? (pad.button & BT_TRIGGER_ZR)
-		: (pad.button & BT_TRIGGER_R);
+	int BT_LARGE_L = (pad.used & C_CC)
+		? BT_TRIGGER_L
+		: BT_TRIGGER_ZL;
+	int BT_SMALL_L = (pad.used & C_CC)
+		? BT_TRIGGER_ZL
+		: BT_TRIGGER_L;
+	int BT_LARGE_R = (pad.used & C_CC)
+		? BT_TRIGGER_R
+		: BT_TRIGGER_ZR;
+	int BT_SMALL_R = (pad.used & C_CC)
+		? BT_TRIGGER_ZR
+		: BT_TRIGGER_R;
 
 	if (*TitleID == 0x473453 || *TitleID == 0x474D50) {
 		// The Legend of Zelda: Four Swords Adventures
 		// Mario Party 4
+		gs_dpad_unmap();
 		BTDPadToStick(out, pad.button, 0x7F);
-
-		// Hide D-pad from game (will be used to emulate joystick)
-		button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
 	}
-	else if (*TitleID == 0x47564D || *TitleID == 0x473353)
+
+#ifdef LI_SHOULDER
+	if (*TitleID == 0x47564D || *TitleID == 0x473353)
 	{
 		// Bust-a-Move 3000
-		if (button & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))
-		{
-			button &= ~(PAD_BUTTON_UP | PAD_BUTTON_DOWN);
-		}
+		gs_shoulder_unmap();
 
-		if ((pad.button & BT_TRIGGER_L) || (pad.button & BT_TRIGGER_ZL) || pad.triggerL >= simulated_full_press_threshold) {
-			button |= PAD_TRIGGER_L;
-			triggerLeft = 0xFF;
-		}
+		gs_map_analog(BT_LARGE_L, 0x40, PAD_TRIGGER_L);
+		gs_map_analog(BT_SMALL_L, 0x40, PAD_TRIGGER_L);
 
-		if ((pad.button & BT_TRIGGER_R) || (pad.button & BT_TRIGGER_ZR) || pad.triggerR >= simulated_full_press_threshold) {
-			button |= PAD_TRIGGER_R;
-			triggerRight = 0xFF;
-		}
+		gs_map_analog(BT_LARGE_R, 0x40, PAD_TRIGGER_R);
+		gs_map_analog(BT_SMALL_R, 0x40, PAD_TRIGGER_R);
 
-		s16 x = pad.xAxisL;
-		if (x < 0) x = -x;
-		s16 y = pad.yAxisL;
-		if (y < 0) y = -y;
-
-		if (y > x) {
-			// Up / Down
-			out->stickX = 0;
-		}
-		else
-		{
-			// Left / Right
-			out->stickY = 0;
-		}
+		gs_dpad_diagonal_to_vertical();
+		gs_left_stick_prevent_diagonal();
 	}
 	else if (*TitleID == 0x474533)
 	{
 		// Midway Arcade Treasures 3
-		if (pad.triggerL >= simulated_full_press_threshold) {
-			button |= PAD_TRIGGER_L;
-			triggerLeft = 0xFF;
-		}
-
-		if (pad.triggerR >= simulated_full_press_threshold) {
-			button |= PAD_TRIGGER_R;
-			triggerRight = 0xFF;
-		}
+		gs_map_analog(BT_LARGE_L, 0x40, PAD_TRIGGER_L);
+		gs_map_analog(BT_LARGE_R, 0x40, PAD_TRIGGER_R);
 	}
 	else if (*TitleID == 0x47505A)
 	{
 		// Nintendo Puzzle Collection
-		if (!(pad.button & (BT_TRIGGER_L | BT_TRIGGER_ZL)))
-			triggerLeft = 0;
-		if (!(pad.button & (BT_TRIGGER_R | BT_TRIGGER_ZR)))
-			triggerRight = 0;
+		gs_shoulder_unmap();
+		gs_map_to_left_shoulder(BT_TRIGGER_L);
+		gs_map_to_left_shoulder(BT_TRIGGER_ZL);
+		gs_map_to_right_shoulder(BT_TRIGGER_R);
+		gs_map_to_right_shoulder(BT_TRIGGER_ZR);
 	}
 	else if (*TitleID == 0x475348)
 	{
 		// Spy Hunter
-		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_X | PAD_BUTTON_Y | PAD_TRIGGER_Z);
-		triggerLeft = 0;
-		triggerRight = 0;
-		if (smallR || largeR) {
-			button |= PAD_TRIGGER_R;
-			triggerRight = 0xFF;
-		}
-		if (smallL || largeL) {
-			button |= PAD_TRIGGER_L;
-			triggerLeft = 0xFF;
-		}
-		if (smallR || smallL) {
-			button |= PAD_TRIGGER_Z;
-		}
-		if (pad.button & BT_BUTTON_X) {
-			button |= PAD_BUTTON_Y;
-		}
-		if ((pad.button & BT_BUTTON_Y) || (pad.button & BT_BUTTON_SELECT)) {
-			button |= PAD_BUTTON_X;
-		}
+		gs_shoulder_unmap();
+		gs_map_to_left_shoulder(BT_TRIGGER_L);
+		gs_map_to_left_shoulder(BT_TRIGGER_ZL);
+		gs_map_to_right_shoulder(BT_TRIGGER_R);
+		gs_map_to_right_shoulder(BT_TRIGGER_ZR);
+
+		gs_unmap(PAD_TRIGGER_Z);
+		gs_map(BT_SMALL_L, PAD_TRIGGER_Z);
+		gs_map(BT_SMALL_R, PAD_TRIGGER_Z);
+
+		gs_unmap(PAD_BUTTON_X);
+		gs_unmap(PAD_BUTTON_Y);
+		gs_map(BT_BUTTON_X, PAD_BUTTON_Y);
+		gs_map(BT_BUTTON_Y, PAD_BUTTON_X);
+		gs_map(BT_BUTTON_SELECT, PAD_BUTTON_X);
 	}
 	else if (*TitleID == 0x47414c)
 	{
 		// Super Smash Bros. Melee
-		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_TRIGGER_Z | PAD_BUTTON_UP | PAD_BUTTON_DOWN | PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+		gs_dpad_unmap();
+		gs_shoulder_unmap();
+		gs_unmap(PAD_TRIGGER_Z);
 
 		BTDPadToStick(out, pad.button, 0x3F);
 
-		if (largeL) {
-			button |= PAD_TRIGGER_L;
-			triggerLeft = 0xFF;
-		}
-		else
-		{
-			triggerLeft = pad.triggerL;
-		}
-
-		if (largeR) {
-			button |= PAD_TRIGGER_R;
-			triggerRight = 0xFF;
-		}
-		else
-		{
-			triggerRight = pad.triggerR;
-		}
-
-		if (smallL && triggerLeft < 0x3F)
-			triggerLeft = 0x3F;
-
-		if (smallR)
-			button |= PAD_TRIGGER_Z;
-
-		if (pad.button & BT_BUTTON_SELECT)
-			button |= PAD_BUTTON_UP;
+		gs_map_to_left_shoulder(BT_LARGE_L);
+		gs_map_to_right_shoulder(BT_LARGE_R);
+		gs_map_to_left_shoulder_partial(BT_SMALL_L, 0x3F);
+		gs_map(BT_SMALL_R, PAD_TRIGGER_Z);
+		gs_map(BT_BUTTON_SELECT, PAD_BUTTON_UP);
 	}
 	else if (*TitleID == 0x474d53)
 	{
 		// Super Mario Sunshine
-		button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_TRIGGER_Z);
+		gs_shoulder_unmap();
+		gs_unmap(PAD_TRIGGER_Z);
 
-		if (smallL)
-			triggerLeft = 0xFF;
-
-		if (largeL) {
-			triggerLeft = 0xFF;
-			button |= PAD_TRIGGER_L;
-		}
-
-		if (smallR)
-			triggerRight = 0xFF;
-
-		if (largeR) {
-			triggerRight = 0xFF;
-			button |= PAD_TRIGGER_R;
-		}
-
-		if (pad.button & BT_BUTTON_SELECT)
-			button |= PAD_TRIGGER_Z;
+		gs_map_to_left_shoulder(BT_LARGE_L);
+		gs_map_to_left_shoulder_partial(BT_SMALL_L, 0xFF);
+		gs_map_to_right_shoulder(BT_LARGE_R);
+		gs_map_to_right_shoulder_partial(BT_SMALL_R, 0xFF);
+		gs_map(BT_BUTTON_SELECT, PAD_TRIGGER_Z);
 	}
 	else if (*TitleID == 0x474c4d)
 	{
 		// Luigi's Mansion
 		if (!(pad.used & C_CC)) {
-			button &= ~(PAD_TRIGGER_L | PAD_TRIGGER_R);
-			triggerLeft = 0;
-			triggerRight = 0;
+			gs_shoulder_unmap();
 
-			if (largeL || largeR) {
-				button |= PAD_TRIGGER_R;
-				triggerLeft = 0xFF;
-			}
+			gs_map_to_right_shoulder(BT_TRIGGER_ZL);
+			gs_map_to_right_shoulder(BT_TRIGGER_ZR);
 
-			if (smallL || smallR) {
-				triggerLeft = 0xFF;
-			}
+			gs_map_to_left_shoulder_partial(BT_TRIGGER_L, 0xFF);
+			gs_map_to_left_shoulder_partial(BT_TRIGGER_R, 0xFF);
 
-			if (smallL && smallR) {
-				button |= PAD_TRIGGER_L;
+			if ((pad.button & BT_TRIGGER_L) && (pad.button & BT_TRIGGER_R)) {
+				gs_apply(PAD_TRIGGER_L);
 			}
 		}
 	}
 	else if (*TitleID == 0x474d34)
 	{
 		// Mario Kart: Double Dash!!
-		button &= ~PAD_BUTTON_Y;
-		button &= ~PAD_TRIGGER_L;
-		button &= ~PAD_TRIGGER_R;
-		triggerLeft = 0;
-		triggerRight = 0;
+		gs_shoulder_unmap();
 
-		if (pad.button & BT_BUTTON_Y) {
-			// pivot
-			button |= PAD_BUTTON_A;
-			button |= PAD_TRIGGER_R;
-			button |= PAD_TRIGGER_R;
-		}
+		// pivot
+		gs_unmap(PAD_BUTTON_Y);
+		gs_map(BT_BUTTON_Y, PAD_BUTTON_A);
+		gs_map_to_left_shoulder(BT_BUTTON_Y);
+		gs_map_to_right_shoulder(BT_BUTTON_Y);
 
-		if (largeL || pad.triggerL >= simulated_full_press_threshold) {
-			// item
-			button |= PAD_BUTTON_X;
-		}
+		// item
+		gs_map_analog(BT_LARGE_L, 0x40, PAD_BUTTON_X);
 
-		if (largeR || pad.triggerR >= simulated_full_press_threshold) {
-			// hop/drift
-			button |= PAD_TRIGGER_R;
-		}
+		// drift
+		gs_map_to_right_shoulder(BT_LARGE_R);
 
-		if (smallL || smallR) {
-			button |= PAD_TRIGGER_Z;
-		}
+		// swap
+		gs_map(BT_SMALL_L, PAD_TRIGGER_Z);
+		gs_map(BT_SMALL_R, PAD_TRIGGER_Z);
 
-		if (pad.button & BT_DPAD_LEFT) {
-			button |= PAD_TRIGGER_L;
-		}
-
-		if (pad.button & BT_DPAD_RIGHT) {
-			button |= PAD_TRIGGER_R;
-		}
-
-		if (pad.button & (BT_DPAD_UP | BT_DPAD_DOWN)) {
-			// item forwards or backwards
-			button |= PAD_BUTTON_X;
-		}
-
-		if (pad.button & BT_BUTTON_SELECT) {
-			button |= PAD_BUTTON_X;
-		}
-
+		gs_dpad_unmap();
 		BTDPadToStick(out, pad.button, 0x7F);
+
+		gs_map(BT_DPAD_LEFT, PAD_TRIGGER_L);
+		gs_map(BT_DPAD_RIGHT, PAD_TRIGGER_R);
+
+		// item
+		gs_map(BT_DPAD_UP, PAD_BUTTON_X);
+		gs_map(BT_DPAD_DOWN, PAD_BUTTON_X);
+
+		gs_map(BT_BUTTON_SELECT, PAD_BUTTON_X);
 	}
+#endif
 #endif
 #ifndef LI_NOEXIT
 	if (pad.button & BT_BUTTON_HOME)
