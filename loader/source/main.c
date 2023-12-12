@@ -128,86 +128,6 @@ static const char NIN_BUILD_STRING[] ALIGNED(32) = NIN_VERSION_STRING; // Versio
 bool isWiiVC = false;
 bool wiiVCInternal = false;
 
-/**
- * Update meta.xml.
- */
-static void updateMetaXml(void)
-{
-	char filepath[MAXPATHLEN];
-	bool dir_argument_exists = strlen(launch_dir);
-	
-	snprintf(filepath, sizeof(filepath), "%smeta.xml",
-		dir_argument_exists ? launch_dir : "/apps/Nintendont/");
-
-	if (!dir_argument_exists) {
-		gprintf("Creating new directory\r\n");
-		f_mkdir_char("/apps");
-		f_mkdir_char("/apps/Nintendont");
-	}
-
-	char new_meta[1024];
-	int len = snprintf(new_meta, sizeof(new_meta),
-		META_XML "\r\n<app version=\"1\">\r\n"
-		"\t<name>" META_NAME "</name>\r\n"
-		"\t<coder>" META_AUTHOR "</coder>\r\n"
-		"\t<version>%d.%d%s</version>\r\n"
-		"\t<release_date>20160710000000</release_date>\r\n"
-		"\t<short_description>" META_SHORT "</short_description>\r\n"
-		"\t<long_description>" META_LONG1 "\r\n\r\n" META_LONG2 "</long_description>\r\n"
-		"\t<no_ios_reload/>\r\n"
-		"\t<ahb_access/>\r\n"
-		"</app>\r\n",
-		NIN_VERSION >> 16, NIN_VERSION & 0xFFFF,
-#ifdef NIN_SPECIAL_VERSION
-		NIN_SPECIAL_VERSION
-#else
-		""
-#endif
-  			);
-	if (len > sizeof(new_meta))
-		len = sizeof(new_meta);
-
-	// Check if the file already exists.
-	FIL meta;
-	if (f_open_char(&meta, filepath, FA_READ|FA_OPEN_EXISTING) == FR_OK)
-	{
-		// File exists. If it's the same as the new meta.xml,
-		// don't bother rewriting it.
-		char orig_meta[1024];
-		if (len == meta.obj.objsize)
-		{
-			// File is the same length.
-			UINT read;
-			f_read(&meta, orig_meta, len, &read);
-			if (read == (UINT)len &&
-			    !strncmp(orig_meta, new_meta, len))
-			{
-				// File is identical.
-				// Don't rewrite it.
-				f_close(&meta);
-				return;
-			}
-		}
-		f_close(&meta);
-	}
-
-	// File does not exist, or file is not identical.
-	// Write the new meta.xml.
-	if (f_open_char(&meta, filepath, FA_WRITE|FA_CREATE_ALWAYS) == FR_OK)
-	{
-		// Reserve space in the file.
-		if (f_size(&meta) < len) {
-			f_expand(&meta, len, 1);
-		}
-
-		// Write the new meta.xml.
-		UINT wrote;
-		f_write(&meta, new_meta, len, &wrote);
-		f_close(&meta);
-		FlushDevices();
-	}
-}
-
 static const WCHAR *primaryDevice;
 void changeToDefaultDrive()
 {
@@ -783,9 +703,6 @@ int main(int argc, char **argv)
 	DCInvalidateRange( (void*)0x93100000, 0x50000 );
 	free(fontbuffer);
 	//gprintf("Font: 0x1AFF00 starts with %.4s, 0x1FCF00 with %.4s\n", (char*)0x93100000, (char*)0x93100000 + 0x4D000);
-
-	// Update meta.xml.
-	updateMetaXml();
 
 	if(argsboot == false)
 	{
