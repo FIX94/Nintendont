@@ -38,6 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <di/di.h>
 
 #include "menu.h"
+#include "lz4.h"
 #include "../../common/include/CommonConfigStrings.h"
 #include "ff_utf8.h"
 #include "ShowGameInfo.h"
@@ -66,10 +67,28 @@ const u32 DiscFormatColors[8] =
 	0x00551AFF,	// Extracted FST
 	0x001A55FF,	// CISO
 	0x551A55FF,	// Multi-Game
-	GRAY,		// undefined
+	0x001A5544,	// ZISO
 	GRAY,		// undefined
 	GRAY,		// undefined
 };
+
+// ZISO
+#define ZISO_IDX_CACHE_SIZE 256
+#define ZISO_MAX_BLOCK_SIZE 8192
+typedef struct _ZISO_t {
+    u32 magic;  // 0
+    u32 header_size;  // 4
+    u64 total_bytes; // 8
+    u32 block_size; // 16
+    u8 ver; // 20
+    u8 align;  // 21
+    u8 rsv_06[2];  // 22
+} ZISO_t;
+static u64 uncompressed_size = 0;
+static u32 ziso_align = 0;
+static u32 ziso_block_size = 0;
+static u8 ziso_com_buf[ZISO_MAX_BLOCK_SIZE] __attribute__((aligned(64)));
+static u8 ziso_dec_buf[ZISO_MAX_BLOCK_SIZE] __attribute__((aligned(64)));
 
 /**
  * Print information about the selected device.
@@ -128,6 +147,34 @@ int compare_names(const void *a, const void *b)
 	return ret;
 }
 
+u8* ziso_read_block(FIL* in, u32 lsn){
+	u32 block_data[2]; // 0=offset, 1=size
+	u32 read;
+
+	// read two block offsets
+	f_lseek(in, sizeof(ZISO_t) + sizeof(u32)*lsn);
+	f_read(in, block_data, sizeof(block_data), &read);
+
+	block_data[0] = __builtin_bswap32(block_data[0]);
+	block_data[1] = __builtin_bswap32(block_data[1]);
+
+	u32 topbit = block_data[0]&0x80000000; // extract top bit for decompressor
+	block_data[0] = (block_data[0]&0x7FFFFFFF) << ziso_align;
+	block_data[1] = (block_data[1]&0x7FFFFFFF) << ziso_align;
+
+	block_data[1] -= block_data[0]; // calculate size
+
+	// read compressed block
+	f_lseek(in, block_data[0]);
+	f_read(in, ziso_com_buf, block_data[1], &read);
+
+	// decompress block
+	if (topbit) memcpy(ziso_dec_buf, ziso_com_buf, ziso_block_size); // check for NC area
+	else LZ4_decompress_fast((const char*)ziso_com_buf, (char*)ziso_dec_buf, ziso_block_size); // decompress block
+
+	return ziso_dec_buf;
+}
+
 /**
  * Check if a disc image is valid.
  * @param filename	[in]  Disc image filename. (ISO/GCM)
@@ -163,6 +210,7 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	// Check for CISO magic with 2 MB block size.
 	// NOTE: CISO block size is little-endian.
 	static const uint8_t CISO_MAGIC[8] = {'C','I','S','O',0x00,0x00,0x20,0x00};
+	static const uint8_t ZISO_MAGIC[4] = {'Z','I','S','O'};
 	if (!memcmp(buf, CISO_MAGIC, sizeof(CISO_MAGIC)) &&
 	    !IsGCGame(buf))
 	{
@@ -182,6 +230,16 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		BI2region_addr = 0x8458;
 
 		gi->Flags = GIFLAG_FORMAT_CISO;
+	}
+	else if (!memcmp(buf, ZISO_MAGIC, sizeof(ZISO_MAGIC))){
+		ZISO_t* ziso_header = (ZISO_t*)buf;
+		uncompressed_size = __builtin_bswap64(ziso_header->total_bytes);
+		ziso_block_size = __builtin_bswap32(ziso_header->block_size);
+		ziso_align = ziso_header->align;
+		ziso_read_block(&in, 0);
+		memcpy(buf, ziso_dec_buf, sizeof(buf));
+		BI2region_addr = 0;
+		gi->Flags = GIFLAG_FORMAT_ZISO;
 	}
 	else
 	{
@@ -204,12 +262,18 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	{
 		// Read the BI2 region code.
 		u32 BI2region;
-		f_lseek(&in, BI2region_addr);
-		f_read(&in, &BI2region, sizeof(BI2region), &read);
-		if (read != sizeof(BI2region)) {
-			// Error reading from the file.
-			f_close(&in);
-			return false;
+		if (BI2region_addr){
+			f_lseek(&in, BI2region_addr);
+			f_read(&in, &BI2region, sizeof(BI2region), &read);
+			if (read != sizeof(BI2region)) {
+				// Error reading from the file.
+				f_close(&in);
+				return false;
+			}
+		}
+		else{
+			// must be ZISO
+			memcpy(&BI2region, &ziso_dec_buf[0x458], sizeof(BI2region));
 		}
 
 		// Save the region code for later.
@@ -227,9 +291,9 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		const bool is_multigame = IsMultiGameDisc((const char*)buf);
 		if (is_multigame)
 		{
-			if (gi->Flags == GIFLAG_FORMAT_CISO)
+			if (gi->Flags == GIFLAG_FORMAT_CISO || gi->Flags == GIFLAG_FORMAT_ZISO)
 			{
-				// Multi-game + CISO is NOT supported.
+				// Multi-game + CISO/ZISO is NOT supported.
 				ret = false;
 			}
 			else
@@ -405,15 +469,15 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			//Test if game.iso exists and add to list
 			bool found = false;
 
-			static const char disc_filenames[8][16] = {
-				"game.ciso", "game.cso", "game.gcm", "game.iso",
-				"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso"
+			static const char disc_filenames[10][16] = {
+				"game.ciso", "game.cso", "game.gcm", "game.iso", "game.zso",
+				"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso", "disc2.zso"
 			};
 
 			u32 i;
-			for (i = 0; i < 8; i++)
+			for (i = 0; i < 10; i++)
 			{
-				const u32 discNumber = i / 4;
+				const u32 discNumber = i / 5;
 
 				// Append the disc filename.
 				strcpy(&filename[fnlen], disc_filenames[i]);
@@ -425,7 +489,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 					gamecount++;
 					found = true;
 					// Next disc number.
-					i = (discNumber * 4) + 3;
+					i = (discNumber * 5) + 4;
 				}
 			}
 
@@ -735,6 +799,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X+(21*10), MENU_POS_Y + 20*3, "FST");
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[3], MENU_POS_X+(25*10), MENU_POS_Y + 20*3, "CISO");
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
+		PrintFormat(DEFAULT_SIZE, DiscFormatColors[5], MENU_POS_X+(36*10), MENU_POS_Y + 20*3, "ZISO");
 
 		// Starting position.
 		int gamelist_y = MENU_POS_Y + 20*5 + 10;

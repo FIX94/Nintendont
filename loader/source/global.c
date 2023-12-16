@@ -642,7 +642,8 @@ bool IsSupportedFileExt(const char *filename)
 		const int extpos = len-3;
 		if (!strcasecmp(&filename[extpos], "gcm") ||
 		    !strcasecmp(&filename[extpos], "iso") ||
-		    !strcasecmp(&filename[extpos], "cso"))
+		    !strcasecmp(&filename[extpos], "cso") ||
+			!strcasecmp(&filename[extpos], "zso"))
 		{
 			// File extension is supported.
 			return true;

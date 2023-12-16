@@ -91,11 +91,11 @@ static u8 *NetworkCMDBuffer;
 static u8 *const DIMMMemory = (u8*)0x12B80000;
 
 // Multi-disc filenames.
-static const char disc_filenames[8][16] = {
+static const char disc_filenames[10][16] = {
 	// Disc 1
-	"game.ciso", "game.cso", "game.gcm", "game.iso",
+	"game.ciso", "game.cso", "game.gcm", "game.iso", "game.zso",
 	// Disc 2
-	"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso"
+	"disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso", "disc2.zso"
 };
 
 // Filename portions for 2-disc mode.
@@ -192,24 +192,24 @@ void DIinit( bool FirstTime )
 			const char **DI_2disc_otherdisc = NULL;
 			DI_2disc_filenames[0] = NULL;
 			DI_2disc_filenames[1] = NULL;
-			for (i = 0; i < 8; i++)
+			for (i = 0; i < 10; i++)
 			{
 				if (!strcasecmp(TempDiscName+slash_pos, disc_filenames[i]))
 				{
 					// Filename is either:
 					// -  game.(ciso|cso|gcm|iso) (Disc 1)
 					// - disc2.(ciso|cso|gcm|iso) (Disc 2)
-					const int discIdx = i / 4;	// either 0 or 1
+					const int discIdx = i / 5;	// either 0 or 1
 					DI_2disc_filenames[discIdx] = disc_filenames[i];
 
 					// Set variables to check for the other disc.
 					if (discIdx == 0) {
-						checkIdxMin = 4;
-						checkIdxMax = 7;
+						checkIdxMin = 5;
+						checkIdxMax = 9;
 						DI_2disc_otherdisc = &DI_2disc_filenames[1];
 					} else {
 						checkIdxMin = 0;
-						checkIdxMax = 3;
+						checkIdxMax = 4;
 						DI_2disc_otherdisc = &DI_2disc_filenames[0];
 					}
 					break;
