@@ -275,6 +275,7 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 		// Check for CISO magic with 2 MB block size.
 		// NOTE: CISO block size is little-endian.
 		static const uint8_t CISO_MAGIC[8] = {'C','I','S','O',0x00,0x00,0x20,0x00};
+		static const uint8_t ZISO_MAGIC[4] = {'Z','I','S','O'};
 		if (!memcmp(MultiHdr, CISO_MAGIC, sizeof(CISO_MAGIC)) && !IsGCGame(MultiHdr))
 		{
 			// CISO magic is present, and GCN magic isn't.
@@ -291,7 +292,7 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 				{
 					WDVD_FST_LSeek(0x8458);
 					read = WDVD_FST_Read(wdvdTmpBuf, sizeof(*BI2region));
-					memcpy(&BI2region, wdvdTmpBuf, sizeof(*BI2region));
+					memcpy(BI2region, wdvdTmpBuf, sizeof(*BI2region));
 				}
 				else
 				{
@@ -308,6 +309,22 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 				WDVD_FST_Close();
 			else
 				f_close(&f);
+			free(MultiHdr);
+			return ret;
+		}
+		else if (!memcmp(MultiHdr, ZISO_MAGIC, sizeof(ZISO_MAGIC)) && !IsGCGame(MultiHdr)){
+			extern u8* ziso_read_block(FIL* in, u32 lsn);
+			int ret = 0;
+			if (ISOShift)
+				*ISOShift = 0;
+
+			if (BI2region)
+			{
+				u8* dec_buf = ziso_read_block(&f, 0);
+				memcpy(BI2region, &dec_buf[0x458], sizeof(*BI2region));
+			}
+
+			f_close(&f);
 			free(MultiHdr);
 			return ret;
 		}

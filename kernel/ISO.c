@@ -80,7 +80,7 @@ typedef struct _CISO_t {
 
 // ZISO
 #define ZISO_MAGIC 0x5A49534F /* "ZISO" */
-#define ZISO_IDX_CACHE_SIZE 256
+#define ZISO_IDX_CACHE_SIZE 128
 #define ZISO_MAX_BLOCK_SIZE 8192
 typedef struct _ZISO_t {
     u32 magic;  // 0
@@ -98,7 +98,9 @@ static union {
 	uint16_t ciso_block_map[CISO_MAP_SIZE];
 	u32 ziso_block_map[ZISO_IDX_CACHE_SIZE]; // we use this as a cache on ZISO
 } block_map;
+
 static unsigned char ISO_Type = TYPE_ISO;	// Set to 1 for CISO mode. 2 for ZISO.
+
 static u64 uncompressed_size = 0;
 static u32 ziso_align = 0;
 static u32 ziso_block_size = 0;
@@ -132,6 +134,27 @@ static UINT read_raw_data(void *Buffer, u32 Length, u64 Offset64){
 
 	return read;
 }
+
+#define DATA_CACHE_SIZE 0 //32*1024
+#if DATA_CACHE_SIZE > 0
+static UINT read_cached_data(void *Buffer, u32 Length, u64 Offset64){
+	static u8 cache[DATA_CACHE_SIZE];
+	static u64 cur_offset = (u64)-1;
+
+	if (Length > sizeof(cache)){
+		return read_raw_data(Buffer, Length, Offset64);
+	}
+
+	if (cur_offset == (u64)-1 || Offset64 < cur_offset || Offset64+Length > cur_offset+sizeof(cache)){
+		read_raw_data(cache, sizeof(cache), Offset64);
+		cur_offset = Offset64;
+	}
+	memcpy(Buffer, &cache[Offset64-cur_offset], Length);
+	return Length;
+}
+#else
+#define read_cached_data read_raw_data
+#endif
 
 static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 {
@@ -194,7 +217,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 		if (size > ziso_block_size*2){ // only if going to read more than two blocks
 			if (size < compressed_size) compressed_size = size-ziso_block_size; // adjust chunk size if compressed data is still bigger than uncompressed
 			c_buf = top_addr - compressed_size; // read into the end of the user buffer
-			read_raw_data(c_buf, compressed_size, o_start);
+			read_cached_data(c_buf, compressed_size, o_start);
 		}
 
 		while(size > 0) {
@@ -223,7 +246,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 					if (size < compressed_size) compressed_size = size-ziso_block_size; // adjust if still bigger than uncompressed
 					if (compressed_size >= b_size){
 						c_buf = top_addr - compressed_size; // read into the end of the user buffer
-						read_raw_data(c_buf, compressed_size, b_offset);
+						read_cached_data(c_buf, compressed_size, b_offset);
 					}
 				}
 			}
@@ -234,7 +257,7 @@ static inline void ISOReadDirect(void *Buffer, u32 Length, u64 Offset64)
 				c_buf += b_size;
 			}
 			else{ // slow read
-				b_size = read_raw_data(com_buf, b_size, b_offset);
+				b_size = read_cached_data(com_buf, b_size, b_offset);
 				if (c_buf) c_buf += b_size;
 			}
 
@@ -598,7 +621,6 @@ void ISOSeek(u32 Offset)
 		}
 		else if (ISO_Type == TYPE_ZSO){
 			// TODO (?)
-			LastOffset64 = Offset64;
 		}
 		else
 		{

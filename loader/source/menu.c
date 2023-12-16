@@ -147,31 +147,32 @@ int compare_names(const void *a, const void *b)
 	return ret;
 }
 
-static void ziso_read_block(FIL* in, u32 lsn){
-	u32 data[2]; // 0=offset, 1=size
+u8* ziso_read_block(FIL* in, u32 lsn){
+	u32 block_data[2]; // 0=offset, 1=size
 	u32 read;
 
 	// read two block offsets
 	f_lseek(in, sizeof(ZISO_t) + sizeof(u32)*lsn);
-	f_read(in, data, sizeof(data), &read);
+	f_read(in, block_data, sizeof(block_data), &read);
 
-	data[0] = __builtin_bswap32(data[0]);
-	data[1] = __builtin_bswap32(data[1]);
+	block_data[0] = __builtin_bswap32(block_data[0]);
+	block_data[1] = __builtin_bswap32(block_data[1]);
 
-	u32 topbit = data[0]&0x80000000; // extract top bit for decompressor
-	data[0] = (data[0]&0x7FFFFFFF) << ziso_align;
-	data[1] = (data[1]&0x7FFFFFFF) << ziso_align;
+	u32 topbit = block_data[0]&0x80000000; // extract top bit for decompressor
+	block_data[0] = (block_data[0]&0x7FFFFFFF) << ziso_align;
+	block_data[1] = (block_data[1]&0x7FFFFFFF) << ziso_align;
 
-	data[1] -= data[0]; // calculate size
+	block_data[1] -= block_data[0]; // calculate size
 
 	// read compressed block
-	f_lseek(in, data[0]);
-	f_read(in, ziso_com_buf, data[1], &read);
+	f_lseek(in, block_data[0]);
+	f_read(in, ziso_com_buf, block_data[1], &read);
 
 	// decompress block
 	if (topbit) memcpy(ziso_dec_buf, ziso_com_buf, ziso_block_size); // check for NC area
 	else LZ4_decompress_fast((const char*)ziso_com_buf, (char*)ziso_dec_buf, ziso_block_size); // decompress block
 
+	return ziso_dec_buf;
 }
 
 /**
@@ -272,7 +273,7 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		}
 		else{
 			// must be ZISO
-			BI2region = (ziso_dec_buf[0x458]<<24) | (ziso_dec_buf[0x459]<<16) | (ziso_dec_buf[0x45A]<<8) | (ziso_dec_buf[0x45B]);
+			memcpy(&BI2region, &ziso_dec_buf[0x458], sizeof(BI2region));
 		}
 
 		// Save the region code for later.
