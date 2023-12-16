@@ -74,7 +74,7 @@ const u32 DiscFormatColors[8] =
 
 // ZISO
 #define ZISO_IDX_CACHE_SIZE 256
-#define ZISO_BLOCK_SIZE 2048
+#define ZISO_MAX_BLOCK_SIZE 8192
 typedef struct _ZISO_t {
     u32 magic;  // 0
     u32 header_size;  // 4
@@ -86,8 +86,9 @@ typedef struct _ZISO_t {
 } ZISO_t;
 static u64 uncompressed_size = 0;
 static u32 ziso_align = 0;
-static u8 ziso_com_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
-static u8 ziso_dec_buf[ZISO_BLOCK_SIZE] __attribute__((aligned(64)));
+static u32 ziso_block_size = 0;
+static u8 ziso_com_buf[ZISO_MAX_BLOCK_SIZE] __attribute__((aligned(64)));
+static u8 ziso_dec_buf[ZISO_MAX_BLOCK_SIZE] __attribute__((aligned(64)));
 
 /**
  * Print information about the selected device.
@@ -168,8 +169,8 @@ static void ziso_read_block(FIL* in, u32 lsn){
 	f_read(in, ziso_com_buf, data[1], &read);
 
 	// decompress block
-	if (topbit) memcpy(ziso_dec_buf, ziso_com_buf, ZISO_BLOCK_SIZE); // check for NC area
-	else LZ4_decompress_fast((const char*)ziso_com_buf, (char*)ziso_dec_buf, ZISO_BLOCK_SIZE); // decompress block
+	if (topbit) memcpy(ziso_dec_buf, ziso_com_buf, ziso_block_size); // check for NC area
+	else LZ4_decompress_fast((const char*)ziso_com_buf, (char*)ziso_dec_buf, ziso_block_size); // decompress block
 
 }
 
@@ -232,6 +233,7 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 	else if (!memcmp(buf, ZISO_MAGIC, sizeof(ZISO_MAGIC))){
 		ZISO_t* ziso_header = (ZISO_t*)buf;
 		uncompressed_size = __builtin_bswap64(ziso_header->total_bytes);
+		ziso_block_size = __builtin_bswap32(ziso_header->block_size);
 		ziso_align = ziso_header->align;
 		ziso_read_block(&in, 0);
 		memcpy(buf, ziso_dec_buf, sizeof(buf));
