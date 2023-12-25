@@ -35,9 +35,9 @@ You'll also want to make sure the devkitpro folder with libwinpthread-1.dll is i
 
 .dol files (if any) are in the Releases section on GitHub.
 
-### LI_CUSTOM_CONTROLS
+### Custom controls
 
-When this preprocessor flag is enabled, the following changes will be made to
+When the preprocessor flag `LI_CUSTOM_CONTROLS` is enabled, the following changes will be made to
 Classic Controller and Classic Controller Pro button mappings:
 
 * The Legend of Zelda: Four Swords Adventures
@@ -80,8 +80,10 @@ If `LI_SHOULDER` is also enabled, the following changes will be made as well:
     * Select -> D-pad up
 * Super Mario Sunshine
     * Default Z button unmapped
+    * Default R button unmapped
     * Small L button -> 100% analog L press (no digital press)
-    * Small R button -> 100% analog R press (no digital press)
+    * Small R button -> 100% analog and digital R press
+    * Large R button -> 100% analog R press (no digital press)
     * Select -> Z
 * Luigi's Mansion (Classic Controller Pro only)
     * Default shoulder buttons unmapped

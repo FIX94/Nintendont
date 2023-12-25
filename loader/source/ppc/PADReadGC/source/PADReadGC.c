@@ -296,11 +296,17 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	{
 		// Super Mario Sunshine
 		reset_gamecube_button(PAD_TRIGGER_Z);
+		reset_gamecube_button(PAD_TRIGGER_R);
+		triggerRight = 0;
 
 		if (classic_controller_has(BT_SMALL_L)) {
 			triggerLeft = 0xFF;
 		}
 		if (classic_controller_has(BT_SMALL_R)) {
+			triggerRight = 0xFF;
+			button |= PAD_TRIGGER_R;
+		}
+		if (classic_controller_has(BT_LARGE_R) || pad.triggerR >= 0x40) {
 			triggerRight = 0xFF;
 		}
 
