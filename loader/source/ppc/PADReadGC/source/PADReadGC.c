@@ -253,10 +253,10 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		reset_gamecube_button(PAD_BUTTON_X);
 		reset_gamecube_button(PAD_BUTTON_Y);
 
-		if (classic_controller_has(BT_LARGE_L | BT_SMALL_L)) {
+		if (classic_controller_has(BT_LARGE_L | BT_SMALL_L) || pad.triggerL >= 0x40) {
 			press_gamecube_left_trigger();
 		}
-		if (classic_controller_has(BT_LARGE_R | BT_SMALL_R)) {
+		if (classic_controller_has(BT_LARGE_R | BT_SMALL_R) || pad.triggerR >= 0x40) {
 			press_gamecube_right_trigger();
 		}
 

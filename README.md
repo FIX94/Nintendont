@@ -63,8 +63,8 @@ If `LI_SHOULDER` is also enabled, the following changes will be made as well:
     * Default shoulder buttons unmapped
     * Default Z button unmapped
     * Default X and Y buttons unmapped
-    * Either L button -> L
-    * Either R button -> R
+    * Either L button (at least 25%) -> L
+    * Either R button (at least 25%) -> R
     * Small L or R button -> Z (in addition to L or R)
     * X -> Y
     * Y or Select -> X
