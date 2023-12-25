@@ -4,7 +4,7 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
 
 * `LI_XBOX360`: includes all extra code from https://github.com/revvv/Nintendont-XBOX360 to support Xbox 360 controllers and others (see below - note that some supporting code is included either way)
 * `LI_NONUNCHUK`: removes Nunchuk support
-* `LI_GAMEPADASCCPRO`: removes Wii U GamePad mapping code and instead reuses the Classic Controller Pro code path (experimental)
+* `LI_GAMEPADASCCPRO`: removes Wii U GamePad mapping code and instead reuses the Classic Controller Pro code path
 * `LI_NOSWAP`: removes the controller shortcuts that allow you to swap buttons (Y/B vs. B/A)
 * `LI_NOEXIT`: removes the ability to exit Nintendont without turning off or resetting the console
 * `LI_NORESET`: removes the ability to reset the game with a controller button combo (at least on certain controllers)
@@ -25,6 +25,12 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * R -> half R press (0x7F)
         * Home -> Start (if `LI_NOEXIT` is used)
         * Select -> Z
+* `LI_SHOULDER_DIRECT`: tweaks the button mappings on certain controllers
+    * Classic Controller / Classic Controller Pro:
+        * L -> L (passthrough; digital press also emulates full analog press)
+        * R -> R (passthrough; digital press also emulates full analog press)
+        * ZL -> Z
+        * ZR -> Z
 * `LI_ANALOG_SHOULDER_FULL`: simulates a full analog L/R press on the Classic Controller whenever a digital (full) press is detected
 
 To build on Windows, you might need to set the "windows" variable so the build process can find zip.exe:
@@ -43,11 +49,13 @@ Classic Controller and Classic Controller Pro button mappings:
 * The Legend of Zelda: Four Swords Adventures
     * D-pad unmapped
     * D-pad -> left analog stick, full tilt
+    * If `LI_SHOULDER_DIRECT` is enabled:
+        * Select -> X
 * Mario Party 4
     * D-pad unmapped
     * D-pad -> left analog stick, full tilt
 
-If `LI_SHOULDER` is also enabled, the following changes will be made as well:
+If `LI_CUSTOM_CONTROLS` and `LI_SHOULDER` are both enabled, the following changes will be made as well:
 
 * Bust-a-Move 3000
     * Either L button, at least 25% -> full L press

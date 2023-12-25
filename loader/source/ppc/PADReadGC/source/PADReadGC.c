@@ -208,6 +208,10 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		// Mario Party 4
 		reset_gamecube_dpad();
 		BTDPadToStick(out, pad.button, 0x7F);
+
+#ifdef LI_SHOULDER_DIRECT
+		map_classic_controller_to_gamecube(BT_BUTTON_SELECT, PAD_BUTTON_X);
+#endif
 	}
 
 #ifdef LI_SHOULDER
@@ -1286,6 +1290,27 @@ u32 PADRead(u32 calledByGame)
 				button |= PAD_TRIGGER_R;
 			if (BTPad[chan].button & BT_BUTTON_SELECT)
 				button |= PAD_TRIGGER_Z;
+		}
+#elif LI_SHOULDER_DIRECT
+		Pad[chan].triggerLeft = BTPad[chan].triggerL;
+		Pad[chan].triggerRight = BTPad[chan].triggerR;
+
+		if (BTPad[chan].button & BT_TRIGGER_L) {
+			button |= PAD_TRIGGER_L;
+			Pad[chan].triggerLeft = 0xFF;
+		}
+
+		if (BTPad[chan].button & BT_TRIGGER_R) {
+			button |= PAD_TRIGGER_R;
+			Pad[chan].triggerRight = 0xFF;
+		}
+
+		if (BTPad[chan].button & BT_TRIGGER_ZL) {
+			button |= PAD_TRIGGER_Z;
+		}
+
+		if (BTPad[chan].button & BT_TRIGGER_ZR) {
+			button |= PAD_TRIGGER_Z;
 		}
 #else
 		if(BTPad[chan].used & C_CC)

@@ -21,12 +21,20 @@
 #define LI_CUSTOM_CONTROLS
 #define LI_BASE64
 
+#ifdef LI_SHOULDER
+#ifdef LI_SHOULDER_DIRECT
+#error LI_SHOULDER and LI_SHOULDER_DIRECT cannot be used together
+#endif
+#endif
+
 #if defined(LI_XBOX360)
 #define NIN_SPECIAL_VERSION			"-li-green"
 #elif !defined(LI_NONUNCHUK)
 #define NIN_SPECIAL_VERSION			"-li-navy"
 #elif defined(LI_SHOULDER)
 #define NIN_SPECIAL_VERSION			"-li-teal"
+#elif defined(LI_SHOULDER_DIRECT)
+#define NIN_SPECIAL_VERSION			"-li-gray"
 #endif
 
 #endif
