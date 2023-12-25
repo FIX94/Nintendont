@@ -295,22 +295,21 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	else if (*TitleID == 0x474d53)
 	{
 		// Super Mario Sunshine
-		reset_gamecube_button(PAD_TRIGGER_Z);
-		reset_gamecube_button(PAD_TRIGGER_R);
-		triggerRight = 0;
+		if (!(pad.used & C_CC)) {
+			reset_gamecube_button(PAD_TRIGGER_R);
+			triggerRight = 0;
 
-		if (classic_controller_has(BT_SMALL_L)) {
-			triggerLeft = 0xFF;
+			if (classic_controller_has(BT_TRIGGER_L)) {
+				triggerLeft = 0xFF;
+			}
+			if (classic_controller_has(BT_TRIGGER_R)) {
+				triggerRight = 0xFF;
+				button |= PAD_TRIGGER_R;
+			}
+			if (classic_controller_has(BT_TRIGGER_ZR)) {
+				triggerRight = 0xFF;
+			}
 		}
-		if (classic_controller_has(BT_SMALL_R)) {
-			triggerRight = 0xFF;
-			button |= PAD_TRIGGER_R;
-		}
-		if (classic_controller_has(BT_LARGE_R) || pad.triggerR >= 0x40) {
-			triggerRight = 0xFF;
-		}
-
-		map_classic_controller_to_gamecube(BT_BUTTON_SELECT, PAD_TRIGGER_Z);
 	}
 	else if (*TitleID == 0x474c4d)
 	{

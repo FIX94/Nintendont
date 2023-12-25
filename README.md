@@ -78,13 +78,11 @@ If `LI_SHOULDER` is also enabled, the following changes will be made as well:
     * Large R button -> full R press
     * Small R button -> Z
     * Select -> D-pad up
-* Super Mario Sunshine
-    * Default Z button unmapped
+* Super Mario Sunshine (Classic Controller Pro only)
     * Default R button unmapped
-    * Small L button -> 100% analog L press (no digital press)
-    * Small R button -> 100% analog and digital R press
-    * Large R button -> 100% analog R press (no digital press)
-    * Select -> Z
+    * L -> 100% analog L press (no digital press)
+    * R -> 100% analog and digital R press
+    * ZR -> 100% analog R press (no digital press)
 * Luigi's Mansion (Classic Controller Pro only)
     * Default shoulder buttons unmapped
     * ZL or ZR -> R
