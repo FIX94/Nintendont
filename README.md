@@ -93,7 +93,8 @@ If `LI_SHOULDER` is also enabled, the following changes will be made as well:
     * D-pad unmapped
     * Default Y and Z buttons unmapped
     * D-pad -> left analog stick, full tilt
-    * Y -> A + L + R
+    * Y -> L + R
+    * Y + left analog stick (more than 25% left or right) -> A + L + R
     * Up, Down, Select, large L button, or at least 25% L press -> X
     * Left -> digital L press
     * Right -> digital R press
