@@ -309,8 +309,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 			if (classic_controller_has(BT_TRIGGER_R)) {
 				triggerRight = 0xFF;
 				button |= PAD_TRIGGER_R;
-			}
-			if (classic_controller_has(BT_TRIGGER_ZR)) {
+			} else if (classic_controller_has(BT_TRIGGER_ZR)) {
 				triggerRight = 0xFF;
 			}
 		}
@@ -337,8 +336,6 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 	else if (*TitleID == 0x474d34)
 	{
 		// Mario Kart: Double Dash!!
-		s8 horiz_vector = out->stickX;
-
 		reset_gamecube_shoulder_buttons();
 		reset_gamecube_dpad();
 		reset_gamecube_button(PAD_BUTTON_Y | PAD_TRIGGER_Z);
@@ -348,7 +345,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		// pivot
 		if (classic_controller_has(BT_BUTTON_Y)) {
 			press_gamecube_button(PAD_TRIGGER_L | PAD_TRIGGER_R);
-			if (horiz_vector >= 0x20 || horiz_vector <= -0x20) {
+			if (out->stickX >= 0x20 || out->stickX <= -0x20) {
 				press_gamecube_button(PAD_BUTTON_A);
 			}
 		}
