@@ -1288,18 +1288,16 @@ u32 PADRead(u32 calledByGame)
 			if (BTPad[chan].button & BT_BUTTON_SELECT)
 				button |= PAD_TRIGGER_Z;
 		}
-#elif LI_SHOULDER_DIRECT
+#elif defined LI_SHOULDER_DIRECT
 		Pad[chan].triggerLeft = BTPad[chan].triggerL;
 		Pad[chan].triggerRight = BTPad[chan].triggerR;
 
 		if (BTPad[chan].button & BT_TRIGGER_L) {
 			button |= PAD_TRIGGER_L;
-			Pad[chan].triggerLeft = 0xFF;
 		}
 
 		if (BTPad[chan].button & BT_TRIGGER_R) {
 			button |= PAD_TRIGGER_R;
-			Pad[chan].triggerRight = 0xFF;
 		}
 
 		if (BTPad[chan].button & BT_TRIGGER_ZL) {

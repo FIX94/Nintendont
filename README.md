@@ -27,8 +27,8 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * Select -> Z
 * `LI_SHOULDER_DIRECT`: tweaks the button mappings on certain controllers
     * Classic Controller / Classic Controller Pro:
-        * L -> L (passthrough; digital press also emulates full analog press)
-        * R -> R (passthrough; digital press also emulates full analog press)
+        * L -> L (analog passthrough)
+        * R -> R (analog passthrough)
         * ZL -> Z
         * ZR -> Z
 * `LI_ANALOG_SHOULDER_FULL`: simulates a full analog L/R press on the Classic Controller whenever a digital (full) press is detected
