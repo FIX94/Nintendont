@@ -338,7 +338,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		// Mario Kart: Double Dash!!
 		reset_gamecube_shoulder_buttons();
 		reset_gamecube_dpad();
-		reset_gamecube_button(PAD_BUTTON_Y | PAD_TRIGGER_Z);
+		reset_gamecube_button(PAD_BUTTON_Y);
 
 		BTDPadToStick(out, pad.button, 0x7F);
 
@@ -351,7 +351,7 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 		}
 
 		// item
-		if (classic_controller_has(BT_DPAD_UP | BT_DPAD_DOWN | BT_BUTTON_SELECT | BT_LARGE_L) || pad.triggerL >= 0x40) {
+		if (classic_controller_has(BT_DPAD_UP | BT_DPAD_DOWN | BT_LARGE_L) || pad.triggerL >= 0x40) {
 			press_gamecube_button(PAD_BUTTON_X);
 		}
 
