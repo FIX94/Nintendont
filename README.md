@@ -80,7 +80,7 @@ If `LI_CUSTOM_CONTROLS` and `LI_SHOULDER` are both enabled, the following change
     * D-pad unmapped
     * Default L, R, and Z buttons unmapped
     * Analog L and R inputs reset to native controller's inputs
-    * D-pad -> left analog stick, 25% tilt
+    * D-pad -> left analog stick, 50% tilt
     * Large L button -> full L press
     * Small L button -> 25% L press
     * Large R button -> full R press
