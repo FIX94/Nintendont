@@ -344,9 +344,16 @@ void HandleClassicController(struct BTPadCont pad, PADStatus* out) {
 
 		// pivot
 		if (classic_controller_has(BT_BUTTON_Y)) {
-			press_gamecube_button(PAD_TRIGGER_L | PAD_TRIGGER_R);
-			if (out->stickX >= 0x20 || out->stickX <= -0x20) {
-				press_gamecube_button(PAD_BUTTON_A);
+			u8 raw = (u8)out->stickX;
+			if (raw >= 0x20 && raw < 0x80) {
+				out->stickX = 0x7F;
+				out->stickY = 0;
+				press_gamecube_button(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_A);
+			}
+			else if (raw >= 0x80 && raw < 0xE0) {
+				out->stickX = -0x7F;
+				out->stickY = 0;
+				press_gamecube_button(PAD_TRIGGER_L | PAD_TRIGGER_R | PAD_BUTTON_A);
 			}
 		}
 

@@ -99,11 +99,10 @@ If `LI_CUSTOM_CONTROLS` and `LI_SHOULDER` are both enabled, the following change
 * Mario Kart: Double Dash!!
     * Default shoulder buttons unmapped
     * D-pad unmapped
-    * Default Y and Z buttons unmapped
+    * Default Y button unmapped
     * D-pad -> left analog stick, full tilt
-    * Y -> L + R
-    * Y + left analog stick (more than 25% left or right) -> A + L + R
-    * Up, Down, Select, large L button, or at least 25% L press -> X
+    * Y + left analog stick (more than 25% left or right) -> left analog stick 100% left or right + A + L + R
+    * Up, Down, large L button, or at least 25% L press -> X
     * Left -> digital L press
     * Right -> digital R press
     * Small L or R buttons -> Z
