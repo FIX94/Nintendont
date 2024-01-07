@@ -1301,10 +1301,12 @@ u32 PADRead(u32 calledByGame)
 
 		if (BTPad[chan].button & BT_TRIGGER_L) {
 			button |= PAD_TRIGGER_L;
+			Pad[chan].triggerLeft = 0xFF;
 		}
 
 		if (BTPad[chan].button & BT_TRIGGER_R) {
 			button |= PAD_TRIGGER_R;
+			Pad[chan].triggerRight = 0xFF;
 		}
 
 		if (BTPad[chan].button & BT_TRIGGER_ZL) {
