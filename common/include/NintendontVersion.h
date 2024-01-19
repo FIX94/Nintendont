@@ -19,10 +19,10 @@
 #define LI_SHOULDER
 #elif defined LI_VARIANT_NAVY
 #define NIN_SPECIAL_VERSION			"-li-navy"
-#define LI_NONUNCHUK
 #define LI_SHOULDER
 #elif defined LI_VARIANT_TEAL
 #define NIN_SPECIAL_VERSION			"-li-teal"
+#define LI_NONUNCHUK
 #define LI_SHOULDER
 #elif defined LI_VARIANT_GRAY
 #define NIN_SPECIAL_VERSION			"-li-gray"
