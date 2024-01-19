@@ -1291,8 +1291,14 @@ u32 PADRead(u32 calledByGame)
 				button |= PAD_TRIGGER_Z;
 		}
 #elif defined LI_SHOULDER_DIRECT
-		Pad[chan].triggerLeft = BTPad[chan].triggerL;
-		Pad[chan].triggerRight = BTPad[chan].triggerR;
+		if (BTPad[chan].used & C_CCP) {
+			Pad[chan].triggerLeft = 0;
+			Pad[chan].triggerRight = 0;
+		}
+		else {
+			Pad[chan].triggerLeft = BTPad[chan].triggerL;
+			Pad[chan].triggerRight = BTPad[chan].triggerR;
+		}
 
 		if (BTPad[chan].button & BT_TRIGGER_L) {
 			button |= PAD_TRIGGER_L;

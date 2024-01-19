@@ -10,9 +10,25 @@
 #define STRINGIZE(s) STRINGIZE2(s)
 #define NIN_VERSION_STRING "$$Version:" STRINGIZE(NIN_MAJOR_VERSION) "." STRINGIZE(NIN_MINOR_VERSION)
 
+#define LI_VARIANT_GREEN
+
+#if defined LI_VARIANT_GREEN
+#define NIN_SPECIAL_VERSION			"-li-green"
 #define LI_XBOX360
 #define LI_NONUNCHUK
 #define LI_SHOULDER
+#elif defined LI_VARIANT_NAVY
+#define NIN_SPECIAL_VERSION			"-li-navy"
+#define LI_NONUNCHUK
+#define LI_SHOULDER
+#elif defined LI_VARIANT_TEAL
+#define NIN_SPECIAL_VERSION			"-li-teal"
+#define LI_SHOULDER
+#elif defined LI_VARIANT_GRAY
+#define NIN_SPECIAL_VERSION			"-li-gray"
+#define LI_SHOULDER_DIRECT
+#endif
+
 #define LI_ANALOG_SHOULDER_FULL
 #define LI_GAMEPADASCCPRO
 #define LI_NOSWAP
@@ -25,16 +41,6 @@
 #ifdef LI_SHOULDER_DIRECT
 #error LI_SHOULDER and LI_SHOULDER_DIRECT cannot be used together
 #endif
-#endif
-
-#if defined(LI_XBOX360)
-#define NIN_SPECIAL_VERSION			"-li-green"
-#elif defined(LI_SHOULDER) && !defined(LI_NONUNCHUK)
-#define NIN_SPECIAL_VERSION			"-li-navy"
-#elif defined(LI_SHOULDER)
-#define NIN_SPECIAL_VERSION			"-li-teal"
-#elif defined(LI_SHOULDER_DIRECT) && !defined(LI_NONUNCHUK)
-#define NIN_SPECIAL_VERSION			"-li-gray"
 #endif
 
 #endif
