@@ -25,7 +25,7 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * Home -> Start (if `LI_NOEXIT` is used)
         * Select -> Z
 * `LI_SHOULDER_DIRECT`: tweaks the button mappings on certain controllers
-    * Classic Controller / Classic Controller Pro:
+    * Classic Controller / Classic Controller Pro / Wii U GamePad:
         * L -> L (analog passthrough)
         * R -> R (analog passthrough)
         * ZL -> Y
