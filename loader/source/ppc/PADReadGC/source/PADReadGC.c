@@ -509,7 +509,7 @@ u32 PADRead(u32 calledByGame)
 		}
 
 		if (drcbutton & WIIDRC_BUTTON_ZL)
-			button |= PAD_TRIGGER_Y;
+			button |= PAD_BUTTON_Y;
 
 		if (drcbutton & WIIDRC_BUTTON_ZR)
 			button |= PAD_TRIGGER_Z;
