@@ -4,7 +4,6 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
 
 * `LI_XBOX360`: includes all extra code from https://github.com/revvv/Nintendont-XBOX360 to support Xbox 360 controllers and others (see below - note that some supporting code is included either way)
 * `LI_NONUNCHUK`: removes Nunchuk support
-* `LI_GAMEPADASCCPRO`: removes Wii U GamePad mapping code and instead reuses the Classic Controller Pro code path
 * `LI_NOSWAP`: removes the controller shortcuts that allow you to swap buttons (Y/B vs. B/A)
 * `LI_NOEXIT`: removes the ability to exit Nintendont without turning off or resetting the console
 * `LI_NORESET`: removes the ability to reset the game with a controller button combo (at least on certain controllers)
@@ -18,7 +17,7 @@ Available preprocessor flags in this branch (define these in NintendontVersion.h
         * ZR -> half R press (0x7F)
         * Home -> Start (if `LI_NOEXIT` is used)
         * Select -> Z
-    * Classic Controller Pro:
+    * Classic Controller Pro / Wii U GamePad:
         * ZL -> full L press (0xFF)
         * ZR -> full R press (0xFF)
         * L -> half L press (0x7F)
@@ -44,7 +43,8 @@ You'll also want to make sure the devkitpro folder with libwinpthread-1.dll is i
 ### Custom controls
 
 When the preprocessor flag `LI_CUSTOM_CONTROLS` is enabled, the following changes will be made to
-Classic Controller and Classic Controller Pro button mappings:
+Classic Controller and Classic Controller Pro button mappings. (Mappings for other controllers,
+like the Wii U GamePad and GameCube Controller, will not be changed.)
 
 * The Legend of Zelda: Four Swords Adventures
     * D-pad unmapped

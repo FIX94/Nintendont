@@ -439,39 +439,6 @@ u32 PADRead(u32 calledByGame)
 		//check for console shutdown request
 		if(i2cdata[1] & 0x80) goto DoShutdown;
 
-#ifdef LI_GAMEPADASCCPRO
-		struct BTPadCont simulatedPad;
-		simulatedPad.used = C_CCP;
-
-		s8 tmp_stick8; s16 tmp_stick16;
-		_DRC_BUILD_TMPSTICK(i2cdata[4]);
-		simulatedPad.xAxisL = tmp_stick8;
-		_DRC_BUILD_TMPSTICK(i2cdata[5]);
-		simulatedPad.yAxisL = tmp_stick8;
-		_DRC_BUILD_TMPSTICK(i2cdata[6]);
-		simulatedPad.xAxisR = tmp_stick8;
-		_DRC_BUILD_TMPSTICK(i2cdata[7]);
-		simulatedPad.yAxisR = tmp_stick8;
-
-		u16 drcbutton = (i2cdata[2] << 8) | (i2cdata[3]);
-		if (drcbutton & WIIDRC_BUTTON_UP) simulatedPad.button |= BT_DPAD_UP;
-		if (drcbutton & WIIDRC_BUTTON_DOWN) simulatedPad.button |= BT_DPAD_DOWN;
-		if (drcbutton & WIIDRC_BUTTON_LEFT) simulatedPad.button |= BT_DPAD_LEFT;
-		if (drcbutton & WIIDRC_BUTTON_RIGHT) simulatedPad.button |= BT_DPAD_RIGHT;
-		if (drcbutton & WIIDRC_BUTTON_A) simulatedPad.button |= BT_BUTTON_A;
-		if (drcbutton & WIIDRC_BUTTON_B) simulatedPad.button |= BT_BUTTON_B;
-		if (drcbutton & WIIDRC_BUTTON_X) simulatedPad.button |= BT_BUTTON_X;
-		if (drcbutton & WIIDRC_BUTTON_Y) simulatedPad.button |= BT_BUTTON_Y;
-		if (drcbutton & WIIDRC_BUTTON_L) simulatedPad.button |= BT_TRIGGER_L;
-		if (drcbutton & WIIDRC_BUTTON_R) simulatedPad.button |= BT_TRIGGER_R;
-		if (drcbutton & WIIDRC_BUTTON_ZL) simulatedPad.button |= BT_TRIGGER_ZL;
-		if (drcbutton & WIIDRC_BUTTON_ZR) simulatedPad.button |= BT_TRIGGER_ZR;
-		if (drcbutton & WIIDRC_BUTTON_PLUS) simulatedPad.button |= BT_BUTTON_START;
-		if (drcbutton & WIIDRC_BUTTON_MINUS) simulatedPad.button |= BT_BUTTON_SELECT;
-		if (drcbutton & WIIDRC_BUTTON_HOME) simulatedPad.button |= BT_BUTTON_HOME;
-
-		HandleClassicController(simulatedPad, &Pad[WiiUGamepadSlot]);
-#else
 		//Start out mapping buttons first
 		u16 button = 0;
 		u16 drcbutton = (i2cdata[2]<<8) | (i2cdata[3]);
@@ -499,7 +466,7 @@ u32 PADRead(u32 calledByGame)
 		if(drcbutton & WIIDRC_BUTTON_RIGHT) button |= PAD_BUTTON_RIGHT;
 		if(drcbutton & WIIDRC_BUTTON_UP) button |= PAD_BUTTON_UP;
 		if(drcbutton & WIIDRC_BUTTON_DOWN) button |= PAD_BUTTON_DOWN;
-#ifdef LI_SHOULDER
+#if defined LI_SHOULDER
 		if (drcbutton & WIIDRC_BUTTON_ZL) {
 			button |= PAD_TRIGGER_L;
 			Pad[WiiUGamepadSlot].triggerLeft = 0xFF;
@@ -582,7 +549,6 @@ u32 PADRead(u32 calledByGame)
 		Pad[WiiUGamepadSlot].substickX = tmp_stick8;
 		_DRC_BUILD_TMPSTICK(i2cdata[7]);
 		Pad[WiiUGamepadSlot].substickY = tmp_stick8;
-#endif
 	}
 	else
 	{
