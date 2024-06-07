@@ -183,7 +183,7 @@ u32 PADRead(u32 calledByGame)
 		if(drcbutton & WIIDRC_BUTTON_HOME) goto DoExit;
 		//write in mapped out buttons
 		Pad[WiiUGamepadSlot].button = button;
-		if((Pad[WiiUGamepadSlot].button&0x1030) == 0x1030) //reset by pressing start, Z, R
+		if((Pad[WiiUGamepadSlot].button&0x1900) == 0x1900) //reset by pressing A, Y, Start
 		{
 			/* reset status 3 */
 			*RESET_STATUS = 0x3DEA;
@@ -301,8 +301,8 @@ u32 PADRead(u32 calledByGame)
 					Pad[chan].triggerRight = 0;
 			}
 
-			/* exit by pressing B,Z,R,PAD_BUTTON_DOWN */
-			if((Pad[chan].button&0x234) == 0x234)
+			/* exit by pressing L, R, Start */
+			if((Pad[chan].button&0x1060) == 0x1060)
 			{
 				goto DoExit;
 			}
@@ -346,7 +346,7 @@ u32 PADRead(u32 calledByGame)
 				tempStick = -0x80;
 			Pad[chan].substickY = (s8)tempStick;
 
-			if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+			if((Pad[chan].button&0x1900) == 0x1900) //reset by pressing A, Y, Start
 			{
 				/* reset status 3 */
 				*RESET_STATUS = 0x3DEA;
@@ -548,7 +548,7 @@ u32 PADRead(u32 calledByGame)
 			button |= PAD_BUTTON_START;
 		Pad[chan].button = button;
 
-		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+		if((Pad[chan].button&0x1900) == 0x1900) //reset by pressing A, Y, Start
 		{
 			/* reset status 3 */
 			*RESET_STATUS = 0x3DEA;
@@ -1444,12 +1444,12 @@ u32 PADRead(u32 calledByGame)
 			Pad[chan].stickY = Pad[chan].triggerLeft;
 		#endif
 
-		//exit by pressing B,Z,R,PAD_BUTTON_DOWN
-		if((Pad[chan].button&0x234) == 0x234)
+		//exit by pressing L, R, Start
+		if((Pad[chan].button&0x1060) == 0x1060)
 		{
 			goto DoExit;
 		}
-		if((Pad[chan].button&0x1030) == 0x1030)	//reset by pressing start, Z, R
+		if((Pad[chan].button&0x1900) == 0x1900) //reset by pressing A, Y, Start
 		{
 			/* reset status 3 */
 			*RESET_STATUS = 0x3DEA;
