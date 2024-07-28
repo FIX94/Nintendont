@@ -14,3 +14,8 @@ jobs:
     - name: Build
       run: |
         make -j2
+        
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        path: ./loader/loader.dol
