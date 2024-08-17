@@ -14,8 +14,9 @@ jobs:
     - name: Build
       run: |
         make -j2
+        cp ./loader/loader.dol ./nintendont/boot.dol
         
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        path: ./loader/loader.dol
+        path: ./nintendont
