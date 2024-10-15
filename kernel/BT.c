@@ -21,6 +21,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /* WiiU Pro Controller Documentation from TeHaxor69 */
 /* lwBT ported from LibOGC */
 
+#define IR_CFG_FILE 0x93005180
+#define IR_CFG_SIZE 0x93005184
+
 #include "global.h"
 #include "string.h"
 #include "BT.h"
