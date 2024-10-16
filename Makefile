@@ -15,10 +15,21 @@ SUBPROJECTS := multidol kernel/asm resetstub \
 	fatfs/libfat-arm.a fatfs/libfat-ppc.a \
 	codehandler kernel kernelboot \
 	loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface loader
+
+MINOR_VER := $(shell sed -n "s|#define NIN_MINOR_VERSION\t\t\t||p" common/include/NintendontVersion.h)
+MAJOR_VER := $(shell sed -n "s|#define NIN_MAJOR_VERSION\t\t\t||p" common/include/NintendontVersion.h)
+BUILD_DATE := $(shell date -u +%Y%m%d000000)
+
 .PHONY: all forced clean $(SUBPROJECTS)
 
 all: loader
 forced: clean all
+
+version:
+	@echo " "
+	@echo "Replacing version in meta.xml"
+	@echo " "
+	@sed -i -e "s/PLACEHOLDER_DATE/$(BUILD_DATE)/" -e "s/PLACEHOLDER_VERSION/$(MAJOR_VER).$(MINOR_VER)/" nintendont/meta.xml
 
 multidol:
 	@echo " "
@@ -80,7 +91,7 @@ kernelboot:
 	@echo " "
 	$(MAKE) -C kernelboot
 
-loader: multidol resetstub fatfs/libfat-ppc.a kernel kernelboot loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface
+loader: version multidol resetstub fatfs/libfat-ppc.a kernel kernelboot loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface
 	@echo " "
 	@echo "Building Nintendont loader"
 	@echo " "
@@ -90,6 +101,8 @@ clean:
 	@echo " "
 	@echo "Cleaning all subprojects..."
 	@echo " "
+	@sed -i "s|<version>.....</version>|<version>PLACEHOLDER_VERSION</version>|" nintendont/meta.xml
+	@sed -i "s|<release_date>..............</release_date>|<release_date>PLACEHOLDER_DATE</release_date>|" nintendont/meta.xml
 	$(MAKE) -C multidol clean
 	$(MAKE) -C kernel/asm clean
 	$(MAKE) -C resetstub clean
