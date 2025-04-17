@@ -472,6 +472,7 @@ static void Patch31A0( void )
 		u32 CurBuf = read32(0x319C);
 		//create jump for it
 		PatchB(PatchOffset, 0x319C);
+		sync_after_write((void *)0x319C, 4);
 		if ((CurBuf & 0xFC000002) == 0x40000000)
 		{
 			u32 Orig = CurBuf;
