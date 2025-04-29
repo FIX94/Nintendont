@@ -62,6 +62,7 @@
 #include "asm/SOClose.h"
 #include "asm/SOListen.h"
 #include "asm/SOAccept.h"
+#include "asm/SOConnect.h"
 #include "asm/SOBind.h"
 #include "asm/SOShutdown.h"
 #include "asm/SORecvFrom.h"
