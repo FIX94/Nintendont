@@ -177,7 +177,7 @@ static void DrawGameInfoScreen(const gameinfo *gi, const MD5VerifyState_t *md5)
 		"Extracted FST",
 		"Compressed ISO (Hermes uLoader format)",
 		"Multi-Game Disc",
-		"Unknown (5)",
+		"Oversized",
 		"Unknown (6)",
 		"Unknown (7)",
 	};
