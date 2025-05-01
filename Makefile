@@ -12,9 +12,10 @@ $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>dev
 endif
 
 SUBPROJECTS := multidol kernel/asm resetstub \
-	fatfs/libfat-arm.a fatfs/libfat-ppc.a \
-	codehandler kernel kernelboot \
-	loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface loader
+	kernel/bin2h fatfs/libfat-arm.a \
+	fatfs/libfat-ppc.a  codehandler \
+	kernel kernelboot  loader/source/ppc/PADReadGC \
+	loader/source/ppc/IOSInterface loader
 .PHONY: all forced clean $(SUBPROJECTS)
 
 all: loader
@@ -55,6 +56,12 @@ codehandler:
 	@echo "Building Nintendont code handler"
 	@echo " "
 	$(MAKE) -C codehandler
+	
+kernel/bin2h:
+	@echo " "
+	@echo "Building Binary to Assembly Converter"
+	@echo " "
+	$(MAKE) -C kernel/bin2h
 
 kernel: kernel/asm fatfs/libfat-arm.a codehandler
 	@echo " "
@@ -80,7 +87,7 @@ kernelboot:
 	@echo " "
 	$(MAKE) -C kernelboot
 
-loader: multidol resetstub fatfs/libfat-ppc.a kernel kernelboot loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface
+loader: multidol resetstub kernel/bin2h fatfs/libfat-ppc.a kernel kernelboot loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface
 	@echo " "
 	@echo "Building Nintendont loader"
 	@echo " "
@@ -93,6 +100,7 @@ clean:
 	$(MAKE) -C multidol clean
 	$(MAKE) -C kernel/asm clean
 	$(MAKE) -C resetstub clean
+	$(MAKE) -C kernel/bin2h clean
 	$(MAKE) -C fatfs -f Makefile.arm clean
 	$(MAKE) -C fatfs -f Makefile.ppc clean
 	$(MAKE) -C codehandler clean
