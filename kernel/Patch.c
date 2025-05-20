@@ -472,6 +472,7 @@ static void Patch31A0( void )
 		u32 CurBuf = read32(0x319C);
 		//create jump for it
 		PatchB(PatchOffset, 0x319C);
+		sync_after_write((void *)0x319C, 4);
 		if ((CurBuf & 0xFC000002) == 0x40000000)
 		{
 			u32 Orig = CurBuf;
@@ -1444,7 +1445,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			PatchBL(PatchCopy(SonicRidersCopy, SonicRidersCopy_size), SONICRIDERS_HOOK_PAL);
 			dbgprintf("Patch:Patched Sonic Riders _Main.rel PAL\r\n");
 		} /* Agressive Timer Patches for Nintendo Puzzle Collection */
-		else if( (GAME_ID) == 0x47505A4A && useipl == 0 )
+		else if( (TITLE_ID) == 0x47505A && useipl == 0 )
 		{
 			u32 t;
 			for(t = 0; t < Length; t+=4) //make sure its patched at all times
@@ -1698,7 +1699,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 	{
 		if(TITLE_ID == 0x474D34 || TITLE_ID == 0x474B59 || TITLE_ID == 0x475445)
 			bbaEmuWanted = 1;
-		else if(GAME_ID == 0x4748454A || isPSO)
+		else if(TITLE_ID == 0x474845 || isPSO)
 			bbaEmuWanted = 2;
 	}
 	else
@@ -3885,7 +3886,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			write32(SO_HSP_LOC+0x18, SOShift << 16 | SOCurrentTotalFDs);
 			write32(SO_HSP_LOC+0x1C, 0); //needs to be inited
 			sync_after_write((void*)SO_HSP_LOC, 0x20);
-			if(GAME_ID == 0x4748454A)
+			if(TITLE_ID == 0x474845)
 			{
 				if(read32(0x6E88) == 0x4804E39D)
 				{
@@ -3901,7 +3902,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 				}
 			}
 		}
-		else if(GAME_ID == 0x4748454A && read32(0x5DD4) == 0x480AF13D)
+		else if(TITLE_ID == 0x474845 && read32(0x5DD4) == 0x480AF13D)
 		{
 			write32(0x5DCC, 0x3C600402);
 			write32(0x5DD0, 0x60630200);

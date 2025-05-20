@@ -66,7 +66,7 @@ const u32 DiscFormatColors[8] =
 	0x00551AFF,	// Extracted FST
 	0x001A55FF,	// CISO
 	0x551A55FF,	// Multi-Game
-	GRAY,		// undefined
+	0x55551AFF,	// Oversized (dark yellow)
 	GRAY,		// undefined
 	GRAY,		// undefined
 };
@@ -192,6 +192,11 @@ static bool IsDiscImageValid(const char *filename, int discNumber, gameinfo *gi)
 		{
 			// Full 1:1 GameCube image.
 			gi->Flags = GIFLAG_FORMAT_FULL;
+		}
+		else if (in.obj.objsize > 1459978240)
+		{
+			// Oversized GameCube image.
+			gi->Flags = GIFLAG_FORMAT_OVER;
 		}
 		else
 		{
@@ -735,6 +740,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X+(21*10), MENU_POS_Y + 20*3, "FST");
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[3], MENU_POS_X+(25*10), MENU_POS_Y + 20*3, "CISO");
 		PrintFormat(DEFAULT_SIZE, DiscFormatColors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
+		PrintFormat(DEFAULT_SIZE, DiscFormatColors[5], MENU_POS_X+(36*10), MENU_POS_Y + 20*3, "Over");
 
 		// Starting position.
 		int gamelist_y = MENU_POS_Y + 20*5 + 10;
