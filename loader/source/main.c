@@ -1446,13 +1446,13 @@ int main(int argc, char **argv)
         else if (specificForceFlags & NIN_VID_FORCE_NTSC_240P) {
             *(vu32*)0x800000CC = 0; vmode = &TVNtsc240Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_PAL_288P) {
-            *(vu32*)0x800000CC = 1; vmode = &TVPal264Ds;
+            *(vu32*)0x800000CC = 1; vmode = &TVPal576DsFb; // Changed from TVPal264Ds to TVPal576DsFb
         } else if (specificForceFlags & NIN_VID_FORCE_MPAL_240P) {
             *(vu32*)0x800000CC = 3; vmode = &TVMpal240Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_EURGB60_240P) {
             *(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz240Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_PAL_576P) {
-            *(vu32*)0x800000CC = 1; vmode = &TVPal576ProgScale; // Use compiler suggested TVPal576ProgScale
+            *(vu32*)0x800000CC = 1; vmode = &TVPal576ProgScale;
         }
     }
     // --- VIDEO MODE LOGIC END ---
