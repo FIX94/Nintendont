@@ -828,12 +828,11 @@ int main(int argc, char **argv)
 	ReconfigVideo(rmode);
 	UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 
-	bool progressive_scan_enabled = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
-	if(progressive_scan_enabled) //important to prevent blackscreens
-		ncfg->VideoMode |= NIN_VID_PROG; // Set the progressive flag in VideoMode
+	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
+	if(progressive) //important to prevent blackscreens
+		ncfg->VideoMode |= NIN_VID_PROG;
 	else
-		ncfg->VideoMode &= ~NIN_VID_PROG; // Clear the progressive flag in VideoMode
-
+		ncfg->VideoMode &= ~NIN_VID_PROG;
 
 	bool SaveSettings = false;
 	if(!(ncfg->Config & NIN_CFG_AUTO_BOOT))
@@ -1395,7 +1394,7 @@ int main(int argc, char **argv)
 	u32 vidForce = (ncfg->VideoMode & NIN_VID_FORCE);
 	u32 vidForceMode = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
 
-	bool progressive = (ncfg->Config & NIN_CFG_FORCE_PROG) // This is the one that matters for 480p
+	progressive = (ncfg->Config & NIN_CFG_FORCE_PROG)
 		&& !useipl && !useipltri;
 
 	switch (gameBI2region)
@@ -1407,29 +1406,29 @@ int main(int argc, char **argv)
 			     vidForceMode == NIN_VID_FORCE_NTSC)))
 			{
 				// PAL60 and/or PAL-M
-				*(vu32*)0x800000CC = 5; // EURGB60
+				*(vu32*)0x800000CC = 5;
 			}
 			else
 			{
 				// PAL50
-				*(vu32*)0x800000CC = 1; // PAL
+				*(vu32*)0x800000CC = 1;
 			}
-			vmode = &TVPal528IntDf; // Default PAL
+			vmode = &TVPal528IntDf;
 			break;
 
 		case BI2_REGION_USA:
 			if ((vidForce && vidForceMode == NIN_VID_FORCE_MPAL) ||
 			    (!vidForce && ((CONF_GetVideo() == CONF_VIDEO_MPAL)
-					|| (useipl && iplbuf && memcmp(iplbuf+0x55,"MPAL",4) == 0)))) // Added iplbuf NULL check
+					|| (useipl && iplbuf && memcmp(iplbuf+0x55,"MPAL",4) == 0))))
 			{
 				// PAL-M
-				*(vu32*)0x800000CC = 3; // MPAL
+				*(vu32*)0x800000CC = 3;
 				vmode = &TVMpal480IntDf;
 			}
 			else
 			{
 				// NTSC
-				*(vu32*)0x800000CC = 0; // NTSC
+				*(vu32*)0x800000CC = 0;
 				vmode = &TVNtsc480IntDf;
 			}
 			break;
@@ -1438,75 +1437,70 @@ int main(int argc, char **argv)
 		case BI2_REGION_SOUTH_KOREA:
 		default:
 			// NTSC
-			*(vu32*)0x800000CC = 0; // NTSC
+			*(vu32*)0x800000CC = 0;
 			vmode = &TVNtsc480IntDf;
 			break;
 	}
 
-	if(progressive) // This is from (ncfg->Config & NIN_CFG_FORCE_PROG)
+	if(progressive)
 		vmode = &TVNtsc480Prog;
-	else if(vidForce) // This is from (ncfg->VideoMode & NIN_VID_FORCE)
+	else if(vidForce)
 	{
-		// vidForceMode is (ncfg->VideoMode & NIN_VID_FORCE_MASK)
-		// NIN_VID_FORCE_MASK was 0xF before, now 0x7CF including new modes
-		// The switch needs to handle individual bit flags if menu sets them that way.
-		// The menu.c logic was changed to set individual bits for specific modes.
-		// So, we check each bit.
-		if (vidForceMode & NIN_VID_FORCE_PAL50) {
-			*(vu32*)0x800000CC = 1; vmode = &TVPal528IntDf;
-		} else if (vidForceMode & NIN_VID_FORCE_PAL60) {
-			*(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz480IntDf;
-		} else if (vidForceMode & NIN_VID_FORCE_NTSC) {
-			*(vu32*)0x800000CC = 0; vmode = &TVNtsc480IntDf;
-		} else if (vidForceMode & NIN_VID_FORCE_MPAL) {
-			*(vu32*)0x800000CC = 3; vmode = &TVMpal480IntDf;
+		switch(vidForceMode)
+		{
+			case NIN_VID_FORCE_PAL50:
+				vmode = &TVPal528IntDf;
+				break;
+			case NIN_VID_FORCE_PAL60:
+				vmode = &TVEurgb60Hz480IntDf;
+				break;
+			case NIN_VID_FORCE_MPAL:
+				vmode = &TVMpal480IntDf;
+				break;
+			case NIN_VID_FORCE_NTSC:
+			default:
+				vmode = &TVNtsc480IntDf;
+				break;
 		}
-		// 240p/288p/576p modes (from CommonConfig.h, bits 6-10)
-		// These GXRModeObj names are based on compiler hints / Nintendont's presumed libogc version
-		else if (vidForceMode & NIN_VID_FORCE_NTSC_240P) { // Bit 6
-			*(vu32*)0x800000CC = 0; vmode = &TVNtsc240Ds;
-		} else if (vidForceMode & NIN_VID_FORCE_PAL_288P) { // Bit 7
-			*(vu32*)0x800000CC = 1; vmode = &TVPal264Ds; // Reverted to this
-		} else if (vidForceMode & NIN_VID_FORCE_MPAL_240P) { // Bit 8
-			*(vu32*)0x800000CC = 3; vmode = &TVMpal240Ds;
-		} else if (vidForceMode & NIN_VID_FORCE_EURGB60_240P) { // Bit 9
-			*(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz240Ds;
-		} else if (vidForceMode & NIN_VID_FORCE_PAL_576P) { // Bit 10
-			*(vu32*)0x800000CC = 1; vmode = &TVPal576ProgScale;
-		}
-		// If only NIN_VID_FORCE high bit is set, but no specific low bit, it will use the region default.
 	}
-
 	if((ncfg->Config & NIN_CFG_MEMCARDEMU) == 0) //setup real sram video
 	{
 		syssram *sram;
 		sram = __SYS_LockSram();
 		sram->display_offsetH = 0;	// Clear Offset
-		sram->flags		&= ~0x80;	// Clear Progmode initially
-		sram->flags		&= ~3;		// Clear Videomode bits
+		sram->flags		&= ~0x80;	// Clear Progmode
+		sram->flags		&= ~3;		// Clear Videomode
 
+		// PAL60 flag.
 		if (gameBI2region == BI2_REGION_PAL)
 		{
-            if (*(vu32*)0x800000CC == 5) { // Current mode is EURGB60 (PAL60)
-                sram->ntd |= 0x40; // Enable PAL60 in SRAM
-            } else { // PAL50 based modes (576i, 288p, 576p)
-                 sram->ntd &= ~0x40; // Disable PAL60 in SRAM
-            }
+			// Enable PAL60.
+			sram->ntd |= 0x40;
+
+			// TODO: Set the progressive scan flag on PAL?
 		}
-		else // NTSC or MPAL games
+		else
 		{
-			sram->ntd &= ~0x40; // Disable PAL60 flag
+			// Disable PAL60.
+			sram->ntd &= ~0x40; // Corrected: was sram->ntd &= 0x40;
+
+			// NTSC Prince of Persia Warrior Within set to Spanish
+			// actually has a bug that cant display the progressive
+			// screen question so dont set progressive flag in that
+			bool spPopWW = (ncfg->GameID == 0x47324F45 && // G2OE (PoP:WW USA)
+							ncfg->Language == NIN_LAN_SPANISH);
+
+			// Set the progressive scan flag if a component cable
+			// is connected (or HDMI on Wii U), unless we're loading
+			// BMX XXX, since that game won't even boot on a real
+			// GameCube if a component cable is connected.
+			if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW && // Not BMX XXX (GB3Exx)
+				(ncfg->VideoMode & NIN_VID_PROG)) // Check the VideoMode flag
+			{
+				sram->flags |= 0x80; // Set progressive scan flag in SRAM
+			}
 		}
 
-        // Set SRAM progressive flag if NIN_VID_PROG is set in ncfg->VideoMode
-        // (This flag is set by menu for 576p, or by console caps + NIN_CFG_FORCE_PROG for 480p)
-        bool spPopWW = (ncfg->GameID == 0x47324F45 && ncfg->Language == NIN_LAN_SPANISH);
-        if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW && (ncfg->VideoMode & NIN_VID_PROG))
-        {
-            sram->flags |= 0x80; // Set progressive scan flag in SRAM
-        }
-
-        // Set SRAM video type (PAL/NTSC) based on the final 0x800000CC value
 		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5) // If current mode is PAL50 or PAL60 (EURGB60)
 			sram->flags	|= 1; //Set PAL video mode in SRAM (bit 0 = 1)
 		// else NTSC/MPAL, sram->flags bit 0 remains 0 (NTSC)

@@ -109,8 +109,16 @@ enum ninvideomodeindex
         NIN_VID_INDEX_FORCE_NTSC        = (2),
         NIN_VID_INDEX_FORCE_MPAL        = (3),
 
-        NIN_VID_INDEX_PROG                      = (4),
-        NIN_VID_INDEX_PATCH_PAL50       = (5),
+        NIN_VID_INDEX_PROG                      = (4), // Bit 4 for NIN_VID_PROG
+        NIN_VID_INDEX_PATCH_PAL50       = (5), // Bit 5 for NIN_VID_PATCH_PAL50
+
+        // Indices for new 240p/288p modes
+        NIN_VID_INDEX_FORCE_NTSC_240P    = (6),  // Bit 6
+        NIN_VID_INDEX_FORCE_PAL_288P     = (7),  // Bit 7
+        NIN_VID_INDEX_FORCE_MPAL_240P    = (8),  // Bit 8
+        NIN_VID_INDEX_FORCE_EURGB60_240P = (9),  // Bit 9
+        // Index for 576p mode
+        NIN_VID_INDEX_FORCE_PAL_576P     = (10) // Bit 10
 };
 
 enum ninvideomode
@@ -122,15 +130,27 @@ enum ninvideomode
 
         NIN_VID_MASK            = NIN_VID_AUTO|NIN_VID_FORCE|NIN_VID_NONE|NIN_VID_FORCE_DF,
 
+        // Specific video mode flags (low bits)
         NIN_VID_FORCE_PAL50     = (1<<NIN_VID_INDEX_FORCE_PAL50),
         NIN_VID_FORCE_PAL60     = (1<<NIN_VID_INDEX_FORCE_PAL60),
         NIN_VID_FORCE_NTSC      = (1<<NIN_VID_INDEX_FORCE_NTSC),
         NIN_VID_FORCE_MPAL      = (1<<NIN_VID_INDEX_FORCE_MPAL),
 
-        NIN_VID_FORCE_MASK      = NIN_VID_FORCE_PAL50|NIN_VID_FORCE_PAL60|NIN_VID_FORCE_NTSC|NIN_VID_FORCE_MPAL,
+        NIN_VID_PROG            = (1<<NIN_VID_INDEX_PROG),
+        NIN_VID_PATCH_PAL50     = (1<<NIN_VID_INDEX_PATCH_PAL50),
 
-        NIN_VID_PROG            = (1<<NIN_VID_INDEX_PROG),      //important to prevent blackscreens
-        NIN_VID_PATCH_PAL50     = (1<<NIN_VID_INDEX_PATCH_PAL50), //different force behaviour
+        // New 240p/288p modes
+        NIN_VID_FORCE_NTSC_240P    = (1<<NIN_VID_INDEX_FORCE_NTSC_240P),
+        NIN_VID_FORCE_PAL_288P     = (1<<NIN_VID_INDEX_FORCE_PAL_288P),
+        NIN_VID_FORCE_MPAL_240P    = (1<<NIN_VID_INDEX_FORCE_MPAL_240P),
+        NIN_VID_FORCE_EURGB60_240P = (1<<NIN_VID_INDEX_FORCE_EURGB60_240P),
+
+        // New 576p mode
+        NIN_VID_FORCE_PAL_576P     = (1<<NIN_VID_INDEX_FORCE_PAL_576P),
+
+        NIN_VID_FORCE_MASK      = NIN_VID_FORCE_PAL50 | NIN_VID_FORCE_PAL60 | NIN_VID_FORCE_NTSC | NIN_VID_FORCE_MPAL |
+                                  NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P |
+                                  NIN_VID_FORCE_PAL_576P,
 };
 
 enum ninlanguage
