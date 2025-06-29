@@ -324,6 +324,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
         char filename[MAXPATHLEN];      // Current filename.
         u8 buf[0x100];                  // Disc header.
         int gamecount = 0;              // Current game count.
+        u32 i; // Declare loop variables at the start of the function or block for C89 compatibility
 
         if( isWiiVC )
         {
@@ -429,7 +430,7 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
                                 "disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso"
                         };
 
-                        u32 i;
+                        // u32 i; // already declared at function scope
                         for (i = 0; i < 8; i++)
                         {
                                 const u32 discNumber = i / 4;
@@ -759,28 +760,28 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
                 // Starting position.
                 int gamelist_y = MENU_POS_Y + 20*5 + 10;
 
-                const gameinfo *gi = &ctx->games.gi[ctx->games.scrollX];
+                const gameinfo *cur_gi = &ctx->games.gi[ctx->games.scrollX]; // Renamed to avoid conflict with outer scope 'gi'
                 int gamesToPrint = ctx->games.gamecount - ctx->games.scrollX;
                 if (gamesToPrint > ctx->games.listMax) {
                         gamesToPrint = ctx->games.listMax;
                 }
 
-                for (i = 0; i < gamesToPrint; ++i, gamelist_y += 20, gi++)
+                for (i = 0; i < gamesToPrint; ++i, gamelist_y += 20, cur_gi++)
                 {
                         // FIXME: Print all 64 characters of the game name?
                         // Currently truncated to 50.
 
                         // Determine color based on disc format.
                         // NOTE: On Wii, DISC01 is GIFLAG_FORMAT_FULL.
-                        const u32 color = DiscFormatColors[gi->Flags & GIFLAG_FORMAT_MASK];
+                        const u32 color = DiscFormatColors[cur_gi->Flags & GIFLAG_FORMAT_MASK];
 
-                        const u8 discNumber = ((gi->Flags & GIFLAG_DISCNUMBER_MASK) >> 5);
+                        const u8 discNumber = ((cur_gi->Flags & GIFLAG_DISCNUMBER_MASK) >> 5);
                         if (discNumber == 0)
                         {
                                 // Disc 1.
                                 PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
                                             "%50.50s [%.6s]%s",
-                                            gi->Name, gi->ID,
+                                            cur_gi->Name, cur_gi->ID,
                                             i == ctx->games.posX ? ARROW_LEFT : " ");
                         }
                         else
@@ -788,7 +789,7 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
                                 // Disc 2 or higher.
                                 PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
                                             "%46.46s (%d) [%.6s]%s",
-                                            gi->Name, discNumber+1, gi->ID,
+                                            cur_gi->Name, discNumber+1, cur_gi->ID,
                                             i == ctx->games.posX ? ARROW_LEFT : " ");
                         }
                 }
@@ -1128,6 +1129,10 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
  */
 static bool UpdateSettingsMenu(MenuCtx *ctx)
 {
+    u32 ListLoopIndex; // Declare loop variables at the start of the function or block
+    int i;
+    int k;
+
         if(FPAD_X(0))
         {
                 // Start the updater.
@@ -1148,7 +1153,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 if (ctx->settings.settingPart == 0)
                 {
                         // Some items are hidden if certain values aren't set.
-                        if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) &&
+                        if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && // Check high bit general force flag
                             (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
                         {
                                 ctx->settings.posX++;
@@ -1211,7 +1216,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                         {
                                 ctx->settings.posX--;
                         }
-                        if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) &&
+                        if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && // Check high bit general force flag
                             (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
                         {
                                 ctx->settings.posX--;
@@ -1331,7 +1336,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                         }
                                         break;
 
-                                case NIN_SETTINGS_VIDEO:
+                                case NIN_SETTINGS_VIDEO: // General Video option (Auto, Force, None)
                                 {
                                         u32 Video = (ncfg->VideoMode & NIN_VID_MASK); // High bits
                                         switch (Video)
@@ -1355,11 +1360,12 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                         break;
                                 }
 
-                                case NIN_SETTINGS_VIDEOMODE: // "Force Videomode" option
+                                case NIN_SETTINGS_VIDEOMODE: // "Force Videomode" option (specific modes)
                                 {
                                     u32 currentForceSpecificFlags = ncfg->VideoMode & NIN_VID_FORCE_MASK;
                                     int currentModeIndex = -1;
-                                    for (int i = 0; i < NUM_VIDEOMODE_STRINGS; i++) {
+                                    // int i; // Declared at the top of the function
+                                    for (i = 0; i < NUM_VIDEOMODE_STRINGS; i++) {
                                         if (currentForceSpecificFlags == videoModeFlagMap[i]) {
                                             currentModeIndex = i;
                                             break;
@@ -1371,13 +1377,13 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                         currentModeIndex = 0; // Wrap around
                                     }
 
-                                    ncfg->VideoMode &= ~NIN_VID_FORCE_MASK; // Clear all specific force flags
+                                    ncfg->VideoMode &= ~NIN_VID_FORCE_MASK; // Clear all specific force flags (low bits)
                                     ncfg->VideoMode |= videoModeFlagMap[currentModeIndex]; // Set the new specific force flag
 
-                                    // If a 240p/288p mode is selected, ensure progressive scan is off
+                                    // If a 240p/288p mode is selected, ensure progressive scan related flags are off
                                     if (videoModeFlagMap[currentModeIndex] & (NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P)) {
-                                        ncfg->Config &= ~NIN_CFG_FORCE_PROG; // Turn off "Force Progressive" in Config
-                                        ncfg->VideoMode &= ~NIN_VID_PROG;   // Turn off NIN_VID_PROG in VideoMode
+                                        ncfg->Config &= ~NIN_CFG_FORCE_PROG; // Turn off "Force Progressive" in ncfg->Config
+                                        ncfg->VideoMode &= ~NIN_VID_PROG;   // Turn off NIN_VID_PROG in ncfg->VideoMode
                                     }
                                     break;
                                 }
@@ -1476,7 +1482,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
         if (ctx->redraw)
         {
                 // Redraw the settings menu.
-                u32 ListLoopIndex = 0;
+                // u32 ListLoopIndex = 0; // Declared at function scope
 
                 // Standard boolean settings.
                 for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
@@ -1517,7 +1523,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 ListLoopIndex++;
 
                 // Video mode forcing. (General: Auto, Force, None, etc.)
-                u32 VideoModeIndex;
+                u32 VideoModeIndex; // For string array index
                 u32 VideoModeVal = ncfg->VideoMode & NIN_VID_MASK; // High bits
                 switch (VideoModeVal)
                 {
@@ -1548,23 +1554,17 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 {
                     u32 currentForceSpecificFlags = ncfg->VideoMode & NIN_VID_FORCE_MASK;
                     int displayStringIndex = -1;
-                    for(int i=0; i < NUM_VIDEOMODE_STRINGS; ++i) {
+                    // int i; // Declared at function scope
+                    for(i=0; i < NUM_VIDEOMODE_STRINGS; ++i) { // Use NUM_VIDEOMODE_STRINGS
                         if (currentForceSpecificFlags == videoModeFlagMap[i]) {
                             displayStringIndex = i;
                             break;
                         }
                     }
-                    // If no specific flag matches (e.g. only NIN_VID_FORCE high bit is set but no low bit mode),
-                    // default to displaying NTSC or the first option.
+
                     if (displayStringIndex == -1) {
-                        // Default to showing NTSC string if no specific mode is actively set via low bits,
-                        // or handle as appropriate (e.g. show current first item or a placeholder)
-                        // For now, let's assume if NIN_VID_FORCE is on, one of the flags SHOULD be set.
-                        // If not, it might pick the first string or appear blank depending on VideoModeStrings bounds.
-                        // A safe default could be to show VideoModeStrings[2] (NTSC) or [0] (PAL50)
                          displayStringIndex = 2; // Default to NTSC string index if no specific match
-                         if (!(currentForceSpecificFlags & videoModeFlagMap[displayStringIndex])) { // if NTSC is not actually set
-                            // if no valid flag is set, but force is on, perhaps show the first one
+                         if (!(currentForceSpecificFlags & videoModeFlagMap[displayStringIndex])) {
                             displayStringIndex = 0;
                          }
                     }
@@ -1708,7 +1708,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 {
                         int line_num = 9; // Starting Y position for descriptions in the right column
                         // Clear previous description
-                        for (int k=0; k<8; ++k) { // Assuming max 8 lines for description
+                        // int k; // Declared at function scope
+                        for (k=0; k<8; ++k) { // Assuming max 8 lines for description
                              PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(line_num+k), "%30s", ""); // Clear with spaces
                         }
 
@@ -1721,7 +1722,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                         } while (*(++desc) != NULL && line_num < 9+8); // Max 8 lines
                 } else {
                      // Clear previous description if current item has no description
-                        for (int k=0; k<8; ++k) {
+                        // int k; // Declared at function scope
+                        for (k=0; k<8; ++k) {
                              PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(9+k), "%30s", "");
                         }
                 }
@@ -1750,6 +1752,7 @@ static int SelectGame(void)
         // Load the game list.
         u32 gamecount = 0;
         gameinfo gi[MAX_GAMES];
+        u32 i; // Declare loop variable
 
         devState = LoadGameList(&gi[0], MAX_GAMES, &gamecount);
         switch (devState)
@@ -1803,7 +1806,7 @@ static int SelectGame(void)
 
         // Set the default game to the game that's currently set
         // in the configuration.
-        u32 i;
+        // u32 i; // Declared earlier
         for (i = 0; i < gamecount; ++i)
         {
                 if (strcasecmp(strchr(gi[i].Path,':')+1, ncfg->GamePath) == 0)
@@ -1917,6 +1920,7 @@ static int SelectGame(void)
                 DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
         }
         // Free allocated memory in the game list.
+        // u32 i; // Declared earlier
         for (i = 0; i < gamecount; ++i)
         {
                 if (gi[i].Flags & GIFLAG_NAME_ALLOC)
