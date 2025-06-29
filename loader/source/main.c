@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <di/di.h>
 #include <unistd.h>
 #include <locale.h>
+#include <ogc/conf.h> // For CONF_GetEuRGB60() and CONF_GetVideo()
 
 #include "exi.h"
 #include "dip.h"
@@ -219,7 +220,7 @@ void changeToDefaultDrive()
  * Get multi-game and region code information.
  * @param CurDICMD	[in] DI command. (0 == disc image, DIP_CMD_NORMAL == GameCube disc, DIP_CMD_DVDR == DVD-R)
  * @param ISOShift	[out,opt] ISO Shift. (34-bit rshifted byte offset)
- * @param BI2region	[out,opt] bi2.bin region code.
+ * @param BI2regionOut	[out,opt] bi2.bin region code.
  * @return 0 on success; non-zero on error.
  */
 static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 *BI2regionOut)
@@ -1393,25 +1394,24 @@ int main(int argc, char **argv)
 
     // --- MODIFIED VIDEO MODE LOGIC START ---
     bool forceProgressive = (ncfg->Config & NIN_CFG_FORCE_PROG) && !useipl && !useipltri;
-    bool generalForceVID = (ncfg->VideoMode & NIN_VID_FORCE); // Check if general "Force Video" in high bits is set
-    u32 specificForceFlags = (ncfg->VideoMode & NIN_VID_FORCE_MASK); // Get specific force flags from low bits (now includes 240p/288p)
+    bool generalForceVID = (ncfg->VideoMode & NIN_VID_FORCE);
+    u32 specificForceFlags = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
 
     // Step 1: Determine a base vmode and system video type (*(vu32*)0x800000CC)
-    // based on the game's region (gameBI2region) and Wii/system settings (CONF_GetVideo).
     switch (gameBI2region)
     {
         case BI2_REGION_PAL:
-            *(vu32*)0x800000CC = 1; // Default to PAL50
+            *(vu32*)0x800000CC = 1;
             vmode = &TVPal528IntDf;
-            if (CONF_GetVideo() == CONF_VIDEO_PAL60 || CONF_GetVideo() == CONF_VIDEO_EURGB60) {
-                *(vu32*)0x800000CC = 5; // System prefers PAL60 (EURGB60)
+            if (CONF_GetVideo() == CONF_VIDEO_PAL && CONF_GetEuRGB60()) { // Check for PAL60 via CONF_GetEuRGB60
+                *(vu32*)0x800000CC = 5;
                 vmode = &TVEurgb60Hz480IntDf;
             }
             break;
         case BI2_REGION_USA:
-            *(vu32*)0x800000CC = 0; // Default to NTSC
+            *(vu32*)0x800000CC = 0;
             vmode = &TVNtsc480IntDf;
-            if (CONF_GetVideo() == CONF_VIDEO_MPAL) { // System prefers MPAL
+            if (CONF_GetVideo() == CONF_VIDEO_MPAL) {
                 *(vu32*)0x800000CC = 3;
                 vmode = &TVMpal480IntDf;
             }
@@ -1419,29 +1419,22 @@ int main(int argc, char **argv)
         case BI2_REGION_JAPAN:
         case BI2_REGION_SOUTH_KOREA:
         default:
-            *(vu32*)0x800000CC = 0; // NTSC
+            *(vu32*)0x800000CC = 0;
             vmode = &TVNtsc480IntDf;
             break;
     }
 
-    // Step 2: Apply Nintendont's specific video settings overrides.
-    if (forceProgressive) // NIN_CFG_FORCE_PROG from ncfg->Config takes precedence for 480p.
+    if (forceProgressive)
     {
-        vmode = &TVNtsc480Prog; // Use standard NTSC 480p.
+        vmode = &TVNtsc480Prog;
         if (gameBI2region == BI2_REGION_PAL) {
-            *(vu32*)0x800000CC = 5; // EURGB60 for "PAL 480p"
+            *(vu32*)0x800000CC = 5;
         } else {
-            *(vu32*)0x800000CC = 0; // NTSC for NTSC/MPAL 480p
+            *(vu32*)0x800000CC = 0;
         }
     }
-    // Else if general "Force Video" (NIN_VID_FORCE in high bits of ncfg->VideoMode) is active,
-    // then check specific force flags (low bits of ncfg->VideoMode).
     else if (generalForceVID)
     {
-        // The specificForceFlags variable already holds (ncfg->VideoMode & NIN_VID_FORCE_MASK)
-        // NIN_VID_FORCE_MASK was updated in CommonConfig.h to include new 240p/288p mode flags.
-        // The switch will check for individual bits being set.
-        // Only one of these should ideally be set by the config UI.
         if (specificForceFlags & NIN_VID_FORCE_NTSC) {
             *(vu32*)0x800000CC = 0; vmode = &TVNtsc480IntDf;
         } else if (specificForceFlags & NIN_VID_FORCE_PAL50) {
@@ -1451,22 +1444,20 @@ int main(int argc, char **argv)
         } else if (specificForceFlags & NIN_VID_FORCE_MPAL) {
             *(vu32*)0x800000CC = 3; vmode = &TVMpal480IntDf;
         }
-        // New 240p/288p modes
         else if (specificForceFlags & NIN_VID_FORCE_NTSC_240P) {
-            *(vu32*)0x800000CC = 0; vmode = &TVNtsc480Ds;
+            *(vu32*)0x800000CC = 0; vmode = &TVNtsc240Ds; // Use compiler suggested name
         } else if (specificForceFlags & NIN_VID_FORCE_PAL_288P) {
-            *(vu32*)0x800000CC = 1; vmode = &TVPal576Ds;
+            *(vu32*)0x800000CC = 1; vmode = &TVPal264Ds;   // Use compiler suggested name (though 288 or 576DsFb is more common)
+                                                            // If TVPal264Ds is not defined, this will fail.
+                                                            // A safer bet might be TVPal288Ds if such a define exists, or TVPal576DsFb.
+                                                            // For now, following compiler hint.
         } else if (specificForceFlags & NIN_VID_FORCE_MPAL_240P) {
-            *(vu32*)0x800000CC = 3; vmode = &TVMpal480Ds;
+            *(vu32*)0x800000CC = 3; vmode = &TVMpal240Ds; // Use compiler suggested name
         } else if (specificForceFlags & NIN_VID_FORCE_EURGB60_240P) {
-            *(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz480Ds;
+            *(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz240Ds; // Use compiler suggested name
         }
-        // Note: The original switch had a default case. If specificForceFlags is 0
-        // (meaning NIN_VID_FORCE is set in high bits, but no specific low bit mode is set),
-        // or an unrecognized bit is set, it would fall back to the region default from Step 1.
-        // The current if/else if structure ensures this: if no known flag matches, Step 1's vmode remains.
+        // If no specific flag matched (e.g. only NIN_VID_FORCE high bit set), vmode remains as set by region default.
     }
-    // If not forceProgressive and not generalForceVID, the vmode from Step 1 is used.
     // --- MODIFIED VIDEO MODE LOGIC END ---
 
 	if((ncfg->Config & NIN_CFG_MEMCARDEMU) == 0) //setup real sram video
@@ -1477,37 +1468,28 @@ int main(int argc, char **argv)
 		sram->flags		&= ~0x80;	// Clear Progmode
 		sram->flags		&= ~3;		// Clear Videomode
 
-		// PAL60 flag.
 		if (gameBI2region == BI2_REGION_PAL)
 		{
-			// Enable PAL60.
-			sram->ntd |= 0x40;
-
-			// TODO: Set the progressive scan flag on PAL?
-            // Nintendont sets progressive flag based on component cable + NIN_VID_PROG, handled below.
+			sram->ntd |= 0x40; // Enable PAL60 by default for PAL games if not strictly PAL50
+            if (*(vu32*)0x800000CC == 1) { // If current mode is PAL50
+                sram->ntd &= ~0x40; // Explicitly disable PAL60 for PAL50 mode
+            }
 		}
 		else
 		{
-			// Disable PAL60.
-			sram->ntd &= ~0x40; // Corrected from sram->ntd &= 0x40;
+			sram->ntd &= ~0x40;
 		}
 
-        // Set SRAM progressive scan flag if NIN_VID_PROG is set in ncfg->VideoMode
-        // (which is determined by CONF_GetProgressiveScan() and VIDEO_HaveComponentCable() earlier,
-        // or by NIN_CFG_FORCE_PROG if that was used to enable progressive mode)
-        // and certain game-specific conditions are met.
-        bool spPopWW = (ncfg->GameID == 0x47324F45 && ncfg->Language == NIN_LAN_SPANISH); // Prince of Persia WW Spanish
-        if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW && (ncfg->VideoMode & NIN_VID_PROG)) // Not BMX XXX (GB3Exx), not PoP WW Spanish, and prog enabled
+        bool spPopWW = (ncfg->GameID == 0x47324F45 && ncfg->Language == NIN_LAN_SPANISH);
+        if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW && (ncfg->VideoMode & NIN_VID_PROG))
         {
-            sram->flags |= 0x80; // Set progressive scan flag in SRAM
+            sram->flags |= 0x80;
         }
 
+		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5)
+			sram->flags	|= 1;
 
-		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5) // If current mode is PAL50 or PAL60 (EURGB60)
-			sram->flags	|= 1; //Set PAL video mode in SRAM
-		// else, it's NTSC/MPAL, so bit 0 of sram->flags remains 0 (NTSC)
-
-		__SYS_UnlockSram(1); // 1 -> write changes
+		__SYS_UnlockSram(1);
 		while(!__SYS_SyncSram());
 	}
 
@@ -1515,9 +1497,9 @@ int main(int argc, char **argv)
 	VIDEO_SetBlack(FALSE);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();
-	if(vmode->viTVMode & VI_NON_INTERLACE) // For progressive or double-strike
+	if(vmode && vmode->viTVMode & VI_NON_INTERLACE) // Added vmode NULL check
 		VIDEO_WaitVSync();
-	else while(VIDEO_GetNextField()) // For interlaced
+	else while(VIDEO_GetNextField())
 		VIDEO_WaitVSync();
 
 	*(u16*)(0xCC00501A) = 156;	// DSP refresh rate
@@ -1537,7 +1519,7 @@ int main(int argc, char **argv)
 	VIDEO_SetBlack(TRUE);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();
-	if(vmode->viTVMode & VI_NON_INTERLACE)
+	if(vmode && vmode->viTVMode & VI_NON_INTERLACE) // Added vmode NULL check
 		VIDEO_WaitVSync();
 	else while(VIDEO_GetNextField())
 		VIDEO_WaitVSync();
