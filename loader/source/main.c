@@ -1446,13 +1446,13 @@ int main(int argc, char **argv)
         else if (specificForceFlags & NIN_VID_FORCE_NTSC_240P) {
             *(vu32*)0x800000CC = 0; vmode = &TVNtsc240Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_PAL_288P) {
-            *(vu32*)0x800000CC = 1; vmode = &TVPal264Ds; // Using compiler suggested TVPal264Ds
+            *(vu32*)0x800000CC = 1; vmode = &TVPal264Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_MPAL_240P) {
             *(vu32*)0x800000CC = 3; vmode = &TVMpal240Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_EURGB60_240P) {
             *(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz240Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_PAL_576P) {
-            *(vu32*)0x800000CC = 1; vmode = &TVPal576Prog; // Standard libogc 576p
+            *(vu32*)0x800000CC = 1; vmode = &TVPal576ProgScale; // Use compiler suggested TVPal576ProgScale
         }
     }
     // --- VIDEO MODE LOGIC END ---
@@ -1467,31 +1467,25 @@ int main(int argc, char **argv)
 
 		if (gameBI2region == BI2_REGION_PAL)
 		{
-            // For PAL games, enable PAL60 in SRAM if current mode is not strictly PAL50 (576i/288p)
-            // TVPal576Prog is 50Hz, so PAL60 should be off.
-            if (*(vu32*)0x800000CC == 5) { // EURGB60 or PAL60 240p
+            if (*(vu32*)0x800000CC == 5) {
                 sram->ntd |= 0x40;
-            } else { // PAL50, PAL288p, PAL576p
+            } else {
                  sram->ntd &= ~0x40;
             }
 		}
-		else // NTSC or MPAL games
+		else
 		{
-			sram->ntd &= ~0x40; // Disable PAL60 flag
+			sram->ntd &= ~0x40;
 		}
 
-        // Set SRAM progressive flag if NIN_VID_PROG is set in ncfg->VideoMode
-        // (This flag is set by menu for 576p, or by console caps + NIN_CFG_FORCE_PROG)
         bool spPopWW = (ncfg->GameID == 0x47324F45 && ncfg->Language == NIN_LAN_SPANISH);
         if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW && (ncfg->VideoMode & NIN_VID_PROG))
         {
             sram->flags |= 0x80;
         }
 
-        // Set SRAM video type (PAL/NTSC)
-		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5) // PAL50 or PAL60 based modes
-			sram->flags	|= 1; // Set PAL video mode in SRAM
-		// else NTSC/MPAL, sram->flags bit 0 remains 0 (NTSC)
+		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5)
+			sram->flags	|= 1;
 
 		__SYS_UnlockSram(1);
 		while(!__SYS_SyncSram());
