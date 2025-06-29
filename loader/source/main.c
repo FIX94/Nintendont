@@ -46,7 +46,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ipl.h"
 #include "HID.h"
 #include "TRI.h"
-#include "Config.h"
+#include "Config.h" // Should pull in CommonConfig.h
 #include "wdvd.h"
 
 #include "ff_utf8.h"
@@ -78,7 +78,7 @@ static GXRModeObj *vmode = NULL;
 
 static unsigned char ESBootPatch[] =
 {
-    0x48, 0x03, 0x49, 0x04, 0x47, 0x78, 0x46, 0xC0, 0xE6, 0x00, 0x08, 0x70, 0xE1, 0x2F, 0xFF, 0x1E, 
+    0x48, 0x03, 0x49, 0x04, 0x47, 0x78, 0x46, 0xC0, 0xE6, 0x00, 0x08, 0x70, 0xE1, 0x2F, 0xFF, 0x1E,
     0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x25,
 };
 /*static const unsigned char AHBAccessPattern[] =
@@ -91,11 +91,11 @@ static const unsigned char AHBAccessPatch[] =
 };*/
 static const unsigned char FSAccessPattern[] =
 {
-    0x9B, 0x05, 0x40, 0x03, 0x99, 0x05, 0x42, 0x8B, 
+    0x9B, 0x05, 0x40, 0x03, 0x99, 0x05, 0x42, 0x8B,
 };
 static const unsigned char FSAccessPatch[] =
 {
-    0x9B, 0x05, 0x40, 0x03, 0x1C, 0x0B, 0x42, 0x8B, 
+    0x9B, 0x05, 0x40, 0x03, 0x1C, 0x0B, 0x42, 0x8B,
 };
 
 // Forbid the use of MEM2 through malloc
@@ -135,7 +135,7 @@ static void updateMetaXml(void)
 {
 	char filepath[MAXPATHLEN];
 	bool dir_argument_exists = strlen(launch_dir);
-	
+
 	snprintf(filepath, sizeof(filepath), "%smeta.xml",
 		dir_argument_exists ? launch_dir : "/apps/Nintendont/");
 
@@ -163,7 +163,7 @@ static void updateMetaXml(void)
 #else
 		""
 #endif
-  			);
+			);
 	if (len > sizeof(new_meta))
 		len = sizeof(new_meta);
 
@@ -222,7 +222,7 @@ void changeToDefaultDrive()
  * @param BI2region	[out,opt] bi2.bin region code.
  * @return 0 on success; non-zero on error.
  */
-static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 *BI2region)
+static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 *BI2regionOut)
 {
 	char GamePath[260];
 
@@ -285,20 +285,20 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 			int ret = 0;
 			if (ISOShift)
 				*ISOShift = 0;
-			if (BI2region)
+			if (BI2regionOut)
 			{
 				if(wiiVCInternal)
 				{
 					WDVD_FST_LSeek(0x8458);
-					read = WDVD_FST_Read(wdvdTmpBuf, sizeof(*BI2region));
-					memcpy(&BI2region, wdvdTmpBuf, sizeof(*BI2region));
+					read = WDVD_FST_Read(wdvdTmpBuf, sizeof(*BI2regionOut));
+					memcpy(BI2regionOut, wdvdTmpBuf, sizeof(*BI2regionOut));
 				}
 				else
 				{
 					f_lseek(&f, 0x8458);
-					f_read(&f, BI2region, sizeof(*BI2region), &read);
+					f_read(&f, BI2regionOut, sizeof(*BI2regionOut), &read);
 				}
-				if (read != sizeof(*BI2region))
+				if (read != sizeof(*BI2regionOut))
 				{
 					// Error reading from the file.
 					ret = 3;
@@ -318,7 +318,7 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 		// Multi-game isn't supported.
 		if (ISOShift)
 			*ISOShift = 0;
-		if (!BI2region)
+		if (!BI2regionOut)
 		{
 			free(MultiHdr);
 			return 0;
@@ -347,7 +347,7 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 
 		// BI2.bin is at 0x440.
 		// Region code is at 0x458. (0x18 within BI2.bin.)
-		*BI2region = *(u32*)(&MultiHdr[0x18]);
+		*BI2regionOut = *(u32*)(&MultiHdr[0x18]);
 		free(MultiHdr);
 		return 0;
 	}
@@ -364,11 +364,11 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 				f_close(&f);
 		}
 
-		if (BI2region)
+		if (BI2regionOut)
 		{
 			// BI2.bin is at 0x440.
 			// Region code is at 0x458.
-			*BI2region = *(u32*)(&MultiHdr[0x458]);
+			*BI2regionOut = *(u32*)(&MultiHdr[0x458]);
 		}
 
 		free(MultiHdr);
@@ -518,7 +518,7 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 			for (i = 0; i < gamecount; ++i)
 			{
 				const u32 color = gameIsUnaligned[i] ? MAROON : BLACK;
-				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s", 
+				PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, MENU_POS_Y + 20*4 + i * 20, "%50.50s [%.6s]%s",
 					    gi[i].Name, gi[i].ID, i == PosX ? ARROW_LEFT : " " );
 			}
 			GRRLIB_Render();
@@ -540,9 +540,9 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 	{
 		*ISOShift = Offsets[PosX];
 	}
-	if (BI2region)
+	if (BI2regionOut)
 	{
-		*BI2region = BI2region_codes[PosX];
+		*BI2regionOut = BI2region_codes[PosX];
 	}
 
 	// Save the Game ID.
@@ -671,7 +671,7 @@ int main(int argc, char **argv)
 	//else if(*(vu16*)0xCD8005A0 != 0xCAFE)
 	//{
 		/* WiiVC seems to have some bug that without any fake IOS
-		   reload makes it impossible to read HW regs on PPC 
+		   reload makes it impossible to read HW regs on PPC
 		   and it seems to break some consoles to reload IOS */
 	//	IOS_ReloadIOS(58);
 	//}
@@ -813,7 +813,7 @@ int main(int argc, char **argv)
 				GRRLIB_Render();
 				ClearScreen();
 			}
-			
+
 			FPAD_Update();
 
 			if (FPAD_Cancel(0)) {
@@ -827,11 +827,12 @@ int main(int argc, char **argv)
 	ReconfigVideo(rmode);
 	UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
 
-	bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
-	if(progressive) //important to prevent blackscreens
-		ncfg->VideoMode |= NIN_VID_PROG;
+	bool progressive_scan_enabled = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
+	if(progressive_scan_enabled) //important to prevent blackscreens
+		ncfg->VideoMode |= NIN_VID_PROG; // Set the progressive flag in VideoMode
 	else
-		ncfg->VideoMode &= ~NIN_VID_PROG;
+		ncfg->VideoMode &= ~NIN_VID_PROG; // Clear the progressive flag in VideoMode
+
 
 	bool SaveSettings = false;
 	if(!(ncfg->Config & NIN_CFG_AUTO_BOOT))
@@ -963,8 +964,8 @@ int main(int argc, char **argv)
 
 	// Get multi-game and region code information.
 	u32 ISOShift = 0;	// NOTE: This is a 34-bit shifted offset.
-	u32 BI2region = 0;	// bi2.bin region code [TODO: Validate?]
-	int ret = CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region);
+	u32 gameBI2region = 0;	// bi2.bin region code for the selected game.
+	int ret = CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &gameBI2region);
 	if (ret != 0) {
 		ClearScreen();
 		PrintInfo();
@@ -1028,7 +1029,7 @@ int main(int argc, char **argv)
 //Set Language
 	if(ncfg->Language == NIN_LAN_AUTO || ncfg->Language >= NIN_LAN_LAST)
 	{
-		if(BI2region == BI2_REGION_PAL)
+		if(gameBI2region == BI2_REGION_PAL)
 		{
 			switch (CONF_GetLanguage())
 			{
@@ -1071,7 +1072,7 @@ int main(int argc, char **argv)
 			// "Multi" mode is enabled.
 			// Use one memory card for USA/PAL games,
 			// and another memory card for JPN games.
-			switch (BI2region)
+			switch (gameBI2region)
 			{
 				case BI2_REGION_JAPAN:
 				case BI2_REGION_SOUTH_KOREA:
@@ -1100,7 +1101,7 @@ int main(int argc, char **argv)
 		if (f_open_char(&f, MemCard, FA_READ|FA_OPEN_EXISTING) != FR_OK)
 		{
 			// Memory card file not found. Create it.
-			if(GenerateMemCard(MemCard, BI2region) == false)
+			if(GenerateMemCard(MemCard, gameBI2region) == false)
 			{
 				ClearScreen();
 				ShowMessageScreenAndExit("Failed to create Memory Card File!", 1);
@@ -1122,12 +1123,12 @@ int main(int argc, char **argv)
 		__SYS_UnlockSram(1); // 1 -> write changes
 		while(!__SYS_SyncSram());
 	}
-	
+
 	//Check if game is Triforce game
 	u32 IsTRIGame = 0;
 	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
 		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
-	
+
 	if(IsTRIGame != 0)
 	{
 		// Create saves directory.
@@ -1149,7 +1150,7 @@ int main(int argc, char **argv)
 			// Attempt to load the GameCube IPL.
 			char iplchar[32];
 			iplchar[0] = 0;
-			switch (BI2region)
+			switch (gameBI2region)
 			{
 				case BI2_REGION_USA:
 					snprintf(iplchar, sizeof(iplchar), "%s:/iplusa.bin", GetRootDevice());
@@ -1193,9 +1194,9 @@ int main(int argc, char **argv)
 				if (f.obj.objsize == TRI_IPL_SIZE)
 				{
 					f_lseek(&f, 0x20);
-					void *iplbuf = (void*)0x92A80000;
+					void *iplbuf_tri = (void*)0x92A80000; // Different buffer for Triforce IPL
 					UINT read;
-					f_read(&f, iplbuf, TRI_IPL_SIZE - 0x20, &read);
+					f_read(&f, iplbuf_tri, TRI_IPL_SIZE - 0x20, &read);
 					useipltri = (read == (TRI_IPL_SIZE - 0x20));
 				}
 				f_close(&f);
@@ -1221,8 +1222,8 @@ int main(int argc, char **argv)
 	}
 
 	//before flushing do game specific patches
-	if(ncfg->Config & NIN_CFG_FORCE_PROG &&
-			ncfg->GameID == 0x47584745)
+	if( (ncfg->Config & NIN_CFG_FORCE_PROG) &&
+			ncfg->GameID == 0x47584745) // GXGE (Mega Man X Collection USA)
 	{	//Mega Man X Collection does progressive ingame so
 		//forcing it would mess with the interal game setup
 		gprintf("Disabling Force Progressive for this game\r\n");
@@ -1390,78 +1391,84 @@ int main(int argc, char **argv)
 
 	gprintf("GameRegion:");
 
-	u32 vidForce = (ncfg->VideoMode & NIN_VID_FORCE);
-	u32 vidForceMode = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
+    // --- MODIFIED VIDEO MODE LOGIC START ---
+    bool forceProgressive = (ncfg->Config & NIN_CFG_FORCE_PROG) && !useipl && !useipltri;
+    bool generalForceVID = (ncfg->VideoMode & NIN_VID_FORCE); // Check if general "Force Video" in high bits is set
+    u32 specificForceFlags = (ncfg->VideoMode & NIN_VID_FORCE_MASK); // Get specific force flags from low bits (now includes 240p/288p)
 
-	progressive = (ncfg->Config & NIN_CFG_FORCE_PROG)
-		&& !useipl && !useipltri;
+    // Step 1: Determine a base vmode and system video type (*(vu32*)0x800000CC)
+    // based on the game's region (gameBI2region) and Wii/system settings (CONF_GetVideo).
+    switch (gameBI2region)
+    {
+        case BI2_REGION_PAL:
+            *(vu32*)0x800000CC = 1; // Default to PAL50
+            vmode = &TVPal528IntDf;
+            if (CONF_GetVideo() == CONF_VIDEO_PAL60 || CONF_GetVideo() == CONF_VIDEO_EURGB60) {
+                *(vu32*)0x800000CC = 5; // System prefers PAL60 (EURGB60)
+                vmode = &TVEurgb60Hz480IntDf;
+            }
+            break;
+        case BI2_REGION_USA:
+            *(vu32*)0x800000CC = 0; // Default to NTSC
+            vmode = &TVNtsc480IntDf;
+            if (CONF_GetVideo() == CONF_VIDEO_MPAL) { // System prefers MPAL
+                *(vu32*)0x800000CC = 3;
+                vmode = &TVMpal480IntDf;
+            }
+            break;
+        case BI2_REGION_JAPAN:
+        case BI2_REGION_SOUTH_KOREA:
+        default:
+            *(vu32*)0x800000CC = 0; // NTSC
+            vmode = &TVNtsc480IntDf;
+            break;
+    }
 
-	switch (BI2region)
-	{
-		case BI2_REGION_PAL:
-			if (progressive || (vidForce &&
-			    (vidForceMode == NIN_VID_FORCE_PAL60 ||
-			     vidForceMode == NIN_VID_FORCE_MPAL ||
-			     vidForceMode == NIN_VID_FORCE_NTSC)))
-			{
-				// PAL60 and/or PAL-M
-				*(vu32*)0x800000CC = 5;
-			}
-			else
-			{
-				// PAL50
-				*(vu32*)0x800000CC = 1;
-			}
-			vmode = &TVPal528IntDf;
-			break;
+    // Step 2: Apply Nintendont's specific video settings overrides.
+    if (forceProgressive) // NIN_CFG_FORCE_PROG from ncfg->Config takes precedence for 480p.
+    {
+        vmode = &TVNtsc480Prog; // Use standard NTSC 480p.
+        if (gameBI2region == BI2_REGION_PAL) {
+            *(vu32*)0x800000CC = 5; // EURGB60 for "PAL 480p"
+        } else {
+            *(vu32*)0x800000CC = 0; // NTSC for NTSC/MPAL 480p
+        }
+    }
+    // Else if general "Force Video" (NIN_VID_FORCE in high bits of ncfg->VideoMode) is active,
+    // then check specific force flags (low bits of ncfg->VideoMode).
+    else if (generalForceVID)
+    {
+        // The specificForceFlags variable already holds (ncfg->VideoMode & NIN_VID_FORCE_MASK)
+        // NIN_VID_FORCE_MASK was updated in CommonConfig.h to include new 240p/288p mode flags.
+        // The switch will check for individual bits being set.
+        // Only one of these should ideally be set by the config UI.
+        if (specificForceFlags & NIN_VID_FORCE_NTSC) {
+            *(vu32*)0x800000CC = 0; vmode = &TVNtsc480IntDf;
+        } else if (specificForceFlags & NIN_VID_FORCE_PAL50) {
+            *(vu32*)0x800000CC = 1; vmode = &TVPal528IntDf;
+        } else if (specificForceFlags & NIN_VID_FORCE_PAL60) {
+            *(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz480IntDf;
+        } else if (specificForceFlags & NIN_VID_FORCE_MPAL) {
+            *(vu32*)0x800000CC = 3; vmode = &TVMpal480IntDf;
+        }
+        // New 240p/288p modes
+        else if (specificForceFlags & NIN_VID_FORCE_NTSC_240P) {
+            *(vu32*)0x800000CC = 0; vmode = &TVNtsc480Ds;
+        } else if (specificForceFlags & NIN_VID_FORCE_PAL_288P) {
+            *(vu32*)0x800000CC = 1; vmode = &TVPal576Ds;
+        } else if (specificForceFlags & NIN_VID_FORCE_MPAL_240P) {
+            *(vu32*)0x800000CC = 3; vmode = &TVMpal480Ds;
+        } else if (specificForceFlags & NIN_VID_FORCE_EURGB60_240P) {
+            *(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz480Ds;
+        }
+        // Note: The original switch had a default case. If specificForceFlags is 0
+        // (meaning NIN_VID_FORCE is set in high bits, but no specific low bit mode is set),
+        // or an unrecognized bit is set, it would fall back to the region default from Step 1.
+        // The current if/else if structure ensures this: if no known flag matches, Step 1's vmode remains.
+    }
+    // If not forceProgressive and not generalForceVID, the vmode from Step 1 is used.
+    // --- MODIFIED VIDEO MODE LOGIC END ---
 
-		case BI2_REGION_USA:
-			if ((vidForce && vidForceMode == NIN_VID_FORCE_MPAL) ||
-			    (!vidForce && ((CONF_GetVideo() == CONF_VIDEO_MPAL) 
-					|| (useipl && memcmp(iplbuf+0x55,"MPAL",4) == 0))))
-			{
-				// PAL-M
-				*(vu32*)0x800000CC = 3;
-				vmode = &TVMpal480IntDf;
-			}
-			else
-			{
-				// NTSC
-				*(vu32*)0x800000CC = 0;
-				vmode = &TVNtsc480IntDf;
-			}
-			break;
-
-		case BI2_REGION_JAPAN:
-		case BI2_REGION_SOUTH_KOREA:
-		default:
-			// NTSC
-			*(vu32*)0x800000CC = 0;
-			vmode = &TVNtsc480IntDf;
-			break;
-	}
-
-	if(progressive)
-		vmode = &TVNtsc480Prog;
-	else if(vidForce)
-	{
-		switch(vidForceMode)
-		{
-			case NIN_VID_FORCE_PAL50:
-				vmode = &TVPal528IntDf;
-				break;
-			case NIN_VID_FORCE_PAL60:
-				vmode = &TVEurgb60Hz480IntDf;
-				break;
-			case NIN_VID_FORCE_MPAL:
-				vmode = &TVMpal480IntDf;
-				break;
-			case NIN_VID_FORCE_NTSC:
-			default:
-				vmode = &TVNtsc480IntDf;
-				break;
-		}
-	}
 	if((ncfg->Config & NIN_CFG_MEMCARDEMU) == 0) //setup real sram video
 	{
 		syssram *sram;
@@ -1471,48 +1478,46 @@ int main(int argc, char **argv)
 		sram->flags		&= ~3;		// Clear Videomode
 
 		// PAL60 flag.
-		if (BI2region == BI2_REGION_PAL)
+		if (gameBI2region == BI2_REGION_PAL)
 		{
 			// Enable PAL60.
 			sram->ntd |= 0x40;
 
 			// TODO: Set the progressive scan flag on PAL?
+            // Nintendont sets progressive flag based on component cable + NIN_VID_PROG, handled below.
 		}
 		else
 		{
 			// Disable PAL60.
-			sram->ntd &= 0x40;
-
-			// NTSC Prince of Persia Warrior Within set to Spanish
-			// actually has a bug that cant display the progressive
-			// screen question so dont set progressive flag in that
-			bool spPopWW = (ncfg->GameID == 0x47324F45 &&
-							ncfg->Language == NIN_LAN_SPANISH);
-
-			// Set the progressive scan flag if a component cable
-			// is connected (or HDMI on Wii U), unless we're loading
-			// BMX XXX, since that game won't even boot on a real
-			// GameCube if a component cable is connected.
-			if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW &&
-				(ncfg->VideoMode & NIN_VID_PROG))
-			{
-				sram->flags |= 0x80;
-			}
+			sram->ntd &= ~0x40; // Corrected from sram->ntd &= 0x40;
 		}
 
-		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5)
-			sram->flags	|= 1; //PAL Video Mode
+        // Set SRAM progressive scan flag if NIN_VID_PROG is set in ncfg->VideoMode
+        // (which is determined by CONF_GetProgressiveScan() and VIDEO_HaveComponentCable() earlier,
+        // or by NIN_CFG_FORCE_PROG if that was used to enable progressive mode)
+        // and certain game-specific conditions are met.
+        bool spPopWW = (ncfg->GameID == 0x47324F45 && ncfg->Language == NIN_LAN_SPANISH); // Prince of Persia WW Spanish
+        if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW && (ncfg->VideoMode & NIN_VID_PROG)) // Not BMX XXX (GB3Exx), not PoP WW Spanish, and prog enabled
+        {
+            sram->flags |= 0x80; // Set progressive scan flag in SRAM
+        }
+
+
+		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5) // If current mode is PAL50 or PAL60 (EURGB60)
+			sram->flags	|= 1; //Set PAL video mode in SRAM
+		// else, it's NTSC/MPAL, so bit 0 of sram->flags remains 0 (NTSC)
+
 		__SYS_UnlockSram(1); // 1 -> write changes
 		while(!__SYS_SyncSram());
 	}
-	
+
 	ReconfigVideo(vmode);
 	VIDEO_SetBlack(FALSE);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();
-	if(vmode->viTVMode & VI_NON_INTERLACE)
+	if(vmode->viTVMode & VI_NON_INTERLACE) // For progressive or double-strike
 		VIDEO_WaitVSync();
-	else while(VIDEO_GetNextField())
+	else while(VIDEO_GetNextField()) // For interlaced
 		VIDEO_WaitVSync();
 
 	*(u16*)(0xCC00501A) = 156;	// DSP refresh rate
@@ -1662,7 +1667,7 @@ int main(int argc, char **argv)
 		/* Seems to boot more stable this way */
 		//gprintf("Using 32kHz DSP (No Resample)\n");
 		write32(0xCD806C00, 0x68);
-		free(iplbuf);
+		if (iplbuf) free(iplbuf); // Free IPL buffer
 	}
 	else //use our own loader
 	{
@@ -1670,6 +1675,7 @@ int main(int argc, char **argv)
 		{
 			*(vu32*)0xD3003420 = 0x6DEA;
 			while(*(vu32*)0xD3003420 == 0x6DEA) ;
+            // Note: iplbuf_tri for Triforce was allocated at a fixed address, not malloc'd
 		}
 		memcpy((void*)0x81300000, multidol_ldr_bin, multidol_ldr_bin_size);
 		DCFlushRange((void*)0x81300000, multidol_ldr_bin_size);
