@@ -91,7 +91,8 @@ static const u32 videoModeFlagMap[] = {
     NIN_VID_FORCE_NTSC_240P,    // Index 4
     NIN_VID_FORCE_PAL_288P,     // Index 5
     NIN_VID_FORCE_MPAL_240P,    // Index 6
-    NIN_VID_FORCE_EURGB60_240P  // Index 7
+    NIN_VID_FORCE_EURGB60_240P, // Index 7
+    NIN_VID_FORCE_PAL_576P      // Index 8
 };
 
 
@@ -1129,7 +1130,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
  */
 static bool UpdateSettingsMenu(MenuCtx *ctx)
 {
-    u32 ListLoopIndex; // Declare loop variables at the start of the function or block
+    u32 ListLoopIndex;
     int i;
     int k;
 
@@ -1153,7 +1154,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 if (ctx->settings.settingPart == 0)
                 {
                         // Some items are hidden if certain values aren't set.
-                        if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && // Check high bit general force flag
+                        if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) &&
                             (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
                         {
                                 ctx->settings.posX++;
@@ -1216,7 +1217,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                         {
                                 ctx->settings.posX--;
                         }
-                        if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) && // Check high bit general force flag
+                        if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) &&
                             (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
                         {
                                 ctx->settings.posX--;
@@ -1377,13 +1378,17 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                         currentModeIndex = 0; // Wrap around
                                     }
 
-                                    ncfg->VideoMode &= ~NIN_VID_FORCE_MASK; // Clear all specific force flags (low bits)
+                                    ncfg->VideoMode &= ~(NIN_VID_FORCE_MASK | NIN_VID_PROG); // Clear all specific force flags and prog flag
                                     ncfg->VideoMode |= videoModeFlagMap[currentModeIndex]; // Set the new specific force flag
 
-                                    // If a 240p/288p mode is selected, ensure progressive scan related flags are off
+                                    // If a 240p/288p mode is selected, ensure progressive scan config flag is off
                                     if (videoModeFlagMap[currentModeIndex] & (NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P)) {
-                                        ncfg->Config &= ~NIN_CFG_FORCE_PROG; // Turn off "Force Progressive" in ncfg->Config
-                                        ncfg->VideoMode &= ~NIN_VID_PROG;   // Turn off NIN_VID_PROG in ncfg->VideoMode
+                                        ncfg->Config &= ~NIN_CFG_FORCE_PROG;
+                                    }
+                                    // If 576p is selected, ensure NIN_VID_PROG is set and NIN_CFG_FORCE_PROG is off
+                                    else if (videoModeFlagMap[currentModeIndex] == NIN_VID_FORCE_PAL_576P) {
+                                        ncfg->VideoMode |= NIN_VID_PROG;
+                                        ncfg->Config &= ~NIN_CFG_FORCE_PROG;
                                     }
                                     break;
                                 }
@@ -1523,30 +1528,30 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 ListLoopIndex++;
 
                 // Video mode forcing. (General: Auto, Force, None, etc.)
-                u32 VideoModeIndex; // For string array index
+                u32 VideoModeIndex_display; // For string array index, renamed to avoid conflict
                 u32 VideoModeVal = ncfg->VideoMode & NIN_VID_MASK; // High bits
                 switch (VideoModeVal)
                 {
                         case NIN_VID_AUTO:
-                                VideoModeIndex = NIN_VID_INDEX_AUTO;
+                                VideoModeIndex_display = NIN_VID_INDEX_AUTO;
                                 break;
                         case NIN_VID_FORCE:
-                                VideoModeIndex = NIN_VID_INDEX_FORCE;
+                                VideoModeIndex_display = NIN_VID_INDEX_FORCE;
                                 break;
                         case NIN_VID_FORCE | NIN_VID_FORCE_DF:
-                                VideoModeIndex = NIN_VID_INDEX_FORCE_DF;
+                                VideoModeIndex_display = NIN_VID_INDEX_FORCE_DF;
                                 break;
                         case NIN_VID_NONE:
-                                VideoModeIndex = NIN_VID_INDEX_NONE;
+                                VideoModeIndex_display = NIN_VID_INDEX_NONE;
                                 break;
                         default:
                                 ncfg->VideoMode &= ~NIN_VID_MASK;
                                 ncfg->VideoMode |= NIN_VID_AUTO;
-                                VideoModeIndex = NIN_VID_INDEX_AUTO;
+                                VideoModeIndex_display = NIN_VID_INDEX_AUTO;
                                 break;
                 }
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
-                            "%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoModeIndex] );
+                            "%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoModeIndex_display] );
                 ListLoopIndex++; // For NIN_SETTINGS_VIDEO
 
                 // Specific Forced Video Mode (NIN_SETTINGS_VIDEOMODE)
@@ -1555,7 +1560,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                     u32 currentForceSpecificFlags = ncfg->VideoMode & NIN_VID_FORCE_MASK;
                     int displayStringIndex = -1;
                     // int i; // Declared at function scope
-                    for(i=0; i < NUM_VIDEOMODE_STRINGS; ++i) { // Use NUM_VIDEOMODE_STRINGS
+                    for(i=0; i < NUM_VIDEOMODE_STRINGS; ++i) {
                         if (currentForceSpecificFlags == videoModeFlagMap[i]) {
                             displayStringIndex = i;
                             break;
@@ -1563,7 +1568,10 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                     }
 
                     if (displayStringIndex == -1) {
-                         displayStringIndex = 2; // Default to NTSC string index if no specific match
+                         // If no specific flag matches, default to NTSC string for display
+                         // This might happen if NIN_VID_FORCE is set but no low bits are, or an unknown combo
+                         displayStringIndex = 2; // Default to "NTSC" string index
+                         // A better fallback might be the first item if no valid flag is set
                          if (!(currentForceSpecificFlags & videoModeFlagMap[displayStringIndex])) {
                             displayStringIndex = 0;
                          }

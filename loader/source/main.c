@@ -1392,18 +1392,17 @@ int main(int argc, char **argv)
 
 	gprintf("GameRegion:");
 
-    // --- MODIFIED VIDEO MODE LOGIC START ---
+    // --- VIDEO MODE LOGIC START ---
     bool forceProgressive = (ncfg->Config & NIN_CFG_FORCE_PROG) && !useipl && !useipltri;
     bool generalForceVID = (ncfg->VideoMode & NIN_VID_FORCE);
     u32 specificForceFlags = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
 
-    // Step 1: Determine a base vmode and system video type (*(vu32*)0x800000CC)
     switch (gameBI2region)
     {
         case BI2_REGION_PAL:
             *(vu32*)0x800000CC = 1;
             vmode = &TVPal528IntDf;
-            if (CONF_GetVideo() == CONF_VIDEO_PAL && CONF_GetEuRGB60()) { // Check for PAL60 via CONF_GetEuRGB60
+            if (CONF_GetVideo() == CONF_VIDEO_PAL && CONF_GetEuRGB60()) {
                 *(vu32*)0x800000CC = 5;
                 vmode = &TVEurgb60Hz480IntDf;
             }
@@ -1445,49 +1444,54 @@ int main(int argc, char **argv)
             *(vu32*)0x800000CC = 3; vmode = &TVMpal480IntDf;
         }
         else if (specificForceFlags & NIN_VID_FORCE_NTSC_240P) {
-            *(vu32*)0x800000CC = 0; vmode = &TVNtsc240Ds; // Use compiler suggested name
+            *(vu32*)0x800000CC = 0; vmode = &TVNtsc240Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_PAL_288P) {
-            *(vu32*)0x800000CC = 1; vmode = &TVPal264Ds;   // Use compiler suggested name (though 288 or 576DsFb is more common)
-                                                            // If TVPal264Ds is not defined, this will fail.
-                                                            // A safer bet might be TVPal288Ds if such a define exists, or TVPal576DsFb.
-                                                            // For now, following compiler hint.
+            *(vu32*)0x800000CC = 1; vmode = &TVPal264Ds; // Using compiler suggested TVPal264Ds
         } else if (specificForceFlags & NIN_VID_FORCE_MPAL_240P) {
-            *(vu32*)0x800000CC = 3; vmode = &TVMpal240Ds; // Use compiler suggested name
+            *(vu32*)0x800000CC = 3; vmode = &TVMpal240Ds;
         } else if (specificForceFlags & NIN_VID_FORCE_EURGB60_240P) {
-            *(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz240Ds; // Use compiler suggested name
+            *(vu32*)0x800000CC = 5; vmode = &TVEurgb60Hz240Ds;
+        } else if (specificForceFlags & NIN_VID_FORCE_PAL_576P) {
+            *(vu32*)0x800000CC = 1; vmode = &TVPal576Prog; // Standard libogc 576p
         }
-        // If no specific flag matched (e.g. only NIN_VID_FORCE high bit set), vmode remains as set by region default.
     }
-    // --- MODIFIED VIDEO MODE LOGIC END ---
+    // --- VIDEO MODE LOGIC END ---
 
-	if((ncfg->Config & NIN_CFG_MEMCARDEMU) == 0) //setup real sram video
+	if((ncfg->Config & NIN_CFG_MEMCARDEMU) == 0)
 	{
 		syssram *sram;
 		sram = __SYS_LockSram();
-		sram->display_offsetH = 0;	// Clear Offset
-		sram->flags		&= ~0x80;	// Clear Progmode
-		sram->flags		&= ~3;		// Clear Videomode
+		sram->display_offsetH = 0;
+		sram->flags		&= ~0x80;	// Clear Progmode initially
+		sram->flags		&= ~3;		// Clear Videomode bits
 
 		if (gameBI2region == BI2_REGION_PAL)
 		{
-			sram->ntd |= 0x40; // Enable PAL60 by default for PAL games if not strictly PAL50
-            if (*(vu32*)0x800000CC == 1) { // If current mode is PAL50
-                sram->ntd &= ~0x40; // Explicitly disable PAL60 for PAL50 mode
+            // For PAL games, enable PAL60 in SRAM if current mode is not strictly PAL50 (576i/288p)
+            // TVPal576Prog is 50Hz, so PAL60 should be off.
+            if (*(vu32*)0x800000CC == 5) { // EURGB60 or PAL60 240p
+                sram->ntd |= 0x40;
+            } else { // PAL50, PAL288p, PAL576p
+                 sram->ntd &= ~0x40;
             }
 		}
-		else
+		else // NTSC or MPAL games
 		{
-			sram->ntd &= ~0x40;
+			sram->ntd &= ~0x40; // Disable PAL60 flag
 		}
 
+        // Set SRAM progressive flag if NIN_VID_PROG is set in ncfg->VideoMode
+        // (This flag is set by menu for 576p, or by console caps + NIN_CFG_FORCE_PROG)
         bool spPopWW = (ncfg->GameID == 0x47324F45 && ncfg->Language == NIN_LAN_SPANISH);
         if ((ncfg->GameID >> 8) != 0x474233 && !spPopWW && (ncfg->VideoMode & NIN_VID_PROG))
         {
             sram->flags |= 0x80;
         }
 
-		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5)
-			sram->flags	|= 1;
+        // Set SRAM video type (PAL/NTSC)
+		if(*(vu32*)0x800000CC == 1 || *(vu32*)0x800000CC == 5) // PAL50 or PAL60 based modes
+			sram->flags	|= 1; // Set PAL video mode in SRAM
+		// else NTSC/MPAL, sram->flags bit 0 remains 0 (NTSC)
 
 		__SYS_UnlockSram(1);
 		while(!__SYS_SyncSram());
@@ -1497,12 +1501,12 @@ int main(int argc, char **argv)
 	VIDEO_SetBlack(FALSE);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();
-	if(vmode && vmode->viTVMode & VI_NON_INTERLACE) // Added vmode NULL check
+	if(vmode && vmode->viTVMode & VI_NON_INTERLACE)
 		VIDEO_WaitVSync();
 	else while(VIDEO_GetNextField())
 		VIDEO_WaitVSync();
 
-	*(u16*)(0xCC00501A) = 156;	// DSP refresh rate
+	*(u16*)(0xCC00501A) = 156;
 	/* from libogc, get all gc pads to work */
 	u32 buf[2];
 	u32 bits = 0;
@@ -1514,12 +1518,12 @@ int main(int argc, char **argv)
 		SI_SetCommand(chan,(0x00000300|0x00400000));
 		SI_EnablePolling(bits);
 	}
-	*(vu32*)0xD3003004 = 1; //ready up HID Thread
+	*(vu32*)0xD3003004 = 1;
 
 	VIDEO_SetBlack(TRUE);
 	VIDEO_Flush();
 	VIDEO_WaitVSync();
-	if(vmode && vmode->viTVMode & VI_NON_INTERLACE) // Added vmode NULL check
+	if(vmode && vmode->viTVMode & VI_NON_INTERLACE)
 		VIDEO_WaitVSync();
 	else while(VIDEO_GetNextField())
 		VIDEO_WaitVSync();
@@ -1542,19 +1546,16 @@ int main(int argc, char **argv)
 	DCFlushRange((void*)0x93020000, 0x10000);
 
 	DCInvalidateRange((void*)0x93003000, 0x200);
-	//*(vu32*)0x93003000 = currev; //set kernel rev (now in LoadKernel)
-	*(vu32*)0x93003008 = 0x80000004; //just some address for SIGetType
+	//*(vu32*)0x93003000 = currev;
+	*(vu32*)0x93003008 = 0x80000004;
 	//0x9300300C is already used for multi-iso
-	memset((void*)0x93003010, 0, 0x190); //clears alot of pad stuff
-	strcpy((char*)0x930031A0, "ARStartDMA: %08x %08x %08x\n"); //ARStartDMA Debug
-	memset((void*)0x930031E0, 0, 0x20); //clears tgc stuff
+	memset((void*)0x93003010, 0, 0x190);
+	strcpy((char*)0x930031A0, "ARStartDMA: %08x %08x %08x\n");
+	memset((void*)0x930031E0, 0, 0x20);
 	DCFlushRange((void*)0x93003000, 0x200);
 
-	//lets prevent weird events
 	__STM_Close();
 
-	//THIS thing right here, it interrupts some games and breaks them
-	//To fix that, call ExecSuspendScheduler so WC24 just sleeps
 	u32 out = 0;
 	fd = IOS_Open("/dev/net/kd/request", 0);
 	IOS_Ioctl(fd, IOCTL_ExecSuspendScheduler, NULL, 0, &out, 4);
@@ -1568,104 +1569,85 @@ int main(int argc, char **argv)
 			do {
 				fd = IOS_Open("/dev/net/ncd/manage", 0);
 			} while(fd < 0);
-			//loader_stub is unused at this point so...
+
 			IOCTL_Buf[0].data = loader_stub;
 			IOCTL_Buf[0].len = 0x1B5C;
 			IOCTL_Buf[1].data = loader_stub+0x1B60;
 			IOCTL_Buf[1].len = 0x20;
 			IOS_Ioctlv(fd, 3, 0, 2, IOCTL_Buf);
-			//enable requested profile
+
 			if(ncfg->NetworkProfile == 1)
 			{
-				//enable profile 1
 				loader_stub[0x8] |= 0xA0;
-				//set wireless/wired select
-				if(loader_stub[0x8]&1) //wired
+				if(loader_stub[0x8]&1)
 					loader_stub[0x4] = 2;
-				else //wireless
+				else
 					loader_stub[0x4] = 1;
-				//disable profile 2 and 3
 				loader_stub[0x924] &= 0x7F;
 				loader_stub[0x1240] &= 0x7F;
 			}
 			else if(ncfg->NetworkProfile == 2)
 			{
-				//disable profile 1
 				loader_stub[0x8] &= 0x7F;
-				//enable profile 2
 				loader_stub[0x924] |= 0xA0;
-				//set wireless/wired select
-				if(loader_stub[0x924]&1) //wired
+				if(loader_stub[0x924]&1)
 					loader_stub[0x4] = 2;
-				else //wireless
+				else
 					loader_stub[0x4] = 1;
-				//disable profile 3
 				loader_stub[0x1240] &= 0x7F;
 			}
-			else //if(ncfg->NetworkProfile == 3)
+			else
 			{
-				//disable profile 1 and 2
 				loader_stub[0x8] &= 0x7F;
 				loader_stub[0x924] &= 0x7F;
-				//enable profile 3
 				loader_stub[0x1240] |= 0xA0;
-				//set wireless/wired select
-				if(loader_stub[0x1240]&1) //wired
+				if(loader_stub[0x1240]&1)
 					loader_stub[0x4] = 2;
-				else //wireless
+				else
 					loader_stub[0x4] = 1;
 			}
-			//flush to RAM, REALLY important
 			DCFlushRange(loader_stub, 0x1C00);
 			IOS_Ioctlv(fd, 4, 1, 1, IOCTL_Buf);
 			IOS_Close(fd);
 		}
 	}
 
-	write16(0xD8B420A, 0); //disable MEMPROT again after reload
-	//u32 level = IRQ_Disable();
+	write16(0xD8B420A, 0);
 	__exception_closeall();
 	__lwp_thread_closeall();
 
-	DVDStartCache(); //waits for kernel start
+	DVDStartCache();
 	DCInvalidateRange((void*)0x90000000, 0x1000000);
-	memset((void*)(void*)0x90000000, 0, 0x1000000); //clear ARAM
+	memset((void*)(void*)0x90000000, 0, 0x1000000);
 	DCFlushRange((void*)0x90000000, 0x1000000);
 
 	gprintf("Game Start\n");
-	//alow interrupts on Y2
 	write32(0x0d000004,0x22);
 	if(useipl)
 	{
 		load_ipl(iplbuf);
 		*(vu32*)0xD3003420 = 0x5DEA;
 		while(*(vu32*)0xD3003420 == 0x5DEA) ;
-		/* Patches */
+
 		DCInvalidateRange((void*)0x80001000, 0x2000);
 		ICInvalidateRange((void*)0x80001000, 0x2000);
-		/* IPL */
 		DCInvalidateRange((void*)0x81300000, 0x300000);
 		ICInvalidateRange((void*)0x81300000, 0x300000);
-		/* Seems to boot more stable this way */
-		//gprintf("Using 32kHz DSP (No Resample)\n");
 		write32(0xCD806C00, 0x68);
-		if (iplbuf) free(iplbuf); // Free IPL buffer
+		if (iplbuf) free(iplbuf);
 	}
-	else //use our own loader
+	else
 	{
 		if(useipltri)
 		{
 			*(vu32*)0xD3003420 = 0x6DEA;
 			while(*(vu32*)0xD3003420 == 0x6DEA) ;
-            // Note: iplbuf_tri for Triforce was allocated at a fixed address, not malloc'd
 		}
 		memcpy((void*)0x81300000, multidol_ldr_bin, multidol_ldr_bin_size);
 		DCFlushRange((void*)0x81300000, multidol_ldr_bin_size);
 		ICInvalidateRange((void*)0x81300000, multidol_ldr_bin_size);
 	}
 	_jmp813();
-
-	//IRQ_Restore(level);
 
 	return 0;
 }

@@ -49,6 +49,7 @@ const char* VideoStrings[] =
 };
 
 // Represents the options for "Force Video Mode" (NIN_SETTINGS_VIDEOMODE)
+// Order must match videoModeFlagMap in menu.c
 const char* VideoModeStrings[] =
 {
         "PAL50",    // Corresponds to NIN_VID_FORCE_PAL50 (bit 0)
@@ -58,7 +59,8 @@ const char* VideoModeStrings[] =
         "NTSC 240p",// Corresponds to NIN_VID_FORCE_NTSC_240P (bit 6)
         "PAL 288p", // Corresponds to NIN_VID_FORCE_PAL_288P  (bit 7)
         "MPAL 240p",// Corresponds to NIN_VID_FORCE_MPAL_240P (bit 8)
-        "PAL60 240p"// Corresponds to NIN_VID_FORCE_EURGB60_240P (bit 9)
+        "PAL60 240p",// Corresponds to NIN_VID_FORCE_EURGB60_240P (bit 9)
+        "PAL 576p"  // Corresponds to NIN_VID_FORCE_PAL_576P (bit 10)
 };
 #define NUM_VIDEOMODE_STRINGS (sizeof(VideoModeStrings) / sizeof(char*))
 
