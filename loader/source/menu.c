@@ -325,7 +325,10 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
         char filename[MAXPATHLEN];      // Current filename.
         u8 buf[0x100];                  // Disc header.
         int gamecount = 0;              // Current game count.
-        u32 i; // Declare loop variables at the start of the function or block for C89 compatibility
+        u32 i;
+        char dir_path[256]; // For game.iso in subdir
+        struct stat st;     // For checking game.iso in subdir
+
 
         if( isWiiVC )
         {
@@ -376,206 +379,121 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
         }
 
         // Process the directory.
-        // TODO: chdir into /games/?
         FILINFO fInfo;
         FIL in;
         while (f_readdir(&pdir, &fInfo) == FR_OK && fInfo.fname[0] != '\0')
         {
-                /**
-                 * Game layout should be:
-                 *
-                 * ISO/GCM format:
-                 * - /games/GAMEID/game.gcm
-                 * - /games/GAMEID/game.iso
-                 * - /games/GAMEID/disc2.gcm
-                 * - /games/GAMEID/disc2.iso
-                 * - /games/[anything].gcm
-                 * - /games/[anything].iso
-                 *
-                 * CISO format:
-                 * - /games/GAMEID/game.ciso
-                 * - /games/GAMEID/game.cso
-                 * - /games/GAMEID/disc2.ciso
-                 * - /games/GAMEID/disc2.cso
-                 * - /games/[anything].ciso
-                 *
-                 * FST format:
-                 * - /games/GAMEID/sys/boot.bin plus other files
-                 *
-                 * NOTE: 2-disc games currently only work with the
-                 * subdirectory layout, and the second disc must be
-                 * named either disc2.iso or disc2.gcm.
-                 */
-
-                // Skip "." and "..".
-                // This will also skip "hidden" directories.
                 if (fInfo.fname[0] == '.')
                         continue;
 
                 if (fInfo.fattrib & AM_DIR)
                 {
-                        // Subdirectory.
-
-                        // Prepare the filename buffer with the directory name.
-                        // game.iso/disc2.iso will be appended later.
-                        // NOTE: fInfo.fname[] is UTF-16.
                         const char *filename_utf8 = wchar_to_char(fInfo.fname);
                         int fnlen = snprintf(filename, sizeof(filename), "%s:/games/%s/",
                                              GetRootDevice(), filename_utf8);
-
-                        //Test if game.iso exists and add to list
                         bool found = false;
-
                         static const char disc_filenames[8][16] = {
                                 "game.ciso", "game.cso", "game.gcm", "game.iso",
                                 "disc2.ciso", "disc2.cso", "disc2.gcm", "disc2.iso"
                         };
-
-                        // u32 i; // already declared at function scope
                         for (i = 0; i < 8; i++)
                         {
                                 const u32 discNumber = i / 4;
-
-                                // Append the disc filename.
                                 strcpy(&filename[fnlen], disc_filenames[i]);
-
-                                // Attempt to load disc information.
                                 if (IsDiscImageValid(filename, discNumber, &gi[gamecount]))
                                 {
-                                        // Disc image exists and is a GameCube disc.
                                         gamecount++;
                                         found = true;
-                                        // Next disc number.
                                         i = (discNumber * 4) + 3;
                                 }
                         }
-
-                        // If none of the expected files were found,
-                        // check for FST format.
                         if (!found)
                         {
-                                // Read the disc header from boot.bin.
                                 memcpy(&filename[fnlen], "sys/boot.bin", 13);
                                 if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
                                         continue;
-                                //gprintf("(%s) ok\n", filename );
-                                UINT read;
-                                f_read(&in, buf, 0x100, &read);
+                                UINT read_len; // Renamed from 'read' to avoid conflict
+                                f_read(&in, buf, 0x100, &read_len);
                                 f_close(&in);
-                                if (read != 0x100 || !IsGCGame(buf))
+                                if (read_len != 0x100 || !IsGCGame(buf))
                                         continue;
-
-                                // Read the BI2.bin region code.
                                 memcpy(&filename[fnlen], "sys/bi2.bin", 12);
                                 if (f_open_char(&in, filename, FA_READ|FA_OPEN_EXISTING) != FR_OK)
                                         continue;
-                                //gprintf("(%s) ok\n", filename );
-                                u32 BI2region;
+                                u32 BI2region_val; // Renamed
                                 f_lseek(&in, 0x18);
-                                f_read(&in, &BI2region, sizeof(BI2region), &read);
+                                f_read(&in, &BI2region_val, sizeof(BI2region_val), &read_len);
                                 f_close(&in);
-                                if (read != sizeof(BI2region))
+                                if (read_len != sizeof(BI2region_val))
                                         continue;
-
-                                // Terminate the filename at the game's base directory.
                                 filename[fnlen] = 0;
-
-                                // Make sure the title in the header is NULL terminated.
                                 buf[0x20+65] = 0;
-
-                                memcpy(gi[gamecount].ID, buf, 6); //ID for EXI
+                                memcpy(gi[gamecount].ID, buf, 6);
                                 gi[gamecount].Revision = 0;
-
-                                // TODO: Check titles.txt?
                                 gi[gamecount].Name = strdup((const char*)&buf[0x20]);
-                                gi[gamecount].Flags = GIFLAG_NAME_ALLOC | GIFLAG_FORMAT_FST | ((BI2region & 3) << 3);
-
+                                gi[gamecount].Flags = GIFLAG_NAME_ALLOC | GIFLAG_FORMAT_FST | ((BI2region_val & 3) << 3);
                                 gi[gamecount].Path = strdup(filename);
                                 gamecount++;
                         }
                 }
                 else
                 {
-                        // Regular file.
-
-                        // Make sure its extension is ".iso" or ".gcm".
                         const char *filename_utf8 = wchar_to_char(fInfo.fname);
                         if (IsSupportedFileExt(filename_utf8))
                         {
-                                // Create the full pathname.
                                 snprintf(filename, sizeof(filename), "%s:/games/%s",
                                          GetRootDevice(), filename_utf8);
-
-                                // Attempt to load disc information.
-                                // (NOTE: Only disc 1 is supported right now.)
                                 if (IsDiscImageValid(filename, 0, &gi[gamecount]))
                                 {
-                                        // Disc image exists and is a GameCube disc.
                                         gamecount++;
                                 }
                         }
                 }
-
-                if (gamecount >= sz)    //if array is full
+                if (gamecount >= sz)
                         break;
         }
         f_closedir(&pdir);
 
-        // Sort the list alphabetically.
-        // On Wii, the pseudo-entry for GameCube discs is always
-        // kept at the top.
         if( gamecount && IsWiiU() && !isWiiVC )
                 qsort(gi, gamecount, sizeof(gameinfo), compare_names);
         else if( gamecount > 1 )
                 qsort(&gi[1], gamecount-1, sizeof(gameinfo), compare_names);
 
-        // Save the game count.
         if (pGameCount)
                 *pGameCount = gamecount;
 
         if(gamecount == 0)
                 return DEV_NO_TITLES;
-
         return DEV_OK;
 }
 
-// Menu selection context.
 typedef struct _MenuCtx
 {
-        u32 menuMode;           // Menu mode. (0 == games; 1 == settings)
-        bool redraw;            // If true, redraw is required.
-        bool selected;          // If true, the user selected a game.
-        bool saveSettings;      // If true, save settings to nincfg.bin.
-
-        // Counters for key repeat.
+        u32 menuMode;
+        bool redraw;
+        bool selected;
+        bool saveSettings;
         struct {
                 u32 Up;
                 u32 Down;
                 u32 Left;
                 u32 Right;
         } held;
-
-        // Games menu.
         struct {
-                s32 posX;       // Selected game index.
-                s32 scrollX;    // Current scrolling position.
-                u32 listMax;    // Maximum number of games to show onscreen at once.
-
-                const gameinfo *gi;     // Game information.
-                int gamecount;          // Game count.
-
-                bool canBeBooted;       // Selected game is bootable.
-                bool canShowInfo;       // Can show information for the selected game.
+                s32 posX;
+                s32 scrollX;
+                u32 listMax;
+                const gameinfo *gi;
+                int gamecount;
+                bool canBeBooted;
+                bool canShowInfo;
         } games;
-
-        // Settings menu.
         struct {
-                u32 settingPart;        // 0 == left column; 1 == right column
-                s32 posX;               // Selected setting index.
+                u32 settingPart;
+                s32 posX;
         } settings;
 } MenuCtx;
 
-/** Key repeat wrapper functions. **/
 #define FPAD_WRAPPER_REPEAT(Key) \
 static inline int FPAD_##Key##_Repeat(MenuCtx *ctx) \
 { \
@@ -593,11 +511,6 @@ FPAD_WRAPPER_REPEAT(Down)
 FPAD_WRAPPER_REPEAT(Left)
 FPAD_WRAPPER_REPEAT(Right)
 
-/**
- * Update the Game Select menu.
- * @param ctx   [in] Menu context.
- * @return True to exit; false to continue.
- */
 static bool UpdateGameSelectMenu(MenuCtx *ctx)
 {
         u32 i;
@@ -605,50 +518,33 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
 
         if(FPAD_X(0))
         {
-                // Can we show information for the selected game?
                 if (ctx->games.canShowInfo)
                 {
-                        // Show game information.
                         ShowGameInfo(&ctx->games.gi[ctx->games.posX + ctx->games.scrollX]);
                         ctx->redraw = true;
                 }
         }
-
         if (FPAD_Down_Repeat(ctx))
         {
-                // Down: Move the cursor down by 1 entry.
-
-                // Remove the current arrow.
                 PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
-
-                // Adjust the scrolling position.
                 if (ctx->games.posX + 1 >= ctx->games.listMax)
                 {
                         if (ctx->games.posX + 1 + ctx->games.scrollX < ctx->games.gamecount) {
-                                // Need to adjust the scroll position.
                                 ctx->games.scrollX++;
                         } else {
-                                // Wraparound.
                                 ctx->games.posX = 0;
                                 ctx->games.scrollX = 0;
                         }
                 } else {
                         ctx->games.posX++;
                 }
-
                 clearCheats = true;
                 ctx->redraw = true;
                 ctx->saveSettings = true;
         }
-
         if (FPAD_Right_Repeat(ctx))
         {
-                // Right: Move the cursor down by 1 page.
-
-                // Remove the current arrow.
                 PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
-
-                // Adjust the scrolling position.
                 if (ctx->games.posX == ctx->games.listMax - 1)
                 {
                         if (ctx->games.posX + ctx->games.listMax + ctx->games.scrollX < ctx->games.gamecount) {
@@ -665,26 +561,18 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
                 else {
                         ctx->games.posX = 0;
                 }
-
                 clearCheats = true;
                 ctx->redraw = true;
                 ctx->saveSettings = true;
         }
-
         if (FPAD_Up_Repeat(ctx))
         {
-                // Up: Move the cursor up by 1 entry.
-
-                // Remove the current arrow.
                 PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
-
-                // Adjust the scrolling position.
                 if (ctx->games.posX <= 0)
                 {
                         if (ctx->games.scrollX > 0) {
                                 ctx->games.scrollX--;
                         } else {
-                                // Wraparound.
                                 if(ctx->games.listMax) {
                                         ctx->games.posX = ctx->games.listMax - 1;
                                 }
@@ -696,20 +584,13 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
                 } else {
                         ctx->games.posX--;
                 }
-
                 clearCheats = true;
                 ctx->redraw = true;
                 ctx->saveSettings = true;
         }
-
         if (FPAD_Left_Repeat(ctx))
         {
-                // Left: Move the cursor up by 1 page.
-
-                // Remove the current arrow.
                 PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X+51*6-8, MENU_POS_Y + 20*6 + ctx->games.posX * 20, " " );
-
-                // Adjust the scrolling position.
                 if (ctx->games.posX == 0)
                 {
                         if (ctx->games.scrollX - (s32)ctx->games.listMax >= 0) {
@@ -722,64 +603,42 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
                 } else {
                         ctx->games.posX = 0;
                 }
-
                 clearCheats = true;
                 ctx->redraw = true;
                 ctx->saveSettings = true;
         }
-
         if (FPAD_OK(0) && ctx->games.canBeBooted)
         {
-                // User selected a game.
                 ctx->selected = true;
                 return true;
         }
-
         if (clearCheats)
         {
                 if ((ncfg->Config & NIN_CFG_CHEATS) && (ncfg->Config & NIN_CFG_CHEAT_PATH))
                 {
-                        // If a cheat path being used, clear it because it
-                        // can't be correct for a different game.
                         ncfg->Config = ncfg->Config & ~(NIN_CFG_CHEATS | NIN_CFG_CHEAT_PATH);
                 }
         }
-
         if (ctx->redraw)
         {
-                // Redraw the game list.
-                // TODO: Only if menuMode or scrollX has changed?
-
-                // Print the color codes.
                 PrintFormat(DEFAULT_SIZE, DiscFormatColors[0], MENU_POS_X, MENU_POS_Y + 20*3, "Colors  : 1:1");
                 PrintFormat(DEFAULT_SIZE, DiscFormatColors[1], MENU_POS_X+(14*10), MENU_POS_Y + 20*3, "Shrunk");
                 PrintFormat(DEFAULT_SIZE, DiscFormatColors[2], MENU_POS_X+(21*10), MENU_POS_Y + 20*3, "FST");
                 PrintFormat(DEFAULT_SIZE, DiscFormatColors[3], MENU_POS_X+(25*10), MENU_POS_Y + 20*3, "CISO");
                 PrintFormat(DEFAULT_SIZE, DiscFormatColors[4], MENU_POS_X+(30*10), MENU_POS_Y + 20*3, "Multi");
                 PrintFormat(DEFAULT_SIZE, DiscFormatColors[5], MENU_POS_X+(36*10), MENU_POS_Y + 20*3, "Over");
-
-                // Starting position.
                 int gamelist_y = MENU_POS_Y + 20*5 + 10;
-
-                const gameinfo *cur_gi = &ctx->games.gi[ctx->games.scrollX]; // Renamed to avoid conflict with outer scope 'gi'
+                const gameinfo *cur_gi = &ctx->games.gi[ctx->games.scrollX];
                 int gamesToPrint = ctx->games.gamecount - ctx->games.scrollX;
                 if (gamesToPrint > ctx->games.listMax) {
                         gamesToPrint = ctx->games.listMax;
                 }
-
                 for (i = 0; i < gamesToPrint; ++i, gamelist_y += 20, cur_gi++)
                 {
-                        // FIXME: Print all 64 characters of the game name?
-                        // Currently truncated to 50.
-
-                        // Determine color based on disc format.
-                        // NOTE: On Wii, DISC01 is GIFLAG_FORMAT_FULL.
                         const u32 color = DiscFormatColors[cur_gi->Flags & GIFLAG_FORMAT_MASK];
-
                         const u8 discNumber = ((cur_gi->Flags & GIFLAG_DISCNUMBER_MASK) >> 5);
                         if (discNumber == 0)
                         {
-                                // Disc 1.
                                 PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
                                             "%50.50s [%.6s]%s",
                                             cur_gi->Name, cur_gi->ID,
@@ -787,7 +646,6 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
                         }
                         else
                         {
-                                // Disc 2 or higher.
                                 PrintFormat(DEFAULT_SIZE, color, MENU_POS_X, gamelist_y,
                                             "%46.46s (%d) [%.6s]%s",
                                             cur_gi->Name, discNumber+1, cur_gi->ID,
@@ -799,47 +657,33 @@ static bool UpdateGameSelectMenu(MenuCtx *ctx)
                         && (ctx->games.scrollX + ctx->games.posX) < ctx->games.gamecount)
                 {
                         ctx->games.canBeBooted = true;
-                        // Can we show information for the selected title?
                         if (IsWiiU() && !isWiiVC) {
-                                // Can show information for all games on WiiU
                                 ctx->games.canShowInfo = true;
                         } else {
                                 if ((ctx->games.scrollX + ctx->games.posX) == 0) {
-                                        // Cannot show information for DISC01 on Wii and Wii VC.
                                         ctx->games.canShowInfo = false;
                                 } else {
-                                        // Can show information for all other games.
                                         ctx->games.canShowInfo = true;
                                 }
                         }
 
                         if (ctx->games.canShowInfo) {
-                                // Print the selected game's filename.
                                 const gameinfo *const gi_sel = &ctx->games.gi[ctx->games.scrollX + ctx->games.posX];
                                 const int len = strlen(gi_sel->Path);
                                 const int x = (640 - (len*10)) / 2;
-
                                 const u32 color = DiscFormatColors[gi_sel->Flags & GIFLAG_FORMAT_MASK];
                                 PrintFormat(DEFAULT_SIZE, color, x, MENU_POS_Y + 20*4+5, "%s", gi_sel->Path);
                         }
                 }
                 else
                 {
-                        //invalid title selected
                         ctx->games.canBeBooted = false;
                         ctx->games.canShowInfo = false;
                 }
-                // GRRLIB rendering is done by SelectGame().
         }
-
         return false;
 }
 
-/**
- * Get a description for the Settings menu.
- * @param ctx   [in] Menu context.
- * @return Description, or NULL if none is available.
- */
 static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 {
         if (ctx->settings.settingPart == 0)
@@ -850,7 +694,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                         case NIN_CFG_BIT_DEBUGGER:
                         case NIN_CFG_BIT_DEBUGWAIT:
                                 break;
-
                         case NIN_CFG_BIT_MEMCARDEMU: {
                                 static const char *desc_mcemu[] = {
                                         "Emulates a memory card in",
@@ -863,10 +706,8 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_mcemu;
                         }
-
                         case NIN_CFG_BIT_CHEAT_PATH:
                                 break;
-
                         case NIN_CFG_BIT_FORCE_WIDE: {
                                 static const char *const desc_force_wide[] = {
                                         "Patch games to use a 16:9",
@@ -882,8 +723,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_force_wide;
                         }
-
-                        case NIN_CFG_BIT_FORCE_PROG: {
+                        case NIN_CFG_BIT_FORCE_PROG: { // This is the "Force Progressive" (480p) toggle
                                 static const char *const desc_force_prog[] = {
                                         "Patch games to always use 480p",
                                         "(progressive scan) output.",
@@ -894,10 +734,8 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_force_prog;
                         }
-
                         case NIN_CFG_BIT_AUTO_BOOT:
                                 break;
-
                         case NIN_CFG_BIT_REMLIMIT: {
                                 static const char *desc_remlimit[] = {
                                         "Disc read speed is normally",
@@ -914,11 +752,9 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_remlimit;
                         }
-
                         case NIN_CFG_BIT_OSREPORT:
                                 break;
-
-                        case NIN_CFG_BIT_USB: { // WiiU Widescreen
+                        case NIN_CFG_BIT_USB: {
                                 static const char *desc_wiiu_widescreen[] = {
                                         "On Wii U, Nintendont sets the",
                                         "display to 4:3, which results",
@@ -934,7 +770,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_wiiu_widescreen;
                         }
-
                         case NIN_CFG_BIT_LED: {
                                 static const char *desc_led[] = {
                                         "Use the drive slot LED as a",
@@ -951,10 +786,8 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_led;
                         }
-
                         case NIN_CFG_BIT_LOG:
                                 break;
-
                         case NIN_SETTINGS_MAX_PADS: {
                                 static const char *desc_max_pads[] = {
                                         "Set the maximum number of",
@@ -971,7 +804,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_max_pads;
                         }
-
                         case NIN_SETTINGS_LANGUAGE: {
                                 static const char *desc_language[] = {
                                         "Set the system language.",
@@ -984,11 +816,9 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_language;
                         }
-
-                        case NIN_SETTINGS_VIDEO:
-                        case NIN_SETTINGS_VIDEOMODE:
+                        case NIN_SETTINGS_VIDEO: // General Video (Auto, Force, etc.)
+                        case NIN_SETTINGS_VIDEOMODE: // Specific Forced Video Mode
                                 break;
-
                         case NIN_SETTINGS_MEMCARDBLOCKS: {
                                 static const char *desc_memcard_blocks[] = {
                                         "Default size for new memory",
@@ -1001,7 +831,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_memcard_blocks;
                         }
-
                         case NIN_SETTINGS_MEMCARDMULTI: {
                                 static const char *desc_memcard_multi[] = {
                                         "Nintendont usually uses one",
@@ -1017,7 +846,6 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_memcard_multi;
                         }
-
                         case NIN_SETTINGS_NATIVE_SI: {
                                 static const char *desc_native_si[] = {
                                         "Native Control allows use of",
@@ -1034,15 +862,14 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_native_si;
                         }
-
                         default:
                                 break;
                 }
-        } else /*if (ctx->settings.settingPart == 1)*/ {
+        } else
+        {
                 switch (ctx->settings.posX)
                 {
                         case 3: {
-                                // Triforce Arcade Mode
                                 static const char *desc_tri_arcade[] = {
                                         "Arcade Mode re-enables the",
                                         "coin slot functionality of",
@@ -1054,9 +881,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_tri_arcade;
                         }
-
                         case 4: {
-                                // Wiimote CC Rumble
                                 static const char *desc_cc_rumble[] = {
                                         "Enable rumble on Wii Remotes",
                                         "when using the Wii Classic",
@@ -1066,9 +891,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_cc_rumble;
                         }
-
                         case 5: {
-                                // Skip IPL
                                 static const char *desc_skip_ipl[] = {
                                         "Skip loading the GameCube",
                                         "IPL, even if it's present",
@@ -1077,9 +900,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_skip_ipl;
                         }
-
                         case 6: {
-                                // BBA Emulation
                                 static const char *desc_skip_bba[] = {
                                         "Enable BBA Emulation in the",
                                         "following supported titles",
@@ -1095,9 +916,7 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_skip_bba;
                         }
-
                         case 7: {
-                                // BBA Network Profile
                                 static const char *desc_skip_netprof[] = {
                                         "Force a Network Profile",
                                         "to use for BBA Emulation,",
@@ -1112,22 +931,13 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
                                 };
                                 return desc_skip_netprof;
                         }
-
                         default:
                                 break;
                 }
         }
-
-        // No description is available.
         return NULL;
 }
 
-
-/**
- * Update the Settings menu.
- * @param ctx   [in] Menu context.
- * @return True to exit; false to continue.
- */
 static bool UpdateSettingsMenu(MenuCtx *ctx)
 {
     u32 ListLoopIndex;
@@ -1136,24 +946,20 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
         if(FPAD_X(0))
         {
-                // Start the updater.
                 UpdateNintendont();
                 ctx->redraw = 1;
         }
 
         if (FPAD_Down_Repeat(ctx))
         {
-                // Down: Move the cursor down by 1 setting.
                 if (ctx->settings.settingPart == 0) {
                         PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(ctx->settings.posX), " " );
                 } else {
                         PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+300, SettingY(ctx->settings.posX), " " );
                 }
-
                 ctx->settings.posX++;
                 if (ctx->settings.settingPart == 0)
                 {
-                        // Some items are hidden if certain values aren't set.
                         if (((ncfg->VideoMode & NIN_VID_FORCE) == 0) &&
                             (ctx->settings.posX == NIN_SETTINGS_VIDEOMODE))
                         {
@@ -1170,30 +976,22 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                 ctx->settings.posX++;
                         }
                 }
-
-                // Check for wraparound.
                 if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
                     (ctx->settings.settingPart == 1 && ctx->settings.posX >= 9))
                 {
                         ctx->settings.posX = 0;
                         ctx->settings.settingPart ^= 1;
                 }
-
                 ctx->redraw = true;
-
         }
         else if (FPAD_Up_Repeat(ctx))
         {
-                // Up: Move the cursor up by 1 setting.
                 if (ctx->settings.settingPart == 0) {
                         PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+30, SettingY(ctx->settings.posX), " " );
                 } else {
                         PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+300, SettingY(ctx->settings.posX), " " );
                 }
-
                 ctx->settings.posX--;
-
-                // Check for wraparound.
                 if (ctx->settings.posX < 0)
                 {
                         ctx->settings.settingPart ^= 1;
@@ -1203,10 +1001,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                 ctx->settings.posX = 8;
                         }
                 }
-
                 if (ctx->settings.settingPart == 0)
                 {
-                        // Some items are hidden if certain values aren't set.
                         if ((!(ncfg->Config & NIN_CFG_MEMCARDEMU)) &&
                             (ctx->settings.posX == NIN_SETTINGS_MEMCARDMULTI))
                         {
@@ -1223,34 +1019,29 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                 ctx->settings.posX--;
                         }
                 }
-
                 ctx->redraw = true;
         }
 
         if (FPAD_Left_Repeat(ctx))
         {
-                // Left: Decrement a setting. (Right column only.)
                 if (ctx->settings.settingPart == 1)
                 {
                         ctx->saveSettings = true;
                         switch (ctx->settings.posX)
                         {
                                 case 0:
-                                        // Video width.
                                         if (ncfg->VideoScale == 0) {
                                                 ncfg->VideoScale = 120;
                                         } else {
                                                 ncfg->VideoScale -= 2;
                                                 if (ncfg->VideoScale < 40 || ncfg->VideoScale > 120) {
-                                                        ncfg->VideoScale = 0; // auto
+                                                        ncfg->VideoScale = 0;
                                                 }
                                         }
                                         ReconfigVideo(rmode);
                                         ctx->redraw = true;
                                         break;
-
                                 case 1:
-                                        // Screen position.
                                         ncfg->VideoOffset--;
                                         if (ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20) {
                                                 ncfg->VideoOffset = 20;
@@ -1258,7 +1049,6 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                         ReconfigVideo(rmode);
                                         ctx->redraw = true;
                                         break;
-
                                 default:
                                         break;
                         }
@@ -1266,28 +1056,24 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
         }
         else if (FPAD_Right_Repeat(ctx))
         {
-                // Right: Increment a setting. (Right column only.)
                 if (ctx->settings.settingPart == 1)
                 {
                         ctx->saveSettings = true;
                         switch (ctx->settings.posX)
                         {
                                 case 0:
-                                        // Video width.
                                         if(ncfg->VideoScale == 0) {
                                                 ncfg->VideoScale = 40;
                                         } else {
                                                 ncfg->VideoScale += 2;
                                                 if (ncfg->VideoScale < 40 || ncfg->VideoScale > 120) {
-                                                        ncfg->VideoScale = 0; // auto
+                                                        ncfg->VideoScale = 0;
                                                 }
                                         }
                                         ReconfigVideo(rmode);
                                         ctx->redraw = true;
                                         break;
-
                                 case 1:
-                                        // Screen position.
                                         ncfg->VideoOffset++;
                                         if (ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20) {
                                                 ncfg->VideoOffset = -20;
@@ -1295,7 +1081,6 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                         ReconfigVideo(rmode);
                                         ctx->redraw = true;
                                         break;
-
                                 default:
                                         break;
                         }
@@ -1304,116 +1089,97 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
         if( FPAD_OK(0) )
         {
-                // A: Adjust the setting.
                 if (ctx->settings.settingPart == 0)
                 {
-                        // Left column.
                         ctx->saveSettings = true;
                         if (ctx->settings.posX < NIN_CFG_BIT_LAST)
                         {
-                                // Standard boolean setting.
                                 if (ctx->settings.posX == NIN_CFG_BIT_USB) {
-                                        // USB option is replaced with Wii U widescreen.
                                         ncfg->Config ^= NIN_CFG_WIIU_WIDE;
-                                } else {
+                                } else if (ctx->settings.posX == NIN_CFG_BIT_FORCE_PROG) {
+                                    ncfg->Config ^= (1 << ctx->settings.posX); // Toggle NIN_CFG_FORCE_PROG
+                                    if (ncfg->Config & NIN_CFG_FORCE_PROG) { // If it was just turned ON
+                                        // Clear specific non-480p video mode flags and NIN_VID_PROG
+                                        ncfg->VideoMode &= ~(NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P | NIN_VID_FORCE_PAL_576P | NIN_VID_PROG);
+                                        // Optionally, if "Video" (general force type) is "Force", reset "Videomode" (specific force) to a default like NTSC or PAL50.
+                                        // For simplicity, just clearing the special modes might be enough, main.c logic will handle the rest.
+                                    }
+                                }
+                                else {
                                         ncfg->Config ^= (1 << ctx->settings.posX);
                                 }
                         }
                         else switch (ctx->settings.posX)
                         {
                                 case NIN_SETTINGS_MAX_PADS:
-                                        // Maximum native controllers.
-                                        // Not available on Wii U.
                                         ncfg->MaxPads++;
                                         if (ncfg->MaxPads > NIN_CFG_MAXPAD) {
                                                 ncfg->MaxPads = 0;
                                         }
                                         break;
-
                                 case NIN_SETTINGS_LANGUAGE:
                                         ncfg->Language++;
                                         if (ncfg->Language > NIN_LAN_DUTCH) {
                                                 ncfg->Language = NIN_LAN_AUTO;
                                         }
                                         break;
-
-                                case NIN_SETTINGS_VIDEO: // General Video option (Auto, Force, None)
+                                case NIN_SETTINGS_VIDEO:
                                 {
-                                        u32 Video = (ncfg->VideoMode & NIN_VID_MASK); // High bits
+                                        u32 Video = (ncfg->VideoMode & NIN_VID_MASK);
                                         switch (Video)
                                         {
-                                                case NIN_VID_AUTO:
-                                                        Video = NIN_VID_FORCE;
-                                                        break;
-                                                case NIN_VID_FORCE:
-                                                        Video = NIN_VID_FORCE | NIN_VID_FORCE_DF;
-                                                        break;
-                                                case NIN_VID_FORCE | NIN_VID_FORCE_DF:
-                                                        Video = NIN_VID_NONE;
-                                                        break;
+                                                case NIN_VID_AUTO:   Video = NIN_VID_FORCE; break;
+                                                case NIN_VID_FORCE:  Video = NIN_VID_FORCE | NIN_VID_FORCE_DF; break;
+                                                case NIN_VID_FORCE | NIN_VID_FORCE_DF: Video = NIN_VID_NONE; break;
                                                 default:
-                                                case NIN_VID_NONE:
-                                                        Video = NIN_VID_AUTO;
-                                                        break;
+                                                case NIN_VID_NONE:   Video = NIN_VID_AUTO; break;
                                         }
-                                        ncfg->VideoMode &= ~NIN_VID_MASK; // Clear high bits
-                                        ncfg->VideoMode |= Video;        // Set new high bits
+                                        ncfg->VideoMode &= ~NIN_VID_MASK;
+                                        ncfg->VideoMode |= Video;
                                         break;
                                 }
-
-                                case NIN_SETTINGS_VIDEOMODE: // "Force Videomode" option (specific modes)
+                                case NIN_SETTINGS_VIDEOMODE:
                                 {
                                     u32 currentForceSpecificFlags = ncfg->VideoMode & NIN_VID_FORCE_MASK;
                                     int currentModeIndex = -1;
-                                    // int i; // Declared at the top of the function
                                     for (i = 0; i < NUM_VIDEOMODE_STRINGS; i++) {
                                         if (currentForceSpecificFlags == videoModeFlagMap[i]) {
                                             currentModeIndex = i;
                                             break;
                                         }
                                     }
-
                                     currentModeIndex++;
                                     if (currentModeIndex >= NUM_VIDEOMODE_STRINGS) {
-                                        currentModeIndex = 0; // Wrap around
+                                        currentModeIndex = 0;
                                     }
+                                    ncfg->VideoMode &= ~(NIN_VID_FORCE_MASK | NIN_VID_PROG);
+                                    ncfg->VideoMode |= videoModeFlagMap[currentModeIndex];
 
-                                    ncfg->VideoMode &= ~(NIN_VID_FORCE_MASK | NIN_VID_PROG); // Clear all specific force flags and prog flag
-                                    ncfg->VideoMode |= videoModeFlagMap[currentModeIndex]; // Set the new specific force flag
-
-                                    // If a 240p/288p mode is selected, ensure progressive scan config flag is off
-                                    if (videoModeFlagMap[currentModeIndex] & (NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P)) {
+                                    u32 selectedFlag = videoModeFlagMap[currentModeIndex];
+                                    if (selectedFlag & (NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P)) {
                                         ncfg->Config &= ~NIN_CFG_FORCE_PROG;
                                     }
-                                    // If 576p is selected, ensure NIN_VID_PROG is set and NIN_CFG_FORCE_PROG is off
-                                    else if (videoModeFlagMap[currentModeIndex] == NIN_VID_FORCE_PAL_576P) {
+                                    else if (selectedFlag == NIN_VID_FORCE_PAL_576P) {
                                         ncfg->VideoMode |= NIN_VID_PROG;
                                         ncfg->Config &= ~NIN_CFG_FORCE_PROG;
                                     }
                                     break;
                                 }
-
-
                                 case NIN_SETTINGS_MEMCARDBLOCKS:
                                         ncfg->MemCardBlocks++;
                                         if (ncfg->MemCardBlocks > MEM_CARD_MAX) {
                                                 ncfg->MemCardBlocks = 0;
                                         }
                                         break;
-
                                 case NIN_SETTINGS_MEMCARDMULTI:
                                         ncfg->Config ^= (NIN_CFG_MC_MULTI);
                                         break;
-
                                 case NIN_SETTINGS_NATIVE_SI:
                                         ncfg->Config ^= (NIN_CFG_NATIVE_SI);
                                         break;
-
                                 default:
                                         break;
                         }
-
-                        // Blank out the memory card options if MCEMU is disabled.
                         if (!(ncfg->Config & NIN_CFG_MEMCARDEMU))
                         {
                                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 50, SettingY(NIN_SETTINGS_MEMCARDBLOCKS), "%29s", "");
@@ -1423,53 +1189,39 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 }
                 else if (ctx->settings.settingPart == 1)
                 {
-                        // Right column.
                         switch (ctx->settings.posX) {
                                 case 2:
-                                        // PAL50 patch.
                                         ctx->saveSettings = true;
                                         ncfg->VideoMode ^= (NIN_VID_PATCH_PAL50);
                                         ctx->redraw = true;
                                         break;
-
                                 case 3:
-                                        // Triforce Arcade Mode.
                                         ctx->saveSettings = true;
                                         ncfg->Config ^= (NIN_CFG_ARCADE_MODE);
                                         ctx->redraw = true;
                                         break;
-
                                 case 4:
-                                        // Wiimote CC Rumble
                                         ctx->saveSettings = true;
                                         ncfg->Config ^= (NIN_CFG_CC_RUMBLE);
                                         ctx->redraw = true;
                                         break;
-
                                 case 5:
-                                        // Skip IPL
                                         ctx->saveSettings = true;
                                         ncfg->Config ^= (NIN_CFG_SKIP_IPL);
                                         ctx->redraw = true;
                                         break;
-
                                 case 6:
-                                        // BBA Emulation
                                         ctx->saveSettings = true;
                                         ncfg->Config ^= (NIN_CFG_BBA_EMU);
                                         ctx->redraw = true;
                                         break;
-
                                 case 7:
-                                        // BBA Network Profile
                                         ctx->saveSettings = true;
                                         ncfg->NetworkProfile++;
                                         ncfg->NetworkProfile &= 3;
                                         ctx->redraw = true;
                                         break;
-
                                 case 8:
-                                        // Wii U Gamepad Slot
                                         ctx->saveSettings = true;
                                         ncfg->WiiUGamepadSlot++;
                                         if (ncfg->WiiUGamepadSlot > NIN_CFG_MAXPAD) {
@@ -1477,7 +1229,6 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                         }
                                         ctx->redraw = true;
                                         break;
-
                                 default:
                                         break;
                         }
@@ -1486,14 +1237,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
         if (ctx->redraw)
         {
-                // Redraw the settings menu.
-                // u32 ListLoopIndex = 0; // Declared at function scope
-
-                // Standard boolean settings.
                 for (ListLoopIndex = 0; ListLoopIndex < NIN_CFG_BIT_LAST; ListLoopIndex++)
                 {
                         if (ListLoopIndex == NIN_CFG_BIT_USB) {
-                                // USB option is replaced with Wii U widescreen.
                                 PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+50, SettingY(ListLoopIndex),
                                             "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (NIN_CFG_WIIU_WIDE)) ? "On " : "Off");
                         } else {
@@ -1503,75 +1249,47 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                      ListLoopIndex == NIN_CFG_BIT_DEBUGWAIT ||
                                      ListLoopIndex == NIN_CFG_BIT_LED))
                                 {
-                                        // These options are only available on Wii.
                                         item_color = DARK_GRAY;
                                 }
                                 PrintFormat(MENU_SIZE, item_color, MENU_POS_X+50, SettingY(ListLoopIndex),
                                             "%-18s:%s", OptionStrings[ListLoopIndex], (ncfg->Config & (1 << ListLoopIndex)) ? "On " : "Off" );
                         }
                 }
-
-                // Maximum number of emulated controllers.
-                // Not available on Wii U.
-                // TODO: Disable on RVL-101?
                 PrintFormat(MENU_SIZE, (!IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+50, SettingY(ListLoopIndex),
                             "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
                 ListLoopIndex++;
-
-                // Language setting.
                 u32 LanIndex = ncfg->Language;
                 if (LanIndex < NIN_LAN_FIRST || LanIndex >= NIN_LAN_LAST) {
-                        LanIndex = NIN_LAN_LAST; //Auto
+                        LanIndex = NIN_LAN_LAST;
                 }
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
                             "%-18s:%-4s", OptionStrings[ListLoopIndex], LanguageStrings[LanIndex] );
                 ListLoopIndex++;
-
-                // Video mode forcing. (General: Auto, Force, None, etc.)
-                u32 VideoModeIndex_display; // For string array index, renamed to avoid conflict
-                u32 VideoModeVal = ncfg->VideoMode & NIN_VID_MASK; // High bits
+                u32 VideoModeIndex_display;
+                u32 VideoModeVal = ncfg->VideoMode & NIN_VID_MASK;
                 switch (VideoModeVal)
                 {
-                        case NIN_VID_AUTO:
-                                VideoModeIndex_display = NIN_VID_INDEX_AUTO;
-                                break;
-                        case NIN_VID_FORCE:
-                                VideoModeIndex_display = NIN_VID_INDEX_FORCE;
-                                break;
-                        case NIN_VID_FORCE | NIN_VID_FORCE_DF:
-                                VideoModeIndex_display = NIN_VID_INDEX_FORCE_DF;
-                                break;
-                        case NIN_VID_NONE:
-                                VideoModeIndex_display = NIN_VID_INDEX_NONE;
-                                break;
-                        default:
-                                ncfg->VideoMode &= ~NIN_VID_MASK;
-                                ncfg->VideoMode |= NIN_VID_AUTO;
-                                VideoModeIndex_display = NIN_VID_INDEX_AUTO;
-                                break;
+                        case NIN_VID_AUTO:   VideoModeIndex_display = NIN_VID_INDEX_AUTO; break;
+                        case NIN_VID_FORCE:  VideoModeIndex_display = NIN_VID_INDEX_FORCE; break;
+                        case NIN_VID_FORCE | NIN_VID_FORCE_DF: VideoModeIndex_display = NIN_VID_INDEX_FORCE_DF; break;
+                        case NIN_VID_NONE:   VideoModeIndex_display = NIN_VID_INDEX_NONE; break;
+                        default: ncfg->VideoMode &= ~NIN_VID_MASK; ncfg->VideoMode |= NIN_VID_AUTO; VideoModeIndex_display = NIN_VID_INDEX_AUTO; break;
                 }
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
                             "%-18s:%-18s", OptionStrings[ListLoopIndex], VideoStrings[VideoModeIndex_display] );
-                ListLoopIndex++; // For NIN_SETTINGS_VIDEO
-
-                // Specific Forced Video Mode (NIN_SETTINGS_VIDEOMODE)
-                if( ncfg->VideoMode & NIN_VID_FORCE ) // Check high bit general force flag
+                ListLoopIndex++;
+                if( ncfg->VideoMode & NIN_VID_FORCE )
                 {
                     u32 currentForceSpecificFlags = ncfg->VideoMode & NIN_VID_FORCE_MASK;
                     int displayStringIndex = -1;
-                    // int i; // Declared at function scope
                     for(i=0; i < NUM_VIDEOMODE_STRINGS; ++i) {
                         if (currentForceSpecificFlags == videoModeFlagMap[i]) {
                             displayStringIndex = i;
                             break;
                         }
                     }
-
                     if (displayStringIndex == -1) {
-                         // If no specific flag matches, default to NTSC string for display
-                         // This might happen if NIN_VID_FORCE is set but no low bits are, or an unknown combo
-                         displayStringIndex = 2; // Default to "NTSC" string index
-                         // A better fallback might be the first item if no valid flag is set
+                         displayStringIndex = 2;
                          if (!(currentForceSpecificFlags & videoModeFlagMap[displayStringIndex])) {
                             displayStringIndex = 0;
                          }
@@ -1582,10 +1300,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                      PrintFormat(MENU_SIZE, DARK_GRAY, MENU_POS_X+50, SettingY(ListLoopIndex),
                                 "%-18s:%-10s", OptionStrings[ListLoopIndex], "---" );
                 }
-                ListLoopIndex++; // For NIN_SETTINGS_VIDEOMODE
-
-
-                // Memory card emulation.
+                ListLoopIndex++;
                 if ((ncfg->Config & NIN_CFG_MEMCARDEMU) == NIN_CFG_MEMCARDEMU)
                 {
                         u32 MemCardBlocksVal = ncfg->MemCardBlocks;
@@ -1598,18 +1313,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                     "%-18s:%-4s", OptionStrings[ListLoopIndex+1], (ncfg->Config & (NIN_CFG_MC_MULTI)) ? "On " : "Off");
                 }
                 ListLoopIndex+=2;
-
-                // Native controllers. (Required for GBA link; disables Bluetooth and USB HID.)
-                // TODO: Gray out on RVL-101?
                 PrintFormat(MENU_SIZE, (IsWiiU() ? DARK_GRAY : BLACK), MENU_POS_X + 50, SettingY(ListLoopIndex),
                             "%-18s:%-4s", OptionStrings[ListLoopIndex],
                             (ncfg->Config & (NIN_CFG_NATIVE_SI)) ? "On " : "Off");
                 ListLoopIndex++;
-
-                /** Right column **/
-                ListLoopIndex = 0; //reset on other side
-
-                // Video width.
+                ListLoopIndex = 0;
                 char vidWidth[10];
                 if (ncfg->VideoScale < 40 || ncfg->VideoScale > 120) {
                         ncfg->VideoScale = 0;
@@ -1617,13 +1325,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 } else {
                         snprintf(vidWidth, sizeof(vidWidth), "%i", ncfg->VideoScale + 600);
                 }
-
                 char vidOffset[10];
                 if (ncfg->VideoOffset < -20 || ncfg->VideoOffset > 20) {
                         ncfg->VideoOffset = 0;
                 }
                 snprintf(vidOffset, sizeof(vidOffset), "%i", ncfg->VideoOffset);
-
                 char netProfile[5];
                 ncfg->NetworkProfile &= 3;
                 if(ncfg->NetworkProfile == 0)
@@ -1637,40 +1343,25 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
                             "%-18s:%-4s", "Screen Position", vidOffset);
                 ListLoopIndex++;
-
-                // Patch PAL60.
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
                             "%-18s:%-4s", "Patch PAL50", (ncfg->VideoMode & (NIN_VID_PATCH_PAL50)) ? "On " : "Off");
                 ListLoopIndex++;
-
-                // Triforce Arcade Mode.
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
                             "%-18s:%-4s", "TRI Arcade Mode", (ncfg->Config & (NIN_CFG_ARCADE_MODE)) ? "On " : "Off");
                 ListLoopIndex++;
-
-                // Wiimote CC Rumble
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
                             "%-18s:%-4s", "Wiimote CC Rumble", (ncfg->Config & (NIN_CFG_CC_RUMBLE)) ? "On " : "Off");
                 ListLoopIndex++;
-
-                // Skip GameCube IPL
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
                             "%-18s:%-4s", "Skip IPL", (ncfg->Config & (NIN_CFG_SKIP_IPL)) ? "Yes" : "No ");
                 ListLoopIndex++;
-
-                // BBA Emulation
                 PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 320, SettingY(ListLoopIndex),
                             "%-18s:%-4s", "BBA Emulation", (ncfg->Config & (NIN_CFG_BBA_EMU)) ? "On" : "Off");
                 ListLoopIndex++;
-
-                // BBA Network Profile
                 PrintFormat(MENU_SIZE, (IsWiiU() || !(ncfg->Config & (NIN_CFG_BBA_EMU))) ? DARK_GRAY : BLACK,
                                 MENU_POS_X + 320, SettingY(ListLoopIndex),
                             "%-18s:%-4s", "Network Profile", netProfile);
                 ListLoopIndex++;
-
-
-                // Controller slot for the Wii U gamepad.
                 if (ncfg->WiiUGamepadSlot < NIN_CFG_MAXPAD) {
                         PrintFormat(MENU_SIZE, (IsWiiU() ? BLACK : DARK_GRAY), MENU_POS_X+320, SettingY(ListLoopIndex),
                                         "%-18s:%d", "WiiU Gamepad Slot", (ncfg->WiiUGamepadSlot + 1));
@@ -1679,11 +1370,9 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                         "%-18s:%-4s", "WiiU Gamepad Slot", "None");
                 }
                 ListLoopIndex++;
-
-                // Draw the cursor.
                 u32 cursor_color = BLACK;
                 if (ctx->settings.settingPart == 0) {
-                        if ((!IsWiiU() && ctx->settings.posX == NIN_CFG_BIT_USB) || // Corresponds to WiiU Widescreen
+                        if ((!IsWiiU() && ctx->settings.posX == NIN_CFG_BIT_USB) ||
                              (IsWiiU() && ctx->settings.posX == NIN_SETTINGS_NATIVE_SI) ||
                              (IsWiiU() && ctx->settings.posX == NIN_SETTINGS_MAX_PADS) ||
                              (IsWiiU() && ctx->settings.posX == NIN_CFG_BIT_DEBUGGER) ||
@@ -1691,141 +1380,80 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                              (IsWiiU() && ctx->settings.posX == NIN_CFG_BIT_LED)
                              )
                         {
-                                // Setting is not usable on this platform.
-                                // Gray out the cursor, too.
                                 cursor_color = DARK_GRAY;
                         }
                         PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 30, SettingY(ctx->settings.posX), ARROW_RIGHT);
                 } else {
-                        if((IsWiiU() || !(ncfg->Config & (NIN_CFG_BBA_EMU))) && ctx->settings.posX == 7) // BBA Profile
+                        if((IsWiiU() || !(ncfg->Config & (NIN_CFG_BBA_EMU))) && ctx->settings.posX == 7)
                                 cursor_color = DARK_GRAY;
-                        if(IsWiiU() && ctx->settings.posX == 8) // WiiU Gamepad Slot
-                                cursor_color = BLACK; // This should be active on WiiU
-                        else if (!IsWiiU() && ctx->settings.posX == 8) // WiiU Gamepad Slot on Wii
+                        if(IsWiiU() && ctx->settings.posX == 8)
+                                cursor_color = BLACK;
+                        else if (!IsWiiU() && ctx->settings.posX == 8)
                                 cursor_color = DARK_GRAY;
-
-
                         PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
                 }
-
-                // Print a description for the selected option.
-                // desc contains pointers to lines, and is
-                // terminated with NULL.
                 const char *const *desc = GetSettingsDescription(ctx);
                 if (desc != NULL)
                 {
-                        int line_num = 9; // Starting Y position for descriptions in the right column
-                        // Clear previous description
-                        // int k; // Declared at function scope
-                        for (k=0; k<8; ++k) { // Assuming max 8 lines for description
-                             PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(line_num+k), "%30s", ""); // Clear with spaces
+                        int line_num = 9;
+                        for (k=0; k<8; ++k) {
+                             PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(line_num+k), "%30s", "");
                         }
-
                         do {
                                 if (**desc != 0)
                                 {
                                         PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(line_num), *desc);
                                 }
                                 line_num++;
-                        } while (*(++desc) != NULL && line_num < 9+8); // Max 8 lines
+                        } while (*(++desc) != NULL && line_num < 9+8);
                 } else {
-                     // Clear previous description if current item has no description
-                        // int k; // Declared at function scope
                         for (k=0; k<8; ++k) {
                              PrintFormat(MENU_SIZE, BLACK, MENU_POS_X + 300, SettingY(9+k), "%30s", "");
                         }
                 }
-
-
-                // GRRLIB rendering is done by SelectGame().
         }
-
         return false;
 }
 
-/**
- * Select a game from the specified device.
- * @return Bitfield indicating the user's selection:
- * - 0 == go back
- * - 1 == game selected
- * - 2 == go back and save settings (UNUSED)
- * - 3 == game selected and save settings
- */
 static int SelectGame(void)
 {
-        // Depending on how many games are on the storage device,
-        // this could take a while.
         ShowLoadingScreen();
-
-        // Load the game list.
         u32 gamecount = 0;
         gameinfo gi[MAX_GAMES];
-        u32 i; // Declare loop variable
-
+        u32 i;
         devState = LoadGameList(&gi[0], MAX_GAMES, &gamecount);
         switch (devState)
         {
-                case DEV_OK:
-                        // Game list loaded successfully.
-                        break;
-
-                case DEV_NO_GAMES:
-                        // No "games" directory was found.
-                        // The list will still be shown, since there's a
-                        // "Boot GC Disc in Drive" option on Wii.
-                        gprintf("WARNING: %s:/games/ was not found.\n", GetRootDevice());
-                        break;
-
-                case DEV_NO_TITLES:
-                        // "games" directory appears to be empty.
-                        // The list will still be shown, since there's a
-                        // "Boot GC Disc in Drive" option on Wii.
-                        gprintf("WARNING: %s:/games/ contains no GC titles.\n", GetRootDevice());
-                        break;
-
-                case DEV_NO_OPEN:
-                default:
+                case DEV_OK: break;
+                case DEV_NO_GAMES: gprintf("WARNING: %s:/games/ was not found.\n", GetRootDevice()); break;
+                case DEV_NO_TITLES: gprintf("WARNING: %s:/games/ contains no GC titles.\n", GetRootDevice()); break;
+                case DEV_NO_OPEN: default:
                 {
-                        // Could not open the device at all.
-                        // The list won't be shown, since a storage device
-                        // is required for various functionality, but the
-                        // user will be able to go back to the previous menu.
                         const char *s_devType = (UseSD ? "SD" : "USB");
                         gprintf("No %s FAT device found.\n", s_devType);
                         break;
                 }
         }
-
-        // Initialize the menu context.
         MenuCtx ctx;
         memset(&ctx, 0, sizeof(ctx));
-        ctx.menuMode = 0;       // Start in the games list.
-        ctx.redraw = true;      // Redraw initially.
-        ctx.selected = false;   // Set to TRUE if the user selected a game.
+        ctx.menuMode = 0;
+        ctx.redraw = true;
+        ctx.selected = false;
         ctx.saveSettings = false;
-
-        // Initialize ctx.games.
         ctx.games.listMax = gamecount;
         if (ctx.games.listMax > 15) {
                 ctx.games.listMax = 15;
         }
         ctx.games.gi = gi;
         ctx.games.gamecount = gamecount;
-
-        // Set the default game to the game that's currently set
-        // in the configuration.
-        // u32 i; // Declared earlier
         for (i = 0; i < gamecount; ++i)
         {
                 if (strcasecmp(strchr(gi[i].Path,':')+1, ncfg->GamePath) == 0)
                 {
                         if (i >= ctx.games.listMax) {
-                                // Need to adjust the scroll position.
                                 ctx.games.posX    = ctx.games.listMax - 1;
                                 ctx.games.scrollX = i - ctx.games.listMax + 1;
                         } else {
-                                // Game is on the first page.
-                                // No scroll position adjustment is required.
                                 ctx.games.posX = i;
                         }
                         break;
@@ -1838,88 +1466,63 @@ static int SelectGame(void)
                 FPAD_Update();
                 if(Shutdown)
                         LoaderShutdown();
-
                 if( FPAD_Start(0) )
                 {
-                        // Go back to the Device Select menu.
                         ctx.selected = false;
                         break;
                 }
-
                 if( FPAD_Cancel(0) )
                 {
-                        // Switch menu modes.
                         ctx.menuMode = !ctx.menuMode;
                         memset(&ctx.held, 0, sizeof(ctx.held));
-
                         if (ctx.menuMode == 1)
                         {
-                                // Reset the settings position.
                                 ctx.settings.posX = 0;
                                 ctx.settings.settingPart = 0;
                         }
-
                         ctx.redraw = 1;
                 }
-
                 bool ret = false;
                 if (ctx.menuMode == 0) {
-                        // Game Select menu.
                         ret = UpdateGameSelectMenu(&ctx);
                 } else {
-                        // Settings menu.
                         ret = UpdateSettingsMenu(&ctx);
                 }
-
                 if (ret)
                 {
-                        // User has exited the menu.
                         break;
                 }
-
                 if (ctx.redraw)
                 {
-                        // Redraw the header.
                         PrintInfo();
                         if (ctx.menuMode == 0)
                         {
-                                // Game List menu.
                                 PrintButtonActions("Go Back", NULL, "Settings", NULL);
-                                // If the selected game bootable, enable "Select".
                                 u32 color = ((ctx.games.canBeBooted) ? BLACK : DARK_GRAY);
                                 PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*1, "A   : Select");
-                                // If the selected game is not DISC01, enable "Game Info".
                                 color = ((ctx.games.canShowInfo) ? BLACK : DARK_GRAY);
                                 PrintFormat(DEFAULT_SIZE, color, MENU_POS_X + 430, MENU_POS_Y + 20*3, "X/1 : Game Info");
                         }
                         else
                         {
-                                // Settings menu.
                                 PrintButtonActions("Go Back", "Select", "Settings", "Update");
                         }
-
                         if (ctx.menuMode == 0 ||
                             (ctx.menuMode == 1 && devState == DEV_OK))
                         {
-                                // FIXME: If devState != DEV_OK,
-                                // the device info overlaps with the settings menu.
                                 PrintDevInfo();
                         }
-
-                        // Render the screen.
                         GRRLIB_Render();
                         Screenshot();
                         ClearScreen();
                         ctx.redraw = false;
                 }
         }
-
-        if(ctx.games.canBeBooted && ctx.games.gamecount > 0 && (ctx.games.posX + ctx.games.scrollX < ctx.games.gamecount)) // Ensure valid index
+        if(ctx.games.canBeBooted && ctx.games.gamecount > 0 && (ctx.games.posX + ctx.games.scrollX < ctx.games.gamecount))
         {
-                // Save the selected game to the configuration.
                 u32 SelectedGame = ctx.games.posX + ctx.games.scrollX;
-                const char* StartChar = gi[SelectedGame].Path + 3; // Skips "sd:" or "usb:"
-                if (StartChar[0] == ':') { // Should not happen with current GetRootDevice()
+                const char* StartChar = gi[SelectedGame].Path + 3;
+                if (StartChar[0] == ':') {
                         StartChar++;
                 }
                 strncpy(ncfg->GamePath, StartChar, sizeof(ncfg->GamePath)-1);
@@ -1927,43 +1530,30 @@ static int SelectGame(void)
                 memcpy(&(ncfg->GameID), gi[SelectedGame].ID, 4);
                 DCFlushRange((void*)ncfg, sizeof(NIN_CFG));
         }
-        // Free allocated memory in the game list.
-        // u32 i; // Declared earlier
         for (i = 0; i < gamecount; ++i)
         {
                 if (gi[i].Flags & GIFLAG_NAME_ALLOC)
                         free(gi[i].Name);
-                if (gi[i].Path) // Path is also strdup'd
+                if (gi[i].Path)
                     free(gi[i].Path);
         }
-
         if (!ctx.selected)
         {
-                // No game selected.
                 return 0;
         }
-
-        // Game is selected.
-        // TODO: Return an enum.
         return (ctx.saveSettings ? 3 : 1);
 }
 
-/**
- * Select the source device and game.
- * @return TRUE to save settings; FALSE if no settings have been changed.
- */
 bool SelectDevAndGame(void)
 {
-        // Select the source device. (SD or USB)
         bool SaveSettings = false;
-        bool redraw = true;     // Need to draw the menu the first time.
+        bool redraw = true;
         while (1)
         {
                 VIDEO_WaitVSync();
                 FPAD_Update();
                 if(Shutdown)
                         LoaderShutdown();
-
                 if (redraw)
                 {
                         UseSD = (ncfg->Config & NIN_CFG_USB) == 0;
@@ -1974,19 +1564,15 @@ bool SelectDevAndGame(void)
                         PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 6, " SD  ");
                         PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X + 47 * 6 - 8, MENU_POS_Y + 20 * 7, "USB  ");
                         redraw = false;
-
-                        // Render the screen here to prevent a blank frame
-                        // when returning from SelectGame().
                         GRRLIB_Render();
                         ClearScreen();
                 }
 
                 if (FPAD_OK(0))
                 {
-                        // Select a game from the specified device.
                         int ret = SelectGame();
-                        if (ret & 2) SaveSettings = true; // Bit 1 indicates save settings
-                        if (ret & 1) break; // Bit 0 indicates game selected or go back to device select
+                        if (ret & 2) SaveSettings = true;
+                        if (ret & 1) break;
                         redraw = true;
                 }
                 else if (FPAD_Start(0))
@@ -2004,14 +1590,9 @@ bool SelectDevAndGame(void)
                         redraw = true;
                 }
         }
-
         return SaveSettings;
 }
 
-/**
- * Show a single message screen.
- * @param msg Message.
- */
 void ShowMessageScreen(const char *msg)
 {
         const int len = strlen(msg);
@@ -2024,11 +1605,6 @@ void ShowMessageScreen(const char *msg)
         ClearScreen();
 }
 
-/**
- * Show a single message screen and then exit to loader..
- * @param msg Message.
- * @param ret Return value. If non-zero, text will be printed in red.
- */
 void ShowMessageScreenAndExit(const char *msg, int ret)
 {
         const int len = strlen(msg);
@@ -2041,14 +1617,10 @@ void ShowMessageScreenAndExit(const char *msg, int ret)
         ExitToLoader(ret);
 }
 
-/**
- * Print Nintendont version and system hardware information.
- */
 void PrintInfo(void)
 {
         const char *consoleType = (isWiiVC ? (IsWiiUFastCPU() ? "WiiVC 5x CPU" : "Wii VC") : (IsWiiUFastCPU() ? "WiiU 5x CPU" : (IsWiiU() ? "Wii U" : "Wii")));
 #ifdef NIN_SPECIAL_VERSION
-        // "Special" version with customizations. (Not mainline!)
         PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*0, "Nintendont Loader v%u.%u" NIN_SPECIAL_VERSION " (%s)",
                     NIN_VERSION>>16, NIN_VERSION&0xFFFF, consoleType);
 #else
@@ -2060,17 +1632,6 @@ void PrintInfo(void)
                     *(vu16*)0x80003140, *(vu8*)0x80003142, *(vu8*)0x80003143);
 }
 
-/**
- * Print button actions.
- * Call this function after PrintInfo().
- *
- * If any button action is NULL, that button won't be displayed.
- *
- * @param btn_home      [in,opt] Home button action.
- * @param btn_a         [in,opt] A button action.
- * @param btn_b         [in,opt] B button action.
- * @param btn_x1        [in,opt] X/1 button action.
- */
 void PrintButtonActions(const char *btn_home, const char *btn_a, const char *btn_b, const char *btn_x1)
 {
         if (btn_home) {
@@ -2087,19 +1648,9 @@ void PrintButtonActions(const char *btn_home, const char *btn_a, const char *btn
         }
 }
 
-/**
- * Print information about the selected device.
- */
 static void PrintDevInfo(void)
 {
-        // Device type.
         const char *s_devType = (UseSD ? "SD" : "USB");
-
-        // Device state.
-        // NOTE: If this is showing a message, the game list
-        // will be moved down by 1 row, which usually isn't
-        // a problem, since it will either be empty or showing
-        // "Boot GC Disc in Drive".
         switch (devState) {
                 case DEV_NO_OPEN:
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*4,
@@ -2118,16 +1669,16 @@ static void PrintDevInfo(void)
         }
 }
 
-void ReconfigVideo(GXRModeObj *vidmode_arg) // renamed argument to avoid conflict with global vmode
+void ReconfigVideo(GXRModeObj *vidmode_arg)
 {
-    if (!vidmode_arg) return; // Safety check
+    if (!vidmode_arg) return;
 
-    GXRModeObj temp_vmode = *vidmode_arg; // Work on a copy
+    GXRModeObj temp_vmode = *vidmode_arg;
 
     if(ncfg->VideoScale >= 40 && ncfg->VideoScale <= 120)
         temp_vmode.viWidth = ncfg->VideoScale + 600;
     else
-        temp_vmode.viWidth = 640; // Default width if auto or out of range
+        temp_vmode.viWidth = 640;
 
     temp_vmode.viXOrigin = (720 - temp_vmode.viWidth) / 2;
 
@@ -2136,7 +1687,7 @@ void ReconfigVideo(GXRModeObj *vidmode_arg) // renamed argument to avoid conflic
         s32 new_x_origin = temp_vmode.viXOrigin + ncfg->VideoOffset;
         if(new_x_origin < 0)
             temp_vmode.viXOrigin = 0;
-        else if(new_x_origin > 80) // Max typical X origin adjustment
+        else if(new_x_origin > 80)
             temp_vmode.viXOrigin = 80;
         else
             temp_vmode.viXOrigin = new_x_origin;
@@ -2144,17 +1695,6 @@ void ReconfigVideo(GXRModeObj *vidmode_arg) // renamed argument to avoid conflic
     VIDEO_Configure(&temp_vmode);
 }
 
-
-/**
- * Print a LoadKernel() error message.
- *
- * This function does NOT force a return to loader;
- * that must be handled by the caller.
- * Caller must also call UpdateScreen().
- *
- * @param iosErr IOS loading error ID.
- * @param err Return value from the IOS function.
- */
 void PrintLoadKernelError(LoadKernelError_t iosErr, int err)
 {
         ClearScreen();
@@ -2165,51 +1705,41 @@ void PrintLoadKernelError(LoadKernelError_t iosErr, int err)
         {
                 case LKERR_UNKNOWN:
                 default:
-                        // TODO: Add descriptions of more LoadKernel() errors.
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "LoadKernel() error %d occurred, returning %d.", iosErr, err);
                         break;
-
                 case LKERR_ES_GetStoredTMDSize:
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "ES_GetStoredTMDSize() returned %d.", err);
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "This usually means IOS58 is not installed.");
                         if (IsWiiU())
                         {
-                                // No IOS58 on Wii U should never happen...
                                 PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*9, "WARNING: On Wii U, a missing IOS58 may indicate");
                                 PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "something is seriously wrong with the vWii setup.");
                         }
                         else
                         {
-                                // TODO: Check if we're using System 4.3.
                                 PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*9, "Please update to Wii System 4.3 and try running");
                                 PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "Nintendont again.");
                         }
                         break;
-
                 case LKERR_TMD_malloc:
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "Unable to allocate memory for the IOS58 TMD.");
                         break;
-
                 case LKERR_ES_GetStoredTMD:
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "ES_GetStoredTMD() returned %d.", err);
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "WARNING: IOS58 may be corrupted.");
                         break;
-
                 case LKERR_IOS_Open_shared1_content_map:
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "IOS_Open(\"/shared1/content.map\") returned %d.", err);
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "This usually means Nintendont was not started with");
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*8, "AHB access permissions.");
-                        // FIXME: Create meta.xml if it isn't there?
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*10, "Please ensure that meta.xml is present in your Nintendont");
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*11, "application directory and that it contains a line");
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*12, "with the tag <ahb_access/> .");
                         break;
-
                 case LKERR_IOS_Open_IOS58_kernel:
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "IOS_Open(IOS58 kernel) returned %d.", err);
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "WARNING: IOS58 may be corrupted.");
                         break;
-
                 case LKERR_IOS_Read_IOS58_kernel:
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*5, "IOS_Read(IOS58 kernel) returned %d.", err);
                         PrintFormat(DEFAULT_SIZE, MAROON, MENU_POS_X, MENU_POS_Y + 20*7, "WARNING: IOS58 may be corrupted.");
