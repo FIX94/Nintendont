@@ -59,10 +59,8 @@ enum ninconfigbitpos
 enum ninconfig
 {
         NIN_CFG_CHEATS          = (1<<NIN_CFG_BIT_CHEATS),
-        NIN_CFG_DEBUGGER        = (1<<NIN_CFG_BIT_DEBUGGER),    // Only for Wii
-Version
-        NIN_CFG_DEBUGWAIT       = (1<<NIN_CFG_BIT_DEBUGWAIT),   // Only for Wii
-Version
+        NIN_CFG_DEBUGGER        = (1<<NIN_CFG_BIT_DEBUGGER),    // Only for Wii Version
+        NIN_CFG_DEBUGWAIT       = (1<<NIN_CFG_BIT_DEBUGWAIT),   // Only for Wii Version
         NIN_CFG_MEMCARDEMU      = (1<<NIN_CFG_BIT_MEMCARDEMU),
         NIN_CFG_CHEAT_PATH      = (1<<NIN_CFG_BIT_CHEAT_PATH),
         NIN_CFG_FORCE_WIDE      = (1<<NIN_CFG_BIT_FORCE_WIDE),
@@ -72,15 +70,12 @@ Version
         NIN_CFG_REMLIMIT        = (1<<NIN_CFG_BIT_REMLIMIT),
         NIN_CFG_OSREPORT        = (1<<NIN_CFG_BIT_OSREPORT),
         NIN_CFG_USB             = (1<<NIN_CFG_BIT_USB),
-        NIN_CFG_LED             = (1<<NIN_CFG_BIT_LED),         // Only for Wii
-Version
+        NIN_CFG_LED             = (1<<NIN_CFG_BIT_LED),         // Only for Wii Version
         NIN_CFG_LOG             = (1<<NIN_CFG_BIT_LOG),
 
         NIN_CFG_MC_MULTI        = (1<<NIN_CFG_BIT_MC_MULTI),
-        NIN_CFG_NATIVE_SI       = (1<<NIN_CFG_BIT_NATIVE_SI),   // Only for Wii
-Version
-        NIN_CFG_WIIU_WIDE       = (1<<NIN_CFG_BIT_WIIU_WIDE),   // Only for Wii
-U Version
+        NIN_CFG_NATIVE_SI       = (1<<NIN_CFG_BIT_NATIVE_SI),   // Only for Wii Version
+        NIN_CFG_WIIU_WIDE       = (1<<NIN_CFG_BIT_WIIU_WIDE),   // Only for Wii U Version
         NIN_CFG_ARCADE_MODE     = (1<<NIN_CFG_BIT_ARCADE_MODE),
         NIN_CFG_CC_RUMBLE       = (1<<NIN_CFG_BIT_CC_RUMBLE),
         NIN_CFG_SKIP_IPL        = (1<<NIN_CFG_BIT_SKIP_IPL),
@@ -128,56 +123,38 @@ enum ninvideomodeindex
 enum ninvideomode
 {
         NIN_VID_AUTO            = (NIN_VID_INDEX_AUTO           <<16),
-        NIN_VID_FORCE           = (NIN_VID_INDEX_FORCE          <<16), // This i
-s the general "force" flag for VideoMode field
+        NIN_VID_FORCE           = (NIN_VID_INDEX_FORCE          <<16), // This is the general "force" flag for VideoMode field
         NIN_VID_NONE            = (NIN_VID_INDEX_NONE           <<16),
         NIN_VID_FORCE_DF        = (NIN_VID_INDEX_FORCE_DF       <<16),
 
-        NIN_VID_MASK            = NIN_VID_AUTO|NIN_VID_FORCE|NIN_VID_NONE|NIN_VI
-D_FORCE_DF, // Mask for the high bits
+        NIN_VID_MASK            = NIN_VID_AUTO|NIN_VID_FORCE|NIN_VID_NONE|NIN_VID_FORCE_DF, // Mask for the high bits
 
         // Specific video mode flags (low bits)
-        NIN_VID_FORCE_PAL50     = (1<<NIN_VID_INDEX_FORCE_PAL50),       // Bit 0
- (0x01)
-        NIN_VID_FORCE_PAL60     = (1<<NIN_VID_INDEX_FORCE_PAL60),       // Bit 1
- (0x02)
-        NIN_VID_FORCE_NTSC      = (1<<NIN_VID_INDEX_FORCE_NTSC),        // Bit 2
- (0x04)
-        NIN_VID_FORCE_MPAL      = (1<<NIN_VID_INDEX_FORCE_MPAL),        // Bit 3
- (0x08)
+        NIN_VID_FORCE_PAL50     = (1<<NIN_VID_INDEX_FORCE_PAL50),       // Bit 0 (0x01)
+        NIN_VID_FORCE_PAL60     = (1<<NIN_VID_INDEX_FORCE_PAL60),       // Bit 1 (0x02)
+        NIN_VID_FORCE_NTSC      = (1<<NIN_VID_INDEX_FORCE_NTSC),        // Bit 2 (0x04)
+        NIN_VID_FORCE_MPAL      = (1<<NIN_VID_INDEX_FORCE_MPAL),        // Bit 3 (0x08)
 
-        NIN_VID_PROG            = (1<<NIN_VID_INDEX_PROG),              // Bit 4
- (0x10) important to prevent blackscreens
-        NIN_VID_PATCH_PAL50     = (1<<NIN_VID_INDEX_PATCH_PAL50),       // Bit 5
- (0x20) different force behaviour
+        NIN_VID_PROG            = (1<<NIN_VID_INDEX_PROG),              // Bit 4 (0x10) important to prevent blackscreens
+        NIN_VID_PATCH_PAL50     = (1<<NIN_VID_INDEX_PATCH_PAL50),       // Bit 5 (0x20) different force behaviour
 
         // 240p/288p modes
-        NIN_VID_FORCE_NTSC_240P    = (1<<NIN_VID_INDEX_FORCE_NTSC_240P),    // B
-it 6 (0x40)
-        NIN_VID_FORCE_PAL_288P     = (1<<NIN_VID_INDEX_FORCE_PAL_288P),     // B
-it 7 (0x80)
-        NIN_VID_FORCE_MPAL_240P    = (1<<NIN_VID_INDEX_FORCE_MPAL_240P),    // B
-it 8 (0x100)
-        NIN_VID_FORCE_EURGB60_240P = (1<<NIN_VID_INDEX_FORCE_EURGB60_240P), // B
-it 9 (0x200)
+        NIN_VID_FORCE_NTSC_240P    = (1<<NIN_VID_INDEX_FORCE_NTSC_240P),    // Bit 6 (0x40)
+        NIN_VID_FORCE_PAL_288P     = (1<<NIN_VID_INDEX_FORCE_PAL_288P),     // Bit 7 (0x80)
+        NIN_VID_FORCE_MPAL_240P    = (1<<NIN_VID_INDEX_FORCE_MPAL_240P),    // Bit 8 (0x100)
+        NIN_VID_FORCE_EURGB60_240P = (1<<NIN_VID_INDEX_FORCE_EURGB60_240P), // Bit 9 (0x200)
 
         // 576p mode
-        NIN_VID_FORCE_PAL_576P     = (1<<NIN_VID_INDEX_FORCE_PAL_576P),     // B
-it 10 (0x400)
+        NIN_VID_FORCE_PAL_576P     = (1<<NIN_VID_INDEX_FORCE_PAL_576P),     // Bit 10 (0x400)
 
 
-        // NIN_VID_FORCE_MASK defines which of the low bits are considered for f
-orced modes.
-        // It's used in main.c: specificForceFlags = (ncfg->VideoMode & NIN_VID_
-FORCE_MASK);
+        // NIN_VID_FORCE_MASK defines which of the low bits are considered for forced modes.
+        // It's used in main.c: specificForceFlags = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
         // This needs to include all individual force flags.
-        NIN_VID_FORCE_MASK      = NIN_VID_FORCE_PAL50 | NIN_VID_FORCE_PAL60 | NI
-N_VID_FORCE_NTSC | NIN_VID_FORCE_MPAL |
-                                  NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_28
-8P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P |
+        NIN_VID_FORCE_MASK      = NIN_VID_FORCE_PAL50 | NIN_VID_FORCE_PAL60 | NIN_VID_FORCE_NTSC | NIN_VID_FORCE_MPAL |
+                                  NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P |
                                   NIN_VID_FORCE_PAL_576P,
-                                  // Mask now covers bits 0,1,2,3, 6,7,8,9, and
-10
+                                  // Mask now covers bits 0,1,2,3, 6,7,8,9, and 10
 };
 
 enum ninlanguage
