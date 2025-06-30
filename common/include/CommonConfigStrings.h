@@ -57,10 +57,10 @@ const char* VideoModeStrings[] =
         "NTSC",     // Corresponds to NIN_VID_FORCE_NTSC  (bit 2)
         "MPAL",     // Corresponds to NIN_VID_FORCE_MPAL  (bit 3)
         "NTSC 240p",// Corresponds to NIN_VID_FORCE_NTSC_240P (bit 6)
-        "PAL 288p", // Corresponds to NIN_VID_FORCE_PAL_288P  (bit 7)
+        // "PAL 288p", // Removed
         "MPAL 240p",// Corresponds to NIN_VID_FORCE_MPAL_240P (bit 8)
         "PAL60 240p",// Corresponds to NIN_VID_FORCE_EURGB60_240P (bit 9)
-        "PAL 576p"  // Corresponds to NIN_VID_FORCE_PAL_576P (bit 10)
+        // "PAL 576p"  // Removed
 };
 #define NUM_VIDEOMODE_STRINGS (sizeof(VideoModeStrings) / sizeof(char*))
 

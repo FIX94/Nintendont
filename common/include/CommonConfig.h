@@ -113,11 +113,11 @@ enum ninvideomodeindex
         NIN_VID_INDEX_PATCH_PAL50       = (5),
         // Indices for 240p/288p modes
         NIN_VID_INDEX_FORCE_NTSC_240P    = (6),
-        NIN_VID_INDEX_FORCE_PAL_288P     = (7),
-        NIN_VID_INDEX_FORCE_MPAL_240P    = (8),
-        NIN_VID_INDEX_FORCE_EURGB60_240P = (9),
+        // NIN_VID_INDEX_FORCE_PAL_288P     = (7), // Removed
+        NIN_VID_INDEX_FORCE_MPAL_240P    = (8), // Adjusted index
+        NIN_VID_INDEX_FORCE_EURGB60_240P = (9), // Adjusted index
         // Index for 576p mode
-        NIN_VID_INDEX_FORCE_PAL_576P     = (10),
+        // NIN_VID_INDEX_FORCE_PAL_576P     = (10), // Removed
 };
 
 enum ninvideomode
@@ -140,21 +140,20 @@ enum ninvideomode
 
         // 240p/288p modes
         NIN_VID_FORCE_NTSC_240P    = (1<<NIN_VID_INDEX_FORCE_NTSC_240P),    // Bit 6 (0x40)
-        NIN_VID_FORCE_PAL_288P     = (1<<NIN_VID_INDEX_FORCE_PAL_288P),     // Bit 7 (0x80)
-        NIN_VID_FORCE_MPAL_240P    = (1<<NIN_VID_INDEX_FORCE_MPAL_240P),    // Bit 8 (0x100)
-        NIN_VID_FORCE_EURGB60_240P = (1<<NIN_VID_INDEX_FORCE_EURGB60_240P), // Bit 9 (0x200)
+        // NIN_VID_FORCE_PAL_288P     = (1<<NIN_VID_INDEX_FORCE_PAL_288P),     // Removed
+        NIN_VID_FORCE_MPAL_240P    = (1<<NIN_VID_INDEX_FORCE_MPAL_240P),    // Bit 8 (0x100) - Note: Bit position remains if others are removed
+        NIN_VID_FORCE_EURGB60_240P = (1<<NIN_VID_INDEX_FORCE_EURGB60_240P), // Bit 9 (0x200) - Note: Bit position remains
 
         // 576p mode
-        NIN_VID_FORCE_PAL_576P     = (1<<NIN_VID_INDEX_FORCE_PAL_576P),     // Bit 10 (0x400)
+        // NIN_VID_FORCE_PAL_576P     = (1<<NIN_VID_INDEX_FORCE_PAL_576P),     // Removed
 
 
         // NIN_VID_FORCE_MASK defines which of the low bits are considered for forced modes.
         // It's used in main.c: specificForceFlags = (ncfg->VideoMode & NIN_VID_FORCE_MASK);
         // This needs to include all individual force flags.
         NIN_VID_FORCE_MASK      = NIN_VID_FORCE_PAL50 | NIN_VID_FORCE_PAL60 | NIN_VID_FORCE_NTSC | NIN_VID_FORCE_MPAL |
-                                  NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P |
-                                  NIN_VID_FORCE_PAL_576P,
-                                  // Mask now covers bits 0,1,2,3, 6,7,8,9, and 10
+                                  NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P,
+                                  // Mask now covers bits 0,1,2,3, 6,8,9
 };
 
 enum ninlanguage

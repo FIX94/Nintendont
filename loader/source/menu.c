@@ -89,10 +89,10 @@ static const u32 videoModeFlagMap[] = {
     NIN_VID_FORCE_NTSC,         // Index 2
     NIN_VID_FORCE_MPAL,         // Index 3
     NIN_VID_FORCE_NTSC_240P,    // Index 4
-    NIN_VID_FORCE_PAL_288P,     // Index 5
-    NIN_VID_FORCE_MPAL_240P,    // Index 6
-    NIN_VID_FORCE_EURGB60_240P, // Index 7
-    NIN_VID_FORCE_PAL_576P      // Index 8
+    // NIN_VID_FORCE_PAL_288P,  // Removed
+    NIN_VID_FORCE_MPAL_240P,    // Index 5 (was 6)
+    NIN_VID_FORCE_EURGB60_240P // Index 6 (was 7)
+    // NIN_VID_FORCE_PAL_576P   // Removed
 };
 
 
@@ -1381,15 +1381,11 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
                                     ncfg->VideoMode &= ~(NIN_VID_FORCE_MASK | NIN_VID_PROG); // Clear all specific force flags and prog flag
                                     ncfg->VideoMode |= videoModeFlagMap[currentModeIndex]; // Set the new specific force flag
 
-                                    // If a 240p/288p mode is selected, ensure progressive scan config flag is off
-                                    if (videoModeFlagMap[currentModeIndex] & (NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_PAL_288P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P)) {
+                                    // If a 240p mode is selected, ensure progressive scan config flag is off
+                                    if (videoModeFlagMap[currentModeIndex] & (NIN_VID_FORCE_NTSC_240P | NIN_VID_FORCE_MPAL_240P | NIN_VID_FORCE_EURGB60_240P)) {
                                         ncfg->Config &= ~NIN_CFG_FORCE_PROG;
                                     }
-                                    // If 576p is selected, ensure NIN_VID_PROG is set and NIN_CFG_FORCE_PROG is off
-                                    else if (videoModeFlagMap[currentModeIndex] == NIN_VID_FORCE_PAL_576P) {
-                                        ncfg->VideoMode |= NIN_VID_PROG;
-                                        ncfg->Config &= ~NIN_CFG_FORCE_PROG;
-                                    }
+                                    // No direct 576p check needed here anymore as the flag is removed from videoModeFlagMap
                                     break;
                                 }
 
