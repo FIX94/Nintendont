@@ -1471,7 +1471,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		}
 
 		// Maximum number of emulated controllers.
-		// Not available on Wii U. (HACK: TP68 is available for 1 GCN controller; also dev vWii debug controller)
+		// Not available on Wii U. (HACK: TP69 is available for 1 GCN controller; also dev vWii debug controller)
+
 		// TODO: Disable on RVL-101?
 		PrintFormat(MENU_SIZE, BLACK, MENU_POS_X+50, SettingY(ListLoopIndex),
 			    "%-18s:%d", OptionStrings[ListLoopIndex], (ncfg->MaxPads));
