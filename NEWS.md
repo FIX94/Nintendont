@@ -58,10 +58,11 @@ Changes since v4.406:
 * File extensions .iso, .gcm, .cso, and .ciso are supported.
 * The game list now colorizes game names based on their file format:
   * Black: 1:1 full rip
-  * Dark Brown: Shrunken GCM
+  * Dark Brown: Shrunken
   * Green: Extracted FST
   * Blue: CISO
   * Purple: Multi-Game
+  * Dark Yellow: Oversized
 * Fixed an issue where pressing the Home button in the Settings menu after
   changing a setting crashed the loader.
 * Grayed out settings that don't apply to the current system, e.g. Wii U

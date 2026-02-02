@@ -113,6 +113,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 .set	DHCP_get_gateway_Addr,		IOSInterfaceAddr+0xA4
 .set	DHCP_get_dns_Addr,			IOSInterfaceAddr+0xA8
 .set	DHCP_release_Addr,			IOSInterfaceAddr+0xAC
+.set 	SOConnectAddr,				IOSInterfaceAddr+0xB0
 
 /** Disc Interface **/
 

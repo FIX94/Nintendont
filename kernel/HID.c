@@ -724,6 +724,9 @@ static s32 HIDInterruptMessage(u32 isKBreq, u8 *Data, u32 Length, u32 Endpoint, 
 }
 void HIDGCInit()
 {
+	// Needed for some adapters clone
+	HIDControlMessage(0, NULL, 0, USB_REQTYPE_INTERFACE_SET, USB_REQ_SETPROTOCOL, 1, 0, NULL);
+
 	s32 ret = HIDInterruptMessage(0, gcbuf, 1, bEndpointAddressOut, 0, NULL);
 	if( ret < 0 )
 	{
