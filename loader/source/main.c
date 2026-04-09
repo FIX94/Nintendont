@@ -604,6 +604,10 @@ int main(int argc, char **argv)
 		DCStoreRange((void*)0x80001800, 0x1800);
 	}
 
+	// Store the aspect ratio for the kernel
+	*(vu32*)0x932C0498 = CONF_GetAspectRatio();
+	DCFlushRange((void*)0x932C0498, 4);
+
 	s32 fd;
 
 	/* Wii VC fw.img is pre-patched but Wii/vWii isnt, so we
