@@ -200,9 +200,12 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 
 		BTPad[chan].xAxisL = (*(((u8*)buffer)+16) - stat->xAxisLmid);
 		BTPad[chan].yAxisL = (*(((u8*)buffer)+17) - stat->yAxisLmid);
-		BTPad[chan].xAccel = (*(((u8*)buffer)+18) << 2) | ((*(((u8*)buffer)+21) & 0x0C) >> 2);
-		BTPad[chan].yAccel = (*(((u8*)buffer)+19) << 2) | ((*(((u8*)buffer)+21) & 0x30) >> 4);
-		BTPad[chan].zAccel = (*(((u8*)buffer)+20) << 2) | ((*(((u8*)buffer)+21) & 0xC0) >> 6);
+		BTPad[chan].xAccel[0] = (*(((u8*)buffer)+3) << 2) | ((*(((u8*)buffer)+2) & 0x60) >> 5);
+		BTPad[chan].yAccel[0] = (*(((u8*)buffer)+4) << 2) | ((*(((u8*)buffer)+1) & 0x20) >> 4);
+		BTPad[chan].zAccel[0] = (*(((u8*)buffer)+5) << 2) | ((*(((u8*)buffer)+1) & 0x40) >> 5);
+		BTPad[chan].xAccel[1] = (*(((u8*)buffer)+18) << 2) | ((*(((u8*)buffer)+21) & 0x0C) >> 2);
+		BTPad[chan].yAccel[1] = (*(((u8*)buffer)+19) << 2) | ((*(((u8*)buffer)+21) & 0x30) >> 4);
+		BTPad[chan].zAccel[1] = (*(((u8*)buffer)+20) << 2) | ((*(((u8*)buffer)+21) & 0xC0) >> 6);
 		
 		struct IRdot {
 			bool	has_data;
