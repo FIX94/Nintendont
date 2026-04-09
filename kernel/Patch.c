@@ -2378,7 +2378,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 		i+=4;
 
+		// Account for padding between funcs
+		while (read32((u32)Buffer + i) == 0)
+            i += 4;
+
 		MPattern( (u8*)(Buffer+i), maxPatternSize, &curFunc );
+
 		/* only deal with functions with potentially correct function sizes */
 		if(curFunc.Length < minPatternSize || curFunc.Length > maxPatternSize)
 			continue;
@@ -3083,10 +3088,22 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
 							}
 						} break;
-						case FCODE___DSPHandler:
-						{
+						case FCODE___DSPHandler: {
 							if(useipl == 1) break;
-							if(read32(FOffset + 0xF8) == 0x2C000000)
+
+							// Small __DSPHandler found in Super Mario Sunshine
+                            if (read32(FOffset + 0x280) == 0x28000000) {
+								if(DSPHandlerNeeded)
+								{
+                                    PatchBL(PatchCopy(__DSPHandler, __DSPHandler_size), (FOffset + 0x280));
+									printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset);
+								}
+								else
+								{
+									dbgprintf("Patch:[__DSPHandler] skipped (0x%08X)\r\n", FOffset);
+								}
+                            }
+							else if(read32(FOffset + 0xF8) == 0x2C000000)
 							{
 								if(DSPHandlerNeeded)
 								{
