@@ -130,15 +130,12 @@ void FPAD_Update( void )
 		PAD_Stick_Y |= Pad[i].stickY;
 		PAD_Stick_X |= Pad[i].stickX;
 	}
-	if(!IsWiiU())
+	PAD_ScanPads();
+	for(i = 0; i < PAD_CHANMAX; ++i)
 	{
-		PAD_ScanPads();
-		for(i = 0; i < PAD_CHANMAX; ++i)
-		{
-			PAD_Pressed |= PAD_ButtonsDown(i) | PAD_ButtonsHeld(i);
-			PAD_Stick_Y |= PAD_StickY(i);
-			PAD_Stick_X |= PAD_StickX(i);
-		}
+		PAD_Pressed |= PAD_ButtonsDown(i) | PAD_ButtonsHeld(i);
+		PAD_Stick_Y |= PAD_StickY(i);
+		PAD_Stick_X |= PAD_StickX(i);
 	}
 	if( WPAD_Pressed == 0 && PAD_Pressed == 0 && WiiDRC_Pressed == 0 && ( PAD_Stick_Y < 25 && PAD_Stick_Y > -25 )  && ( PAD_Stick_X < 25 && PAD_Stick_X > -25 ) )
 	{

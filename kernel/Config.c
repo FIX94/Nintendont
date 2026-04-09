@@ -41,7 +41,6 @@ void ConfigInit( void )
 	if( IsWiiU() )
 	{
 		//ncfg->Config |= NIN_CFG_HID;
-		ncfg->MaxPads = 0;
 
 		// Disable debugging and the drive access LED.
 		ncfg->Config &= ~(NIN_CFG_DEBUGGER | NIN_CFG_DEBUGWAIT | NIN_CFG_LED);

@@ -1657,7 +1657,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		}
 	}
 	DisableEXIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_MEMCARDEMU) == false);
-	DisableSIPatch = (!IsWiiU() && TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_NATIVE_SI));
+	DisableSIPatch = (TRIGame == TRI_NONE && ConfigGetConfig(NIN_CFG_NATIVE_SI));
 
 	bool PatchWide = ConfigGetConfig(NIN_CFG_FORCE_WIDE);
 	if(PatchWide && PatchStaticWidescreen(TITLE_ID, GAME_ID & 0xFF)) //if further patching is needed
