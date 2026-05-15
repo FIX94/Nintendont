@@ -35,7 +35,7 @@ u32 ISOFileOpen = 0;
 
 #define CACHE_MAX		0x400
 #define CACHE_START		(u8*)0x11000000
-#define CACHE_SIZE		0x1E80000
+#define CACHE_SIZE		0x300000
 
 typedef struct
 {
