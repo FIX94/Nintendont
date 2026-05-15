@@ -4096,6 +4096,100 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			dbgprintf("Patch:Patched Batman Vengeance PAL\r\n");
 		}
 	}
+    else if( TITLE_ID == 0x474C52 || GAME_ID == 0x4757584A ) // Star Wars Rebel Strike
+	{
+		// SuSo: code to make the game patch tlut
+		u32 rebelCopy[0x11] = { 0x3D208141, 0x3C003800, 0x61297610, 0x81290000, 0x7F890000,
+								0x40BE0028, 0x38000007, 0x3D208004, 0x7C0903A6, 0x61291FA4,
+								0x80090000, 0x3D69013D, 0x39290004, 0x900B566C, 0x4200FFF0,
+								0x38610008, 0x4E800020 };
+		
+		if(write32A(0x833C, 0x48039B41, 0x38610008, 0))
+		{
+			memcpy((void*)0x41E60, GXInitTlutObj, GXInitTlutObj_size);
+			rebelCopy[2]  = 0x61297864; // vmem
+			rebelCopy[9]  = 0x61291E60; // patched tlut
+			rebelCopy[13] = 0x900B5A04; // store
+			memcpy((void*)0x41E7C, rebelCopy, sizeof(rebelCopy));
+			dbgprintf("Patch:Patched Star Wars Rebel Strike NTSC-U\r\n");
+		}
+		else if(write32A(0x83D0, 0x48039BF1, 0x38610008, 0))
+		{
+			memcpy((void*)0x41FA4, GXInitTlutObj, GXInitTlutObj_size);
+			
+			if(GAME_ID == 0x4757584A) {
+				//81417610
+				dbgprintf("Patch:Patched Star Wars Rebel Strike NTSC-J\r\n");
+			}
+			else if(GAME_ID != 0x474C5245) {
+				//814177B0
+				rebelCopy[2]  = 0x612977B0; // vmem
+				rebelCopy[13] = 0x900B580C; // store
+				dbgprintf("Patch:Patched Star Wars Rebel Strike PAL\r\n");
+			}
+			else
+				dbgprintf("Patch:Patched Star Wars Rebel Strike NTSC-U rev 1\r\n");
+			
+			memcpy((void*)0x41FC0, rebelCopy, sizeof(rebelCopy));
+		}
+	}
+	else if( TITLE_ID == 0x475058 )	// Pokemon Box
+	{
+		// SuSo: Change PTE address to A0000000
+		if(write32A(0x85E28, 0x3C60A000, 0x3C609000, 0))
+		{
+			write32(0x879D4, 0x3C6000A0);
+			write32(0x879D8, 0x3C80A000);
+			
+			write32(0x87A38, 0x3CDFA000);
+			write32(0x87AF4, 0x3CDFA080);
+			write32(0x87BB4, 0x3CDFA0D0);
+			write32(0x87C70, 0x3CDFA0F0);
+			
+			dbgprintf("Patch:Patched Pokemon Box NTSC-U\r\n");
+		}
+		else if(write32A(0x87148, 0x3C60A000, 0x3C609000, 0))
+		{
+			write32(0x88D24, 0x3C6000A0);
+			write32(0x88D28, 0x3C80A000);
+			
+			write32(0x88D88, 0x3CDFA000);
+			write32(0x88E44, 0x3CDFA080);
+			write32(0x88F04, 0x3CDFA0D0);
+			write32(0x88FC0, 0x3CDFA0F0);
+			
+			dbgprintf("Patch:Patched Pokemon Box PAL\r\n");
+		}
+		else if(write32A(0x8682C, 0x3C60A000, 0x3C609000, 0))
+		{
+			write32(0x88318, 0x3C6000A0);
+			write32(0x8831C, 0x3C80A000);
+			write32(0x8837C, 0x3CDFA000);
+			dbgprintf("Patch:Patched Pokemon Box NTSC-J\r\n");
+		}
+	}
+	else if( TITLE_ID == 0x47354E )	// Namco Museum 50th
+	{
+		// Audio pops when starting any game, skip AIStartDMA
+		if(write32A(0x9F06C, 0x60000000, 0x4BFA130D, 0))
+		{
+			// Enable after the game has run through some frames
+			write32(0x71AD4, 0x4BFF043C); // jump to new code
+			write32(0x61F10, 0x3D20800B); // writes to mem a frame counter
+			write32(0x61F14, 0x6129BE04);
+			write32(0x61F18, 0x81690000);
+			write32(0x61F1C, 0x380B0001);
+			write32(0x61F20, 0x90090000);
+			write32(0x61F24, 0x80090000);
+			write32(0x61F28, 0x2F800006); // condition 6 frames
+			write32(0x61F2C, 0x40BE0008); // loop until cond is met
+			write32(0x61F30, 0x4BFDE449); // call AIStartDMA
+			write32(0x61F34, 0x8001000C); // og instruction
+			write32(0x61F38, 0x4800FBA0); // ret
+			
+			dbgprintf("Patch:Patched Namco Museum 50th NTSC-U\r\n");
+		}
+	}
 	else if( TITLE_ID == 0x474336 )	// Pokemon Colosseum
 	{
 		// Memory Card inserted hack
