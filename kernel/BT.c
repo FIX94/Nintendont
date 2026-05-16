@@ -21,6 +21,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /* WiiU Pro Controller Documentation from TeHaxor69 */
 /* lwBT ported from LibOGC */
 
+#define IR_CFG_FILE 0x93005180
+#define IR_CFG_SIZE 0x93005184
+
 #include "global.h"
 #include "string.h"
 #include "BT.h"
@@ -738,10 +741,41 @@ void BTUpdateRegisters(void)
 	if(inited == 0)
 		return;
 
-	if(intr == 1)
-	{
-		intr = 0;
-		__readintrdataCB();
+   // Try to load Wiimote/Classic Controller bindings from ircc.ini
+    const char *filenames[2] = {
+		file_sd, file_usb,
+        "sd:/ircc.ini",
+        "usb:/ircc.ini"
+    };
+
+    int i;
+    FIL f;
+    FRESULT res = FR_DISK_ERR;
+    for (i = 0; i < 2; i++) {
+        res = f_open_char(&f, filenames[i], FA_READ | FA_OPEN_EXISTING);
+        if (res == FR_OK) 
+            break;
+    }
+
+    if (res == FR_OK) {
+        // File found, read the configuration
+        size_t fsize = f.obj.objsize;
+        UINT read;
+        f_read(&f, (void*)IR_CFG_FILE, fsize, &read);
+        DCFlushRange((void*)IR_CFG_FILE, fsize);
+        f_close(&f);
+        // Apply custom config (size is fsize)
+        *(vu32*)IR_CFG_SIZE = fsize;
+    } else {
+        // No config file found; fall back to defaults
+        *(vu32*)IR_CFG_SIZE = 0;
+    }
+
+    // Continue with the rest of the BTUpdateRegisters function
+    if(intr == 1)
+    {
+        intr = 0;
+        __readintrdataCB();
 		__issue_intrread();
 	}
 	if(bulk == 1)
@@ -751,6 +785,7 @@ void BTUpdateRegisters(void)
 		__issue_bulkread();
 	}
 
+    // Handle connected controllers
 	u32 i = 0, j = 0;
 	sync_before_read((void*)0x13003020,0x40);
 	for( ; i < BTChannelsUsed; ++i)
