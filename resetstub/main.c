@@ -67,10 +67,10 @@ _main(void)
 	usbgecko_printf("_main()\n");
 #endif
 	sync_before_read((void*)0x93010010, 0x1800);
-	_memcpy((void*)0x80001800, (void*)0x93010010, 0x1800);
-	sync_after_write((void*)0x80001800, 0x1800);
-	if(*(vu32*)0xC0001804 == 0x53545542 && *(vu32*)0xC0001808 == 0x48415858) //stubhaxx
+	if(*(vu32*)0x93010014 == 0x53545542 && *(vu32*)0x93010018 == 0x48415858) //stubhaxx
 	{
+		_memcpy((void*)0x80001800, (void*)0x93010010, 0x1800);
+		sync_after_write((void*)0x80001800, 0x1800);
 		__asm(
 			"sync ; isync\n"
 			"lis %r3, 0x8000\n"
