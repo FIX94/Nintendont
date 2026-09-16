@@ -167,6 +167,9 @@ enum
 
 	FCODE_GetEtherLinkState,
 	FCODE_GetConnectionType,
+
+	/* Universal per-frame hook. See VIRetracePatterns. */
+	FCODE_VIRetraceHandler,
 } FPatternCodes;
 
 enum
@@ -233,6 +236,7 @@ enum
 	FGROUP_DHCP_release,
 	FGROUP_DHCP_terminate,
 	FGROUP_GetConnectionType,
+	FGROUP_VIRetraceHandler,
 } FPatternGroups;
 
 static FuncPattern NormalFPatterns[] =
@@ -609,6 +613,34 @@ static FuncPattern NinSOPatterns[] =
 	{   0x58,    7,   5,    2,    2,    3,	NULL,				FCODE_IPClearConfigError,	"IPClearConfigError",	NULL,		FGROUP_NONE,				0 },
 };
 
+/*
+ * __VIRetraceHandler - the universal per-frame hook.
+ *
+ * Ported from swiss-gc (GPL), which has carried these across its whole
+ * compatibility list for years. The Gecko code handler hooks the same place
+ * for the same reason - it is the one function every GC game runs once a
+ * frame, at the moment the finished buffer is handed to VI.
+ *
+ * Lengths are converted. Swiss counts instructions, Nintendont counts bytes,
+ * and the relation is bytes = (instructions - 1) * 4 - established against
+ * EXISync, EXIImm and OSExceptionInit, which both projects carry with
+ * identical load/store/call/branch/move counts. A plain *4 looks right and
+ * silently matches nothing.
+ */
+static FuncPattern VIFPatterns[] =
+{
+	{  0x1DC,   41,    7,   10,   13,    6,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"A",		FGROUP_VIRetraceHandler,	0 },
+	{  0x1E0,   41,    7,   11,   13,    6,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"B",		FGROUP_VIRetraceHandler,	0 },
+	{  0x224,   48,    7,   15,   14,    6,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"C",		FGROUP_VIRetraceHandler,	0 },
+	{  0x20C,   39,    7,   10,   15,   13,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"D",		FGROUP_VIRetraceHandler,	0 },
+	{  0x220,   42,    8,   11,   15,   13,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"E",		FGROUP_VIRetraceHandler,	0 },
+	{  0x224,   42,    9,   11,   15,   13,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"F",		FGROUP_VIRetraceHandler,	0 },
+	{  0x22C,   43,   10,   11,   15,   13,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"G",		FGROUP_VIRetraceHandler,	0 },
+	{  0x248,   46,   13,   10,   15,   15,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"H",		FGROUP_VIRetraceHandler,	0 },
+	{  0x270,   50,   10,   15,   16,   13,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"I",		FGROUP_VIRetraceHandler,	0 },
+	{  0x28C,   53,   13,   14,   16,   15,	NULL,				FCODE_VIRetraceHandler,		"__VIRetraceHandler",	"J",		FGROUP_VIRetraceHandler,	0 },
+};
+
 enum
 {
 	PCODE_NORMAL = 0,
@@ -620,6 +652,7 @@ enum
 	PCODE_PSO,
 	PCODE_PSOSO,
 	PCODE_NINSO,
+	PCODE_VI,
 	PCODE_MAX,
 } AllPGroups;
 
@@ -634,4 +667,5 @@ static const FuncPatterns AllFPatterns[] =
 	{ PSOFPatterns, sizeof(PSOFPatterns) / sizeof(FuncPattern), PCODE_PSO },
 	{ PSO_SOPatterns, sizeof(PSO_SOPatterns) / sizeof(FuncPattern), PCODE_PSOSO },
 	{ NinSOPatterns, sizeof(NinSOPatterns) / sizeof(FuncPattern), PCODE_NINSO },
+	{ VIFPatterns, sizeof(VIFPatterns) / sizeof(FuncPattern), PCODE_VI },
 };
