@@ -95,6 +95,11 @@ RumbleFunc HIDRumble = NULL;
 static usb_device_entry AttachedDevices[32] ALIGNED(32);
 
 static struct ipcmessage *hidreadcontrollermsg = NULL, *hidreadkeyboardmsg = NULL, *hidchangemsg = NULL, *hidattachmsg = NULL;
+/* XInput reply slots; see the XInput section further down. */
+static struct ipcmessage *xinchangemsg = NULL, *xinattachmsg = NULL;
+static struct ipcmessage *xinreadmsg = NULL, *xinoutmsg = NULL;
+static vs32 XInputLastResult = 0;
+static vu32 xinchange = 0, xinattach = 0, xinread = 0, xinoutbusy = 0;
 static u32 HID_Thread = 0;
 static u32 HID_Timer = 0;
 static u8 *hidheap = NULL;
@@ -120,7 +125,7 @@ void HIDInit( void )
 	kbbuf = (u8*)malloca( 32,32 );
 
 	hidheap = (u8*)malloca(64,32);
-	hidqueue = mqueue_create(hidheap, 3);
+	hidqueue = mqueue_create(hidheap, 8);
 	hidreadcontrollermsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
 	hidreadkeyboardmsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
 	hidchangemsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
@@ -140,6 +145,13 @@ void HIDInit( void )
 	HID_Timer = read32(HW_TIMER);
 }
 
+/*
+ * Load and parse the controller mapping for a device into HID_CTRL.
+ *
+ * Split out of HIDOpen so the XInput path below can reuse it verbatim
+ * instead of duplicating the whole .ini parser. Returns false when no usable
+ * mapping exists, in which case the caller should skip the device.
+ */
 static bool HIDLoadControllerConfig(u32 DeviceVID, u32 DevicePID, u32 LoaderRequest)
 {
 	int ret;
@@ -426,7 +438,6 @@ static bool HIDLoadControllerConfig(u32 DeviceVID, u32 DevicePID, u32 LoaderRequ
 
 s32 HIDOpen( u32 LoaderRequest )
 {
-	s32 ret = -1;
 	dbgprintf("HIDOpen()\r\n");
 
 	memset32((void*)HID_STATUS, 0, 0x20);
@@ -668,6 +679,11 @@ static u32 HIDAlarm()
 	while(1)
 	{
 		mqueue_recv(hidqueue, &msg, 0);
+		/* Capture the XInput read result before acking: a request IOS queued
+		 * and then completed with an error is otherwise indistinguishable from
+		 * a good report. */
+		if(msg == xinreadmsg)
+			XInputLastResult = (s32)msg->result;
 		mqueue_ack(msg, 0);
 		if(msg == hidreadcontrollermsg)
 			hidread = 1;
@@ -675,6 +691,14 @@ static u32 HIDAlarm()
 			keyboardread = 1;
 		else if(msg == hidchangemsg)
 			hidchange = 1;
+		else if(msg == xinreadmsg)
+			xinread = 1;
+		else if(msg == xinchangemsg)
+			xinchange = 1;
+		else if(msg == xinattachmsg)
+			xinattach = 1;
+		else if(msg == xinoutmsg)
+			xinoutbusy = 0;
 		else
 			hidattach = 1;
 	}
@@ -1058,10 +1082,485 @@ static void KeyboardRead()
 	HIDInterruptMessage(1, kbbuf, 8, bEndpointAddressKeyboard, hidqueue, hidreadkeyboardmsg);
 }
 
+
+/* ========================================================================== */
+/*                    XInput (Xbox 360 style) controllers                     */
+/* ========================================================================== */
+/*
+ * XInput pads are vendor-class (0xFF/0x5D/0x01), so IOS never exposes them on
+ * /dev/usb/hid - they only ever appear on /dev/usb/ven. IOS58 hands out exactly
+ * one handle for that node and kernel USB storage already holds it, so this
+ * shares that handle rather than opening its own: a second IOS_Open returns
+ * IPC_EINVAL while storage has it, which is why forks that open ven for the pad
+ * end up breaking USB game loading.
+ *
+ * Sharing the handle means this cannot start until storage is up and the loader
+ * has released its own ven client, so XInputInit() runs late from the kernel
+ * boot path, and only when no /dev/usb/hid controller was found. Everything on
+ * that handle is asynchronous: a blocking ioctlv against a pad with nothing to
+ * say never returns and hangs the console.
+ */
+
+#define XINPUT_VID              0x045e
+#define XINPUT_PID              0x028e
+#define XINPUT_REPORT_SIZE      20
+#define XINPUT_ATTACH           4
+#define XINPUT_CANCEL_ENDPOINT  17
+
+/*
+ * Reject any sample whose stick position moves further in one report than a
+ * physical stick could. Centre to edge takes a human around 50 ms, or roughly
+ * 25 reports, so real input never exceeds a few thousand counts per report.
+ * Cheap XInput clones periodically emit an otherwise perfectly formed report -
+ * valid header, correct length, sane buttons - with all four axes slammed to
+ * opposite corners. Holding the previous position for a bounded number of
+ * samples erases those without adding latency to real input.
+ */
+#define XINPUT_SPIKE_LIMIT      8000
+#define XINPUT_SPIKE_MAX_RUN    8
+
+static usb_device_entry XInputDevices[32] ALIGNED(32);
+static struct _usb_msg xin_read_req ALIGNED(32);
+static struct _usb_msg xin_write_req ALIGNED(32);
+static u8 XInputCooked[32] ALIGNED(32);
+
+static u8 *XInputPacket = NULL, *XInputOutBuf = NULL;
+
+static s32 XInputHandle = -1;
+static u32 XInputDeviceID = 0;
+static u32 XInputEpIn = 0, XInputEpOut = 0, XInputReadLen = 0;
+static u32 XInputArmed = 0, XInputActive = 0, XInputWaitTimer = 0;
+static u32 XInputErrors = 0, XInputSpikeRun = 0, XInputHavePrev = 0;
+static s16 XInPrevLX = 0, XInPrevLY = 0, XInPrevRX = 0, XInPrevRY = 0;
+
+static void XInputRead(void);
+
+static s32 XInputTransfer(u8 *Data, u32 Length, u32 Endpoint, struct ipcmessage *asyncmsg)
+{
+	u8 dir_in = !!(Endpoint & USB_ENDPOINT_IN);
+	struct _usb_msg *msg = dir_in ? &xin_read_req : &xin_write_req;
+
+	msg->fd = XInputDeviceID;
+	msg->intr.rpData = Data;
+	msg->intr.wLength = Length;
+	msg->intr.bEndpoint = Endpoint;
+	msg->vec[0].data = msg;
+	msg->vec[0].len = 64;
+	msg->vec[1].data = Data;
+	msg->vec[1].len = Length;
+
+	/* Always async: a synchronous ioctlv on an idle pad never returns. */
+	return IOS_IoctlvAsync(XInputHandle, InterruptMessage, 2-dir_in, dir_in,
+		msg->vec, hidqueue, asyncmsg);
+}
+
+/* Set the ring of light. Also the only user-visible sign the pad was claimed. */
+static s32 XInputSetLED(u8 led)
+{
+	s32 ret;
+
+	if(XInputEpOut == 0 || XInputOutBuf == NULL || xinoutbusy)
+		return IPC_EINVAL;
+
+	memset32(XInputOutBuf, 0, 32);
+	XInputOutBuf[0] = 0x01;
+	XInputOutBuf[1] = 0x03;
+	XInputOutBuf[2] = 0x06 + led;
+	sync_after_write(XInputOutBuf, 32);
+
+	xinoutbusy = 1;
+	ret = XInputTransfer(XInputOutBuf, 3, XInputEpOut, xinoutmsg);
+	if(ret < 0)
+		xinoutbusy = 0;
+	return ret;
+}
+
+static s32 XInputCancelEndpoint(u32 Endpoint)
+{
+	s32 ret;
+	s32 *buf = (s32*)malloca(32, 32);
+	if(buf == NULL)
+		return IPC_ENOMEM;
+
+	memset32(buf, 0, 32);
+	buf[0] = XInputDeviceID;
+	buf[2] = Endpoint;
+	ret = IOS_Ioctl(XInputHandle, XINPUT_CANCEL_ENDPOINT, buf, 32, NULL, 0);
+	free(buf);
+	return ret;
+}
+
+/*
+ * Parse the descriptors /dev/usb/ven returns for one device and pick its
+ * interrupt IN and OUT endpoints. The ven reply is laid out differently from
+ * the hid one: 0xC0 bytes, device descriptor at offset 20, each descriptor
+ * padded to a 4 byte boundary.
+ */
+static bool XInputParseDescriptors(const u8 *Heap)
+{
+	u32 Offset = 20;
+	u32 DeviceDescLength, ConfigurationLength, InterfaceDescLength;
+	u32 bInterfaceNumber, bNumEndpoints, i;
+
+	DeviceDescLength = *(vu8*)(Heap+Offset);
+	Offset += (DeviceDescLength+3)&(~3);
+
+	ConfigurationLength = *(vu8*)(Heap+Offset);
+	Offset += (ConfigurationLength+3)&(~3);
+
+	InterfaceDescLength = *(vu8*)(Heap+Offset);
+	if(InterfaceDescLength < USB_DT_INTERFACE_SIZE)
+		return false;
+
+	bInterfaceNumber = *(vu8*)(Heap+Offset+2);
+	bNumEndpoints = *(vu8*)(Heap+Offset+4);
+	Offset += (InterfaceDescLength+3)&(~3);
+
+	/* Skip class or vendor specific descriptors sitting between the interface
+	 * and its endpoints, the way libogc's USBV5_GetDescriptors does. */
+	while((Offset + 2) < 0xC0)
+	{
+		u32 SkipLength = *(vu8*)(Heap+Offset);
+		u32 SkipType = *(vu8*)(Heap+Offset+1);
+		if(SkipLength == 0 || SkipType == USB_DT_ENDPOINT || SkipType == USB_DT_INTERFACE)
+			break;
+		Offset += (SkipLength+3)&(~3);
+	}
+
+	XInputEpIn = 0;
+	XInputEpOut = 0;
+	wMaxPacketSize = 0;
+
+	for(i = 0; i < bNumEndpoints && (Offset + USB_DT_ENDPOINT_SIZE) <= 0xC0; ++i)
+	{
+		u32 EndpointLength = *(vu8*)(Heap+Offset);
+		u32 EndpointType = *(vu8*)(Heap+Offset+1);
+		u32 Address, Attributes, MaxPacket;
+
+		if(EndpointLength < USB_DT_ENDPOINT_SIZE || EndpointType != USB_DT_ENDPOINT)
+			break;
+
+		Address = *(vu8*)(Heap+Offset+2);
+		Attributes = *(vu8*)(Heap+Offset+3);
+		MaxPacket = *(vu16*)(Heap+Offset+4);
+
+		if((Attributes & 0x03) == USB_ENDPOINT_INTERRUPT)
+		{
+			if((Address & USB_ENDPOINT_IN) && XInputEpIn == 0)
+			{
+				XInputEpIn = Address;
+				wMaxPacketSize = MaxPacket;
+			}
+			else if(!(Address & USB_ENDPOINT_IN) && XInputEpOut == 0)
+				XInputEpOut = Address;
+		}
+		Offset += (EndpointLength+3)&(~3);
+	}
+
+	if(bInterfaceNumber != 0 || XInputEpIn == 0)
+		return false;
+
+	/* Clamp: a bad length here would allocate a useless packet buffer. */
+	if(wMaxPacketSize < XINPUT_REPORT_SIZE || wMaxPacketSize > 32)
+		wMaxPacketSize = 32;
+
+	return true;
+}
+
+/* Bring up the first XInput pad in the device list and start reading it. */
+static bool XInputOpen(void)
+{
+	bool opened = false;
+	s32 *io_buffer = (s32*)malloca(0x20, 32);
+	u8 *Heap = (u8*)malloca(0xC0, 32);
+	u32 i;
+
+	if(io_buffer == NULL || Heap == NULL)
+		goto out;
+
+	for(i = 0; i < 32; ++i)
+	{
+		if(XInputDevices[i].vid != XINPUT_VID || XInputDevices[i].pid != XINPUT_PID)
+			continue;
+
+		XInputDeviceID = XInputDevices[i].device_id;
+		dbgprintf("HID:XInput device %u\r\n", XInputDeviceID);
+
+		/* Claim the device for this handle, then resume it. IOS refuses
+		 * GetDeviceParameters on a suspended device. */
+		memset32(io_buffer, 0, 0x20);
+		io_buffer[0] = XInputDeviceID;
+		IOS_Ioctl(XInputHandle, XINPUT_ATTACH, io_buffer, 0x20, NULL, 0);
+
+		memset32(io_buffer, 0, 0x20);
+		io_buffer[0] = XInputDeviceID;
+		io_buffer[2] = 1;
+		IOS_Ioctl(XInputHandle, ResumeDevice, io_buffer, 0x20, NULL, 0);
+
+		memset32(Heap, 0, 0xC0);
+		memset32(io_buffer, 0, 0x20);
+		io_buffer[0] = XInputDeviceID;
+		io_buffer[2] = 0;
+		if(IOS_Ioctl(XInputHandle, GetDeviceParameters, io_buffer, 0x20, Heap, 0xC0) < 0)
+			continue;
+
+		if(!XInputParseDescriptors(Heap))
+			continue;
+
+		dbgprintf("HID:XInput ep in %02X out %02X size %u\r\n",
+			XInputEpIn, XInputEpOut, wMaxPacketSize);
+
+		if(!HIDLoadControllerConfig(XINPUT_VID, XINPUT_PID, 0))
+			continue;
+		if(HID_CTRL->VID != XINPUT_VID || HID_CTRL->PID != XINPUT_PID)
+			continue;
+
+		sync_after_write(HID_CTRL, (sizeof(controller)+31)&(~31));
+
+		/*
+		 * Deliberately no SET_CONFIGURATION here. IOS already configured the
+		 * device during enumeration, and re-issuing it resets the device's data
+		 * toggles while IOS keeps its own - after which the pad's packets are
+		 * ACKed and discarded, the IN transfer never completes, and no error is
+		 * ever reported. Resetting IOS's endpoint state instead keeps both
+		 * sides in step.
+		 */
+		XInputCancelEndpoint(XInputEpIn);
+
+		MemPacketSize = wMaxPacketSize;
+		XInputReadLen = wMaxPacketSize;
+
+		if(XInputPacket != NULL) free(XInputPacket);
+		XInputPacket = (u8*)malloca(MemPacketSize, 32);
+		if(XInputPacket == NULL)
+			continue;
+		memset32(XInputPacket, 0, MemPacketSize);
+		sync_after_write(XInputPacket, MemPacketSize);
+
+		memset32(HID_Packet, 0, MemPacketSize);
+		sync_after_write(HID_Packet, MemPacketSize);
+
+		ControllerID = XInputDeviceID;
+		bEndpointAddressController = XInputEpIn;
+		bEndpointAddressOut = XInputEpOut;
+		RumbleEnabled = 0;
+		HIDRumble = NULL;
+		HIDRead = XInputRead;
+		XInputHavePrev = 0;
+		XInputSpikeRun = 0;
+		XInputErrors = 0;
+
+		memset32((void*)HID_STATUS, 0, 0x20);
+		write32(HID_STATUS, 1);
+		sync_after_write((void*)HID_STATUS, 0x20);
+
+		if(XInputTransfer(XInputPacket, XInputReadLen, XInputEpIn, xinreadmsg) < 0)
+		{
+			write32(HID_STATUS, 0);
+			sync_after_write((void*)HID_STATUS, 0x20);
+			ControllerID = 0;
+			HIDRead = NULL;
+			continue;
+		}
+
+		XInputArmed = 1;
+		hidattached = 1;
+		XInputSetLED(0);
+		opened = true;
+		break;
+	}
+
+out:
+	if(io_buffer != NULL) free(io_buffer);
+	if(Heap != NULL) free(Heap);
+	return opened;
+}
+
+static bool XInputAxisSpiked(s16 now, s16 prev)
+{
+	s32 d = (s32)now - (s32)prev;
+	if(d < 0)
+		d = -d;
+	return d > XINPUT_SPIKE_LIMIT;
+}
+
+static u8 XInputNormalizeAxis(s16 value, bool invert)
+{
+	u8 normalized = ((s32)value + 32768) >> 8;
+	return invert ? 255 - normalized : normalized;
+}
+
+static void XInputRead(void)
+{
+	s32 result = XInputLastResult;
+
+	if(XInputPacket == NULL || XInputReadLen == 0)
+	{
+		HIDRead = NULL;
+		XInputArmed = 0;
+		return;
+	}
+
+	if(result < 0)
+	{
+		/* Do not requeue a dead endpoint forever - that spins the IPC queue at
+		 * poll rate for the whole session. Stand down and wait for a replug. */
+		if(++XInputErrors > 200)
+		{
+			XInputArmed = 0;
+			XInputActive = 0;
+			ControllerID = 0;
+			HIDRead = NULL;
+			memset32((void*)HID_STATUS, 0, 0x20);
+			sync_after_write((void*)HID_STATUS, 0x20);
+			memset32(XInputDevices, 0, sizeof(usb_device_entry)*32);
+			IOS_IoctlAsync(XInputHandle, GetDeviceChange, NULL, 0, XInputDevices,
+				0x180, hidqueue, xinchangemsg);
+			return;
+		}
+	}
+	else if(XInputPacket[0] == 0x00 && XInputPacket[1] == XINPUT_REPORT_SIZE)
+	{
+		s16 lx, ly, rx, ry;
+
+		XInputErrors = 0;
+
+		lx = (s16)((u16)XInputPacket[6]  | ((u16)XInputPacket[7]  << 8));
+		ly = (s16)((u16)XInputPacket[8]  | ((u16)XInputPacket[9]  << 8));
+		rx = (s16)((u16)XInputPacket[10] | ((u16)XInputPacket[11] << 8));
+		ry = (s16)((u16)XInputPacket[12] | ((u16)XInputPacket[13] << 8));
+
+		if(XInputHavePrev)
+		{
+			if(XInputAxisSpiked(lx, XInPrevLX) || XInputAxisSpiked(ly, XInPrevLY) ||
+			   XInputAxisSpiked(rx, XInPrevRX) || XInputAxisSpiked(ry, XInPrevRY))
+			{
+				/* Hold the last good position, but not indefinitely. */
+				lx = XInPrevLX; ly = XInPrevLY;
+				rx = XInPrevRX; ry = XInPrevRY;
+				if(++XInputSpikeRun > XINPUT_SPIKE_MAX_RUN)
+				{
+					XInputSpikeRun = 0;
+					XInputHavePrev = 0;
+				}
+			}
+			else
+				XInputSpikeRun = 0;
+		}
+
+		XInPrevLX = lx; XInPrevLY = ly;
+		XInPrevRX = rx; XInPrevRY = ry;
+		XInputHavePrev = 1;
+
+		if(!XInputActive)
+		{
+			XInputActive = 1;
+			XInputSetLED(0);
+		}
+
+		/*
+		 * Build the report in a private buffer and publish it with one copy.
+		 * PADReadGC reads HID_Packet from the PPC on its own schedule with no
+		 * interlock, so writing the axes in place would let it sample a report
+		 * whose stick bytes were still the raw halves of the 16 bit values.
+		 */
+		memcpy(XInputCooked, XInputPacket, XINPUT_REPORT_SIZE);
+		XInputCooked[6] = XInputNormalizeAxis(lx, false);
+		XInputCooked[7] = XInputNormalizeAxis(ly, true);
+		XInputCooked[8] = XInputNormalizeAxis(rx, false);
+		XInputCooked[9] = XInputNormalizeAxis(ry, true);
+		memcpy(HID_Packet, XInputCooked, XINPUT_REPORT_SIZE);
+		sync_after_write(HID_Packet, XINPUT_REPORT_SIZE);
+	}
+	/* Anything else is a status or announce packet; leave the last report up. */
+
+	XInputTransfer(XInputPacket, XInputReadLen, XInputEpIn, xinreadmsg);
+}
+
+/*
+ * Start looking for an XInput pad. Safe to call when none is attached - the
+ * device-change request simply stays pending. Does nothing when a
+ * /dev/usb/hid controller is already driving the pad slot.
+ */
+void XInputInit(void)
+{
+	if(XInputHandle >= 0 || hidqueue < 0)
+		return;
+
+	sync_before_read((void*)HID_STATUS, 0x20);
+	if(read32(HID_STATUS) != 0)
+		return;
+
+	XInputHandle = USB_GetVenHandle();
+	if(XInputHandle < 0)
+		return;
+
+	XInputOutBuf = (u8*)malloca(32, 32);
+	xinreadmsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
+	xinoutmsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
+	xinchangemsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
+	xinattachmsg = (struct ipcmessage*)malloca(sizeof(struct ipcmessage), 32);
+	if(XInputOutBuf == NULL || xinreadmsg == NULL || xinoutmsg == NULL ||
+		xinchangemsg == NULL || xinattachmsg == NULL)
+	{
+		XInputHandle = -1;
+		return;
+	}
+
+	memset32(&xin_read_req, 0, sizeof(struct _usb_msg));
+	memset32(&xin_write_req, 0, sizeof(struct _usb_msg));
+	memset32(XInputDevices, 0, sizeof(usb_device_entry)*32);
+	IOS_IoctlAsync(XInputHandle, GetDeviceChange, NULL, 0, XInputDevices,
+		0x180, hidqueue, xinchangemsg);
+}
+
+/* Drive the device-change handshake. Called from HIDUpdateRegisters. */
+void XInputUpdate(void)
+{
+	if(XInputHandle < 0)
+		return;
+
+	if(xinchange)
+	{
+		xinchange = 0;
+		/* Release IOS's device-change lock before any settling delay. */
+		IOS_IoctlAsync(XInputHandle, AttachFinish, NULL, 0, NULL, 0,
+			hidqueue, xinattachmsg);
+	}
+	if(xinattach)
+	{
+		if(XInputWaitTimer < 120)
+			XInputWaitTimer++;
+		else
+		{
+			xinattach = 0;
+			XInputWaitTimer = 0;
+			if(!XInputOpen())
+			{
+				/* Keep exactly one request pending for the next attach. */
+				memset32(XInputDevices, 0, sizeof(usb_device_entry)*32);
+				IOS_IoctlAsync(XInputHandle, GetDeviceChange, NULL, 0,
+					XInputDevices, 0x180, hidqueue, xinchangemsg);
+			}
+		}
+	}
+	if(xinread)
+	{
+		xinread = 0;
+		if(HIDRead == XInputRead)
+			XInputRead();
+	}
+}
+
+u32 XInputIsActive(void)
+{
+	return XInputActive;
+}
 void HIDUpdateRegisters(u32 LoaderRequest)
 {
 	if(TimerDiffTicks(HID_Timer) > 3800)	// about 500 times a second
 	{
+		XInputUpdate();
 		if(hidchange == 1)
 		{
 			hidattached = 0;
