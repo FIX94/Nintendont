@@ -99,6 +99,7 @@ static struct ipcmessage *hidreadcontrollermsg = NULL, *hidreadkeyboardmsg = NUL
 static struct ipcmessage *xinchangemsg = NULL, *xinattachmsg = NULL;
 static struct ipcmessage *xinreadmsg = NULL, *xinoutmsg = NULL;
 static vs32 XInputLastResult = 0;
+static u32 XInputReadTimer = 0, XInputResubmit = 0;
 static vu32 xinchange = 0, xinattach = 0, xinread = 0, xinoutbusy = 0;
 static u32 HID_Thread = 0;
 static u32 HID_Timer = 0;
@@ -1119,6 +1120,18 @@ static void KeyboardRead()
 #define XINPUT_SPIKE_LIMIT      8000
 #define XINPUT_SPIKE_MAX_RUN    8
 
+/*
+ * Rate limit for the interrupt IN request.
+ *
+ * Unlike a /dev/usb/hid pad, this shares the one ven handle that kernel USB
+ * storage streams the game through, so every read we queue is IPC contending
+ * with disc reads. The endpoint would happily run at its 1 ms bInterval, but
+ * PADRead only samples at 60 Hz, so polling that hard buys nothing and costs
+ * bandwidth on the handle the game depends on. ~8 ms is still over twice the
+ * rate anything downstream can observe.
+ */
+#define XINPUT_POLL_TICKS       15200
+
 static usb_device_entry XInputDevices[32] ALIGNED(32);
 static struct _usb_msg xin_read_req ALIGNED(32);
 static struct _usb_msg xin_write_req ALIGNED(32);
@@ -1363,6 +1376,8 @@ static bool XInputOpen(void)
 			continue;
 		}
 
+		XInputReadTimer = read32(HW_TIMER);
+		XInputResubmit = 0;
 		XInputArmed = 1;
 		hidattached = 1;
 		XInputSetLED(0);
@@ -1421,27 +1436,34 @@ static void XInputRead(void)
 	}
 	else if(XInputPacket[0] == 0x00 && XInputPacket[1] == XINPUT_REPORT_SIZE)
 	{
+		s16 rawlx, rawly, rawrx, rawry;
 		s16 lx, ly, rx, ry;
 
 		XInputErrors = 0;
 
-		lx = (s16)((u16)XInputPacket[6]  | ((u16)XInputPacket[7]  << 8));
-		ly = (s16)((u16)XInputPacket[8]  | ((u16)XInputPacket[9]  << 8));
-		rx = (s16)((u16)XInputPacket[10] | ((u16)XInputPacket[11] << 8));
-		ry = (s16)((u16)XInputPacket[12] | ((u16)XInputPacket[13] << 8));
+		rawlx = (s16)((u16)XInputPacket[6]  | ((u16)XInputPacket[7]  << 8));
+		rawly = (s16)((u16)XInputPacket[8]  | ((u16)XInputPacket[9]  << 8));
+		rawrx = (s16)((u16)XInputPacket[10] | ((u16)XInputPacket[11] << 8));
+		rawry = (s16)((u16)XInputPacket[12] | ((u16)XInputPacket[13] << 8));
+
+		lx = rawlx; ly = rawly;
+		rx = rawrx; ry = rawry;
 
 		if(XInputHavePrev)
 		{
-			if(XInputAxisSpiked(lx, XInPrevLX) || XInputAxisSpiked(ly, XInPrevLY) ||
-			   XInputAxisSpiked(rx, XInPrevRX) || XInputAxisSpiked(ry, XInPrevRY))
+			if(XInputAxisSpiked(rawlx, XInPrevLX) || XInputAxisSpiked(rawly, XInPrevLY) ||
+			   XInputAxisSpiked(rawrx, XInPrevRX) || XInputAxisSpiked(rawry, XInPrevRY))
 			{
-				/* Hold the last good position, but not indefinitely. */
+				/* Hold the last good position, but never indefinitely: after
+				 * XINPUT_SPIKE_MAX_RUN held samples take the new values, or a
+				 * pad that settles far from where it was would stay frozen. */
 				lx = XInPrevLX; ly = XInPrevLY;
 				rx = XInPrevRX; ry = XInPrevRY;
 				if(++XInputSpikeRun > XINPUT_SPIKE_MAX_RUN)
 				{
 					XInputSpikeRun = 0;
-					XInputHavePrev = 0;
+					lx = rawlx; ly = rawly;
+					rx = rawrx; ry = rawry;
 				}
 			}
 			else
@@ -1474,7 +1496,9 @@ static void XInputRead(void)
 	}
 	/* Anything else is a status or announce packet; leave the last report up. */
 
-	XInputTransfer(XInputPacket, XInputReadLen, XInputEpIn, xinreadmsg);
+	/* Do not requeue straight away; XInputUpdate() paces this so the reads do
+	 * not crowd out the game's disc traffic on the shared handle. */
+	XInputResubmit = 1;
 }
 
 /*
@@ -1549,6 +1573,12 @@ void XInputUpdate(void)
 		xinread = 0;
 		if(HIDRead == XInputRead)
 			XInputRead();
+	}
+	if(XInputResubmit && TimerDiffTicks(XInputReadTimer) > XINPUT_POLL_TICKS)
+	{
+		XInputResubmit = 0;
+		XInputReadTimer = read32(HW_TIMER);
+		XInputTransfer(XInputPacket, XInputReadLen, XInputEpIn, xinreadmsg);
 	}
 }
 
