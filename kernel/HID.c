@@ -563,6 +563,17 @@ s32 HIDOpen( u32 LoaderRequest )
 
 				if(!HIDLoadControllerConfig(DeviceVID, DevicePID, LoaderRequest))
 					continue;
+
+				/*
+				 * PADReadGC reads HID_CTRL from the PPC side and only invalidates
+				 * the cache lines covering HID_Packet, so the parsed layout has to
+				 * be pushed out of the ARM data cache explicitly. Today this
+				 * happens to survive because HIDOpen runs early and the game load
+				 * evicts the lines, but nothing guarantees that - and it does not
+				 * hold at all when a controller is opened later.
+				 */
+				sync_after_write(HID_CTRL, (sizeof(controller)+31)&(~31));
+
 				if( HID_CTRL->Polltype == 0 )
 					MemPacketSize = 128;
 				else if (HID_CTRL->MultiIn == 4)
