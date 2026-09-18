@@ -37,6 +37,10 @@ def machine():
     for a,s in [(0x80002000,0x1000),(0x81000000,0x20000),(PADS,0x1000),(CODE,0x10000),
                 (STATE,0x1000),(0xD3003000,0x1000),(0xCC002000,0x1000),(0xC0000000,0x1800000)]:
         uc.mem_map(a,s)
+    # A normal supported VI state is also required to open the editor.
+    uc.mem_write(0xCC002000,pack(((240<<4|6)<<16)|1))
+    uc.mem_write(0xCC00201C,pack(0x600000));uc.mem_write(0xCC002024,pack(0x600000))
+    uc.mem_write(0xCC002048,struct.pack('>H',(40<<8)|40))
     uc.mem_write(CODE,overlay)
     uc.mem_write(0x80002000,vihook)
     uc.mem_write(SENT,b'\x4e\x80\x00\x20')  # blr at the sentinel

@@ -14,7 +14,10 @@ reports=[]
 # Audit actual stores on the real M17 and M19 opening input paths.
 for ver in ['m21']:
     uc=Uc(UC_ARCH_PPC,UC_MODE_32|UC_MODE_BIG_ENDIAN)
-    for a,n in [(0x93180000,0x10000),(0xD318F000,0x1000),(0x81000000,0x20000),(0x80002000,0x1000)]:uc.mem_map(a,n)
+    for a,n in [(0x93180000,0x10000),(0xD318F000,0x1000),(0x81000000,0x20000),(0x80002000,0x1000),(0xCC002000,0x1000)]:uc.mem_map(a,n)
+    uc.mem_write(0xCC002000,pack(((240<<4|6)<<16)|1))
+    uc.mem_write(0xCC00201C,pack(0x600000));uc.mem_write(0xCC002024,pack(0x600000))
+    uc.mem_write(0xCC002048,struct.pack('>H',(40<<8)|40))
     uc.mem_write(0x93180000,(Path(os.environ.get('NIN_SOURCE',str(base.parents[1])))/'overlay/overlay.bin').read_bytes())
     s=bytearray(224 if ver=='m17' else 868)
     s[:8]=pack(0x4F564C35 if ver=='m17' else 0x4F563231)+pack(1)
@@ -30,6 +33,7 @@ for ver in ['m21']:
     uc.hook_add(UC_HOOK_MEM_WRITE,audit,begin=0xD0000000,end=0xD3FFFFFF)
     uc.emu_start(0x93180000,0x80002FFC,count=100000)
     assert uc.reg_read(UC_PPC_REG_PC)==0x80002FFC
+    assert bytes(uc.mem_read(0xD318F008,4))==pack(1),'the store audit must exercise opening'
     assert bool(bad)==(ver=='m17')
     reports.append({'build':ver,'unsafe_uncached_stores_on_open':len(bad),'examples':bad[:4]})
 

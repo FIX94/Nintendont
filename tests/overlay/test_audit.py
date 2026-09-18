@@ -68,5 +68,22 @@ def masks_all_ports(uc):
         call_input(uc,[pad()]*4,15)
 check('menu consumes rapid presses on all four ports',masks_all_ports)
 
+def unavailable_video(uc):
+    uc.mem_write(0xCC002002,b'\x00\x00')
+    out=call_input(uc,[pad(TOGGLE)],1)[0]
+    assert not st(uc,'open') and out['button']==TOGGLE
+check('unsupported video cannot capture the opening chord',unavailable_video)
+
+def video_change(uc):
+    opened(uc); press(uc,B)
+    assert st_map(uc,'edit',0)!=identity()
+    uc.mem_write(0xCC002002,b'\x00\x00')
+    call_input(uc,[pad()],1)
+    assert not st(uc,'open') and not st(uc,'release')
+    assert st_map(uc,'active',0)==identity() and st(uc,'cancels')==1
+    out=call_input(uc,[pad(Y)],1)[0]
+    assert out['button']==Y
+check('video loss cancels unfinished edits and returns game input',video_change)
+
 print(json.dumps({'passed':checks,'failed':failures},indent=2))
 sys.exit(bool(failures))

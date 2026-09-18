@@ -168,6 +168,29 @@ static void quit_input(u32 btn,u32 dir) {
         else state->mode=LIST;
     }
 }
+typedef struct {u32 top,bottom,stride,step,fields,x,y,rawTop,rawBottom,dcr,vtr;} VideoLayout;
+/* The input path uses exactly the same acceptance rules as the renderer. */
+static int video_layout(VideoLayout *v) {
+    volatile u16 *vi=(volatile u16*)0xCC002000;
+    u32 top,bottom,rawTop,rawBottom,stride,width,acv,dcr,step,fields,x,y;
+    rawTop=((u32)vi[14]<<16)|vi[15];rawBottom=((u32)vi[18]<<16)|vi[19];
+    dcr=vi[1];acv=(vi[0]>>4)&1023;stride=(vi[36]&255)*32;width=((vi[36]>>8)&127)*16;
+    if((dcr&11)!=1 || width<384 || width>stride/2 || acv<112)return 0;
+    top=rawTop&0xFFFFFF;bottom=rawBottom&0xFFFFFF;
+    if(rawTop&0x10000000){top<<=5;bottom<<=5;}
+    if(dcr&4)bottom=top;
+    step=top!=bottom?2:1;fields=step;
+    if(acv*step<224)return 0;
+    x=((width-384)/2)&~1u;y=((acv*step-224)/2)&~1u;
+    if(!top || top<0x10000 || (top&3) || top+((y+223)/step)*stride+(x+384)*2>0x01800000 ||
+       (fields==2 && (!bottom || bottom<0x10000 || (bottom&3) || bottom+((y+223)/step)*stride+(x+384)*2>0x01800000)))return 0;
+    if(v) {
+        v->top=top;v->bottom=bottom;v->stride=stride;v->step=step;
+        v->fields=fields;v->x=x;v->y=y;v->rawTop=rawTop;v->rawBottom=rawBottom;
+        v->dcr=dcr;v->vtr=vi[0];
+    }
+    return 1;
+}
 /* Called after all sources are translated, with IRQs disabled. Shared state
  * never contains narrow stores; the renderer sees one complete transaction. */
 void menu_input(OverlayPad *pads,u32 used) {
@@ -186,8 +209,10 @@ void menu_input(OverlayPad *pads,u32 used) {
         state->live[p][5]=(used&(1u<<p))?pads[p].triggerLeft:0;
         state->live[p][6]=(used&(1u<<p))?pads[p].triggerRight:0;
     }
+    /* A mode change must not leave an invisible editor eating input. */
+    if(state->open && !video_layout(0))close_menu(0);
     if(!state->open && !state->release) for(p=0;p<4;p++) {
-        if((used&(1u<<p)) && (raw[p]&TOGGLE)==TOGGLE && (state->previous[p]&TOGGLE)!=TOGGLE) {
+        if((used&(1u<<p)) && (raw[p]&TOGGLE)==TOGGLE && (state->previous[p]&TOGGLE)!=TOGGLE && video_layout(0)) {
             for(i=0;i<80;i++)((volatile u32*)state->edit)[i]=((volatile u32*)state->active)[i];
             state->open=1;state->owner=p;state->port=p;state->row=0;state->cursor=0;
             state->mode=PICTURE;state->waitNeutral=1;state->lastDetected=0;
@@ -368,7 +393,7 @@ static void picture_screen(void) {
     title("CHANGE BUTTONS",1);
     while(names[target][n])n++;
     blank();put(buf,0,"GAME ");put(buf,5,names[target]);
-    put(buf,6+n,"IS YOUR ");put(buf,14+n,names[source<12?source:12]);
+    put(buf,6+n,"USES INPUT ");put(buf,17+n,names[source<12?source:12]);
     label(12,144,buf,SELECT);
     if(state->notice)notice_line(163);
     else hint(163,"PRESS ANY BUTTON TO CHANGE",WHITE);
@@ -441,7 +466,7 @@ static void sticks_screen(void) {
 static void quit_screen(void) {
     title("QUIT GAME?",0);box(6,24,372,2,GREY);
     hint(40,"UNSAVED GAME PROGRESS IS LOST",SELECT);
-    hint(62,"BUTTON SETTINGS WILL BE SAVED",WHITE);
+    hint(62,"SAVE BUTTON SETTINGS ON EXIT",WHITE);
     blank();put(buf,2,"NO - GO BACK");row(100,state->action!=1);
     blank();put(buf,2,"YES - QUIT GAME");row(126,state->action==1);
     hint(208,"A SELECT   B BACK",WHITE);
@@ -455,30 +480,21 @@ static void menu_panel(void) {
     else picture_screen();
 }
 void menu_draw(void) {
-    volatile u16 *vi=(volatile u16*)0xCC002000;
+    VideoLayout v;
     volatile u32 *diag=(volatile u32*)0xD30030A0;
-    u32 top,bottom,rawTop,rawBottom,stride,width,acv,dcr,step,fields,f,x,y,i;
+    u32 top,bottom,stride,step,fields,f,x,y,i;
     diag[0]++;
     if(state->magic!=OVL_MAGIC || !state->enabled)return;
     state->drawCalls++;
     if(!state->open && !state->toast)return;
-    rawTop=((u32)vi[14]<<16)|vi[15];rawBottom=((u32)vi[18]<<16)|vi[19];
-    dcr=vi[1];acv=(vi[0]>>4)&1023;stride=(vi[36]&255)*32;width=((vi[36]>>8)&127)*16;
-    diag[3]=rawTop;diag[4]=rawBottom;diag[5]=stride;diag[8]=((u32)vi[0]<<16)|dcr;
-    if((dcr&11)!=1 || width<384 || width>stride/2 || acv<112){diag[2]++;return;}
-    top=rawTop&0xFFFFFF;bottom=rawBottom&0xFFFFFF;
-    if(rawTop&0x10000000){top<<=5;bottom<<=5;}
-    if(dcr&4)bottom=top;
-    step=top!=bottom?2:1;fields=step;
-    if(acv*step<224){diag[2]++;return;}
-    diag[6]=top;diag[7]=bottom;
-    x=((width-384)/2)&~1u;y=((acv*step-224)/2)&~1u;
-    if(!top || top<0x10000 || (top&3) || top+((y+223)/step)*stride+(x+384)*2>0x01800000 ||
-       (fields==2 && (!bottom || bottom<0x10000 || (bottom&3) || bottom+((y+223)/step)*stride+(x+384)*2>0x01800000))){diag[2]++;return;}
+    if(!video_layout(&v)){diag[2]++;return;}
+    top=v.top;bottom=v.bottom;stride=v.stride;step=v.step;fields=v.fields;x=v.x;y=v.y;
+    diag[3]=v.rawTop;diag[4]=v.rawBottom;diag[5]=stride;
+    diag[6]=top;diag[7]=bottom;diag[8]=(v.vtr<<16)|v.dcr;
     if(!state->open) {
         line(text[0],state->dirty?"BUTTON SETTINGS ON":"MENU CLOSED");
         line(text[1],"X+Y+START OPENS THE MENU");
-        line(text[2],state->dirty?"SAVED WHEN YOU QUIT GAME":"");
+        line(text[2],state->dirty?"QUIT GAME TO SAVE SETTINGS":"");
         state->toast--;
     }
     for(f=0;f<fields;f++) {

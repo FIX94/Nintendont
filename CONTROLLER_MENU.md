@@ -38,8 +38,9 @@ The feature needs a recognized SDK VI handler and the normal patched
 PADRead path. Native SI, alternate/custom handlers, Triforce, multi-DOL
 transitions, PAL/interlaced modes and vWii need separate hardware coverage.
 The code validates a 384x224 MEM1 rectangle; unsupported display states do
-not draw. A recognized hook with an unsupported display mode can still
-capture the menu chord: that fallback is not yet resolved for upstream.
+not draw. The input path checks the same complete layout before opening.
+If the display becomes unsupported while editing, unfinished edits are
+cancelled and game input returns after the held buttons are released.
 
 Legacy reset/exit chords are checked in the source-specific controller
 paths before the overlay. They can still fire while testing combinations.
@@ -49,6 +50,24 @@ not intercepted. This remains an upstream integration decision.
 The picture requires a usable main stick and the entry chord requires three
 buttons. An accessible alternate entry/navigation method is future work.
 Do not describe this prototype as universally accessible or compatible.
+
+## Validation status
+
+On 18 September 2026, the tester reconfirmed that the M21 menu worked on Wii;
+the identified test setup was Wind Waker and an Xbox controller. Persistence
+across quitting and reopening was not checked. That build included a separate
+Xbox USB transport; this menu-only PR uses stock upstream controller support.
+
+The revised source builds with devkitARM r53-1, devkitPPC r35-2 and libOGC
+1.8.23-1. Six compiled PPC/ARM suites cover button assignments and transitions,
+video rejection, register preservation, save failure/recovery, entry/exit and
+VI candidate validation. They do not replace hardware checks of the revised
+installation/cache path or actual USB persistence. See tests/overlay/README.md.
+
+![Controller picture, options, input tester and quit confirmation](docs/controller-menu/preview.png)
+
+This preview comes from the compiled PPC renderer under Unicorn with simulated
+inputs. It is a UI illustration, not an additional hardware test.
 
 ## Architecture and provenance
 

@@ -23,3 +23,7 @@ also ignored. No games or private machine paths are included.
 The original local historical comparison with broken M15/M17 binaries is
 recorded in the audit dossier; reproducing this branch does not require those
 private historical build directories.
+
+To regenerate the documentation preview, also install Pillow and run
+`python tests/overlay/render_preview.py`. It captures the compiled renderer
+with simulated inputs; it does not include a game image or claim a Wii test.
