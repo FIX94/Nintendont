@@ -1097,9 +1097,9 @@ static void KeyboardRead()
  *
  * Sharing the handle means this cannot start until storage is up and the loader
  * has released its own ven client, so XInputInit() runs late from the kernel
- * boot path, and only when no /dev/usb/hid controller was found. Everything on
- * that handle is asynchronous: a blocking ioctlv against a pad with nothing to
- * say never returns and hangs the console.
+ * boot path, and only when no /dev/usb/hid controller was found. Interrupt transfers on
+ * that handle are asynchronous: a blocking read on an idle pad can stall the
+ * kernel. Descriptor, attach and endpoint-control requests remain synchronous.
  */
 
 #define XINPUT_VID              0x045e
@@ -1108,15 +1108,10 @@ static void KeyboardRead()
 #define XINPUT_ATTACH           4
 #define XINPUT_CANCEL_ENDPOINT  17
 
-/*
- * Reject any sample whose stick position moves further in one report than a
- * physical stick could. Centre to edge takes a human around 50 ms, or roughly
- * 25 reports, so real input never exceeds a few thousand counts per report.
- * Cheap XInput clones periodically emit an otherwise perfectly formed report -
- * valid header, correct length, sane buttons - with all four axes slammed to
- * opposite corners. Holding the previous position for a bounded number of
- * samples erases those without adding latency to real input.
- */
+/* Device-specific spike suppression retained from Wii testing of 045e:028e.
+ * Hold large jumps for at most eight reports, then accept the new position.
+ * This may also delay a legitimate fast movement; it is not a physical limit
+ * on how quickly a stick can move. Revisit with broader controller testing. */
 #define XINPUT_SPIKE_LIMIT      8000
 #define XINPUT_SPIKE_MAX_RUN    8
 
@@ -1126,9 +1121,9 @@ static void KeyboardRead()
  * Unlike a /dev/usb/hid pad, this shares the one ven handle that kernel USB
  * storage streams the game through, so every read we queue is IPC contending
  * with disc reads. The endpoint would happily run at its 1 ms bInterval, but
- * PADRead only samples at 60 Hz, so polling that hard buys nothing and costs
- * bandwidth on the handle the game depends on. ~8 ms is still over twice the
- * rate anything downstream can observe.
+ * game input commonly updates around the video rate. An 8 ms submission
+ * interval reduces IPC traffic; this is a measured-device policy, not a
+ * guarantee about every game's PADRead frequency.
  */
 #define XINPUT_POLL_TICKS       15200
 
@@ -1209,75 +1204,58 @@ static s32 XInputCancelEndpoint(u32 Endpoint)
  * the hid one: 0xC0 bytes, device descriptor at offset 20, each descriptor
  * padded to a 4 byte boundary.
  */
-static bool XInputParseDescriptors(const u8 *Heap)
+/* Every descriptor is bounded before its fields are read. IOS returns
+ * host-endian multi-byte fields and pads each descriptor to four bytes. */
+static bool XInputDescriptor(const u8 *heap, u32 offset, u32 type, u32 minimum)
 {
-	u32 Offset = 20;
-	u32 DeviceDescLength, ConfigurationLength, InterfaceDescLength;
-	u32 bInterfaceNumber, bNumEndpoints, i;
+	return offset <= 0xC0 - minimum && heap[offset] >= minimum &&
+		heap[offset] <= 0xC0 - offset && heap[offset + 1] == type;
+}
 
-	DeviceDescLength = *(vu8*)(Heap+Offset);
-	Offset += (DeviceDescLength+3)&(~3);
-
-	ConfigurationLength = *(vu8*)(Heap+Offset);
-	Offset += (ConfigurationLength+3)&(~3);
-
-	InterfaceDescLength = *(vu8*)(Heap+Offset);
-	if(InterfaceDescLength < USB_DT_INTERFACE_SIZE)
+static bool XInputParseDescriptors(const u8 *heap)
+{
+	u32 offset = 20, endpoints, i;
+	XInputEpIn = XInputEpOut = wMaxPacketSize = 0;
+	if(!XInputDescriptor(heap, offset, USB_DT_DEVICE, USB_DT_DEVICE_SIZE))
 		return false;
-
-	bInterfaceNumber = *(vu8*)(Heap+Offset+2);
-	bNumEndpoints = *(vu8*)(Heap+Offset+4);
-	Offset += (InterfaceDescLength+3)&(~3);
-
-	/* Skip class or vendor specific descriptors sitting between the interface
-	 * and its endpoints, the way libogc's USBV5_GetDescriptors does. */
-	while((Offset + 2) < 0xC0)
+	offset += (heap[offset] + 3) & ~3;
+	if(!XInputDescriptor(heap, offset, USB_DT_CONFIG, USB_DT_CONFIG_SIZE))
+		return false;
+	offset += (heap[offset] + 3) & ~3;
+	if(!XInputDescriptor(heap, offset, USB_DT_INTERFACE, USB_DT_INTERFACE_SIZE))
+		return false;
+	if(heap[offset + 2] != 0 || heap[offset + 5] != 0xFF ||
+	   heap[offset + 6] != 0x5D || heap[offset + 7] != 0x01)
+		return false;
+	endpoints = heap[offset + 4];
+	offset += (heap[offset] + 3) & ~3;
+	for(i = 0; i < endpoints;)
 	{
-		u32 SkipLength = *(vu8*)(Heap+Offset);
-		u32 SkipType = *(vu8*)(Heap+Offset+1);
-		if(SkipLength == 0 || SkipType == USB_DT_ENDPOINT || SkipType == USB_DT_INTERFACE)
-			break;
-		Offset += (SkipLength+3)&(~3);
-	}
-
-	XInputEpIn = 0;
-	XInputEpOut = 0;
-	wMaxPacketSize = 0;
-
-	for(i = 0; i < bNumEndpoints && (Offset + USB_DT_ENDPOINT_SIZE) <= 0xC0; ++i)
-	{
-		u32 EndpointLength = *(vu8*)(Heap+Offset);
-		u32 EndpointType = *(vu8*)(Heap+Offset+1);
-		u32 Address, Attributes, MaxPacket;
-
-		if(EndpointLength < USB_DT_ENDPOINT_SIZE || EndpointType != USB_DT_ENDPOINT)
-			break;
-
-		Address = *(vu8*)(Heap+Offset+2);
-		Attributes = *(vu8*)(Heap+Offset+3);
-		MaxPacket = *(vu16*)(Heap+Offset+4);
-
-		if((Attributes & 0x03) == USB_ENDPOINT_INTERRUPT)
+		u32 length, type, address, attributes, size;
+		if(offset > 0xC0 - 2) return false;
+		length = heap[offset]; type = heap[offset + 1];
+		if(length < 2 || length > 0xC0 - offset || type == USB_DT_INTERFACE)
+			return false;
+		if(type == USB_DT_ENDPOINT)
 		{
-			if((Address & USB_ENDPOINT_IN) && XInputEpIn == 0)
+			if(length < USB_DT_ENDPOINT_SIZE) return false;
+			address = heap[offset + 2]; attributes = heap[offset + 3];
+			size = ((u32)heap[offset + 4] << 8) | heap[offset + 5];
+			if((attributes & 3) == USB_ENDPOINT_INTERRUPT && (address & 15))
 			{
-				XInputEpIn = Address;
-				wMaxPacketSize = MaxPacket;
+				if((address & USB_ENDPOINT_IN) && !XInputEpIn)
+				{
+					XInputEpIn = address;
+					wMaxPacketSize = size;
+				}
+				else if(!(address & USB_ENDPOINT_IN) && !XInputEpOut)
+					XInputEpOut = address;
 			}
-			else if(!(Address & USB_ENDPOINT_IN) && XInputEpOut == 0)
-				XInputEpOut = Address;
+			++i;
 		}
-		Offset += (EndpointLength+3)&(~3);
+		offset += (length + 3) & ~3;
 	}
-
-	if(bInterfaceNumber != 0 || XInputEpIn == 0)
-		return false;
-
-	/* Clamp: a bad length here would allocate a useless packet buffer. */
-	if(wMaxPacketSize < XINPUT_REPORT_SIZE || wMaxPacketSize > 32)
-		wMaxPacketSize = 32;
-
-	return true;
+	return XInputEpIn && wMaxPacketSize >= XINPUT_REPORT_SIZE && wMaxPacketSize <= 32;
 }
 
 /* Bring up the first XInput pad in the device list and start reading it. */
@@ -1340,7 +1318,7 @@ static bool XInputOpen(void)
 		 */
 		XInputCancelEndpoint(XInputEpIn);
 
-		MemPacketSize = wMaxPacketSize;
+		MemPacketSize = (wMaxPacketSize + 31) & ~31;
 		XInputReadLen = wMaxPacketSize;
 
 		if(XInputPacket != NULL) free(XInputPacket);
@@ -1351,6 +1329,9 @@ static bool XInputOpen(void)
 		sync_after_write(XInputPacket, MemPacketSize);
 
 		memset32(HID_Packet, 0, MemPacketSize);
+		/* Publish centered axes until the first complete report arrives. */
+		((u8*)HID_Packet)[6] = ((u8*)HID_Packet)[8] = 128;
+		((u8*)HID_Packet)[7] = ((u8*)HID_Packet)[9] = 127;
 		sync_after_write(HID_Packet, MemPacketSize);
 
 		ControllerID = XInputDeviceID;
@@ -1416,6 +1397,7 @@ static void XInputRead(void)
 		return;
 	}
 
+	sync_before_read(XInputPacket, MemPacketSize);
 	if(result < 0)
 	{
 		/* Do not requeue a dead endpoint forever - that spins the IPC queue at
@@ -1423,6 +1405,7 @@ static void XInputRead(void)
 		if(++XInputErrors > 200)
 		{
 			XInputArmed = 0;
+			XInputResubmit = 0;
 			XInputActive = 0;
 			ControllerID = 0;
 			HIDRead = NULL;
@@ -1434,7 +1417,8 @@ static void XInputRead(void)
 			return;
 		}
 	}
-	else if(XInputPacket[0] == 0x00 && XInputPacket[1] == XINPUT_REPORT_SIZE)
+	else if(result >= XINPUT_REPORT_SIZE && (u32)result <= XInputReadLen &&
+	        XInputPacket[0] == 0x00 && XInputPacket[1] == XINPUT_REPORT_SIZE)
 	{
 		s16 rawlx, rawly, rawrx, rawry;
 		s16 lx, ly, rx, ry;
@@ -1574,11 +1558,20 @@ void XInputUpdate(void)
 		if(HIDRead == XInputRead)
 			XInputRead();
 	}
-	if(XInputResubmit && TimerDiffTicks(XInputReadTimer) > XINPUT_POLL_TICKS)
+	if(XInputArmed && HIDRead == XInputRead && XInputResubmit &&
+	   TimerDiffTicks(XInputReadTimer) > XINPUT_POLL_TICKS)
 	{
+		s32 result;
 		XInputResubmit = 0;
 		XInputReadTimer = read32(HW_TIMER);
-		XInputTransfer(XInputPacket, XInputReadLen, XInputEpIn, xinreadmsg);
+		result = XInputTransfer(XInputPacket, XInputReadLen, XInputEpIn, xinreadmsg);
+		/* An immediate rejection has no callback. Count it and retry at the
+		 * usual interval, or polling would silently stop after one failure. */
+		if(result < 0)
+		{
+			XInputLastResult = result;
+			XInputRead();
+		}
 	}
 }
 
