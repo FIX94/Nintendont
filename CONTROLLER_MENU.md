@@ -54,15 +54,16 @@ Do not describe this prototype as universally accessible or compatible.
 ## Validation status
 
 On 18 September 2026, the tester reconfirmed that the M21 menu worked on Wii;
-the identified test setup was Wind Waker and an Xbox controller. Persistence
-across quitting and reopening was not checked. That build included a separate
+the identified test setup was Wind Waker and an Xbox controller. The tester
+subsequently confirmed that saving works in M21. That build included a separate
 Xbox USB transport; this menu-only PR uses stock upstream controller support.
 
 The revised source builds with devkitARM r53-1, devkitPPC r35-2 and libOGC
 1.8.23-1. Six compiled PPC/ARM suites cover button assignments and transitions,
 video rejection, register preservation, save failure/recovery, entry/exit and
 VI candidate validation. They do not replace hardware checks of the revised
-installation/cache path or actual USB persistence. See tests/overlay/README.md.
+installation/cache and save changes on the final PR build. See
+tests/overlay/README.md.
 
 ![Controller picture, options, input tester and quit confirmation](docs/controller-menu/preview.png)
 
