@@ -1059,13 +1059,8 @@ int main(int argc, char **argv)
 		else
 			ncfg->Language = NIN_LAN_ENGLISH;
 	}
-	
-	//Check if game is Triforce game
-	u32 IsTRIGame = 0;
-	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
-		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
-	
-	if( (ncfg->Config & NIN_CFG_MEMCARDEMU) && IsTRIGame == 0 )
+
+	if(ncfg->Config & NIN_CFG_MEMCARDEMU)
 	{
 		// Memory card emulation is enabled.
 		// Set up the memory card file.
@@ -1131,6 +1126,11 @@ int main(int argc, char **argv)
 		__SYS_UnlockSram(1); // 1 -> write changes
 		while(!__SYS_SyncSram());
 	}
+	
+	//Check if game is Triforce game
+	u32 IsTRIGame = 0;
+	if (ncfg->GameID != 0x47545050) //Damn you Knights Of The Temple!
+		IsTRIGame = TRISetupGames(ncfg->GamePath, CurDICMD, ISOShift);
 	
 	if(IsTRIGame != 0)
 	{
