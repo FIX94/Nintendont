@@ -25,7 +25,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/dsp.h>
 #include <ogc/es.h>
 #include <ogc/gx_struct.h>
-#include <ogc/lwp_threads.h>
+#include <ogc/lwp.h>
+#include <ogc/machine/processor.h>
 #include <ogc/system.h>
 #include <ogc/video.h>
 #include <ogc/wiilaunch.h>
@@ -292,7 +293,7 @@ void ExitToLoader(int ret)
 	VIDEO_WaitVSync();
 	//This whole exit routine is basically equal to the game exit stub
 	if(*(vu32*)0x80001804 == 0x53545542 && *(vu32*)0x80001808 == 0x48415858) //stubhaxx
-		__lwp_thread_stopmultitasking(stub);
+		stub();
 	__ES_Init(); //make sure this is back open
 	u32 numviews;
 	STACK_ALIGN(tikview,views,4,32);
