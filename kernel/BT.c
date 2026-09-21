@@ -315,7 +315,10 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 	{
 		if(*((u8*)buffer+3) & 0x02)	//expansion controller connected
 		{
-			if(stat->transferstate == TRANSFER_EXT1)
+			//Some third party wiimotes send the status report on their own while we are
+			//still in TRANSFER_CONNECT, and never send another one in response to our
+			//0x15 request. Accept it in either state so the handshake can proceed.
+			if(stat->transferstate == TRANSFER_EXT1 || stat->transferstate == TRANSFER_CONNECT)
 			{
 				u8 data[22];
 				memset(data, 0, 22);
@@ -546,8 +549,23 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 				stat->transferstate = TRANSFER_CALIBRATE;
 				sync_after_write(arg, sizeof(struct BTPadStat));
 			}
+			//Third party wiimotes can lag their acks, so one may arrive while we are
+			//waiting in EXT1 with no further status report coming. Ask again instead
+			//of waiting forever.
+			else if(stat->transferstate == TRANSFER_EXT1)
+			{
+				u8 buf[2];
+				buf[0] = 0x15;	//request status report
+				buf[1] = 0x00;
+				bte_senddata(stat->sock,buf,2);
+				sync_after_write(arg, sizeof(struct BTPadStat));
+			}
 		}
-		else if(stat->transfertype == 0x34 || stat->transfertype == 0x37)
+	//buffer[3] is the report id being acknowledged. Third party wiimotes also ack
+		//the 0x11 player led/rumble report, and 0x11 has no 0x02 bit, so that ack used
+		//to fall through to the reset below and throw the extension handshake back to
+		//EXT1 for good. Never treat an led ack as an extension change.
+		else if(*((u8*)buffer+3) != 0x11 && (stat->transfertype == 0x34 || stat->transfertype == 0x37))
 		{
 			//reset
 			stat->controller = C_NOT_SET;
