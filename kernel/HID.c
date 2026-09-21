@@ -27,7 +27,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <stdlib.h>
 #include "ff_utf8.h"
-
 #ifndef DEBUG_HID
 #define dbgprintf(...)
 #else
@@ -51,6 +50,7 @@ static u32 ControllerID  = 0;
 static u32 KeyboardID  = 0;
 static u32 bEndpointAddressController = 0;
 static u32 bEndpointAddressKeyboard = 0;
+static u32 HIDInterface = 0;
 static u32 wMaxPacketSize = 0;
 static u32 MemPacketSize = 0;
 static u8 *Packet = (u8*)NULL;
@@ -264,6 +264,32 @@ s32 HIDOpen( u32 LoaderRequest )
 				RumbleEnabled = 0;
 
 				ControllerID = DeviceID;
+
+				if (DeviceVID == 0x054C && DevicePID == 0x09CC) {
+                    dbgprintf("HID: Wake up call for clone DS4.\r\n");
+					HIDInterface = 3;
+					bEndpointAddressOut = 0x02;
+                    u8 *ds4_buf = (u8*)malloca(1024, 32); 
+					
+					// The clone basically checks if we read the HID descriptor and opens itself up for communication.
+					memset32(ds4_buf, 0, 1024);
+                    HIDControlMessage(0, ds4_buf, 535, 0x81, 0x06, 0x2200, 0, NULL);
+
+
+					// We can now use the ds4 controller without any issues.
+					// Lightbar control (using indigo)
+					memset32(ds4_buf, 0, 1024);
+                    ds4_buf[0] = 0x05; // Report ID
+                    ds4_buf[1] = 0x02; // valid_flag0 (0x02 = LED control, 0x01 = rumble)
+                    ds4_buf[6] = 0x80; // Red
+                    ds4_buf[7] = 0x00; // Green
+                    ds4_buf[8] = 0xFF; // Blue 
+                    
+                    // Send to the OUT endpoint
+                    HIDInterruptMessage(0, ds4_buf, 32, bEndpointAddressOut, 0, NULL);
+					free(ds4_buf);
+                }
+				else HIDInterface = 0; // Prevent regression for other HID
 				bEndpointAddressController = bEndpointAddress;
 
 				if( DeviceVID == 0x054c && DevicePID == 0x0268 )
@@ -682,7 +708,7 @@ static s32 HIDControlMessage(u32 isKBreq, u8 *Data, u32 Length, u32 RequestType,
 	msg->ctrl.bmRequestType = RequestType;
 	msg->ctrl.bmRequest = Request;
 	msg->ctrl.wValue = Value;
-	msg->ctrl.wIndex = 0;
+	msg->ctrl.wIndex = HIDInterface;
 	msg->ctrl.wLength = Length;
 	msg->ctrl.rpData = Data;
 
