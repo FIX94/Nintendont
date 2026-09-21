@@ -1042,13 +1042,17 @@ static void KeyboardRead()
 
 void HIDUpdateRegisters(u32 LoaderRequest)
 {
-	if(TimerDiffTicks(HID_Timer) > 3800)	// about 500 times a second
+	// NOTE: this does not throttle. HID_Timer is set once in HIDInit() and the
+	// reset at the end of this function is commented out (it crashed Wii VC),
+	// so the body runs every main-loop iteration, not 500 times a second.
+	if(TimerDiffTicks(HID_Timer) > 3800)
 	{
 		if(hidchange == 1)
 		{
 			hidattached = 0;
-			//wait half a second for devices to
-			//actually attach properly
+			//wait for devices to actually attach properly.
+			//120 iterations of the (unthrottled, see above) loop, so
+			//well under the half second originally intended.
 			if(hidwaittimer < 120)
 				hidwaittimer++;
 			else
