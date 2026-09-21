@@ -416,7 +416,10 @@ static DevState LoadGameList(gameinfo *gi, u32 sz, u32 *pGameCount)
 			};
 
 			u32 i;
-			for (i = 0; i < 8; i++)
+			// A single directory can add two entries (disc 1 and disc 2),
+			// but the array-full check is only at the bottom of the outer
+			// loop, so bound this loop too or it can write gi[sz].
+			for (i = 0; i < 8 && gamecount < (int)sz; i++)
 			{
 				const u32 discNumber = i / 4;
 
