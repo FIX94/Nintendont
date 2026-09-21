@@ -115,6 +115,7 @@ u32 Apploader_Run()
 	appldr_entry = apploader_hdr.entry;
 
 	/* Call apploader entry */
+	#pragma GCC diagnostic warning "-Wincompatible-pointer-types"
 	appldr_entry(&appldr_init, &appldr_main, &appldr_final);
 
 	/* Initialize apploader */
