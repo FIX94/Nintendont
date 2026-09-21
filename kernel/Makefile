@@ -16,11 +16,17 @@ AS	:= $(PREFIX)as
 LD	:= $(PREFIX)gcc
 OBJCOPY	:= $(PREFIX)objcopy
 
-ifeq ($(windows), 1)
-	ZIP = zip/zip.exe
+# Host OS detection for the bundled helper tools.
+# $(OS) alone is unreliable: under MSYS2/Git Bash make does not always inherit
+# it, and the build then runs the Linux ELF helper on Windows, failing with
+# "cannot execute binary file". Fall back to uname so detection works either way.
+UNAME_S := $(shell uname -s 2>/dev/null)
+ifneq (,$(filter Windows_NT,$(OS))$(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S))$(findstring CYGWIN,$(UNAME_S)))
+	HOST_EXE := .exe
 else
-	ZIP = zip
+	HOST_EXE :=
 endif
+ZIP = zip/zip$(HOST_EXE)
 
 CFLAGS	:= -mbig-endian -O3 -std=gnu89 -g -I. -Wall \
 	   -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft \

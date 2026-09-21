@@ -41,18 +41,32 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 4. Select Nintendont.
 
 ### Compiling:
-For compile Nintendont yourself, get the following versions of the toolchain compiling PPC tools:
+Install devkitPro, then:
+
+```
+scripts/setup-toolchain.sh   # once -- installs the pinned toolchain side by side
+scripts/build.sh             # builds loader/loader.dol
+```
+
+Works on Windows (MSYS2 / Git Bash), Linux and macOS. See **[BUILDING.md](BUILDING.md)**
+for what is being built, why these versions are pinned, and troubleshooting.
+
+Nintendont needs specific toolchain versions, which `setup-toolchain.sh` installs for you
+without touching your existing devkitPro:
 * **devkitARM r53-1**
 * **devkitPPC r35-2**
 * **libOGC 1.8.23-1**
 
-These versions can be downloaded here: https://www.mediafire.com/folder/j0juqb5vvd6z5/devkitPro_archives
+Please use these specific versions, **because if you try to compile on the latest
+dkARM/dkPPC/libOGC, you'll get a lot of compiler warnings and your build will crash when
+attempting to return to the Nintendont menu**, so be warned about that. Newer libogc also
+removed functions Nintendont uses, so it will not link at all.
 
-On Windows, run the "Build.bat" batch script for build Nintendont.
+The archives are mirrored at https://wii.leseratte10.de/devkitPro (used by the setup
+script, with SHA-256 verification) and at
+https://www.mediafire.com/folder/j0juqb5vvd6z5/devkitPro_archives (identical files).
 
-On Unix, run the "Build.sh" script.
-
-Please use these specific versions for compiling Nintendont, **because if you try to compile them on latest dkARM/dkPPC/libOGC, you'll get a lot of compiler warnings and your build will crash when attemping to return to Nintendont menu**, so be warned about that.
+`Build.bat` / `Build.sh` still work if you have already set up the toolchain yourself.
 
 ### Notes
 * The Wii and Wii U SD card slot is known to be slow. If you're using an SD card and are having performance issues, consider either using a USB SD reader or a USB hard drive.
