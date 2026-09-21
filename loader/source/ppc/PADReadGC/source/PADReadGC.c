@@ -41,6 +41,7 @@ static u32 PrevAdapterChannel2 = 0;
 static u32 PrevAdapterChannel3 = 0;
 static u32 PrevAdapterChannel4 = 0;
 static u32 PrevDRCButton = 0;
+static u32 OvlICacheDone = 0;
 
 static s8 OffsetX[NIN_CFG_MAXPAD] = {0};
 static s8 OffsetY[NIN_CFG_MAXPAD] = {0};
@@ -1558,6 +1559,31 @@ u32 PADRead(u32 calledByGame)
 			Pad[chan].err = ((used & (1<<chan)) && *SIInited) ? 0 : -1;
 	}
 	*PadUsed = (*SIInited ? used : 0);
+    /* Shared overlay operates on every normalized source, before game delivery.
+     * IRQ exclusion makes menu edits atomic relative to the VI renderer. */
+    /* Magic alone means saved state is ready; enabled means code is installed.
+     * Games without a recognized VI handler must never call an empty module. */
+    if(calledByGame && *(vu32*)0xD318F000 == 0x4F563231 && *(vu32*)0xD318F004)
+    {
+        u32 level=disableIRQs();
+        if(!OvlICacheDone)
+        {
+            /* The ARM wrote the module; the PPC must fetch it from memory
+             * and not from any instruction-cache line it might already hold
+             * for that region. Once, before the first call. */
+            u32 a;
+            for(a = 0x93180000; a < 0x9318C000; a += 32)
+                asm volatile("icbi 0,%0" : : "b"(a));
+            asm volatile("sync; isync");
+            OvlICacheDone = 1;
+        }
+        ((void(*)(void*,u32))0x93180000)(Pad,used);
+        restoreIRQs(level);
+        /* M19 shared ABI offset 712; request only follows explicit menu action.
+         * Reuse the PPC reload handshake so ARM stops DI before saving to FAT. */
+        if(*(vu32*)0xD318F2C8) goto DoExit;
+    }
+
 
 	memFlush = (u32)HIDMotor;
 	asm volatile("dcbf 0,%0" : : "b"(memFlush) : "memory");
