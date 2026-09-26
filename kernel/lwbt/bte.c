@@ -786,6 +786,7 @@ err_t link_key_not(void *arg,struct bd_addr *bdaddr,u8_t *key)
 {
 	err_t result;
 	//printf("link_key_not\n");
+	BTDiagnosticCacheLinkKey(bdaddr,key);
 	result = hci_write_stored_link_key(bdaddr,key);
 	if(result == ERR_OK)
 		BTDiagnosticLinkKeyQueued(bdaddr);

@@ -90,6 +90,7 @@ player LED while the diagnostic is active.
 | LEDs 1-2 solid | 2. SSP | A successful HCI Simple Pairing Complete event was received for that same address. |
 | LEDs 1-3 solid | 3. Link key | A Link Key Notification for that address was received and the Wii U Bluetooth controller returned success for Write Stored Link Key. |
 | LEDs 1-4 solid | 4. HID | Both HID L2CAP channels opened and Nintendont invoked the Switch Pro connection callback. |
+| LEDs 1+4 solid | Authentication requested | The Bluetooth controller accepted the HCI Authentication Requested command, but Authentication Complete has not succeeded yet. |
 | LEDs 1+3 and 2+4 alternate | 5. Authenticated | HCI Authentication Complete succeeded for the target controller. |
 | All four LEDs blink slowly | 6. Encrypted | HCI Encryption Change reported that link encryption is enabled. Only then does this build start HID protocol initialization. |
 | All four LEDs blink at medium speed | 7. Protocol | The controller acknowledged HID Set Protocol (Report); Nintendont then requested full `0x30` reports. |
@@ -162,6 +163,12 @@ Observed on Wii U hardware:
   after successful Write Stored Link Key completion and adds explicit
   authentication/encryption failure patterns. This sequencing correction is
   not hardware-validated yet.
+- Build `29536c7` again remained at phase 4 with the Switch Pro LEDs sweeping
+  and no input. The changed request timing alone therefore produced no visible
+  improvement. The next build exposes Authentication Requested command status
+  and answers a matching HCI Link Key Request with the fresh SSP key instead of
+  unconditionally sending a negative reply. That change is not yet validated
+  on Wii U hardware.
 
 Still requires Wii U hardware:
 

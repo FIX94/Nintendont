@@ -35,10 +35,14 @@ void BTUpdateRegisters(void);
 #define BT_DIAG_INPUT_RECEIVED    8
 #define BT_DIAG_AUTH_FAILED       9
 #define BT_DIAG_ENCRYPT_FAILED   10
+#define BT_DIAG_AUTH_REQUESTED   11
 
 void BTDiagnosticPairingPhase(u32 phase, const struct bd_addr *bdaddr);
 void BTDiagnosticLinkKeyQueued(const struct bd_addr *bdaddr);
+void BTDiagnosticCacheLinkKey(const struct bd_addr *bdaddr, const u8 *key);
+u8 BTDiagnosticGetLinkKey(const struct bd_addr *bdaddr, u8 *key);
 void BTDiagnosticLinkKeyStoreResult(u8 result);
+void BTDiagnosticAuthenticationCommandResult(u8 result);
 void BTDiagnosticAuthenticationResult(u8 result, const struct bd_addr *bdaddr);
 void BTDiagnosticEncryptionResult(u8 result, u8 enabled,
 	const struct bd_addr *bdaddr);

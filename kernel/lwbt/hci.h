@@ -73,6 +73,7 @@
 #define HCI_AUTHENTICATION_REQUESTED 0x11
 #define HCI_PIN_CODE_REQ_REP 0x0D
 #define HCI_PIN_CODE_REQ_NEG_REP 0x0E
+#define HCI_LINK_KEY_REQ_REP 0x0B
 #define HCI_LINK_KEY_REQ_NEG_REP 0x0C
 #define HCI_IO_CAPABILITY_REQ_REP 0x2B
 #define HCI_USER_CONFIRM_REQ_REP 0x2C
@@ -252,6 +253,7 @@
 #define HCI_ACCEPT_CONN_REQ_PLEN 11
 #define HCI_PIN_CODE_REQ_REP_PLEN 27
 #define HCI_PIN_CODE_REQ_NEG_REP_PLEN 10
+#define HCI_LINK_KEY_REQ_REP_PLEN 26
 #define HCI_SET_CONN_ENCRYPT_PLEN 7
 #define HCI_WRITE_STORED_LINK_KEY_PLEN 27
 #define HCI_SET_EV_MASK_PLEN 12
@@ -392,6 +394,7 @@ err_t hci_write_page_timeout(u16_t timeout);
 err_t hci_inquiry(u32_t lap,u8_t inq_len,u8_t num_resp,err_t (*inq_complete)(void *arg,struct hci_pcb *pcb,struct hci_inq_res *ires,u16_t result));
 err_t hci_pin_code_request_neg_reply(struct bd_addr *bdaddr);
 err_t hci_link_key_request_neg_reply(struct bd_addr *bdaddr);
+err_t hci_link_key_request_reply(struct bd_addr *bdaddr, const u8_t *key);
 err_t hci_io_capability_request_reply(struct bd_addr *bdaddr);
 err_t hci_user_confirmation_request_reply(struct bd_addr *bdaddr);
 err_t hci_write_simple_pairing_mode(u8_t enable);

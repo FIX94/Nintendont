@@ -46,6 +46,9 @@ static volatile u32 BTDiagnosticStage = 0;
 static struct bd_addr BTDiagnosticTarget;
 static u8 BTDiagnosticTargetSet = 0;
 static u8 BTDiagnosticStorePending = 0;
+static u8 BTDiagnosticLinkKey[16];
+static u8 BTDiagnosticLinkKeyValid = 0;
+static u8 BTDiagnosticAuthRequested = 0;
 static u8 BTDiagnosticAuthenticated = 0;
 static u8 BTDiagnosticEncrypted = 0;
 static u8 BTDiagnosticBlinkOn = 1;
@@ -129,6 +132,8 @@ static void BTDiagnosticSetTarget(const struct bd_addr *bdaddr)
 	BTDiagnosticStage = BT_DIAG_FOUND;
 	BTDiagnosticAuthenticated = 0;
 	BTDiagnosticEncrypted = 0;
+	BTDiagnosticLinkKeyValid = 0;
+	BTDiagnosticAuthRequested = 0;
 	BTDiagnosticBlinkOn = 1;
 	BTDiagnosticBlinkTimer = read32(HW_TIMER);
 }
@@ -151,6 +156,26 @@ void BTDiagnosticLinkKeyQueued(const struct bd_addr *bdaddr)
 	BTDiagnosticStorePending = 1;
 }
 
+void BTDiagnosticCacheLinkKey(const struct bd_addr *bdaddr, const u8 *key)
+{
+	if(!BTDiagnosticTargetSet || bdaddr == NULL || key == NULL ||
+		memcmp(BTDiagnosticTarget.addr, bdaddr->addr,
+			sizeof(BTDiagnosticTarget.addr)) != 0)
+		return;
+	memcpy(BTDiagnosticLinkKey, key, sizeof(BTDiagnosticLinkKey));
+	BTDiagnosticLinkKeyValid = 1;
+}
+
+u8 BTDiagnosticGetLinkKey(const struct bd_addr *bdaddr, u8 *key)
+{
+	if(!BTDiagnosticTargetSet || !BTDiagnosticLinkKeyValid || bdaddr == NULL ||
+		key == NULL || memcmp(BTDiagnosticTarget.addr, bdaddr->addr,
+			sizeof(BTDiagnosticTarget.addr)) != 0)
+		return 0;
+	memcpy(key, BTDiagnosticLinkKey, sizeof(BTDiagnosticLinkKey));
+	return 1;
+}
+
 void BTDiagnosticLinkKeyStoreResult(u8 result)
 {
 	if(!BTDiagnosticStorePending)
@@ -163,6 +188,16 @@ void BTDiagnosticLinkKeyStoreResult(u8 result)
 		 * the controller. Request it only after Write Stored Link Key succeeds. */
 		hci_authentication_requested(&BTDiagnosticTarget);
 	}
+}
+
+void BTDiagnosticAuthenticationCommandResult(u8 result)
+{
+	if(!BTDiagnosticTargetSet)
+		return;
+	if(result == HCI_SUCCESS)
+		BTDiagnosticAuthRequested = 1;
+	else
+		BTDiagnosticStage = BT_DIAG_AUTH_FAILED;
 }
 
 void BTDiagnosticAuthenticationResult(u8 result, const struct bd_addr *bdaddr)
@@ -1050,6 +1085,8 @@ void BTInit(void)
 	BTDiagnosticStage = 0;
 	BTDiagnosticTargetSet = 0;
 	BTDiagnosticStorePending = 0;
+	BTDiagnosticLinkKeyValid = 0;
+	BTDiagnosticAuthRequested = 0;
 	BTDiagnosticAuthenticated = 0;
 	BTDiagnosticEncrypted = 0;
 	BTDiagnosticBlinkOn = 1;
@@ -1175,7 +1212,9 @@ void BTUpdateRegisters(void)
 		}
 		if(BTDiagnosticStage && BTPadConnected[i]->transfertype != TRANSFER_SWITCH_PRO)
 		{
-			u32 diagnostic_state = SwitchProDiagnosticLED(BTDiagnosticStage,
+			u32 visible_stage = (BTDiagnosticStage == BT_DIAG_HID_OPEN &&
+				BTDiagnosticAuthRequested) ? BT_DIAG_AUTH_REQUESTED : BTDiagnosticStage;
+			u32 diagnostic_state = SwitchProDiagnosticLED(visible_stage,
 				BTDiagnosticBlinkOn) | CurRumble;
 			if(BTPadConnected[i]->diagnostic_state != diagnostic_state)
 			{

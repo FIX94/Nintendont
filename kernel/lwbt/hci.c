@@ -900,6 +900,21 @@ err_t hci_link_key_request_neg_reply(struct bd_addr *bdaddr)
 	return ERR_OK;
 }
 
+err_t hci_link_key_request_reply(struct bd_addr *bdaddr, const u8_t *key)
+{
+	struct pbuf *p;
+
+	if((p=btpbuf_alloc(PBUF_RAW,HCI_LINK_KEY_REQ_REP_PLEN,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_LINK_KEY_REQ_REP,HCI_LINK_CTRL_OGF,
+		HCI_LINK_KEY_REQ_REP_PLEN);
+	memcpy(((u8_t*)p->payload)+4,bdaddr->addr,6);
+	memcpy(((u8_t*)p->payload)+10,key,HCI_LINK_KEY_LEN);
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
 err_t hci_io_capability_request_reply(struct bd_addr *bdaddr)
 {
 	struct pbuf *p;
@@ -1697,6 +1712,11 @@ void hci_event_handler(struct pbuf *p)
 			HCI_EVENT_CMD_COMPLETE(hci_dev,ogf,ocf,((u8_t*)p->payload)[0],ret);
 			break;
 		case HCI_COMMAND_STATUS:
+			opc = le16toh(R16((u32)(((u8_t*)p->payload)+2)));
+			ocf = (opc&0x03ff);
+			ogf = (opc>>10);
+			if(ogf == HCI_LINK_CTRL_OGF && ocf == HCI_AUTHENTICATION_REQUESTED)
+				BTDiagnosticAuthenticationCommandResult(((u8_t*)p->payload)[0]);
 			if(((u8_t*)p->payload)[0]!=HCI_SUCCESS) {
 				btpbuf_header(p,-2);
 				
@@ -1754,9 +1774,15 @@ void hci_event_handler(struct pbuf *p)
 													send a negative reply */
 			break;
 		case HCI_LINK_KEY_REQUEST:
+		{
+			u8_t key[HCI_LINK_KEY_LEN];
 			bdaddr = (void *)((u8_t *)p->payload);
-			hci_link_key_request_neg_reply(bdaddr);
+			if(BTDiagnosticGetLinkKey(bdaddr,key))
+				hci_link_key_request_reply(bdaddr,key);
+			else
+				hci_link_key_request_neg_reply(bdaddr);
 			break;
+		}
 		case HCI_LINK_KEY_NOTIFICATION:
 			bdaddr = (void *)((u8_t *)p->payload); /* Get the Bluetooth address */
 
