@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "lwbt/l2cap.h"
 #include "lwbt/physbusif.h"
 #include "Config.h"
+#include "SwitchPro.h"
 
 extern int dbgprintf( const char *fmt, ...);
 
@@ -40,6 +41,7 @@ static struct BTPadStat *BTPadConnected[4];
 
 static struct BTPadStat BTPadStatus[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
 static struct linkkey_info BTKeys[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
+static u32 BTKeyCount = 0;
 
 static struct BTPadCont *BTPad = (struct BTPadCont*)0x132F0000;
 
@@ -79,8 +81,69 @@ static const u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 #define C_NSWAP3	(1<<7)
 #define C_ISWAP		(1<<8)
 #define C_TestSWAP	(1<<9)
+#define C_SWITCH_PRO	(1<<10)
 
+#define TRANSFER_SWITCH_PRO 0xF0
 static const s8 DEADZONE = 0x1A;
+
+static void BTSwitchSendSubcommand(struct BTPadStat *stat, u8 command,
+	const u8 *data, u8 data_len)
+{
+	u8 report[16];
+	u16 len = SwitchProBuildSubcommand(&stat->switch_state, report,
+		sizeof(report), command, data, data_len);
+	if(len)
+		bte_senddata(stat->sock, report, len);
+}
+
+static s32 BTHandleSwitchProData(struct BTPadStat *stat, void *buffer, u16 len)
+{
+	struct SwitchProInput input;
+	u32 chan = stat->channel;
+
+	if(SwitchProParseReport(&stat->switch_state, (const u8*)buffer, len, &input))
+	{
+		if(!(stat->controller & C_SWITCH_PRO))
+		{
+			stat->controller = C_CCP | C_SWITCH_PRO;
+			sync_after_write(stat, sizeof(struct BTPadStat));
+		}
+		if(chan != CHAN_NOT_SET)
+		{
+			sync_before_read(&BTPad[chan], sizeof(struct BTPadCont));
+			BTPad[chan].xAxisL = input.left_x;
+			BTPad[chan].yAxisL = input.left_y;
+			BTPad[chan].xAxisR = input.right_x;
+			BTPad[chan].yAxisR = input.right_y;
+			BTPad[chan].button = input.buttons;
+			BTPad[chan].triggerL = 0;
+			BTPad[chan].triggerR = 0;
+			BTPad[chan].used = stat->controller;
+			sync_after_write(&BTPad[chan], sizeof(struct BTPadCont));
+		}
+	}
+
+	/* Command responses place the acknowledgement and subcommand at 13/14. */
+	if(len >= 15 && ((u8*)buffer)[0] == SWITCH_PRO_REPORT_COMMAND &&
+		(((u8*)buffer)[13] & 0x80))
+	{
+		u8 command = ((u8*)buffer)[14];
+		if(command == SWITCH_PRO_SUBCMD_DEVICE_INFO)
+		{
+			u8 mode = SWITCH_PRO_REPORT_FULL;
+			BTSwitchSendSubcommand(stat, SWITCH_PRO_SUBCMD_REPORT_MODE, &mode, 1);
+		}
+		else if(command == SWITCH_PRO_SUBCMD_REPORT_MODE)
+		{
+			u8 led = (chan < CHAN_NOT_SET) ? (1 << chan) : 1;
+			BTSwitchSendSubcommand(stat, SWITCH_PRO_SUBCMD_PLAYER_LED, &led, 1);
+		}
+	}
+
+	/* Preserve parser state and the subcommand report counter across callbacks. */
+	sync_after_write(stat, sizeof(struct BTPadStat));
+	return ERR_OK;
+}
 
 static void BTSetControllerState(struct bte_pcb *sock, u32 State)
 {
@@ -94,6 +157,9 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 	sync_before_read(arg, sizeof(struct BTPadStat));
 	struct BTPadStat *stat = (struct BTPadStat*)arg;
 	u32 chan = stat->channel;
+
+	if(stat->transfertype == TRANSFER_SWITCH_PRO)
+		return BTHandleSwitchProData(stat, buffer, len);
 
 	if(*(u8*)buffer == 0x3D)	//21 expansion bytes report
 	{
@@ -608,10 +674,20 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 	stat->channel = CHAN_NOT_SET;
 	stat->rumble = 0;
 
-	BTSetControllerState(stat->sock, LEDState[CHAN_NOT_SET]);
+	if(stat->transfertype != TRANSFER_SWITCH_PRO)
+		BTSetControllerState(stat->sock, LEDState[CHAN_NOT_SET]);
 
 	//wiimote extensions need some extra stuff first, start with getting its status
-	if(stat->transfertype == 0x34 || stat->transfertype == 0x37)
+	if(stat->transfertype == TRANSFER_SWITCH_PRO)
+	{
+		SwitchProReset(&stat->switch_state);
+		stat->transferstate = TRANSFER_DONE;
+		/* Only claim a player slot after a valid Switch input report arrives. */
+		stat->controller = C_NOT_SET;
+		stat->timeout = read32(HW_TIMER);
+		BTSwitchSendSubcommand(stat, SWITCH_PRO_SUBCMD_DEVICE_INFO, NULL, 0);
+	}
+	else if(stat->transfertype == 0x34 || stat->transfertype == 0x37)
 	{
 		buf[0] = 0x12;	//set data reporting mode
 		buf[1] = 0x00;	//report only when data changes
@@ -662,6 +738,15 @@ static s32 BTHandleDisconnect(void *arg,struct bte_pcb *pcb,u8 err)
 			break;
 		}
 	}
+	if(((struct BTPadStat*)arg)->transfertype == TRANSFER_SWITCH_PRO)
+	{
+		struct BTPadStat *stat = (struct BTPadStat*)arg;
+		stat->channel = CHAN_NOT_SET;
+		stat->controller = C_NOT_SET;
+		SwitchProReset(&stat->switch_state);
+		sync_after_write(stat, sizeof(struct BTPadStat));
+		bte_registerdeviceasync(stat->sock, &stat->bdaddr, BTHandleConnect);
+	}
 	return ERR_OK;
 }
 
@@ -685,22 +770,55 @@ static int RegisterBTPad(struct BTPadStat *stat, struct bd_addr *_bdaddr)
 
 static s32 BTCompleteCB(s32 result,void *usrdata)
 {
-	u32 i;
+	u32 i, j, count;
 	struct bd_addr bdaddr;
 
 	if(result == ERR_OK)
 	{
-		for(i = 0; i <BTDevices->num_registered; i++)
+		count = BTDevices->num_registered;
+		if(count > CONF_PAD_MAX_REGISTERED)
+			count = CONF_PAD_MAX_REGISTERED;
+		for(i = 0; i < count; i++)
 		{
 			BD_ADDR(&(bdaddr),BTDevices->registered[i].bdaddr[5],BTDevices->registered[i].bdaddr[4],BTDevices->registered[i].bdaddr[3],
 							BTDevices->registered[i].bdaddr[2],BTDevices->registered[i].bdaddr[1],BTDevices->registered[i].bdaddr[0]);
 
-			if(strstr(BTDevices->registered[i].name, "-UC") != NULL)	//if wiiu pro controller
+			if(strstr(BTDevices->registered[i].name, "Pro Controller") != NULL &&
+				strstr(BTDevices->registered[i].name, "-UC") == NULL)
+				BTPadStatus[i].transfertype = TRANSFER_SWITCH_PRO;
+			else if(strstr(BTDevices->registered[i].name, "-UC") != NULL)	//if wiiu pro controller
 				BTPadStatus[i].transfertype = 0x3D;
 			else
 				BTPadStatus[i].transfertype = 0x34;
 			BTPadStatus[i].channel = CHAN_NOT_SET;
 			RegisterBTPad(&BTPadStatus[i],&(bdaddr));
+		}
+
+		/*
+		 * Bloopair stores pairings in the Bluetooth controller. They are not
+		 * necessarily represented in vWii SYSCONF, so listen for stored-key
+		 * addresses not already present there and probe them as Switch Pro.
+		 */
+		for(i = 0; i < BTKeyCount && count < CONF_PAD_MAX_REGISTERED; i++)
+		{
+			bool known = false;
+			for(j = 0; j < BTDevices->num_registered && j < CONF_PAD_MAX_REGISTERED; j++)
+			{
+				BD_ADDR(&(bdaddr),BTDevices->registered[j].bdaddr[5],BTDevices->registered[j].bdaddr[4],BTDevices->registered[j].bdaddr[3],
+					BTDevices->registered[j].bdaddr[2],BTDevices->registered[j].bdaddr[1],BTDevices->registered[j].bdaddr[0]);
+				if(memcmp(bdaddr.addr, BTKeys[i].bdaddr.addr, sizeof(bdaddr.addr)) == 0)
+				{
+					known = true;
+					break;
+				}
+			}
+			if(known)
+				continue;
+
+			BTPadStatus[count].transfertype = TRANSFER_SWITCH_PRO;
+			BTPadStatus[count].channel = CHAN_NOT_SET;
+			RegisterBTPad(&BTPadStatus[count], &BTKeys[i].bdaddr);
+			count++;
 		}
 	}
 	return ERR_OK;
@@ -714,6 +832,9 @@ static s32 BTPatchCB(s32 result,void *usrdata)
 
 static s32 BTReadLinkKeyCB(s32 result,void *usrdata)
 {
+	BTKeyCount = result > 0 ? (u32)result : 0;
+	if(BTKeyCount > CONF_PAD_MAX_REGISTERED)
+		BTKeyCount = CONF_PAD_MAX_REGISTERED;
 	BTE_ApplyPatch(BTPatchCB);
 	return ERR_OK;
 }
@@ -823,7 +944,11 @@ void BTUpdateRegisters(void)
 			}
 			BTPadConnected[i]->channel = CurChan;
 			BTPadConnected[i]->rumble = CurRumble;
-			if(BTPadConnected[i]->transfertype == 0x3D || BTPadConnected[i]->controller & (C_RUMBLE_WM | C_NUN) || ConfigGetConfig(NIN_CFG_CC_RUMBLE))
+			if(BTPadConnected[i]->transfertype == TRANSFER_SWITCH_PRO)
+			{
+				/* Rumble is intentionally deferred for the first playable build. */
+			}
+			else if(BTPadConnected[i]->transfertype == 0x3D || BTPadConnected[i]->controller & (C_RUMBLE_WM | C_NUN) || ConfigGetConfig(NIN_CFG_CC_RUMBLE))
 				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan] | CurRumble);
 			else //classic controller doesnt have rumble, can be forced to wiimote if wanted
 				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan]);

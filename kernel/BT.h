@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define _BT_H_
 
 #include "lwbt/bte.h"
+#include "SwitchPro.h"
 
 void BTInit(void);
 void BTUpdateRegisters(void);
@@ -38,6 +39,7 @@ struct BTPadStat {
 	s16 yAxisRmid;
 	struct bte_pcb *sock;
 	struct bd_addr bdaddr;
+	struct SwitchProState switch_state;
 } ALIGNED(32);
 
 struct BTPadCont {

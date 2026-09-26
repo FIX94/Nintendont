@@ -41,7 +41,7 @@ LIBS	:= ../fatfs/libfatfs-arm.a be/libc.a be/libgcc.a
 ZIPFILE	:= ../loader/data/kernel.zip
 
 # Bluetooth stack
-OBJECTS	+= lwbt/bte.o lwbt/btmemb.o lwbt/btmemr.o lwbt/btpbuf.o lwbt/hci.o lwbt/l2cap.o lwbt/physbusif.o BT.o
+OBJECTS	+= lwbt/bte.o lwbt/btmemb.o lwbt/btmemr.o lwbt/btpbuf.o lwbt/hci.o lwbt/l2cap.o lwbt/physbusif.o SwitchPro.o BT.o
 
 .PHONY: FORCE
 
