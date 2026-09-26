@@ -138,6 +138,18 @@ static void BTSwitchSendSubcommand(struct BTPadStat *stat, u8 command,
 		bte_senddata(stat->sock, report, len);
 }
 
+static s32 BTSwitchProtocolReady(void *arg,struct bte_pcb *pcb,u8 err)
+{
+	struct BTPadStat *stat = (struct BTPadStat*)arg;
+	u8 mode = SWITCH_PRO_REPORT_FULL;
+
+	if(err != ERR_OK)
+		return ERR_OK;
+	BTDiagnosticPairingPhase(BT_DIAG_PROTOCOL_READY, &stat->bdaddr);
+	BTSwitchSendSubcommand(stat, SWITCH_PRO_SUBCMD_REPORT_MODE, &mode, 1);
+	return ERR_OK;
+}
+
 static s32 BTHandleSwitchProData(struct BTPadStat *stat, void *buffer, u16 len)
 {
 	struct SwitchProInput input;
@@ -729,7 +741,7 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 		/* Only claim a player slot after a valid Switch input report arrives. */
 		stat->controller = C_NOT_SET;
 		stat->timeout = read32(HW_TIMER);
-		BTSwitchSendSubcommand(stat, SWITCH_PRO_SUBCMD_DEVICE_INFO, NULL, 0);
+		bte_setprotocolasync(stat->sock, HIDP_PROTO_REPORT, BTSwitchProtocolReady);
 	}
 	else if(stat->transfertype == 0x34 || stat->transfertype == 0x37)
 	{
@@ -985,8 +997,10 @@ void BTUpdateRegisters(void)
 		__readbulkdataCB();
 		__issue_bulkread();
 	}
-	if(BTDiagnosticStage == BT_DIAG_INPUT_RECEIVED &&
-		TimerDiffSeconds(BTDiagnosticBlinkTimer) > 0)
+	if((BTDiagnosticStage == BT_DIAG_PROTOCOL_READY &&
+		TimerDiffTicks(BTDiagnosticBlinkTimer) > 949220) ||
+		(BTDiagnosticStage == BT_DIAG_INPUT_RECEIVED &&
+		TimerDiffTicks(BTDiagnosticBlinkTimer) > 189844))
 	{
 		BTDiagnosticBlinkOn ^= 1;
 		BTDiagnosticBlinkTimer = read32(HW_TIMER);

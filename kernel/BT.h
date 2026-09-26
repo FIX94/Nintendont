@@ -29,7 +29,8 @@ void BTUpdateRegisters(void);
 #define BT_DIAG_SSP_COMPLETE      2
 #define BT_DIAG_LINK_KEY_STORED   3
 #define BT_DIAG_HID_OPEN          4
-#define BT_DIAG_INPUT_RECEIVED    5
+#define BT_DIAG_PROTOCOL_READY    5
+#define BT_DIAG_INPUT_RECEIVED    6
 
 void BTDiagnosticPairingPhase(u32 phase, const struct bd_addr *bdaddr);
 void BTDiagnosticLinkKeyQueued(const struct bd_addr *bdaddr);

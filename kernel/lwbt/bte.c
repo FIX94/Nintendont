@@ -633,6 +633,25 @@ s32 bte_sendmessageasync(struct bte_pcb *pcb,void *message,u16 len,s32 (*sent)(v
 	return __bte_send_request(req);
 }
 
+s32 bte_setprotocolasync(struct bte_pcb *pcb,u8 protocol,s32 (*sent)(void *arg,struct bte_pcb *pcb,u8 err))
+{
+	struct pbuf *p;
+	struct ctrl_req_t *req;
+
+	if(pcb==NULL || protocol > HIDP_PROTO_REPORT) return ERR_VAL;
+	if(pcb->state==STATE_DISCONNECTING || pcb->state==STATE_DISCONNECTED) return ERR_CLSD;
+	if((req=btmemb_alloc(&bte_ctrl_reqs))==NULL) return ERR_MEM;
+	if((p=btpbuf_alloc(PBUF_RAW,1,PBUF_RAM))==NULL) {
+		btmemb_free(&bte_ctrl_reqs,req);
+		return ERR_MEM;
+	}
+	((u8*)p->payload)[0] = HIDP_TRANS_SETPROTOCOL | protocol;
+	req->p = p;
+	req->pcb = pcb;
+	req->sent = sent;
+	return __bte_send_request(req);
+}
+
 s32 bte_sendmessage(struct bte_pcb *pcb,void *message,u16 len)
 {
 	s32 err = ERR_VAL;

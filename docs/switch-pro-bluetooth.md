@@ -79,7 +79,8 @@ Remote's normal player LED while the diagnostic is active.
 | LEDs 1-2 solid | 2. SSP | A successful HCI Simple Pairing Complete event was received for that same address. |
 | LEDs 1-3 solid | 3. Link key | A Link Key Notification for that address was received and the Wii U Bluetooth controller returned success for Write Stored Link Key. |
 | LEDs 1-4 solid | 4. HID | Both HID L2CAP channels opened and Nintendont invoked the Switch Pro connection callback. |
-| All four LEDs blink | 5. Input | At least one valid Switch Pro `0x30`, `0x21` or `0x3f` input report was parsed. |
+| All four LEDs blink slowly | 5. Protocol | The controller acknowledged HID Set Protocol (Report); Nintendont then requested full `0x30` reports. |
+| All four LEDs blink quickly | 6. Input | At least one valid Switch Pro `0x30`, `0x21` or `0x3f` input report was parsed. |
 
 The display is cumulative: if events follow each other quickly, the later
 pattern proves all earlier numbered phases completed. If the display stops at

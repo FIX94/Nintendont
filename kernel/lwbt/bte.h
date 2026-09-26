@@ -144,6 +144,7 @@ s32 bte_inquiry_ex(struct inquiry_info_ex *info,u8 max_cnt,u8 flush);
 s32 bte_senddata(struct bte_pcb *pcb,void *message,u16 len);
 s32 bte_sendmessage(struct bte_pcb *pcb,void *message,u16 len);
 s32 bte_sendmessageasync(struct bte_pcb *pcb,void *message,u16 len,s32 (*sent)(void *arg,struct bte_pcb *pcb,u8 err));
+s32 bte_setprotocolasync(struct bte_pcb *pcb,u8 protocol,s32 (*sent)(void *arg,struct bte_pcb *pcb,u8 err));
 
 #ifdef __cplusplus
    }
