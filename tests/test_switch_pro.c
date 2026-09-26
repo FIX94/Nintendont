@@ -95,11 +95,23 @@ static void test_subcommand(void)
 	assert(report[10] == SWITCH_PRO_SUBCMD_DEVICE_INFO);
 }
 
+static void test_diagnostic_leds(void)
+{
+	assert(SwitchProDiagnosticLED(0, 0) == 0x00);
+	assert(SwitchProDiagnosticLED(1, 0) == 0x10);
+	assert(SwitchProDiagnosticLED(2, 0) == 0x30);
+	assert(SwitchProDiagnosticLED(3, 0) == 0x70);
+	assert(SwitchProDiagnosticLED(4, 0) == 0xF0);
+	assert(SwitchProDiagnosticLED(5, 0) == 0x00);
+	assert(SwitchProDiagnosticLED(5, 1) == 0xF0);
+}
+
 int main(void)
 {
 	test_full_report();
 	test_basic_report_and_first_packet_drop();
 	test_subcommand();
+	test_diagnostic_leds();
 	puts("switch_pro tests: ok");
 	return 0;
 }

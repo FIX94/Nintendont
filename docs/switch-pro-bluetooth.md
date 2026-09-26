@@ -66,6 +66,41 @@ build.
 
 ## Hardware test protocol
 
+### Instrumented pairing build
+
+The pairing test build performs one Bluetooth inquiry when the in-game kernel
+starts. Keep a Wii Remote awake during the test: its four player LEDs are used
+as a cumulative diagnostic display. This deliberately overrides the Wii
+Remote's normal player LED while the diagnostic is active.
+
+| Visible Wii Remote LEDs | Phase | What the code has observed |
+| --- | --- | --- |
+| LED 1 solid | 1. Found | Inquiry returned a device with the original Switch Pro class of device `0x002508`; its Bluetooth address became the diagnostic target. |
+| LEDs 1-2 solid | 2. SSP | A successful HCI Simple Pairing Complete event was received for that same address. |
+| LEDs 1-3 solid | 3. Link key | A Link Key Notification for that address was received and the Wii U Bluetooth controller returned success for Write Stored Link Key. |
+| LEDs 1-4 solid | 4. HID | Both HID L2CAP channels opened and Nintendont invoked the Switch Pro connection callback. |
+| All four LEDs blink | 5. Input | At least one valid Switch Pro `0x30`, `0x21` or `0x3f` input report was parsed. |
+
+The display is cumulative: if events follow each other quickly, the later
+pattern proves all earlier numbered phases completed. If the display stops at
+a solid pattern, record the highest number shown. No LEDs means the target was
+not found (or the Wii Remote itself was not connected to the in-game kernel).
+
+Installation and launch:
+
+1. Back up `sd:/apps/Nintendont/boot.dol`.
+2. Copy the instrumented artifact's `boot.dol` to that exact path.
+3. Start Nintendont directly from the vWii Homebrew Channel with a Wii Remote.
+4. Start a GameCube game and keep the Wii Remote awake.
+5. As the screen changes from Nintendont to the game, hold the small SYNC
+   button on the original Switch 1 Pro Controller for several seconds.
+6. Wait up to 30 seconds and record the highest Wii Remote LED phase plus the
+   Switch Pro's own LED behavior. Do not infer success from compilation or from
+   the Wii Remote LEDs beyond the exact phase meanings above.
+
+Rollback: restore the backed-up `boot.dol`. A successful pairing may replace
+the Switch Pro link key, in which case Bloopair may need to pair it again.
+
 Record pass/fail and any LED behavior for every step:
 
 1. **Pairing persistence:** pair under Aroma/Bloopair, power the controller off,

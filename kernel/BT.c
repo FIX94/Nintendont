@@ -42,6 +42,12 @@ static struct BTPadStat *BTPadConnected[4];
 static struct BTPadStat BTPadStatus[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
 static struct linkkey_info BTKeys[CONF_PAD_MAX_REGISTERED] ALIGNED(32);
 static u32 BTKeyCount = 0;
+static volatile u32 BTDiagnosticStage = 0;
+static struct bd_addr BTDiagnosticTarget;
+static u8 BTDiagnosticTargetSet = 0;
+static u8 BTDiagnosticStorePending = 0;
+static u8 BTDiagnosticBlinkOn = 1;
+static u32 BTDiagnosticBlinkTimer = 0;
 
 static struct BTPadCont *BTPad = (struct BTPadCont*)0x132F0000;
 
@@ -86,6 +92,42 @@ static const u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 #define TRANSFER_SWITCH_PRO 0xF0
 static const s8 DEADZONE = 0x1A;
 
+static void BTDiagnosticSetTarget(const struct bd_addr *bdaddr)
+{
+	BTDiagnosticTarget = *bdaddr;
+	BTDiagnosticTargetSet = 1;
+	BTDiagnosticStage = BT_DIAG_FOUND;
+	BTDiagnosticBlinkOn = 1;
+	BTDiagnosticBlinkTimer = read32(HW_TIMER);
+}
+
+void BTDiagnosticPairingPhase(u32 phase, const struct bd_addr *bdaddr)
+{
+	if(!BTDiagnosticTargetSet || bdaddr == NULL ||
+		memcmp(BTDiagnosticTarget.addr, bdaddr->addr, sizeof(BTDiagnosticTarget.addr)) != 0)
+		return;
+	/* Keep the display cumulative: a later stage only proves its predecessor. */
+	if(phase == BTDiagnosticStage + 1)
+		BTDiagnosticStage = phase;
+}
+
+void BTDiagnosticLinkKeyQueued(const struct bd_addr *bdaddr)
+{
+	if(!BTDiagnosticTargetSet || bdaddr == NULL ||
+		memcmp(BTDiagnosticTarget.addr, bdaddr->addr, sizeof(BTDiagnosticTarget.addr)) != 0)
+		return;
+	BTDiagnosticStorePending = 1;
+}
+
+void BTDiagnosticLinkKeyStoreResult(u8 result)
+{
+	if(!BTDiagnosticStorePending)
+		return;
+	BTDiagnosticStorePending = 0;
+	if(result == HCI_SUCCESS && BTDiagnosticStage == BT_DIAG_SSP_COMPLETE)
+		BTDiagnosticStage = BT_DIAG_LINK_KEY_STORED;
+}
+
 static void BTSwitchSendSubcommand(struct BTPadStat *stat, u8 command,
 	const u8 *data, u8 data_len)
 {
@@ -103,6 +145,7 @@ static s32 BTHandleSwitchProData(struct BTPadStat *stat, void *buffer, u16 len)
 
 	if(SwitchProParseReport(&stat->switch_state, (const u8*)buffer, len, &input))
 	{
+		BTDiagnosticPairingPhase(BT_DIAG_INPUT_RECEIVED, &stat->bdaddr);
 		if(!(stat->controller & C_SWITCH_PRO))
 		{
 			stat->controller = C_CCP | C_SWITCH_PRO;
@@ -680,6 +723,7 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 	//wiimote extensions need some extra stuff first, start with getting its status
 	if(stat->transfertype == TRANSFER_SWITCH_PRO)
 	{
+		BTDiagnosticPairingPhase(BT_DIAG_HID_OPEN, &stat->bdaddr);
 		SwitchProReset(&stat->switch_state);
 		stat->transferstate = TRANSFER_DONE;
 		/* Only claim a player slot after a valid Switch input report arrives. */
@@ -768,10 +812,57 @@ static int RegisterBTPad(struct BTPadStat *stat, struct bd_addr *_bdaddr)
 	return ERR_OK;
 }
 
+static s32 BTPairInquiryCB(s32 result,void *usrdata)
+{
+	struct inquiry_info_ex info[CONF_PAD_MAX_REGISTERED];
+	struct bd_addr bdaddr;
+	s32 found = 0;
+	u32 i, count;
+
+	if(result == ERR_OK)
+		found = BTE_GetInquiryResults(info, CONF_PAD_MAX_REGISTERED);
+
+	/* Keep one listener slot available for the controller found in pairing mode. */
+	count = BTDevices->num_registered;
+	if(count >= CONF_PAD_MAX_REGISTERED)
+		count = CONF_PAD_MAX_REGISTERED - 1;
+	for(i = 0; i < count; i++)
+	{
+		BD_ADDR(&(bdaddr),BTDevices->registered[i].bdaddr[5],BTDevices->registered[i].bdaddr[4],BTDevices->registered[i].bdaddr[3],
+			BTDevices->registered[i].bdaddr[2],BTDevices->registered[i].bdaddr[1],BTDevices->registered[i].bdaddr[0]);
+		if(strstr(BTDevices->registered[i].name, "-UC") != NULL)
+			BTPadStatus[i].transfertype = 0x3D;
+		else
+			BTPadStatus[i].transfertype = 0x34;
+		BTPadStatus[i].channel = CHAN_NOT_SET;
+		RegisterBTPad(&BTPadStatus[i], &bdaddr);
+	}
+
+	/* Nintendo Switch Pro Controller class of device: 0x002508. */
+	for(i = 0; i < (u32)found && count < CONF_PAD_MAX_REGISTERED; i++)
+	{
+		if(info[i].cod[0] != 0x08 || info[i].cod[1] != 0x25 || info[i].cod[2] != 0x00)
+			continue;
+		BTDiagnosticSetTarget(&info[i].bdaddr);
+		BTPadStatus[count].transfertype = TRANSFER_SWITCH_PRO;
+		BTPadStatus[count].channel = CHAN_NOT_SET;
+		RegisterBTPad(&BTPadStatus[count], &info[i].bdaddr);
+		break;
+	}
+	return ERR_OK;
+}
+
 static s32 BTCompleteCB(s32 result,void *usrdata)
 {
 	u32 i, j, count;
 	struct bd_addr bdaddr;
+
+	/* Hardware-test build: run one explicit pairing inquiry before reconnects. */
+	if(result == ERR_OK)
+	{
+		BTE_InquiryAsync(CONF_PAD_MAX_REGISTERED, BTPairInquiryCB);
+		return ERR_OK;
+	}
 
 	if(result == ERR_OK)
 	{
@@ -850,6 +941,11 @@ u32 BTTimer = 0;
 u32 inited = 0;
 void BTInit(void)
 {
+	BTDiagnosticStage = 0;
+	BTDiagnosticTargetSet = 0;
+	BTDiagnosticStorePending = 0;
+	BTDiagnosticBlinkOn = 1;
+	BTDiagnosticBlinkTimer = read32(HW_TIMER);
 	memset(BTKeys, 0, sizeof(struct linkkey_info) * CONF_PAD_MAX_REGISTERED);
 
 	memset(BTPad, 0, sizeof(struct BTPadCont)*4);
@@ -888,6 +984,12 @@ void BTUpdateRegisters(void)
 		bulk = 0;
 		__readbulkdataCB();
 		__issue_bulkread();
+	}
+	if(BTDiagnosticStage == BT_DIAG_INPUT_RECEIVED &&
+		TimerDiffSeconds(BTDiagnosticBlinkTimer) > 0)
+	{
+		BTDiagnosticBlinkOn ^= 1;
+		BTDiagnosticBlinkTimer = read32(HW_TIMER);
 	}
 
 	u32 i = 0, j = 0;
@@ -952,7 +1054,19 @@ void BTUpdateRegisters(void)
 				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan] | CurRumble);
 			else //classic controller doesnt have rumble, can be forced to wiimote if wanted
 				BTSetControllerState(BTPadConnected[i]->sock, LEDState[CurChan]);
+			BTPadConnected[i]->diagnostic_state = 0xFFFFFFFF;
 			sync_after_write(BTPadConnected[i], sizeof(struct BTPadStat));
+		}
+		if(BTDiagnosticStage && BTPadConnected[i]->transfertype != TRANSFER_SWITCH_PRO)
+		{
+			u32 diagnostic_state = SwitchProDiagnosticLED(BTDiagnosticStage,
+				BTDiagnosticBlinkOn) | CurRumble;
+			if(BTPadConnected[i]->diagnostic_state != diagnostic_state)
+			{
+				BTSetControllerState(BTPadConnected[i]->sock, diagnostic_state);
+				BTPadConnected[i]->diagnostic_state = diagnostic_state;
+				sync_after_write(BTPadConnected[i], sizeof(struct BTPadStat));
+			}
 		}
 	}
 	if(TimerDiffSeconds(BTTimer) > 0)

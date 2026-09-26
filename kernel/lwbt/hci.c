@@ -48,6 +48,7 @@
 #include "btmemb.h"
 #include "btpbuf.h"
 #include "physbusif.h"
+#include "../BT.h"
 
 struct hci_pcb *hci_dev = NULL;
 struct hci_link *hci_active_links = NULL;
@@ -886,6 +887,61 @@ err_t hci_pin_code_request_neg_reply(struct bd_addr *bdaddr)
 	return ERR_OK;
 }
 
+err_t hci_link_key_request_neg_reply(struct bd_addr *bdaddr)
+{
+	struct pbuf *p;
+
+	if((p=btpbuf_alloc(PBUF_RAW,10,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_LINK_KEY_REQ_NEG_REP,HCI_LINK_CTRL_OGF,10);
+	memcpy(((u8_t*)p->payload)+4,bdaddr->addr,6);
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
+err_t hci_io_capability_request_reply(struct bd_addr *bdaddr)
+{
+	struct pbuf *p;
+
+	if((p=btpbuf_alloc(PBUF_RAW,13,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_IO_CAPABILITY_REQ_REP,HCI_LINK_CTRL_OGF,13);
+	memcpy(((u8_t*)p->payload)+4,bdaddr->addr,6);
+	((u8_t*)p->payload)[10] = 0x03; /* NoInputNoOutput. */
+	((u8_t*)p->payload)[11] = 0x00; /* No OOB authentication data. */
+	((u8_t*)p->payload)[12] = 0x04; /* General bonding, no MITM. */
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
+err_t hci_user_confirmation_request_reply(struct bd_addr *bdaddr)
+{
+	struct pbuf *p;
+
+	if((p=btpbuf_alloc(PBUF_RAW,10,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_USER_CONFIRM_REQ_REP,HCI_LINK_CTRL_OGF,10);
+	memcpy(((u8_t*)p->payload)+4,bdaddr->addr,6);
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
+err_t hci_write_simple_pairing_mode(u8_t enable)
+{
+	struct pbuf *p;
+
+	if((p=btpbuf_alloc(PBUF_RAW,5,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_WRITE_SIMPLE_PAIRING_MODE,HCI_HC_BB_OGF,5);
+	((u8_t*)p->payload)[4] = enable;
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
 /*-----------------------------------------------------------------------------------*/
 /* hci_disconnect():
  *
@@ -1574,6 +1630,8 @@ void hci_event_handler(struct pbuf *p)
 			ocf = (opc&0x03ff);
 			ogf = (opc>>10);
 			btpbuf_header(p,-2);
+			if(ogf == HCI_HC_BB_OGF && ocf == HCI_WRITE_STORED_LINK_KEY)
+				BTDiagnosticLinkKeyStoreResult(((u8_t*)p->payload)[0]);
 			switch(ogf) {
 				case HCI_INFO_PARAM:
 					hci_cc_info_param(ocf,p);
@@ -1644,10 +1702,27 @@ void hci_event_handler(struct pbuf *p)
 			HCI_EVENT_PIN_REQ(hci_dev, bdaddr, ret); /* Notify application. If event is not registered, 
 													send a negative reply */
 			break;
+		case HCI_LINK_KEY_REQUEST:
+			bdaddr = (void *)((u8_t *)p->payload);
+			hci_link_key_request_neg_reply(bdaddr);
+			break;
 		case HCI_LINK_KEY_NOTIFICATION:
 			bdaddr = (void *)((u8_t *)p->payload); /* Get the Bluetooth address */
 
 			HCI_EVENT_LINK_KEY_NOT(hci_dev, bdaddr, ((u8_t *)p->payload) + 6, ret); /* Notify application.*/
+			break;
+		case HCI_IO_CAPABILITY_REQUEST:
+			bdaddr = (void *)((u8_t *)p->payload);
+			hci_io_capability_request_reply(bdaddr);
+			break;
+		case HCI_USER_CONFIRMATION_REQUEST:
+			bdaddr = (void *)((u8_t *)p->payload);
+			hci_user_confirmation_request_reply(bdaddr);
+			break;
+		case HCI_SIMPLE_PAIRING_COMPLETE:
+			if(((u8_t*)p->payload)[0] == HCI_SUCCESS)
+				BTDiagnosticPairingPhase(BT_DIAG_SSP_COMPLETE,
+					(struct bd_addr*)(((u8_t*)p->payload) + 1));
 			break;
 		default:
 			LOG("hci_event_input: Undefined event code 0x%x\n", evthdr->code);

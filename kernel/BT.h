@@ -25,6 +25,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 void BTInit(void);
 void BTUpdateRegisters(void);
 
+#define BT_DIAG_FOUND             1
+#define BT_DIAG_SSP_COMPLETE      2
+#define BT_DIAG_LINK_KEY_STORED   3
+#define BT_DIAG_HID_OPEN          4
+#define BT_DIAG_INPUT_RECEIVED    5
+
+void BTDiagnosticPairingPhase(u32 phase, const struct bd_addr *bdaddr);
+void BTDiagnosticLinkKeyQueued(const struct bd_addr *bdaddr);
+void BTDiagnosticLinkKeyStoreResult(u8 result);
+
 struct BTPadStat {
 	u32 controller;
 	u32 timeout;
@@ -33,6 +43,7 @@ struct BTPadStat {
 	u32 channel;
 	u32 rumble;
 	u32 rumbletime;
+	u32 diagnostic_state;
 	s16 xAxisLmid;
 	s16 xAxisRmid;
 	s16 yAxisLmid;

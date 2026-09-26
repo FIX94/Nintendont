@@ -61,5 +61,6 @@ s32 SwitchProParseReport(struct SwitchProState *state, const u8 *report,
 	u16 len, struct SwitchProInput *input);
 u16 SwitchProBuildSubcommand(struct SwitchProState *state, u8 *report,
 	u16 capacity, u8 command, const u8 *data, u8 data_len);
+u8 SwitchProDiagnosticLED(u32 phase, u8 blink_on);
 
 #endif

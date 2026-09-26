@@ -72,6 +72,9 @@
 #define HCI_DISCONNECT 0x06
 #define HCI_PIN_CODE_REQ_REP 0x0D
 #define HCI_PIN_CODE_REQ_NEG_REP 0x0E
+#define HCI_LINK_KEY_REQ_NEG_REP 0x0C
+#define HCI_IO_CAPABILITY_REQ_REP 0x2B
+#define HCI_USER_CONFIRM_REQ_REP 0x2C
 #define HCI_SET_CONN_ENCRYPT 0x13
 
 /* Link Policy commands */
@@ -102,6 +105,7 @@
 #define HCI_WRITE_INQUIRY_SCAN_TYPE 0x43
 #define HCI_WRITE_INQUIRY_MODE 0x45
 #define HCI_WRITE_PAGE_SCAN_TYPE 0x47
+#define HCI_WRITE_SIMPLE_PAIRING_MODE 0x56
 
 /* Informational Parameters */
 #define HCI_READ_LOCAL_VERSION 0x01
@@ -133,9 +137,13 @@
 #define HCI_MODE_CHANGE 0x14
 #define HCI_RETURN_LINK_KEYS 0x15
 #define HCI_PIN_CODE_REQUEST 0x16
+#define HCI_LINK_KEY_REQUEST 0x17
 #define HCI_LINK_KEY_NOTIFICATION 0x18
 #define HCI_DATA_BUFFER_OVERFLOW 0x1A
 #define HCI_MAX_SLOTS_CHANGE 0x1B
+#define HCI_IO_CAPABILITY_REQUEST 0x31
+#define HCI_USER_CONFIRMATION_REQUEST 0x33
+#define HCI_SIMPLE_PAIRING_COMPLETE 0x36
 
 /* Success code */
 #define HCI_SUCCESS 0x00
@@ -378,6 +386,10 @@ err_t hci_set_event_filter(u8_t filter_type,u8_t filter_cond_type,u8_t *cond);
 err_t hci_write_page_timeout(u16_t timeout);
 err_t hci_inquiry(u32_t lap,u8_t inq_len,u8_t num_resp,err_t (*inq_complete)(void *arg,struct hci_pcb *pcb,struct hci_inq_res *ires,u16_t result));
 err_t hci_pin_code_request_neg_reply(struct bd_addr *bdaddr);
+err_t hci_link_key_request_neg_reply(struct bd_addr *bdaddr);
+err_t hci_io_capability_request_reply(struct bd_addr *bdaddr);
+err_t hci_user_confirmation_request_reply(struct bd_addr *bdaddr);
+err_t hci_write_simple_pairing_mode(u8_t enable);
 err_t hci_write_scan_enable(u8_t scan_enable);
 err_t hci_host_num_comp_packets(u16_t conhdl, u16_t num_complete);
 err_t hci_sniff_mode(struct bd_addr *bdaddr, u16_t max_interval, u16_t min_interval, u16_t attempt, u16_t timeout);

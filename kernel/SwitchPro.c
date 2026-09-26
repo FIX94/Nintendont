@@ -162,3 +162,16 @@ u16 SwitchProBuildSubcommand(struct SwitchProState *state, u8 *report,
 		copy_bytes(&report[11], data, data_len);
 	return size;
 }
+
+u8 SwitchProDiagnosticLED(u32 phase, u8 blink_on)
+{
+	switch(phase)
+	{
+		case 1: return 0x10;
+		case 2: return 0x30;
+		case 3: return 0x70;
+		case 4: return 0xF0;
+		case 5: return blink_on ? 0xF0 : 0x00;
+		default: return 0x00;
+	}
+}
