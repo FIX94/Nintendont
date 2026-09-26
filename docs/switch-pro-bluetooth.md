@@ -94,6 +94,8 @@ player LED while the diagnostic is active.
 | All four LEDs blink slowly | 6. Encrypted | HCI Encryption Change reported that link encryption is enabled. Only then does this build start HID protocol initialization. |
 | All four LEDs blink at medium speed | 7. Protocol | The controller acknowledged HID Set Protocol (Report); Nintendont then requested full `0x30` reports. |
 | All four LEDs blink quickly | 8. Input | At least one valid Switch Pro `0x30`, `0x21` or `0x3f` input report was parsed. |
+| LEDs 1+4 and 2+3 alternate | Authentication failed | HCI Authentication Complete returned a failure status. This is an error pattern, not a completed phase. |
+| LEDs 1+2 and 3+4 alternate | Encryption failed | HCI Encryption Change failed or reported encryption disabled. This is an error pattern, not a completed phase. |
 
 The display is cumulative: if events follow each other quickly, the later
 numbered pattern proves all earlier numbered phases completed. If the display
@@ -147,6 +149,19 @@ Verified without console hardware:
 - Host parser/mapping/subcommand tests pass: `make -C tests clean all`.
 - ARM/PPC source compiles and links to `loader/loader.dol`.
 - Kernel link succeeds with the added code.
+
+Observed on Wii U hardware:
+
+- Builds `cceb3cf` and `f7213a0` reached phase 4: both HID L2CAP channels
+  opened, while the Switch Pro LEDs continued their search pattern and no game
+  input was received.
+- Build `3d8b69c` also remained at phase 4. No successful Authentication
+  Complete event was observed. Code review then found that Authentication
+  Requested was issued at ACL connection time, before the freshly generated
+  link key had been confirmed stored. The next build moves that request until
+  after successful Write Stored Link Key completion and adds explicit
+  authentication/encryption failure patterns. This sequencing correction is
+  not hardware-validated yet.
 
 Still requires Wii U hardware:
 

@@ -157,25 +157,25 @@ void BTDiagnosticLinkKeyStoreResult(u8 result)
 		return;
 	BTDiagnosticStorePending = 0;
 	if(result == HCI_SUCCESS && BTDiagnosticStage == BT_DIAG_SSP_COMPLETE)
+	{
 		BTDiagnosticStage = BT_DIAG_LINK_KEY_STORED;
-}
-
-void BTDiagnosticConnectionComplete(const struct bd_addr *bdaddr)
-{
-	if(!BTDiagnosticTargetSet || bdaddr == NULL ||
-		memcmp(BTDiagnosticTarget.addr, bdaddr->addr,
-			sizeof(BTDiagnosticTarget.addr)) != 0)
-		return;
-	/* A bonded HID host raises the ACL link to authenticated security. */
-	hci_authentication_requested((struct bd_addr*)bdaddr);
+		/* Authentication needs the freshly generated key to be available to
+		 * the controller. Request it only after Write Stored Link Key succeeds. */
+		hci_authentication_requested(&BTDiagnosticTarget);
+	}
 }
 
 void BTDiagnosticAuthenticationResult(u8 result, const struct bd_addr *bdaddr)
 {
 	if(!BTDiagnosticTargetSet || bdaddr == NULL ||
 		memcmp(BTDiagnosticTarget.addr, bdaddr->addr,
-			sizeof(BTDiagnosticTarget.addr)) != 0 || result != HCI_SUCCESS)
+			sizeof(BTDiagnosticTarget.addr)) != 0)
 		return;
+	if(result != HCI_SUCCESS)
+	{
+		BTDiagnosticStage = BT_DIAG_AUTH_FAILED;
+		return;
+	}
 	BTDiagnosticAuthenticated = 1;
 	BTDiagnosticAdvanceSecurity();
 	hci_set_connection_encrypt((struct bd_addr*)bdaddr, 1);
@@ -187,9 +187,13 @@ void BTDiagnosticEncryptionResult(u8 result, u8 enabled,
 	struct BTPadStat *stat;
 	if(!BTDiagnosticTargetSet || bdaddr == NULL ||
 		memcmp(BTDiagnosticTarget.addr, bdaddr->addr,
-			sizeof(BTDiagnosticTarget.addr)) != 0 ||
-		result != HCI_SUCCESS || !enabled)
+			sizeof(BTDiagnosticTarget.addr)) != 0)
 		return;
+	if(result != HCI_SUCCESS || !enabled)
+	{
+		BTDiagnosticStage = BT_DIAG_ENCRYPT_FAILED;
+		return;
+	}
 	BTDiagnosticEncrypted = 1;
 	BTDiagnosticAdvanceSecurity();
 	stat = BTFindSwitchStat(bdaddr);
@@ -1092,6 +1096,9 @@ void BTUpdateRegisters(void)
 	if(((BTDiagnosticStage == BT_DIAG_AUTHENTICATED ||
 		BTDiagnosticStage == BT_DIAG_ENCRYPTED) &&
 		TimerDiffTicks(BTDiagnosticBlinkTimer) > 949220) ||
+		((BTDiagnosticStage == BT_DIAG_AUTH_FAILED ||
+		BTDiagnosticStage == BT_DIAG_ENCRYPT_FAILED) &&
+		TimerDiffTicks(BTDiagnosticBlinkTimer) > 569532) ||
 		(BTDiagnosticStage == BT_DIAG_PROTOCOL_READY &&
 		TimerDiffTicks(BTDiagnosticBlinkTimer) > 379688) ||
 		(BTDiagnosticStage == BT_DIAG_INPUT_RECEIVED &&

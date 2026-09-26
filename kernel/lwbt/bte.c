@@ -714,7 +714,6 @@ err_t acl_conn_complete(void *arg,struct bd_addr *bdaddr)
 	//memcpy(&(btstate.acl_bdaddr),bdaddr,6);
 
 	hci_write_link_policy_settings(bdaddr,0x0005);
-	BTDiagnosticConnectionComplete(bdaddr);
 	return ERR_OK;
 }
 
