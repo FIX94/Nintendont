@@ -20,9 +20,32 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define _BT_H_
 
 #include "lwbt/bte.h"
+#include "SwitchPro.h"
 
 void BTInit(void);
 void BTUpdateRegisters(void);
+
+#define BT_DIAG_FOUND             1
+#define BT_DIAG_SSP_COMPLETE      2
+#define BT_DIAG_LINK_KEY_STORED   3
+#define BT_DIAG_HID_OPEN          4
+#define BT_DIAG_AUTHENTICATED     5
+#define BT_DIAG_ENCRYPTED         6
+#define BT_DIAG_PROTOCOL_READY    7
+#define BT_DIAG_INPUT_RECEIVED    8
+#define BT_DIAG_AUTH_FAILED       9
+#define BT_DIAG_ENCRYPT_FAILED   10
+#define BT_DIAG_AUTH_REQUESTED   11
+
+void BTDiagnosticPairingPhase(u32 phase, const struct bd_addr *bdaddr);
+void BTDiagnosticLinkKeyQueued(const struct bd_addr *bdaddr);
+void BTDiagnosticCacheLinkKey(const struct bd_addr *bdaddr, const u8 *key);
+u8 BTDiagnosticGetLinkKey(const struct bd_addr *bdaddr, u8 *key);
+void BTDiagnosticLinkKeyStoreResult(u8 result);
+void BTDiagnosticAuthenticationCommandResult(u8 result);
+void BTDiagnosticAuthenticationResult(u8 result, const struct bd_addr *bdaddr);
+void BTDiagnosticEncryptionResult(u8 result, u8 enabled,
+	const struct bd_addr *bdaddr);
 
 struct BTPadStat {
 	u32 controller;
@@ -32,12 +55,14 @@ struct BTPadStat {
 	u32 channel;
 	u32 rumble;
 	u32 rumbletime;
+	u32 diagnostic_state;
 	s16 xAxisLmid;
 	s16 xAxisRmid;
 	s16 yAxisLmid;
 	s16 yAxisRmid;
 	struct bte_pcb *sock;
 	struct bd_addr bdaddr;
+	struct SwitchProState switch_state;
 } ALIGNED(32);
 
 struct BTPadCont {

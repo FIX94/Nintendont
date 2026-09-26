@@ -122,6 +122,8 @@ s32 BTE_InitCore(btecallback cb);
 s32 BTE_ApplyPatch(btecallback cb);
 s32 BTE_InitSub(btecallback cb);
 s32 BTE_ReadStoredLinkKey(struct linkkey_info *keys,u8 max_cnt,btecallback cb);
+s32 BTE_InquiryAsync(u8 max_cnt,btecallback cb);
+s32 BTE_GetInquiryResults(struct inquiry_info_ex *info,u8 max_cnt);
 void (*BTE_SetDisconnectCallback(void (*callback)(struct bd_addr *bdaddr,u8 reason)))(struct bd_addr *bdaddr,u8 reason);
 
 struct bte_pcb* bte_new();
@@ -142,10 +144,10 @@ s32 bte_inquiry_ex(struct inquiry_info_ex *info,u8 max_cnt,u8 flush);
 s32 bte_senddata(struct bte_pcb *pcb,void *message,u16 len);
 s32 bte_sendmessage(struct bte_pcb *pcb,void *message,u16 len);
 s32 bte_sendmessageasync(struct bte_pcb *pcb,void *message,u16 len,s32 (*sent)(void *arg,struct bte_pcb *pcb,u8 err));
+s32 bte_setprotocolasync(struct bte_pcb *pcb,u8 protocol,s32 (*sent)(void *arg,struct bte_pcb *pcb,u8 err));
 
 #ifdef __cplusplus
    }
 #endif /* __cplusplus */
 
 #endif
-

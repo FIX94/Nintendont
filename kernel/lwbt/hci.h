@@ -70,8 +70,13 @@
 #define HCI_CREATE_CONNECTION 0x05
 #define HCI_REJECT_CONNECTION_REQUEST 0x0A
 #define HCI_DISCONNECT 0x06
+#define HCI_AUTHENTICATION_REQUESTED 0x11
 #define HCI_PIN_CODE_REQ_REP 0x0D
 #define HCI_PIN_CODE_REQ_NEG_REP 0x0E
+#define HCI_LINK_KEY_REQ_REP 0x0B
+#define HCI_LINK_KEY_REQ_NEG_REP 0x0C
+#define HCI_IO_CAPABILITY_REQ_REP 0x2B
+#define HCI_USER_CONFIRM_REQ_REP 0x2C
 #define HCI_SET_CONN_ENCRYPT 0x13
 
 /* Link Policy commands */
@@ -102,6 +107,7 @@
 #define HCI_WRITE_INQUIRY_SCAN_TYPE 0x43
 #define HCI_WRITE_INQUIRY_MODE 0x45
 #define HCI_WRITE_PAGE_SCAN_TYPE 0x47
+#define HCI_WRITE_SIMPLE_PAIRING_MODE 0x56
 
 /* Informational Parameters */
 #define HCI_READ_LOCAL_VERSION 0x01
@@ -123,6 +129,7 @@
 #define HCI_CONNECTION_COMPLETE 0x03
 #define HCI_CONNECTION_REQUEST 0x04
 #define HCI_DISCONNECTION_COMPLETE 0x05
+#define HCI_AUTHENTICATION_COMPLETE 0x06
 #define HCI_ENCRYPTION_CHANGE 0x08
 #define HCI_QOS_SETUP_COMPLETE 0x0D
 #define HCI_COMMAND_COMPLETE 0x0E
@@ -133,9 +140,13 @@
 #define HCI_MODE_CHANGE 0x14
 #define HCI_RETURN_LINK_KEYS 0x15
 #define HCI_PIN_CODE_REQUEST 0x16
+#define HCI_LINK_KEY_REQUEST 0x17
 #define HCI_LINK_KEY_NOTIFICATION 0x18
 #define HCI_DATA_BUFFER_OVERFLOW 0x1A
 #define HCI_MAX_SLOTS_CHANGE 0x1B
+#define HCI_IO_CAPABILITY_REQUEST 0x31
+#define HCI_USER_CONFIRMATION_REQUEST 0x33
+#define HCI_SIMPLE_PAIRING_COMPLETE 0x36
 
 /* Success code */
 #define HCI_SUCCESS 0x00
@@ -237,10 +248,12 @@
 #define HCI_EXIT_PERIODIC_INQUIRY_PLEN 4
 #define HCI_CREATE_CONN_PLEN 17
 #define HCI_DISCONN_PLEN 7
+#define HCI_AUTHENTICATION_REQUESTED_PLEN 6
 #define HCI_REJECT_CONN_REQ_PLEN 11
 #define HCI_ACCEPT_CONN_REQ_PLEN 11
 #define HCI_PIN_CODE_REQ_REP_PLEN 27
 #define HCI_PIN_CODE_REQ_NEG_REP_PLEN 10
+#define HCI_LINK_KEY_REQ_REP_PLEN 26
 #define HCI_SET_CONN_ENCRYPT_PLEN 7
 #define HCI_WRITE_STORED_LINK_KEY_PLEN 27
 #define HCI_SET_EV_MASK_PLEN 12
@@ -371,6 +384,8 @@ err_t hci_write_inquiry_mode(u8_t mode);
 err_t hci_write_page_scan_type(u8_t type);
 err_t hci_write_inquiry_scan_type(u8_t type);
 err_t hci_disconnect(struct bd_addr *bdaddr, u8_t reason);
+err_t hci_authentication_requested(struct bd_addr *bdaddr);
+err_t hci_set_connection_encrypt(struct bd_addr *bdaddr, u8_t enable);
 err_t hci_reject_connection_request(struct bd_addr *bdaddr, u8_t reason);
 err_t hci_pin_code_request_reply(struct bd_addr *bdaddr, u8_t pinlen, u8_t *pincode);
 err_t hci_write_stored_link_key(struct bd_addr *bdaddr, u8_t *link);
@@ -378,6 +393,11 @@ err_t hci_set_event_filter(u8_t filter_type,u8_t filter_cond_type,u8_t *cond);
 err_t hci_write_page_timeout(u16_t timeout);
 err_t hci_inquiry(u32_t lap,u8_t inq_len,u8_t num_resp,err_t (*inq_complete)(void *arg,struct hci_pcb *pcb,struct hci_inq_res *ires,u16_t result));
 err_t hci_pin_code_request_neg_reply(struct bd_addr *bdaddr);
+err_t hci_link_key_request_neg_reply(struct bd_addr *bdaddr);
+err_t hci_link_key_request_reply(struct bd_addr *bdaddr, const u8_t *key);
+err_t hci_io_capability_request_reply(struct bd_addr *bdaddr);
+err_t hci_user_confirmation_request_reply(struct bd_addr *bdaddr);
+err_t hci_write_simple_pairing_mode(u8_t enable);
 err_t hci_write_scan_enable(u8_t scan_enable);
 err_t hci_host_num_comp_packets(u16_t conhdl, u16_t num_complete);
 err_t hci_sniff_mode(struct bd_addr *bdaddr, u16_t max_interval, u16_t min_interval, u16_t attempt, u16_t timeout);

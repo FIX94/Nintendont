@@ -345,6 +345,7 @@ void BTE_Init()
 
 	hci_wlp_complete(acl_wlp_completed);
 	hci_connection_complete(acl_conn_complete);
+	hci_link_key_not(link_key_not);
 }
 
 void BTE_Shutdown()
@@ -413,6 +414,36 @@ s32 BTE_ReadStoredLinkKey(struct linkkey_info *keys,u8 max_cnt,btecallback cb)
 	hci_read_stored_link_key();
 
 	return ERR_OK;
+}
+
+s32 BTE_InquiryAsync(u8 max_cnt,btecallback cb)
+{
+	btstate.cb = cb;
+	/* Non-NULL marks a one-shot inquiry; do not retry forever if none found. */
+	btstate.usrdata = (void*)1;
+	btstate.hci_cmddone = 0;
+	btstate.num_maxdevs = max_cnt;
+	hci_arg(&btstate);
+	hci_inquiry(0x009E8B33,0x03,max_cnt,bte_inquiry_complete);
+	return ERR_OK;
+}
+
+s32 BTE_GetInquiryResults(struct inquiry_info_ex *info,u8 max_cnt)
+{
+	u8_t i;
+	u8_t found = btstate.num_founddevs;
+
+	if(found > max_cnt)
+		found = max_cnt;
+	for(i=0;i<found;i++)
+	{
+		bd_addr_set(&(info[i].bdaddr),&(btstate.info[i].bdaddr));
+		memcpy(info[i].cod,btstate.info[i].cod,3);
+		info[i].psrm = btstate.info[i].psrm;
+		info[i].psm = btstate.info[i].psm;
+		info[i].co = btstate.info[i].co;
+	}
+	return found;
 }
 
 void (*BTE_SetDisconnectCallback(void (*callback)(struct bd_addr *bdaddr,u8 reason)))(struct bd_addr *bdaddr,u8 reason)
@@ -486,6 +517,7 @@ s32 bte_inquiry(struct inquiry_info *info,u8 max_cnt,u8 flush)
 	last_err = ERR_OK;
 
 	if(btstate.num_founddevs==0 || flush==1) {
+		btstate.usrdata = NULL;
 		btstate.hci_cmddone = 0;
 		btstate.num_maxdevs = max_cnt;
 		hci_inquiry(0x009E8B33,0x03,max_cnt,bte_inquiry_complete);
@@ -513,6 +545,7 @@ s32 bte_inquiry_ex(struct inquiry_info_ex *info,u8 max_cnt,u8 flush)
 	last_err = ERR_OK;
 
 	if(btstate.num_founddevs==0 || flush==1) {
+		btstate.usrdata = NULL;
 		btstate.hci_cmddone = 0;
 		btstate.num_maxdevs = max_cnt;
 		hci_inquiry(0x009E8B33,0x03,max_cnt,bte_inquiry_complete);
@@ -594,6 +627,25 @@ s32 bte_sendmessageasync(struct bte_pcb *pcb,void *message,u16 len,s32 (*sent)(v
 	((u8*)p->payload)[0] = (HIDP_TRANS_SETREPORT|HIDP_DATA_RTYPE_OUPUT);
 	memcpy(p->payload+1,message,len);
 
+	req->p = p;
+	req->pcb = pcb;
+	req->sent = sent;
+	return __bte_send_request(req);
+}
+
+s32 bte_setprotocolasync(struct bte_pcb *pcb,u8 protocol,s32 (*sent)(void *arg,struct bte_pcb *pcb,u8 err))
+{
+	struct pbuf *p;
+	struct ctrl_req_t *req;
+
+	if(pcb==NULL || protocol > HIDP_PROTO_REPORT) return ERR_VAL;
+	if(pcb->state==STATE_DISCONNECTING || pcb->state==STATE_DISCONNECTED) return ERR_CLSD;
+	if((req=btmemb_alloc(&bte_ctrl_reqs))==NULL) return ERR_MEM;
+	if((p=btpbuf_alloc(PBUF_RAW,1,PBUF_RAM))==NULL) {
+		btmemb_free(&bte_ctrl_reqs,req);
+		return ERR_MEM;
+	}
+	((u8*)p->payload)[0] = HIDP_TRANS_SETPROTOCOL | protocol;
 	req->p = p;
 	req->pcb = pcb;
 	req->sent = sent;
@@ -732,8 +784,13 @@ err_t l2cap_disconnect_cfm(void *arg, struct l2cap_pcb *pcb)
 
 err_t link_key_not(void *arg,struct bd_addr *bdaddr,u8_t *key)
 {
+	err_t result;
 	//printf("link_key_not\n");
-	return hci_write_stored_link_key(bdaddr,key);
+	BTDiagnosticCacheLinkKey(bdaddr,key);
+	result = hci_write_stored_link_key(bdaddr,key);
+	if(result == ERR_OK)
+		BTDiagnosticLinkKeyQueued(bdaddr);
+	return result;
 }
 
 err_t l2cap_accepted(void *arg,struct l2cap_pcb *l2cappcb,err_t err)
@@ -802,6 +859,9 @@ err_t bte_inquiry_complete(void *arg,struct hci_pcb *pcb,struct hci_inq_res *ire
 				//dbgprintf("co:   %04x\n",p->co);
 				p = p->next;
 			}
+			__bte_cmdfinish(state,ERR_OK);
+		} else if(state->usrdata != NULL) {
+			btstate.num_founddevs = 0;
 			__bte_cmdfinish(state,ERR_OK);
 		} else
 			hci_inquiry(0x009E8B33,0x03,btstate.num_maxdevs,bte_inquiry_complete);
@@ -1099,6 +1159,11 @@ err_t bte_hci_initsub_complete(void *arg,struct hci_pcb *pcb,u8_t ogf,u8_t ocf,u
 					err = ERR_CONN;
 			} else if(ocf==HCI_WRITE_PAGE_TIMEOUT) {
 				if(result==HCI_SUCCESS) {
+					hci_write_simple_pairing_mode(0x01);
+				} else
+					err = ERR_CONN;
+			} else if(ocf==HCI_WRITE_SIMPLE_PAIRING_MODE) {
+				if(result==HCI_SUCCESS) {
 					hci_write_local_name((u8_t*)"Wii",4);
 				} else
 					err = ERR_CONN;
@@ -1125,4 +1190,3 @@ err_t bte_hci_initsub_complete(void *arg,struct hci_pcb *pcb,u8_t ogf,u8_t ocf,u
 	if(err!=ERR_OK) __bte_cmdfinish(state,err);
 	return err;
 }
-
