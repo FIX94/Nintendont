@@ -46,6 +46,8 @@ static volatile u32 BTDiagnosticStage = 0;
 static struct bd_addr BTDiagnosticTarget;
 static u8 BTDiagnosticTargetSet = 0;
 static u8 BTDiagnosticStorePending = 0;
+static u8 BTDiagnosticAuthenticated = 0;
+static u8 BTDiagnosticEncrypted = 0;
 static u8 BTDiagnosticBlinkOn = 1;
 static u32 BTDiagnosticBlinkTimer = 0;
 
@@ -90,13 +92,43 @@ static const u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 #define C_SWITCH_PRO	(1<<10)
 
 #define TRANSFER_SWITCH_PRO 0xF0
+#define SWITCH_DIAG_HID_OPEN        (1<<0)
+#define SWITCH_DIAG_ENCRYPTED       (1<<1)
+#define SWITCH_DIAG_PROTOCOL_STARTED (1<<2)
 static const s8 DEADZONE = 0x1A;
+
+static void BTSwitchStartProtocol(struct BTPadStat *stat);
+
+static struct BTPadStat *BTFindSwitchStat(const struct bd_addr *bdaddr)
+{
+	u32 i;
+	for(i = 0; i < CONF_PAD_MAX_REGISTERED; i++)
+	{
+		if(BTPadStatus[i].transfertype == TRANSFER_SWITCH_PRO &&
+			memcmp(BTPadStatus[i].bdaddr.addr, bdaddr->addr,
+				sizeof(bdaddr->addr)) == 0)
+			return &BTPadStatus[i];
+	}
+	return NULL;
+}
+
+static void BTDiagnosticAdvanceSecurity(void)
+{
+	if(BTDiagnosticStage >= BT_DIAG_HID_OPEN && BTDiagnosticAuthenticated &&
+		BTDiagnosticStage < BT_DIAG_AUTHENTICATED)
+		BTDiagnosticStage = BT_DIAG_AUTHENTICATED;
+	if(BTDiagnosticStage >= BT_DIAG_AUTHENTICATED && BTDiagnosticEncrypted &&
+		BTDiagnosticStage < BT_DIAG_ENCRYPTED)
+		BTDiagnosticStage = BT_DIAG_ENCRYPTED;
+}
 
 static void BTDiagnosticSetTarget(const struct bd_addr *bdaddr)
 {
 	BTDiagnosticTarget = *bdaddr;
 	BTDiagnosticTargetSet = 1;
 	BTDiagnosticStage = BT_DIAG_FOUND;
+	BTDiagnosticAuthenticated = 0;
+	BTDiagnosticEncrypted = 0;
 	BTDiagnosticBlinkOn = 1;
 	BTDiagnosticBlinkTimer = read32(HW_TIMER);
 }
@@ -128,6 +160,48 @@ void BTDiagnosticLinkKeyStoreResult(u8 result)
 		BTDiagnosticStage = BT_DIAG_LINK_KEY_STORED;
 }
 
+void BTDiagnosticConnectionComplete(const struct bd_addr *bdaddr)
+{
+	if(!BTDiagnosticTargetSet || bdaddr == NULL ||
+		memcmp(BTDiagnosticTarget.addr, bdaddr->addr,
+			sizeof(BTDiagnosticTarget.addr)) != 0)
+		return;
+	/* A bonded HID host raises the ACL link to authenticated security. */
+	hci_authentication_requested((struct bd_addr*)bdaddr);
+}
+
+void BTDiagnosticAuthenticationResult(u8 result, const struct bd_addr *bdaddr)
+{
+	if(!BTDiagnosticTargetSet || bdaddr == NULL ||
+		memcmp(BTDiagnosticTarget.addr, bdaddr->addr,
+			sizeof(BTDiagnosticTarget.addr)) != 0 || result != HCI_SUCCESS)
+		return;
+	BTDiagnosticAuthenticated = 1;
+	BTDiagnosticAdvanceSecurity();
+	hci_set_connection_encrypt((struct bd_addr*)bdaddr, 1);
+}
+
+void BTDiagnosticEncryptionResult(u8 result, u8 enabled,
+	const struct bd_addr *bdaddr)
+{
+	struct BTPadStat *stat;
+	if(!BTDiagnosticTargetSet || bdaddr == NULL ||
+		memcmp(BTDiagnosticTarget.addr, bdaddr->addr,
+			sizeof(BTDiagnosticTarget.addr)) != 0 ||
+		result != HCI_SUCCESS || !enabled)
+		return;
+	BTDiagnosticEncrypted = 1;
+	BTDiagnosticAdvanceSecurity();
+	stat = BTFindSwitchStat(bdaddr);
+	if(stat != NULL)
+	{
+		stat->diagnostic_state |= SWITCH_DIAG_ENCRYPTED;
+		if(stat->diagnostic_state & SWITCH_DIAG_HID_OPEN)
+			BTSwitchStartProtocol(stat);
+		sync_after_write(stat, sizeof(struct BTPadStat));
+	}
+}
+
 static void BTSwitchSendSubcommand(struct BTPadStat *stat, u8 command,
 	const u8 *data, u8 data_len)
 {
@@ -148,6 +222,16 @@ static s32 BTSwitchProtocolReady(void *arg,struct bte_pcb *pcb,u8 err)
 	BTDiagnosticPairingPhase(BT_DIAG_PROTOCOL_READY, &stat->bdaddr);
 	BTSwitchSendSubcommand(stat, SWITCH_PRO_SUBCMD_REPORT_MODE, &mode, 1);
 	return ERR_OK;
+}
+
+static void BTSwitchStartProtocol(struct BTPadStat *stat)
+{
+	if((stat->diagnostic_state & (SWITCH_DIAG_HID_OPEN |
+		SWITCH_DIAG_ENCRYPTED | SWITCH_DIAG_PROTOCOL_STARTED)) !=
+		(SWITCH_DIAG_HID_OPEN | SWITCH_DIAG_ENCRYPTED))
+		return;
+	stat->diagnostic_state |= SWITCH_DIAG_PROTOCOL_STARTED;
+	bte_setprotocolasync(stat->sock, HIDP_PROTO_REPORT, BTSwitchProtocolReady);
 }
 
 static s32 BTHandleSwitchProData(struct BTPadStat *stat, void *buffer, u16 len)
@@ -736,12 +820,16 @@ static s32 BTHandleConnect(void *arg,struct bte_pcb *pcb,u8 err)
 	if(stat->transfertype == TRANSFER_SWITCH_PRO)
 	{
 		BTDiagnosticPairingPhase(BT_DIAG_HID_OPEN, &stat->bdaddr);
+		BTDiagnosticAdvanceSecurity();
 		SwitchProReset(&stat->switch_state);
 		stat->transferstate = TRANSFER_DONE;
 		/* Only claim a player slot after a valid Switch input report arrives. */
 		stat->controller = C_NOT_SET;
 		stat->timeout = read32(HW_TIMER);
-		bte_setprotocolasync(stat->sock, HIDP_PROTO_REPORT, BTSwitchProtocolReady);
+		stat->diagnostic_state |= SWITCH_DIAG_HID_OPEN;
+		if(BTDiagnosticEncrypted)
+			stat->diagnostic_state |= SWITCH_DIAG_ENCRYPTED;
+		BTSwitchStartProtocol(stat);
 	}
 	else if(stat->transfertype == 0x34 || stat->transfertype == 0x37)
 	{
@@ -799,6 +887,7 @@ static s32 BTHandleDisconnect(void *arg,struct bte_pcb *pcb,u8 err)
 		struct BTPadStat *stat = (struct BTPadStat*)arg;
 		stat->channel = CHAN_NOT_SET;
 		stat->controller = C_NOT_SET;
+		stat->diagnostic_state = 0;
 		SwitchProReset(&stat->switch_state);
 		sync_after_write(stat, sizeof(struct BTPadStat));
 		bte_registerdeviceasync(stat->sock, &stat->bdaddr, BTHandleConnect);
@@ -809,6 +898,7 @@ static s32 BTHandleDisconnect(void *arg,struct bte_pcb *pcb,u8 err)
 static int RegisterBTPad(struct BTPadStat *stat, struct bd_addr *_bdaddr)
 {
 	stat->bdaddr = *_bdaddr;
+	stat->diagnostic_state = 0;
 	stat->sock = bte_new();
 
 	if(stat->sock == NULL)
@@ -956,6 +1046,8 @@ void BTInit(void)
 	BTDiagnosticStage = 0;
 	BTDiagnosticTargetSet = 0;
 	BTDiagnosticStorePending = 0;
+	BTDiagnosticAuthenticated = 0;
+	BTDiagnosticEncrypted = 0;
 	BTDiagnosticBlinkOn = 1;
 	BTDiagnosticBlinkTimer = read32(HW_TIMER);
 	memset(BTKeys, 0, sizeof(struct linkkey_info) * CONF_PAD_MAX_REGISTERED);
@@ -997,8 +1089,11 @@ void BTUpdateRegisters(void)
 		__readbulkdataCB();
 		__issue_bulkread();
 	}
-	if((BTDiagnosticStage == BT_DIAG_PROTOCOL_READY &&
+	if(((BTDiagnosticStage == BT_DIAG_AUTHENTICATED ||
+		BTDiagnosticStage == BT_DIAG_ENCRYPTED) &&
 		TimerDiffTicks(BTDiagnosticBlinkTimer) > 949220) ||
+		(BTDiagnosticStage == BT_DIAG_PROTOCOL_READY &&
+		TimerDiffTicks(BTDiagnosticBlinkTimer) > 379688) ||
 		(BTDiagnosticStage == BT_DIAG_INPUT_RECEIVED &&
 		TimerDiffTicks(BTDiagnosticBlinkTimer) > 189844))
 	{

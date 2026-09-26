@@ -171,8 +171,10 @@ u8 SwitchProDiagnosticLED(u32 phase, u8 blink_on)
 		case 2: return 0x30;
 		case 3: return 0x70;
 		case 4: return 0xF0;
-		case 5: return blink_on ? 0xF0 : 0x00;
+		case 5: return blink_on ? 0x50 : 0xA0;
 		case 6: return blink_on ? 0xF0 : 0x00;
+		case 7: return blink_on ? 0xF0 : 0x00;
+		case 8: return blink_on ? 0xF0 : 0x00;
 		default: return 0x00;
 	}
 }

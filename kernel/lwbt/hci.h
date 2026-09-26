@@ -70,6 +70,7 @@
 #define HCI_CREATE_CONNECTION 0x05
 #define HCI_REJECT_CONNECTION_REQUEST 0x0A
 #define HCI_DISCONNECT 0x06
+#define HCI_AUTHENTICATION_REQUESTED 0x11
 #define HCI_PIN_CODE_REQ_REP 0x0D
 #define HCI_PIN_CODE_REQ_NEG_REP 0x0E
 #define HCI_LINK_KEY_REQ_NEG_REP 0x0C
@@ -127,6 +128,7 @@
 #define HCI_CONNECTION_COMPLETE 0x03
 #define HCI_CONNECTION_REQUEST 0x04
 #define HCI_DISCONNECTION_COMPLETE 0x05
+#define HCI_AUTHENTICATION_COMPLETE 0x06
 #define HCI_ENCRYPTION_CHANGE 0x08
 #define HCI_QOS_SETUP_COMPLETE 0x0D
 #define HCI_COMMAND_COMPLETE 0x0E
@@ -245,6 +247,7 @@
 #define HCI_EXIT_PERIODIC_INQUIRY_PLEN 4
 #define HCI_CREATE_CONN_PLEN 17
 #define HCI_DISCONN_PLEN 7
+#define HCI_AUTHENTICATION_REQUESTED_PLEN 6
 #define HCI_REJECT_CONN_REQ_PLEN 11
 #define HCI_ACCEPT_CONN_REQ_PLEN 11
 #define HCI_PIN_CODE_REQ_REP_PLEN 27
@@ -379,6 +382,8 @@ err_t hci_write_inquiry_mode(u8_t mode);
 err_t hci_write_page_scan_type(u8_t type);
 err_t hci_write_inquiry_scan_type(u8_t type);
 err_t hci_disconnect(struct bd_addr *bdaddr, u8_t reason);
+err_t hci_authentication_requested(struct bd_addr *bdaddr);
+err_t hci_set_connection_encrypt(struct bd_addr *bdaddr, u8_t enable);
 err_t hci_reject_connection_request(struct bd_addr *bdaddr, u8_t reason);
 err_t hci_pin_code_request_reply(struct bd_addr *bdaddr, u8_t pinlen, u8_t *pincode);
 err_t hci_write_stored_link_key(struct bd_addr *bdaddr, u8_t *link);

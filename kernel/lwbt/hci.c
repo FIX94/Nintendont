@@ -942,6 +942,41 @@ err_t hci_write_simple_pairing_mode(u8_t enable)
 	return ERR_OK;
 }
 
+err_t hci_authentication_requested(struct bd_addr *bdaddr)
+{
+	struct pbuf *p;
+	struct hci_link *link = hci_get_link(bdaddr);
+
+	if(link == NULL)
+		return ERR_CONN;
+	if((p=btpbuf_alloc(PBUF_RAW,HCI_AUTHENTICATION_REQUESTED_PLEN,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_AUTHENTICATION_REQUESTED,HCI_LINK_CTRL_OGF,
+		HCI_AUTHENTICATION_REQUESTED_PLEN);
+	W16((u32)(((u16_t*)p->payload)+2),htole16(link->connhdl));
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
+err_t hci_set_connection_encrypt(struct bd_addr *bdaddr, u8_t enable)
+{
+	struct pbuf *p;
+	struct hci_link *link = hci_get_link(bdaddr);
+
+	if(link == NULL)
+		return ERR_CONN;
+	if((p=btpbuf_alloc(PBUF_RAW,HCI_SET_CONN_ENCRYPT_PLEN,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_SET_CONN_ENCRYPT,HCI_LINK_CTRL_OGF,
+		HCI_SET_CONN_ENCRYPT_PLEN);
+	W16((u32)(((u16_t*)p->payload)+2),htole16(link->connhdl));
+	((u8_t*)p->payload)[6] = enable ? 1 : 0;
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
 /*-----------------------------------------------------------------------------------*/
 /* hci_disconnect():
  *
@@ -1619,7 +1654,23 @@ void hci_event_handler(struct pbuf *p)
 					return;
 			}
 			break;
+		case HCI_AUTHENTICATION_COMPLETE:
+			connhdl = le16toh(R16((u32)((u16_t*)(((u8_t*)p->payload)+1))));
+			for(link=hci_active_links;link!=NULL;link=link->next) {
+				if(link->connhdl==connhdl) break;
+			}
+			if(link!=NULL)
+				BTDiagnosticAuthenticationResult(((u8_t*)p->payload)[0],
+					&link->bdaddr);
+			break;
 		case HCI_ENCRYPTION_CHANGE:
+			connhdl = le16toh(R16((u32)((u16_t*)(((u8_t*)p->payload)+1))));
+			for(link=hci_active_links;link!=NULL;link=link->next) {
+				if(link->connhdl==connhdl) break;
+			}
+			if(link!=NULL)
+				BTDiagnosticEncryptionResult(((u8_t*)p->payload)[0],
+					((u8_t*)p->payload)[3], &link->bdaddr);
 			break;
 		case HCI_QOS_SETUP_COMPLETE:
 			break;

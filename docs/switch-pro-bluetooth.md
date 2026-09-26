@@ -45,6 +45,17 @@ Protocol reference: Bloopair commit
 `ios/ios_pad/source/controllers/switch_controller.c`. Both projects use GPLv2
 compatible licensing.
 
+The security follow-up is based on two concrete host-stack paths rather than a
+claim of hardware success. Bloopair retains the Wii U BTM security manager
+(`ios/ios_pad/source/stack/btm_sec.c`), including authentication/encryption
+requirements. BlueZ's classic HID host likewise raises a bonded control
+connection to `BT_IO_SEC_MEDIUM` before using the interrupt channel
+(`profiles/input/device.c`). Nintendont's lwBT already defined the relevant HCI
+event/command numbers but previously ignored Authentication Complete and
+Encryption Change and never sent Set Connection Encryption. The instrumented
+build now exposes those two events separately. Whether the Wii U controller and
+original Switch Pro accept this sequence remains a hardware-test question.
+
 ## Install on Wii U
 
 1. Keep a copy of the currently working `sd:/apps/Nintendont/boot.dol`.
@@ -70,8 +81,8 @@ build.
 
 The pairing test build performs one Bluetooth inquiry when the in-game kernel
 starts. Keep a Wii Remote awake during the test: its four player LEDs are used
-as a cumulative diagnostic display. This deliberately overrides the Wii
-Remote's normal player LED while the diagnostic is active.
+as a diagnostic display. This deliberately overrides the Wii Remote's normal
+player LED while the diagnostic is active.
 
 | Visible Wii Remote LEDs | Phase | What the code has observed |
 | --- | --- | --- |
@@ -79,13 +90,16 @@ Remote's normal player LED while the diagnostic is active.
 | LEDs 1-2 solid | 2. SSP | A successful HCI Simple Pairing Complete event was received for that same address. |
 | LEDs 1-3 solid | 3. Link key | A Link Key Notification for that address was received and the Wii U Bluetooth controller returned success for Write Stored Link Key. |
 | LEDs 1-4 solid | 4. HID | Both HID L2CAP channels opened and Nintendont invoked the Switch Pro connection callback. |
-| All four LEDs blink slowly | 5. Protocol | The controller acknowledged HID Set Protocol (Report); Nintendont then requested full `0x30` reports. |
-| All four LEDs blink quickly | 6. Input | At least one valid Switch Pro `0x30`, `0x21` or `0x3f` input report was parsed. |
+| LEDs 1+3 and 2+4 alternate | 5. Authenticated | HCI Authentication Complete succeeded for the target controller. |
+| All four LEDs blink slowly | 6. Encrypted | HCI Encryption Change reported that link encryption is enabled. Only then does this build start HID protocol initialization. |
+| All four LEDs blink at medium speed | 7. Protocol | The controller acknowledged HID Set Protocol (Report); Nintendont then requested full `0x30` reports. |
+| All four LEDs blink quickly | 8. Input | At least one valid Switch Pro `0x30`, `0x21` or `0x3f` input report was parsed. |
 
 The display is cumulative: if events follow each other quickly, the later
-pattern proves all earlier numbered phases completed. If the display stops at
-a solid pattern, record the highest number shown. No LEDs means the target was
-not found (or the Wii Remote itself was not connected to the in-game kernel).
+numbered pattern proves all earlier numbered phases completed. If the display
+stops at a solid pattern, record the highest number shown. No LEDs means the
+target was not found (or the Wii Remote itself was not connected to the in-game
+kernel).
 
 Installation and launch:
 

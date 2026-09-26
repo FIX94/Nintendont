@@ -102,10 +102,14 @@ static void test_diagnostic_leds(void)
 	assert(SwitchProDiagnosticLED(2, 0) == 0x30);
 	assert(SwitchProDiagnosticLED(3, 0) == 0x70);
 	assert(SwitchProDiagnosticLED(4, 0) == 0xF0);
-	assert(SwitchProDiagnosticLED(5, 0) == 0x00);
-	assert(SwitchProDiagnosticLED(5, 1) == 0xF0);
+	assert(SwitchProDiagnosticLED(5, 0) == 0xA0);
+	assert(SwitchProDiagnosticLED(5, 1) == 0x50);
 	assert(SwitchProDiagnosticLED(6, 0) == 0x00);
 	assert(SwitchProDiagnosticLED(6, 1) == 0xF0);
+	assert(SwitchProDiagnosticLED(7, 0) == 0x00);
+	assert(SwitchProDiagnosticLED(7, 1) == 0xF0);
+	assert(SwitchProDiagnosticLED(8, 0) == 0x00);
+	assert(SwitchProDiagnosticLED(8, 1) == 0xF0);
 }
 
 int main(void)
