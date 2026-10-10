@@ -383,7 +383,7 @@ void GCNCard_SetBlockOffset(int slot, u32 data)
 	u32 BlockOff = ((data>>16)&0xFF)  << 17;
 	BlockOff    |= ((data>> 8)&0xFF)  << 9;
 	BlockOff    |= ((data&0xFF)  &3)  << 7;
-	memCard[slot].BlockOff = BlockOff;
+        memCard[slot].BlockOff = BlockOff & (memCard[slot].size - 1);
 }
 
 /**
@@ -397,6 +397,8 @@ void GCNCard_Write(int slot, const void *data, u32 length)
 	if (!GCNCard_IsEnabled(slot))
 		return;
 	GCNCard_ctx *const ctx = &memCard[slot];
+        if (ctx->BlockOff + length > ctx->size)
+        return;
 	ctx->changed = true;
 
 	// Is this update entirely within the "system area"?
@@ -431,6 +433,12 @@ void GCNCard_Write(int slot, const void *data, u32 length)
 	}
 
 	// FIXME: Verify that this doesn't go out of bounds.
+        if (ctx->BlockOff + length > ctx->size)
+        {
+            memset(data, 0xFF, length);
+            sync_after_write(data, length);
+            return;
+        }
 	sync_before_read((void*)data, length);
 	memcpy(&ctx->base[ctx->BlockOff], data, length);
 	sync_after_write(&ctx->base[ctx->BlockOff], length);
@@ -478,7 +486,7 @@ void GCNCard_SetBlockOffset_Erase(int slot, u32 data)
 
 	u32 BlockOff = (((u32)data>>16)&0xFF)  << 17;
 	BlockOff    |= (((u32)data>> 8)&0xFF)  << 9;
-	memCard[slot].BlockOff = BlockOff;
+	memCard[slot].BlockOff = BlockOff & (memCard[slot].size - 1);
 }
 
 #ifdef DEBUG_EXI
