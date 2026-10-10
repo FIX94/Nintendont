@@ -146,6 +146,7 @@ struct _usb_msg {
 
 s32 USB_Initialize();
 s32 USB_Deinitialize();
+s32 USB_GetVenHandle();
 
 s32 USB_ReadIntrMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
 s32 USB_ReadBlkMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
