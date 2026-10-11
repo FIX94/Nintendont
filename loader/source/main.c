@@ -21,11 +21,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <gccore.h>
 #include <sys/param.h>
 #include <ogc/lwp_watchdog.h>
-#include <ogc/lwp_threads.h>
+#include <ogc/lwp.h>
+#include <ogc/machine/processor.h>
 #include <wiiuse/wpad.h>
 #include <wiidrc/wiidrc.h>
 #include <wupc/wupc.h>
 #include <di/di.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <locale.h>
 
@@ -1641,8 +1643,10 @@ int main(int argc, char **argv)
 
 	write16(0xD8B420A, 0); //disable MEMPROT again after reload
 	//u32 level = IRQ_Disable();
-	__exception_closeall();
-	__lwp_thread_closeall();
+	/* DO the equivalent of the now removed __exception_closeall(): */
+	PPCIrqUnlockByMsr(MSR_FP | MSR_RI);
+	PPCExcptInit();
+	/* TODO: figure out how to replace this: __lwp_thread_closeall(); */
 
 	DVDStartCache(); //waits for kernel start
 	DCInvalidateRange((void*)0x90000000, 0x1000000);

@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 typedef int   (*app_main)(char **dst, u32 *size, u32 *offset);
 typedef void  (*app_init)(int (*report)(const char *fmt, ...));
 typedef void *(*app_final)();
-typedef void  (*app_entry)(void (**init)(int (*report)(const char *fmt, ...)), int (**main)(), void *(**final)());
+typedef void  (*app_entry)(void (**init)(int (*report)(const char *fmt, ...)), app_main *main, void *(**final)());
 
 static u8 *appldr = (u8*)0x81200000;
 static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x930031E0;
