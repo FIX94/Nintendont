@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "HID.h"
 #include "EXI.h"
 #include "sock.h"
+#include "APBridge.h"
 #include "GCNCard.h"
 #include "debug.h"
 #include "GCAM.h"
@@ -258,6 +259,7 @@ int _main( int argc, char *argv[] )
 	PatchInit();
 
 	SOCKInit();
+	APBridge_Init();
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);
