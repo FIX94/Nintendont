@@ -12,9 +12,77 @@
 #include "vsprintf.h"
 #include "Config.h"
 #include "ff_utf8.h"
+#include "DI.h"
 
 static FIL dbgfile;
 static int file_opened = -1;
+
+/*
+ * FatFs is not re-entrant here (_FS_REENTRANT 0), and DIReadThread reads the game
+ * through it while the main loop runs. So the log does what GCNCard_Save does:
+ * it touches FatFs only while no disc read is in flight, and lines written in the
+ * meantime wait in LogQueue for LogFlush() in the main loop. The DI thread is the
+ * FatFs user while it runs, so it writes its own lines directly.
+ */
+static char LogQueue[0x1000];
+static u32 LogQueued = 0;
+static bool LogHeaderDone = false;
+static u32 LogDropped = 0;
+extern char __di_stack_addr, __di_stack_size;
+
+static bool InDIThread(void)
+{
+	u32 sp = (u32)&sp;
+	u32 top = (u32)&__di_stack_addr, size = (u32)&__di_stack_size;
+	return sp - (top - size) < size;
+}
+
+static void LogWrite(const char *s, u32 len)
+{
+	UINT done;
+	if (file_opened != FR_OK)
+	{
+		file_opened = f_open_char(&dbgfile, "/ndebug.log", FA_OPEN_ALWAYS|FA_WRITE);
+		if (file_opened != FR_OK)
+			return;
+		f_lseek(&dbgfile, dbgfile.obj.objsize);
+		if (!LogHeaderDone)	// once per boot, not on a reopen
+		{
+			char hdr[0x80];
+			u32 v = read32(0x3140);
+			int n = _sprintf(hdr, "Nintendont IOS%d v%d.%d\r\nBuilt   : %s %s\r\nVersion : %d.%d\r\n",
+					 v >> 16, (v >> 8) & 0xff, v & 0xff, __DATE__, __TIME__,
+					 NIN_VERSION>>16, NIN_VERSION&0xFFFF);
+			f_write(&dbgfile, hdr, n, &done);
+			LogHeaderDone = true;
+		}
+	}
+	if (f_write(&dbgfile, s, len, &done) != FR_OK || f_sync(&dbgfile) != FR_OK)
+	{
+		// After one failed call FatFs refuses every later one on this file
+		// object: close it, and the next line opens the log again.
+		f_close(&dbgfile);
+		file_opened = -1;
+	}
+}
+
+/**
+ * Write the queued log lines, unless a disc read is in flight.
+ * Called by the main loop every pass.
+ */
+void LogFlush(void)
+{
+	if (LogQueued == 0 || DIReadPending())
+		return;
+	LogWrite(LogQueue, LogQueued);
+	LogQueued = 0;
+	if (LogDropped)
+	{
+		char note[0x30];
+		LogWrite(note, _sprintf(note, "[log: %u lines dropped]\r\n", LogDropped));
+		LogDropped = 0;
+	}
+}
 vu32 SDisInit=0;
 
 extern int svc_write(char *buffer);
@@ -311,27 +379,23 @@ int dbgprintf( const char *fmt, ...)
 	_vsprintf(buffer, fmt, args);
 	va_end(args);
 
-	u32 read;	
 	if( SDisInit )
 	{
-		if(file_opened != FR_OK)	//if log not open yet
+		u32 len = strlen(buffer);
+		if (InDIThread())
+			LogWrite(buffer, len);
+		else
 		{
-			file_opened = f_open_char(&dbgfile, "/ndebug.log", FA_OPEN_ALWAYS|FA_WRITE);
-
-			if (file_opened == FR_OK)	//new log opened write header
+			// Full during one long read: drop the line rather than wait, since
+			// DIFinishAsync() logs the game's OSReport lines through here.
+			if (LogQueued + len > sizeof(LogQueue))
+				LogDropped++;
+			else
 			{
-				u32 v = read32(0x3140);
-				dbgprintf("Nintendont IOS%d v%d.%d\r\n", v >> 16, (v >> 8) & 0xff, v & 0xff);
-
-				dbgprintf("Built   : %s %s\r\n", __DATE__, __TIME__ );
-				dbgprintf("Version : %d.%d\r\n", NIN_VERSION>>16, NIN_VERSION&0xFFFF );
+				memcpy(LogQueue + LogQueued, buffer, len);
+				LogQueued += len;
 			}
-		}
-			
-		if (file_opened == FR_OK) {
-			f_lseek(&dbgfile, dbgfile.obj.objsize);
-			f_write(&dbgfile, buffer, strlen(buffer), &read);
-			f_sync(&dbgfile);
+			LogFlush();
 		}
 	}
 
@@ -344,6 +408,8 @@ int dbgprintf( const char *fmt, ...)
 }
 void closeLog(void)
 {
+	DIFinishAsync();
+	LogFlush();
 	if(file_opened == FR_OK)
 	{
 		file_opened = -1;
@@ -357,12 +423,14 @@ void CheckOSReport(void)
 	u32 Length = read32(0x13160004);
 	if (Length != 0x0)
 	{
+		if (Length > 0xFF)	// dbgprintf's buffer is 0x100
+			Length = 0xFF;
 		char* Address = (char*)(P2C(read32(0x13160000)));
 		sync_before_read((void*)((u32)(Address) & 0x1FFFFFFC), Length + 4);
 		char* Msg = malloca(Length + 1, 0x20);
 		strncpy(Msg, Address, Length);
 		Msg[Length] = '\0';
-		dbgprintf(Msg);
+		dbgprintf("%s", Msg);	// the game's text, not a format
 		free(Msg);
 		write32(0x13160004, 0);
 		sync_after_write((void*)0x13160004, 0x4);
