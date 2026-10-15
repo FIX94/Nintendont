@@ -1079,14 +1079,18 @@ int main(int argc, char **argv)
 			{
 				case BI2_REGION_JAPAN:
 				case BI2_REGION_SOUTH_KOREA:
-				default:
 					// JPN games.
 					memcpy(MemCardName, "ninmemj", 7);
 					break;
 
 				case BI2_REGION_USA:
 				case BI2_REGION_PAL:
-					// USA/PAL games.
+				default:
+					// USA/PAL games, and any unrecognised region.
+					// GCNCard_Load() in the kernel only appends 'j' for
+					// JPN and KOR, and GenerateMemCard() below formats
+					// anything else as USA/PAL, so an unknown region has
+					// to land here too or the three disagree.
 					memcpy(MemCardName, "ninmem", 6);
 					break;
 			}
