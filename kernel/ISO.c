@@ -36,6 +36,7 @@ u32 ISOFileOpen = 0;
 #define CACHE_MAX		0x400
 #define CACHE_START		(u8*)0x11000000
 #define CACHE_SIZE		0x300000
+#define CACHE_MIN		0x100000	// smallest cache, see ISOSetupCache()
 
 
 
@@ -412,13 +413,23 @@ void ISOSetupCache()
 			MemCardSize = GCNCard_GetTotalSize();
 		}
 		DCCache += MemCardSize; //memcard is before cache
-		DCacheLimit -= MemCardSize;
+		// The cards share CACHE_SIZE with the cache, and a card of 507
+		// blocks (4MB) or two 251-block cards are already bigger than it.
+		// Subtracting them would wrap the unsigned limit, the cache would
+		// never flush, and it would grow into the DI buffer and the kernel.
+		// Keep the 1MB the default 251-block card leaves instead.
+		if (MemCardSize < CACHE_SIZE - CACHE_MIN)
+			DCacheLimit -= MemCardSize;
+		else
+			DCacheLimit = CACHE_MIN;
 	}
 	memset32(DC, 0, sizeof(DataCache)* CACHE_MAX);
 
 	DataCacheOffset = 0;
 	TempCacheCount = 0;
 
+	dbgprintf("ISO:Cache %08X-%08X (%u KB)\r\n", (u32)DCCache,
+		(u32)DCCache + DCacheLimit, DCacheLimit >> 10);
 	CacheInited = 1;
 }
 
