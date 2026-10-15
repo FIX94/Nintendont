@@ -480,10 +480,14 @@ const u8 *ISORead(u32* Length, u32 Offset)
 	}
 
 	u64 Offset64 = Offset + ISOShift64;
-	if( (Offset64 == LastOffset64) && (*Length < 0x8000) )
-	{	//pre-load data, guessing
-		u32 OriLength = *Length;
-		while((*Length += OriLength) < 0x10000) ;
+	if( (Offset64 == LastOffset64) && (*Length > 0) && (*Length < 0x8000) )
+	{	//pre-load data, guessing: smallest multiple of the request that
+		//reaches 64KB, but always at least double it
+		const u32 OriLength = *Length;
+		u32 mult = (0x10000 + OriLength - 1) / OriLength;
+		if( mult < 2 )
+			mult = 2;
+		*Length = mult * OriLength;
 	}
 
 	// case we ran out of positions
