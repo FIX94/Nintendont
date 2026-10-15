@@ -118,6 +118,14 @@ void DIUnregister(void)
 	DI_MessageHeap = NULL;
 }
 
+/**
+ * Is an asynchronous disc read in flight? DIReadThread is then using FatFs.
+ */
+bool DIReadPending(void)
+{
+	return DI_CallbackMsg.result != 0;
+}
+
 bool DiscCheckAsync( void )
 {
 	if(RealDiscCMD)
