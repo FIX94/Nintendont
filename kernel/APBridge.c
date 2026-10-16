@@ -1,7 +1,7 @@
 /*
  * Nintendont AP Bridge
  *
- * v0.2: UDP HELLO proof-of-concept. No game memory access.
+ * v0.3: UDP HELLO and bounded, read-only GameCube MEM1 access.
  */
 
 #include "global.h"
@@ -10,6 +10,7 @@
 #include "sock.h"
 #include "string.h"
 #include "APBridge.h"
+#include "APBridgeProtocol.h"
 
 #define APBRIDGE_STACK_SIZE 0x800
 #define APBRIDGE_THREAD_PRIORITY 0x78
@@ -58,6 +59,7 @@ static u8 APBridge_Peer[32] ALIGNED(32);
 /* Larger than HELLO so a truncated longer datagram cannot match it. */
 static u8 APBridge_Packet[32] ALIGNED(32);
 static u8 APBridge_Reply[32] ALIGNED(32) = "NIN-AP";
+static u8 APBridge_ReadReply[APBRIDGE_READ_REPLY_SIZE] ALIGNED(32);
 
 static s32 APBridge_ThreadID = -1;
 static u32 *APBridge_Stack = NULL;
@@ -281,6 +283,10 @@ static s32 APBridge_OpenSocket(s32 fd)
 static void APBridge_Serve(s32 fd, s32 socket)
 {
 	s32 received;
+	u32 replyLength;
+	u32 armAddress;
+	enum APBridgePacketKind kind;
+	struct APBridgeReadRequest request;
 	APBridge_Record(APBRIDGE_DIAG_UDP_SERVING, 0);
 
 	while(1)
@@ -300,20 +306,43 @@ static void APBridge_Serve(s32 fd, s32 socket)
 		if(received < 0)
 			return;
 
-		if(received == 5 && memcmp(APBridge_Packet, "HELLO", 5) == 0
-			&& APBridge_Peer[0] == APBRIDGE_SOCKADDR_LEN
+		if(APBridge_Peer[0] == APBRIDGE_SOCKADDR_LEN
 			&& APBridge_Peer[1] == APBRIDGE_AF_INET)
 		{
-			memset(&APBridge_Send, 0, sizeof(APBridge_Send));
-			APBridge_Send.socket = socket;
-			APBridge_Send.has_destaddr = 1;
-			memcpy(APBridge_Send.destaddr, APBridge_Peer, APBRIDGE_SOCKADDR_LEN);
-			APBridge_Vec[0].data = APBridge_Reply;
-			APBridge_Vec[0].len = 6; /* no trailing NUL or newline */
-			APBridge_Vec[1].data = &APBridge_Send;
-			APBridge_Vec[1].len = sizeof(APBridge_Send);
-			if(IOS_Ioctlv(fd, so_sendto, 2, 0, APBridge_Vec) != 6)
-				return;
+			kind = APBridge_DecodePacket(APBridge_Packet, (u32)received, &request);
+			if(kind != APBRIDGE_PACKET_IGNORE)
+			{
+				memset(&APBridge_Send, 0, sizeof(APBridge_Send));
+				APBridge_Send.socket = socket;
+				APBridge_Send.has_destaddr = 1;
+				memcpy(APBridge_Send.destaddr, APBridge_Peer, APBRIDGE_SOCKADDR_LEN);
+				if(kind == APBRIDGE_PACKET_HELLO)
+				{
+					APBridge_Vec[0].data = APBridge_Reply;
+					replyLength = 6; /* no trailing NUL or newline */
+				}
+				else
+				{
+					APBridge_EncodeReadReply(APBridge_ReadReply, &request);
+					replyLength = APBRIDGE_READ_REQUEST_SIZE;
+					if(request.error == 0)
+					{
+						/* Validation precedes translating the PPC MEM1 address. */
+						armAddress = P2C(request.address);
+						sync_before_read_align32((void*)armAddress, request.length);
+						memcpy(APBridge_ReadReply + APBRIDGE_READ_REQUEST_SIZE,
+							(const void*)armAddress, request.length);
+						replyLength += request.length;
+					}
+					APBridge_Vec[0].data = APBridge_ReadReply;
+				}
+				APBridge_Vec[0].len = replyLength;
+				APBridge_Vec[1].data = &APBridge_Send;
+				APBridge_Vec[1].len = sizeof(APBridge_Send);
+				if(IOS_Ioctlv(fd, so_sendto, 2, 0, APBridge_Vec) != (s32)replyLength
+					&& kind == APBRIDGE_PACKET_HELLO)
+					return;
+			}
 		}
 		/* Yield even under continuous valid or unknown traffic. */
 		mdelay(10);
