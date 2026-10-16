@@ -48,7 +48,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "TRI.h"
 #include "Config.h"
 #include "wdvd.h"
-#include "../../kernel/APBridge.h"
 
 #include "ff_utf8.h"
 #include "diskio.h"
@@ -69,62 +68,13 @@ extern u32 __SYS_SyncSram(void);
 #define STATUS_DRIVE	(*(float*)(0x9000410C))
 #define STATUS_GB_MB	(*(volatile unsigned int*)(0x90004100 + 16))
 #define STATUS_ERROR	(*(volatile unsigned int*)(0x90004100 + 20))
-#define STATUS_APBRIDGE_STAGE	(*(volatile unsigned int*)(0x90004100 + APBRIDGE_DIAG_STAGE_OFFSET))
-#define STATUS_APBRIDGE_DETAIL	(*(volatile unsigned int*)(0x90004100 + APBRIDGE_DIAG_DETAIL_OFFSET))
 
 #define HW_DIFLAGS		0xD800180
 #define MEM_PROT		0xD8B420A
 
 #define IOCTL_ExecSuspendScheduler	1
-/* Temporary AP Bridge diagnostic: set to 0 to restore normal WC24 suspension. */
-#define APBRIDGE_DIAG_KEEP_NETWORK_SCHEDULER 0
 
 static GXRModeObj *vmode = NULL;
-
-static const char *const APBridge_DiagStageNames[APBRIDGE_DIAG_STAGE_COUNT] = {
-	"NOT_STARTED", "THREAD_STARTED",
-	"NCD_OPEN_BEGIN", "NCD_OPEN_FAILED", "NCD_OPEN_OK",
-	"NCD_GETLINKSTATUS_BEGIN", "NCD_GETLINKSTATUS_FAILED", "NCD_GETLINKSTATUS_OK",
-	"IP_TOP_OPEN_BEGIN", "IP_TOP_OPEN_FAILED", "IP_TOP_OPEN_OK",
-	"KD_OPEN_BEGIN", "KD_OPEN_FAILED", "KD_OPEN_OK",
-	"NWC_STARTUP_BEGIN", "NWC_STARTUP_PENDING", "NWC_STARTUP_FAILED",
-	"NWC_STARTUP_OK", "NWC_ALREADY_STARTED",
-	"SO_STARTINTERFACE_BEGIN", "SO_STARTINTERFACE_FAILED", "SO_STARTINTERFACE_OK",
-	"IP_WAIT_BEGIN", "IP_QUERY_FAILED", "IP_NOT_READY", "IP_READY",
-	"UDP_SOCKET_BEGIN", "UDP_SOCKET_FAILED", "UDP_SOCKET_OK",
-	"UDP_BIND_BEGIN", "UDP_BIND_FAILED", "UDP_BIND_OK", "UDP_SERVING",
-	"KD_EXISTING_FD_INVALID", "KD_BORROWED_FD"
-};
-
-static void APBridge_ShowDiagnostic(void)
-{
-	u32 tick, stage;
-	s32 detail;
-
-	/* Kernel has signalled ready; the loader UI is still active here. */
-	for(tick = 0; tick <= 60; tick++)
-	{
-		DCInvalidateRange(STATUS, 0x20);
-		stage = STATUS_APBRIDGE_STAGE;
-		detail = (s32)STATUS_APBRIDGE_DETAIL;
-		ClearScreen();
-		PrintInfo();
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*5,
-			"AP Bridge diagnostic (temporary)");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*7,
-			"Stage: %u %s", stage, stage < APBRIDGE_DIAG_STAGE_COUNT
-				? APBridge_DiagStageNames[stage] : "UNKNOWN");
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*8,
-			"Detail: %d (0x%08X)", detail, (u32)detail);
-		PrintFormat(DEFAULT_SIZE, BLACK, MENU_POS_X, MENU_POS_Y + 20*10,
-			"Network startup observation: %u / 15 s", tick / 4);
-		GRRLIB_Render();
-		if(tick < 60)
-			usleep(250000);
-	}
-	/* Hold the final sampled state long enough to read or photograph. */
-	sleep(5);
-}
 
 static unsigned char ESBootPatch[] =
 {
@@ -1436,8 +1386,6 @@ int main(int argc, char **argv)
 		GRRLIB_Render();
 		DrawBuffer(); // Draw all status messages
 	}
-	if((ncfg->Config & NIN_CFG_BBA_EMU) == 0)
-		APBridge_ShowDiagnostic();
 //	memcpy( (void*)0x80000000, (void*)0x90140000, 0x1200000 );
 	GRRLIB_FreeTexture(background);
 	GRRLIB_FreeTexture(screen_buffer);
@@ -1622,14 +1570,12 @@ int main(int argc, char **argv)
 	//lets prevent weird events
 	__STM_Close();
 
-#if !APBRIDGE_DIAG_KEEP_NETWORK_SCHEDULER
 	//THIS thing right here, it interrupts some games and breaks them
 	//To fix that, call ExecSuspendScheduler so WC24 just sleeps
 	u32 out = 0;
 	fd = IOS_Open("/dev/net/kd/request", 0);
 	IOS_Ioctl(fd, IOCTL_ExecSuspendScheduler, NULL, 0, &out, 4);
 	IOS_Close(fd);
-#endif
 
 	if(ncfg->Config & NIN_CFG_BBA_EMU)
 	{
