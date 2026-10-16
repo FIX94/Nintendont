@@ -23,6 +23,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 void SOCKInit();
 void SOCKShutdown();
+/* SOCKInit's KD open result; a valid descriptor remains owned by sock.c. */
+int SOCKGetNWCHandle(void);
 void SOCKUpdateRegisters();
 void SOCKInterrupt(void);
 

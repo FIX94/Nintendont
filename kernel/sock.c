@@ -253,6 +253,11 @@ void SOCKInit()
 	//dbgprintf("SOInit %08x\n", &soIf[1]);
 }
 
+int SOCKGetNWCHandle(void)
+{
+	return nwcFd;
+}
+
 void SOCKShutdown()
 {
 	IOS_Close(sockFd);
