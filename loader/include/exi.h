@@ -28,6 +28,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "global.h"
 
 void CheckForGecko(void);
+// True if CheckForGecko() found a USB Gecko in memory card Slot B.
+bool HaveGecko(void);
 void closeLog(void);
 
 #ifdef DEBUG
