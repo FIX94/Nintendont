@@ -291,7 +291,7 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 				{
 					WDVD_FST_LSeek(0x8458);
 					read = WDVD_FST_Read(wdvdTmpBuf, sizeof(*BI2region));
-					memcpy(&BI2region, wdvdTmpBuf, sizeof(*BI2region));
+					memcpy(BI2region, wdvdTmpBuf, sizeof(*BI2region));
 				}
 				else
 				{
