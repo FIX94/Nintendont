@@ -1,7 +1,7 @@
 /*
  * Nintendont AP Bridge
  *
- * v0.3: UDP HELLO and bounded, read-only GameCube MEM1 access.
+ * v0.4: UDP HELLO and bounded GameCube MEM1 READ/WRITE access.
  */
 
 #include "global.h"
@@ -56,8 +56,8 @@ static ioctlv APBridge_Vec[4] ALIGNED(32);
 static struct APBridge_BindParams APBridge_Bind ALIGNED(32);
 static struct APBridge_SendParams APBridge_Send ALIGNED(32);
 static u8 APBridge_Peer[32] ALIGNED(32);
-/* Larger than HELLO so a truncated longer datagram cannot match it. */
-static u8 APBridge_Packet[32] ALIGNED(32);
+/* The extra byte detects datagrams larger than the maximum valid WRITE. */
+static u8 APBridge_Packet[APBRIDGE_PACKET_BUFFER_SIZE] ALIGNED(32);
 static u8 APBridge_Reply[32] ALIGNED(32) = "NIN-AP";
 static u8 APBridge_ReadReply[APBRIDGE_READ_REPLY_SIZE] ALIGNED(32);
 
@@ -286,7 +286,7 @@ static void APBridge_Serve(s32 fd, s32 socket)
 	u32 replyLength;
 	u32 armAddress;
 	enum APBridgePacketKind kind;
-	struct APBridgeReadRequest request;
+	struct APBridgeMemoryRequest request;
 	APBridge_Record(APBRIDGE_DIAG_UDP_SERVING, 0);
 
 	while(1)
@@ -323,17 +323,28 @@ static void APBridge_Serve(s32 fd, s32 socket)
 				}
 				else
 				{
-					APBridge_EncodeReadReply(APBridge_ReadReply, &request);
 					replyLength = APBRIDGE_READ_REQUEST_SIZE;
 					if(request.error == 0)
 					{
 						/* Validation precedes translating the PPC MEM1 address. */
 						armAddress = P2C(request.address);
-						sync_before_read_align32((void*)armAddress, request.length);
-						memcpy(APBridge_ReadReply + APBRIDGE_READ_REQUEST_SIZE,
-							(const void*)armAddress, request.length);
-						replyLength += request.length;
+						if(kind == APBRIDGE_PACKET_READ)
+						{
+							sync_before_read_align32((void*)armAddress, request.length);
+							memcpy(APBridge_ReadReply + APBRIDGE_READ_REQUEST_SIZE,
+								(const void*)armAddress, request.length);
+							replyLength += request.length;
+						}
+						else
+						{
+							/* Preserve neighboring bytes on partial MEM1 cache lines. */
+							sync_before_read_align32((void*)armAddress, request.length);
+							memcpy((void*)armAddress,
+								APBridge_Packet + APBRIDGE_WRITE_REQUEST_SIZE, request.length);
+							sync_after_write_align32((void*)armAddress, request.length);
+						}
 					}
+					APBridge_EncodeMemoryReply(APBridge_ReadReply, &request, kind);
 					APBridge_Vec[0].data = APBridge_ReadReply;
 				}
 				APBridge_Vec[0].len = replyLength;
