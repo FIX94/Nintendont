@@ -32,6 +32,7 @@ MEM2
 0x93003050-0x93003060=padread bt channel free
 0x93003060-0x93003064=SIInited
 0x93003080-0x93003084=Triforce In Testmenu
+0x930030A0-0x930030E0=M14 reserved VI diagnostics (PPC uncached; ARM reads on exit)
 0x93003100-0x93003130=PadBuff
 
 0x93003130-0x93003190=pad barrel stuff
@@ -63,6 +64,9 @@ MEM2
 0x93060000-0x93100000=IOS Interface Data Buffers
 0x93100000-0x93150000=ipl fonts buffer (0x1aff00-0x1fff00)
 0x93160000-0x93160008=OSReport (patch_fwrite)
+0x93180000-0x9318C000=M15 reserved overlay code (ARM installs from Patch.c during game load, after the loader exits; PADReadGC icbi-sweeps it once before the first call). Inside libogc's loader arena, so it must NOT be written while the loader is alive.
+0x9318C000-0x9318F000=M15 reservation guard
+0x9318F000-0x93190000=M21 state (868 bytes; PPC uncached while playing; ARM init/exit only). All runtime fields are u32: Broadway uncached byte/halfword writes corrupt MEM2. Packed mapping files remain 96 bytes and are converted by ARM.
 0x931C0000=PSO PRS dol location
 0x931C0020=PSO PRS extract function location
 0x931C1800-0x931C3000=replacement memory for 0x80001800-0x80003000

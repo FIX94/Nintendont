@@ -18,6 +18,7 @@
 #include "asm/ARStartDMA_PM.h"
 #include "asm/ARStartDMA_TC.h"
 #include "asm/ARStartDMA_Hook.h"
+#include "asm/VIHook.h"
 #include "asm/__ARHandler.h"
 #include "asm/SITransfer.h"
 #include "asm/SIGetType.h"

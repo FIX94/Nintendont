@@ -1,4 +1,4 @@
-﻿/*
+/*
 
 Nintendont (Kernel) - Playing Gamecubes in Wii mode on a Wii U
 
@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
 #include "Patch.h"
+#include "../common/include/Overlay.h"
 #include "string.h"
 #include "dol.h"
 #include "elf.h"
@@ -38,6 +39,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "codehandler.h"
 #include "codehandleronly.h"
 #include "ff_utf8.h"
+
+/* Where the universal per-frame hook was found. See FCODE_VIRetraceHandler. */
+u32 VIRetraceAddr = 0;
+u32 VIHookStub = 0;
+
+u32 VIRetraceLen = 0;
+const char *VIRetraceVariant = NULL;
 
 //#define DEBUG_DSP  // Very slow!! Replace with raw dumps?
 
@@ -1173,6 +1181,18 @@ static bool fileExist(const char *path)
 
 void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 {
+	/*
+	 * There is deliberately no log write here.
+	 *
+	 * This runs on the disc read path, and a FAT write from here corrupts the
+	 * game's reads. Three builds asserted in JKRCompArchive/JKRMemArchive
+	 * because of it, and the last left a 0 byte file - opened, truncated, then
+	 * the write collided with the game streaming and took it down. The hazard
+	 * was already documented in this codebase and was ignored anyway.
+	 *
+	 * The overlay reports itself: if the hook works, there is a box on screen.
+	 */
+
 	if( (u32)Buffer == 0x01200000 && *(u8*)Buffer == 0x7C )
 	{	/* Game can reset at any time */
 		dbgprintf("DIP:Apploader, preparing to patch\r\n");
@@ -2387,6 +2407,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 		/* only deal with functions with potentially correct function sizes */
 		if(curFunc.Length < minPatternSize || curFunc.Length > maxPatternSize)
 			continue;
+
 		//if ((((u32)Buffer + i) & 0x7FFFFFFF) == 0x00000000) //(FuncPrint)
 		//	dbgprintf("FuncPattern: 0x%X, %d, %d, %d, %d, %d\r\n", 
 		//	curFunc.Length, curFunc.Loads, curFunc.Stores, curFunc.FCalls, curFunc.Branch, curFunc.Moves);
@@ -2399,6 +2420,7 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 			{
 				if( CurPatterns[j].Found ) //Skip already found patches
 					continue;
+
 
 				if( CPattern( &curFunc, &(CurPatterns[j]) ) )
 				{
@@ -2970,6 +2992,79 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 							if (write32A(FOffset + 0x7C, 0x60000000, 0x57FF007C, 0)) // leave tcinit tcstart alone - nop
 								printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + 0x7C);
 						} break;
+                        /* M14: shared SDK signatures, no game-specific address. */
+                        case FCODE_VIRetraceHandler:
+                        {
+                            u32 tail = FOffset + CurPatterns[j].Length;
+                            u32 stub;
+                            u32 variant = CurPatterns[j].Type[0] - 'A';
+                            u32 k, target = 0, valid = 1;
+                            /* Swiss verifies OSSetCurrentContext calls as well as
+                             * the statistical signature. Require three BL sites
+                             * to agree on a destination; never dereference outside
+                             * the function currently being scanned.
+                             * Source: emukidid/swiss-gc, patcher.c (GPL).
+                             */
+                            static const u8 contextCalls[10][3] = {
+                                {45,61,114}, {45,61,115}, {47,62,132},
+                                {39,47,126}, {39,47,131}, {42,50,132},
+                                {42,50,134}, {47,55,139}, {44,59,151},
+                                {49,64,156}
+                            };
+                            /* A statistical collision must not mark the entire
+                             * VI group found and hide the real handler later. */
+                            CurPatterns[j].Found = 0;
+                            if(variant >= 10 || CurPatterns[j].Length < 8 ||
+                               FOffset < (u32)Buffer ||
+                               FOffset - (u32)Buffer > Length ||
+                               Length - (FOffset - (u32)Buffer) < 4 ||
+                               CurPatterns[j].Length > Length - (FOffset - (u32)Buffer) - 4)
+                                break;
+                            for(k = 0; k < 3; ++k)
+                            {
+                                u32 site = FOffset + contextCalls[variant][k] * 4;
+                                if(site >= tail) {valid = 0;break;}
+                                u32 op = read32(site);
+                                s32 delta = ((s32)(op << 6)) >> 6;
+                                u32 dst = site + (delta & ~3);
+                                if((op & 0xFC000003) != 0x48000001 ||
+                                   (k && dst != target)) valid = 0;
+                                target = dst;
+                            }
+                            /* Reject a collision or unexpected epilogue. Length is
+                             * the first blr offset. Plain B preserves caller LR. */
+                            if(!valid || read32(FOffset) != 0x7C0802A6 ||
+                               read32(tail) != 0x4E800020 ||
+                               !(((read32(tail - 4) & 0xFFFF0000) == 0x38210000 &&
+                                   read32(tail - 8) == 0x7C0803A6) ||
+                                  (read32(tail - 4) == 0x7C0803A6 &&
+                                   (read32(tail - 8) & 0xFFFF0000) == 0x38210000)) ||
+                               POffset < VIHook_size + 0x1800)
+                                break;
+                            /* Check branch range before consuming patch space. */
+                            stub = POffset - VIHook_size;
+                            if((s32)(stub - tail) < -0x02000000 ||
+                               (s32)(stub - tail) > 0x01FFFFFC)
+                                break;
+                            stub = PatchCopy(VIHook, VIHook_size);
+                            PatchB(stub, tail);
+                            CurPatterns[j].Found = FOffset;
+                            VIRetraceAddr = FOffset;
+                            VIRetraceLen = CurPatterns[j].Length;
+                            VIRetraceVariant = CurPatterns[j].Type;
+                            VIHookStub = stub;
+                            /* The module goes into memory here, not in OverlayInit:
+                             * this runs during game load, after the loader has exited,
+                             * so nothing can allocate over 0x93180000 any more. Enable
+                             * input only once a renderer exists. */
+                            OverlayInstallCode();
+                            sync_before_read((void*)OVL_STATE_ARM,32);
+                            if(!read32(OVL_STATE_ARM+4)) {
+                                write32(OVL_STATE_ARM+4,1);
+                                sync_after_write((void*)OVL_STATE_ARM,32);
+                            }
+                            printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, tail);
+                        } break;
 						case FCODE_PADRead:
 						{
 							if(DisableSIPatch)
