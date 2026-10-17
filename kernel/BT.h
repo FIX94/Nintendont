@@ -23,6 +23,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 void BTInit(void);
 void BTUpdateRegisters(void);
+u8 BTSwitchIncomingACL(struct bd_addr *bdaddr);
+u8 BTSwitchIncomingGetKey(struct bd_addr *bdaddr,u8 *key);
+void BTSwitchIncomingAuthentication(struct bd_addr *bdaddr,u8 result);
+void BTSwitchIncomingEncryption(struct bd_addr *bdaddr,u8 result,u8 enabled);
+void BTSwitchIncomingChannel(struct bd_addr *bdaddr,u8 control_channel,
+	struct bte_pcb *owner);
+void BTSwitchIncomingCommandStatus(u8 command,u8 result);
 
 struct BTPadStat {
 	u32 controller;

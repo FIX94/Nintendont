@@ -48,6 +48,7 @@
 #include "btmemb.h"
 #include "btpbuf.h"
 #include "physbusif.h"
+#include "../BT.h"
 
 struct hci_pcb *hci_dev = NULL;
 struct hci_link *hci_active_links = NULL;
@@ -886,6 +887,70 @@ err_t hci_pin_code_request_neg_reply(struct bd_addr *bdaddr)
 	return ERR_OK;
 }
 
+err_t hci_link_key_request_neg_reply(struct bd_addr *bdaddr)
+{
+	struct pbuf *p;
+
+	if((p=btpbuf_alloc(PBUF_RAW,10,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_LINK_KEY_REQ_NEG_REP,HCI_LINK_CTRL_OGF,10);
+	memcpy(((u8_t*)p->payload)+4,bdaddr->addr,6);
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
+err_t hci_link_key_request_reply(struct bd_addr *bdaddr, const u8_t *key)
+{
+	struct pbuf *p;
+
+	if((p=btpbuf_alloc(PBUF_RAW,HCI_LINK_KEY_REQ_REP_PLEN,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_LINK_KEY_REQ_REP,HCI_LINK_CTRL_OGF,
+		HCI_LINK_KEY_REQ_REP_PLEN);
+	memcpy(((u8_t*)p->payload)+4,bdaddr->addr,6);
+	memcpy(((u8_t*)p->payload)+10,key,HCI_LINK_KEY_LEN);
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
+err_t hci_authentication_requested(struct bd_addr *bdaddr)
+{
+	struct pbuf *p;
+	struct hci_link *link = hci_get_link(bdaddr);
+
+	if(link == NULL)
+		return ERR_CONN;
+	if((p=btpbuf_alloc(PBUF_RAW,HCI_AUTHENTICATION_REQUESTED_PLEN,
+		PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_AUTHENTICATION_REQUESTED,HCI_LINK_CTRL_OGF,
+		HCI_AUTHENTICATION_REQUESTED_PLEN);
+	W16((u32)(((u16_t*)p->payload)+2),htole16(link->connhdl));
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
+err_t hci_set_connection_encrypt(struct bd_addr *bdaddr, u8_t enable)
+{
+	struct pbuf *p;
+	struct hci_link *link = hci_get_link(bdaddr);
+
+	if(link == NULL)
+		return ERR_CONN;
+	if((p=btpbuf_alloc(PBUF_RAW,HCI_SET_CONN_ENCRYPT_PLEN,PBUF_RAM)) == NULL)
+		return ERR_MEM;
+	p = hci_cmd_ass(p,HCI_SET_CONN_ENCRYPT,HCI_LINK_CTRL_OGF,
+		HCI_SET_CONN_ENCRYPT_PLEN);
+	W16((u32)(((u16_t*)p->payload)+2),htole16(link->connhdl));
+	((u8_t*)p->payload)[6] = enable ? 1 : 0;
+	physbusif_output(p,p->tot_len);
+	btpbuf_free(p);
+	return ERR_OK;
+}
+
 /*-----------------------------------------------------------------------------------*/
 /* hci_disconnect():
  *
@@ -1522,6 +1587,7 @@ void hci_event_handler(struct pbuf *p)
 {
 	err_t ret;
 	u8_t i,resp_off;
+	u8_t command_result;
 	u16_t ogf,ocf,opc;
 	u16_t connhdl;
 	struct pbuf *q;
@@ -1563,7 +1629,23 @@ void hci_event_handler(struct pbuf *p)
 					return;
 			}
 			break;
+		case HCI_AUTHENTICATION_COMPLETE:
+			connhdl = le16toh(R16((u32)((u16_t*)(((u8_t*)p->payload)+1))));
+			for(link=hci_active_links;link!=NULL;link=link->next) {
+				if(link->connhdl==connhdl) break;
+			}
+			if(link!=NULL)
+				BTSwitchIncomingAuthentication(&link->bdaddr,
+					((u8_t*)p->payload)[0]);
+			break;
 		case HCI_ENCRYPTION_CHANGE:
+			connhdl = le16toh(R16((u32)((u16_t*)(((u8_t*)p->payload)+1))));
+			for(link=hci_active_links;link!=NULL;link=link->next) {
+				if(link->connhdl==connhdl) break;
+			}
+			if(link!=NULL)
+				BTSwitchIncomingEncryption(&link->bdaddr,
+					((u8_t*)p->payload)[0], ((u8_t*)p->payload)[3]);
 			break;
 		case HCI_QOS_SETUP_COMPLETE:
 			break;
@@ -1588,15 +1670,19 @@ void hci_event_handler(struct pbuf *p)
 			HCI_EVENT_CMD_COMPLETE(hci_dev,ogf,ocf,((u8_t*)p->payload)[0],ret);
 			break;
 		case HCI_COMMAND_STATUS:
-			if(((u8_t*)p->payload)[0]!=HCI_SUCCESS) {
+			command_result = ((u8_t*)p->payload)[0];
+			if(command_result!=HCI_SUCCESS) {
 				btpbuf_header(p,-2);
 				
 				opc = le16toh(R16((u32)(p->payload)));
 				ocf = (opc&0x03ff);
 				ogf = (opc>>10);
 				btpbuf_header(p,-2);
+				if(ogf == HCI_LINK_CTRL_OGF)
+					BTSwitchIncomingCommandStatus(ocf,
+						command_result);
 				
-				HCI_EVENT_CMD_COMPLETE(hci_dev,ogf,ocf,((u8_t*)p->payload)[0],ret);
+				HCI_EVENT_CMD_COMPLETE(hci_dev,ogf,ocf,command_result,ret);
 				btpbuf_header(p,4);
 			}
 			hci_dev->num_cmd += ((u8_t*)p->payload)[1];
@@ -1644,6 +1730,16 @@ void hci_event_handler(struct pbuf *p)
 			HCI_EVENT_PIN_REQ(hci_dev, bdaddr, ret); /* Notify application. If event is not registered, 
 													send a negative reply */
 			break;
+		case HCI_LINK_KEY_REQUEST:
+		{
+			u8_t key[HCI_LINK_KEY_LEN];
+			bdaddr = (void *)((u8_t *)p->payload);
+			if(BTSwitchIncomingGetKey(bdaddr,key))
+				hci_link_key_request_reply(bdaddr,key);
+			else
+				hci_link_key_request_neg_reply(bdaddr);
+			break;
+		}
 		case HCI_LINK_KEY_NOTIFICATION:
 			bdaddr = (void *)((u8_t *)p->payload); /* Get the Bluetooth address */
 

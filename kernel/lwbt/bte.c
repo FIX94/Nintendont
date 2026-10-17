@@ -209,6 +209,19 @@ static s32 __bte_send_pending_request(struct bte_pcb *pcb)
 	return err;
 }
 
+static s32 __bte_notify_connected(struct bte_pcb *pcb)
+{
+	if(pcb == NULL || pcb->conn_notified || pcb->ctl_pcb == NULL ||
+		pcb->data_pcb == NULL || (pcb->require_security && !pcb->security_ready))
+		return ERR_OK;
+	pcb->err = ERR_OK;
+	pcb->state = (u32)STATE_CONNECTED;
+	pcb->conn_notified = 1;
+	if(pcb->conn_cfm != NULL)
+		return pcb->conn_cfm(pcb->cbarg,pcb,ERR_OK);
+	return ERR_OK;
+}
+
 static s32 __bte_send_request(struct ctrl_req_t *req)
 {
 	s32 err;
@@ -440,35 +453,44 @@ s32 bte_registerdeviceasync(struct bte_pcb *pcb,struct bd_addr *bdaddr,s32 (*con
 
 	//dbgprintf("bte_registerdeviceasync()\n");
 	pcb->err = ERR_USE;
-	pcb->data_pcb = NULL;
-	pcb->ctl_pcb = NULL;
+	pcb->security_ready = 0;
+	pcb->conn_notified = 0;
 	pcb->conn_cfm = conn_cfm;
 	pcb->state = (u32)STATE_CONNECTING;
 
 	bd_addr_set(&(pcb->bdaddr),bdaddr);
-	if((l2capcb=l2cap_new())==NULL) {
-		err = ERR_MEM;
-		goto error;
-	}
-	l2cap_arg(l2capcb,pcb);
+	if(pcb->incoming_listener_mask == 0x03)
+		return ERR_OK;
+	if(!(pcb->incoming_listener_mask & 0x01)) {
+		if((l2capcb=l2cap_new())==NULL) {
+			err = ERR_MEM;
+			goto error;
+		}
+		l2cap_arg(l2capcb,pcb);
 
-	err = l2cap_connect_ind(l2capcb,bdaddr,HIDP_CONTROL_CHANNEL,l2cap_accepted);
-	if(err!=ERR_OK) {
-		l2cap_close(l2capcb);
-		err = ERR_CONN;
-		goto error;
+		err = l2cap_connect_ind(l2capcb,bdaddr,HIDP_CONTROL_CHANNEL,l2cap_accepted);
+		if(err!=ERR_OK) {
+			l2cap_close(l2capcb);
+			err = ERR_CONN;
+			goto error;
+		}
+		pcb->incoming_listener_mask |= 0x01;
 	}
 	
-	if((l2capcb=l2cap_new())==NULL) {
-		err = ERR_MEM;
-		goto error;
-	}
-	l2cap_arg(l2capcb,pcb);
+	if(!(pcb->incoming_listener_mask & 0x02)) {
+		if((l2capcb=l2cap_new())==NULL) {
+			err = ERR_MEM;
+			goto error;
+		}
+		l2cap_arg(l2capcb,pcb);
 
-	err = l2cap_connect_ind(l2capcb,bdaddr,HIDP_DATA_CHANNEL,l2cap_accepted);
-	if(err!=ERR_OK) {
-		l2cap_close(l2capcb);
-		err = ERR_CONN;
+		err = l2cap_connect_ind(l2capcb,bdaddr,HIDP_DATA_CHANNEL,l2cap_accepted);
+		if(err!=ERR_OK) {
+			l2cap_close(l2capcb);
+			err = ERR_CONN;
+		}
+		else
+			pcb->incoming_listener_mask |= 0x02;
 	}
 
 error:
@@ -650,6 +672,53 @@ void bte_disconnected(struct bte_pcb *pcb,s32 (disconn_cfm)(void *arg,struct bte
 	pcb->disconn_cfm = disconn_cfm;
 }
 
+void bte_require_security(struct bte_pcb *pcb,u8 required)
+{
+	if(pcb != NULL)
+		pcb->require_security = required ? 1 : 0;
+}
+
+s32 bte_security_complete(struct bte_pcb *pcb,u8 err)
+{
+	if(pcb == NULL)
+		return ERR_VAL;
+	if(err != ERR_OK)
+	{
+		pcb->err = err;
+		return err;
+	}
+	pcb->security_ready = 1;
+	return __bte_notify_connected(pcb);
+}
+
+u8 bte_ready_for_data(struct bte_pcb *pcb,u32 *bte_state,
+	u32 *control_state,u32 *data_state)
+{
+	u32 control = L2CAP_CLOSED;
+	u32 data = L2CAP_CLOSED;
+
+	if(pcb != NULL)
+	{
+		if(pcb->ctl_pcb != NULL)
+			control = pcb->ctl_pcb->state;
+		if(pcb->data_pcb != NULL)
+			data = pcb->data_pcb->state;
+		if(bte_state != NULL)
+			*bte_state = pcb->state;
+	}
+	else if(bte_state != NULL)
+		*bte_state = (u32)STATE_NOTREADY;
+	if(control_state != NULL)
+		*control_state = control;
+	if(data_state != NULL)
+		*data_state = data;
+
+	return pcb != NULL && pcb->state == (u32)STATE_CONNECTED &&
+		(!pcb->require_security || pcb->security_ready) &&
+		pcb->ctl_pcb != NULL && control == L2CAP_OPEN &&
+		pcb->data_pcb != NULL && data == L2CAP_OPEN;
+}
+
 err_t acl_wlp_completed(void *arg,struct bd_addr *bdaddr)
 {
 	//hci_sniff_mode(bdaddr,200,100,10,10);
@@ -661,7 +730,8 @@ err_t acl_conn_complete(void *arg,struct bd_addr *bdaddr)
 	//printf("acl_conn_complete\n");
 	//memcpy(&(btstate.acl_bdaddr),bdaddr,6);
 
-	hci_write_link_policy_settings(bdaddr,0x0005);
+	if(!BTSwitchIncomingACL(bdaddr))
+		hci_write_link_policy_settings(bdaddr,0x0005);
 	return ERR_OK;
 }
 
@@ -691,6 +761,8 @@ err_t l2cap_disconnected_ind(void *arg, struct l2cap_pcb *pcb, err_t err)
 	if(bte->data_pcb==NULL && bte->ctl_pcb==NULL) {
 		bte->err = ERR_OK;
 		bte->state = (u32)STATE_DISCONNECTED;
+		bte->security_ready = 0;
+		bte->conn_notified = 0;
 		__bte_close_ctrl_queue(bte);
 		if(bte->disconn_cfm!=NULL) bte->disconn_cfm(bte->cbarg,bte,ERR_OK);
 	}
@@ -720,6 +792,8 @@ err_t l2cap_disconnect_cfm(void *arg, struct l2cap_pcb *pcb)
 	if(bte->data_pcb==NULL && bte->ctl_pcb==NULL) {
 		bte->err = ERR_OK;
 		bte->state = (u32)STATE_DISCONNECTED;
+		bte->security_ready = 0;
+		bte->conn_notified = 0;
 		__bte_close_ctrl_queue(bte);
 		if(bte->disconn_cfm!=NULL) bte->disconn_cfm(bte->cbarg,bte,ERR_OK);
 
@@ -747,16 +821,15 @@ err_t l2cap_accepted(void *arg,struct l2cap_pcb *l2cappcb,err_t err)
 		switch(l2cap_psm(l2cappcb)) {
 			case HIDP_CONTROL_CHANNEL:
 				btepcb->ctl_pcb = l2cappcb;
+				BTSwitchIncomingChannel(&btepcb->bdaddr,1,btepcb);
 				break;
 			case HIDP_DATA_CHANNEL:
 				btepcb->data_pcb = l2cappcb;
+				BTSwitchIncomingChannel(&btepcb->bdaddr,0,btepcb);
 				break;
 		}
-		if(btepcb->data_pcb && btepcb->ctl_pcb) {
-			btepcb->err = ERR_OK;
-			btepcb->state = (u32)STATE_CONNECTED;
-			if(btepcb->conn_cfm) btepcb->conn_cfm(btepcb->cbarg,btepcb,ERR_OK);
-		}
+		if(btepcb->data_pcb && btepcb->ctl_pcb)
+			__bte_notify_connected(btepcb);
 	} else {
 		l2cap_close(l2cappcb);
 		btepcb->err = ERR_CONN;
@@ -1125,4 +1198,3 @@ err_t bte_hci_initsub_complete(void *arg,struct hci_pcb *pcb,u8_t ogf,u8_t ocf,u
 	if(err!=ERR_OK) __bte_cmdfinish(state,err);
 	return err;
 }
-

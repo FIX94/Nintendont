@@ -73,6 +73,7 @@ MEM2
 0x932C0494-0x932C0498=SensorBarPosition
 0x932C0498-0x932C049C=AspectRatio
 0x932F0000-0x932F008F=BTPad
+0x932F3200-0x932F328B=Switch Pro pairing bundle (up to four controllers)
 
 Hardware Registers
 0x0D80600C=EXI Command/Loop
