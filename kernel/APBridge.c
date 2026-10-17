@@ -1,7 +1,7 @@
 /*
  * Nintendont AP Bridge
  *
- * v0.4: UDP HELLO and bounded GameCube MEM1 READ/WRITE access.
+ * v0.5: UDP HELLO and bounded GameCube MEM1 READ/WRITE/WRTX access.
  */
 
 #include "global.h"
@@ -60,6 +60,8 @@ static u8 APBridge_Peer[32] ALIGNED(32);
 static u8 APBridge_Packet[APBRIDGE_PACKET_BUFFER_SIZE] ALIGNED(32);
 static u8 APBridge_Reply[32] ALIGNED(32) = "NIN-AP";
 static u8 APBridge_ReadReply[APBRIDGE_READ_REPLY_SIZE] ALIGNED(32);
+/* ARM-only state, shared by all UDP peers and retained across socket retries. */
+static struct APBridgeTxCache APBridge_TxCache;
 
 static s32 APBridge_ThreadID = -1;
 static u32 *APBridge_Stack = NULL;
@@ -286,6 +288,7 @@ static void APBridge_Serve(s32 fd, s32 socket)
 	u32 replyLength;
 	u32 armAddress;
 	enum APBridgePacketKind kind;
+	enum APBridgeTxLookupResult txResult;
 	struct APBridgeMemoryRequest request;
 	APBridge_Record(APBRIDGE_DIAG_UDP_SERVING, 0);
 
@@ -323,25 +326,44 @@ static void APBridge_Serve(s32 fd, s32 socket)
 				}
 				else
 				{
-					replyLength = APBRIDGE_READ_REQUEST_SIZE;
+					replyLength = kind == APBRIDGE_PACKET_WRITE_TX
+						? APBRIDGE_TX_REQUEST_SIZE : APBRIDGE_READ_REQUEST_SIZE;
 					if(request.error == 0)
 					{
-						/* Validation precedes translating the PPC MEM1 address. */
-						armAddress = P2C(request.address);
 						if(kind == APBRIDGE_PACKET_READ)
 						{
+							armAddress = P2C(request.address);
 							sync_before_read_align32((void*)armAddress, request.length);
 							memcpy(APBridge_ReadReply + APBRIDGE_READ_REQUEST_SIZE,
 								(const void*)armAddress, request.length);
 							replyLength += request.length;
 						}
-						else
+						else if(kind == APBRIDGE_PACKET_WRITE)
 						{
+							armAddress = P2C(request.address);
 							/* Preserve neighboring bytes on partial MEM1 cache lines. */
 							sync_before_read_align32((void*)armAddress, request.length);
 							memcpy((void*)armAddress,
 								APBridge_Packet + APBRIDGE_WRITE_REQUEST_SIZE, request.length);
 							sync_after_write_align32((void*)armAddress, request.length);
+						}
+						else
+						{
+							txResult = APBridge_TxCacheLookup(&APBridge_TxCache,
+								&request, APBridge_Packet + APBRIDGE_TX_REQUEST_SIZE);
+							if(txResult == APBRIDGE_TX_ID_CONFLICT)
+								request.error = APBRIDGE_TX_CONFLICT;
+							else if(txResult == APBRIDGE_TX_NEW)
+							{
+								armAddress = P2C(request.address);
+								sync_before_read_align32((void*)armAddress, request.length);
+								memcpy((void*)armAddress,
+									APBridge_Packet + APBRIDGE_TX_REQUEST_SIZE, request.length);
+								sync_after_write_align32((void*)armAddress, request.length);
+								/* Cache the completed write before attempting WROK. */
+								APBridge_TxCacheRecord(&APBridge_TxCache, &request,
+									APBridge_Packet + APBRIDGE_TX_REQUEST_SIZE);
+							}
 						}
 					}
 					APBridge_EncodeMemoryReply(APBridge_ReadReply, &request, kind);

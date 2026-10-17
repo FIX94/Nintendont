@@ -8,8 +8,11 @@
 #define APBRIDGE_WRITE_REQUEST_SIZE 12
 #define APBRIDGE_WRITE_MAX_LENGTH APBRIDGE_READ_MAX_LENGTH
 #define APBRIDGE_WRITE_MAX_SIZE (APBRIDGE_WRITE_REQUEST_SIZE + APBRIDGE_WRITE_MAX_LENGTH)
-/* One extra byte makes an oversized WRITE distinguishable from a valid 268-byte packet. */
-#define APBRIDGE_PACKET_BUFFER_SIZE (APBRIDGE_WRITE_MAX_SIZE + 1)
+#define APBRIDGE_TX_REQUEST_SIZE 20
+#define APBRIDGE_TX_MAX_SIZE (APBRIDGE_TX_REQUEST_SIZE + APBRIDGE_WRITE_MAX_LENGTH)
+/* Keep one extra byte so an oversized datagram cannot look like a valid maximum. */
+#define APBRIDGE_PACKET_BUFFER_SIZE (APBRIDGE_TX_MAX_SIZE + 1)
+#define APBRIDGE_TX_CACHE_ENTRIES 16
 #define APBRIDGE_MEM1_START 0x80000000U
 #define APBRIDGE_MEM1_END 0x81800000U /* exclusive */
 
@@ -17,18 +20,45 @@
 #define APBRIDGE_READ_BAD_RANGE 2
 #define APBRIDGE_READ_BAD_RESERVED 3
 #define APBRIDGE_WRITE_BAD_PAYLOAD_SIZE 4
+#define APBRIDGE_TX_BAD_ID 5
+#define APBRIDGE_TX_CONFLICT 6
 
 enum APBridgePacketKind {
 	APBRIDGE_PACKET_IGNORE,
 	APBRIDGE_PACKET_HELLO,
 	APBRIDGE_PACKET_READ,
-	APBRIDGE_PACKET_WRITE
+	APBRIDGE_PACKET_WRITE,
+	APBRIDGE_PACKET_WRITE_TX
 };
 
 struct APBridgeMemoryRequest {
 	u32 address;
 	u16 length;
 	u8 error;
+	u32 txHigh;
+	u32 txLow;
+};
+
+/* A zero ID marks an unused slot. This is a bounded recent cache: callers
+ * must not intentionally reuse IDs after eviction.
+ */
+struct APBridgeTxEntry {
+	u32 txHigh;
+	u32 txLow;
+	u32 address;
+	u32 length;
+	u8 payload[APBRIDGE_WRITE_MAX_LENGTH];
+};
+
+struct APBridgeTxCache {
+	struct APBridgeTxEntry entries[APBRIDGE_TX_CACHE_ENTRIES];
+	u32 next;
+};
+
+enum APBridgeTxLookupResult {
+	APBRIDGE_TX_NEW,
+	APBRIDGE_TX_DUPLICATE,
+	APBRIDGE_TX_ID_CONFLICT
 };
 
 static u16 APBridge_ReadBE16(const u8 *bytes)
@@ -91,16 +121,37 @@ static enum APBridgePacketKind APBridge_DecodePacket(
 	else if(packet[0] == 'W' && packet[1] == 'R'
 		&& packet[2] == 'I' && packet[3] == 'T')
 		kind = APBRIDGE_PACKET_WRITE;
+	else if(packet[0] == 'W' && packet[1] == 'R'
+		&& packet[2] == 'T' && packet[3] == 'X')
+	{
+		if(size < APBRIDGE_TX_REQUEST_SIZE)
+			return APBRIDGE_PACKET_IGNORE;
+		kind = APBRIDGE_PACKET_WRITE_TX;
+	}
 	else
 		return APBRIDGE_PACKET_IGNORE;
 
 	request->address = APBridge_ReadBE32(packet + 4);
 	request->length = APBridge_ReadBE16(packet + 8);
 	reserved = APBridge_ReadBE16(packet + 10);
+	request->txHigh = 0;
+	request->txLow = 0;
+	if(kind == APBRIDGE_PACKET_WRITE_TX)
+	{
+		request->txHigh = APBridge_ReadBE32(packet + 12);
+		request->txLow = APBridge_ReadBE32(packet + 16);
+	}
 	request->error = APBridge_ValidateMemoryRequest(request, reserved);
 	if(kind == APBRIDGE_PACKET_WRITE && request->error == 0
 		&& size != (u32)(APBRIDGE_WRITE_REQUEST_SIZE + request->length))
 		request->error = APBRIDGE_WRITE_BAD_PAYLOAD_SIZE;
+	if(kind == APBRIDGE_PACKET_WRITE_TX && request->error == 0)
+	{
+		if(size != (u32)(APBRIDGE_TX_REQUEST_SIZE + request->length))
+			request->error = APBRIDGE_WRITE_BAD_PAYLOAD_SIZE;
+		else if((request->txHigh | request->txLow) == 0)
+			request->error = APBRIDGE_TX_BAD_ID;
+	}
 	return kind;
 }
 
@@ -108,7 +159,7 @@ static void APBridge_EncodeMemoryReply(u8 *reply,
 	const struct APBridgeMemoryRequest *request, enum APBridgePacketKind kind)
 {
 	const char *magic = request->error ? "ERR!"
-		: (kind == APBRIDGE_PACKET_WRITE ? "WROK" : "DATA");
+		: (kind == APBRIDGE_PACKET_READ ? "DATA" : "WROK");
 	reply[0] = magic[0];
 	reply[1] = magic[1];
 	reply[2] = magic[2];
@@ -117,6 +168,51 @@ static void APBridge_EncodeMemoryReply(u8 *reply,
 	APBridge_WriteBE16(reply + 8, request->length);
 	reply[10] = request->error;
 	reply[11] = 0;
+	if(kind == APBRIDGE_PACKET_WRITE_TX)
+	{
+		APBridge_WriteBE32(reply + 12, request->txHigh);
+		APBridge_WriteBE32(reply + 16, request->txLow);
+	}
+}
+
+static enum APBridgeTxLookupResult APBridge_TxCacheLookup(
+	const struct APBridgeTxCache *cache,
+	const struct APBridgeMemoryRequest *request, const u8 *payload)
+{
+	/* No peer key: a retransmission may arrive from a new UDP source port. */
+	u32 i;
+	const struct APBridgeTxEntry *entry;
+
+	for(i = 0; i < APBRIDGE_TX_CACHE_ENTRIES; i++)
+	{
+		entry = &cache->entries[i];
+		if(entry->txHigh != request->txHigh || entry->txLow != request->txLow)
+			continue;
+		if(entry->address == request->address && entry->length == request->length
+			&& memcmp(entry->payload, payload, request->length) == 0)
+			return APBRIDGE_TX_DUPLICATE;
+		return APBRIDGE_TX_ID_CONFLICT;
+	}
+	return APBRIDGE_TX_NEW;
+}
+
+static void APBridge_TxCacheRecord(struct APBridgeTxCache *cache,
+	const struct APBridgeMemoryRequest *request, const u8 *payload)
+{
+	struct APBridgeTxEntry *entry;
+
+	if(request->error != 0 || (request->txHigh | request->txLow) == 0
+		|| request->length == 0 || request->length > APBRIDGE_WRITE_MAX_LENGTH)
+		return;
+	entry = &cache->entries[cache->next];
+	entry->txHigh = 0;
+	entry->txLow = 0;
+	entry->address = request->address;
+	entry->length = request->length;
+	memcpy(entry->payload, payload, request->length);
+	entry->txHigh = request->txHigh;
+	entry->txLow = request->txLow;
+	cache->next = (cache->next + 1) % APBRIDGE_TX_CACHE_ENTRIES;
 }
 
 #endif
