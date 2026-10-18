@@ -11,11 +11,15 @@ OBJCOPY = $(PREFIX)objcopy
 RANLIB = $(PREFIX)ranlib
 STRIP = $(PREFIX)strip
 
-ifeq ($(OS),Windows_NT)
-	BIN2H =	../bin2h/bin2h.exe
+# Pick the bundled Windows or Linux helper. See kernel/Makefile for why $(OS)
+# alone is not enough here.
+UNAME_S := $(shell uname -s 2>/dev/null)
+ifneq (,$(filter Windows_NT,$(OS))$(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S))$(findstring CYGWIN,$(UNAME_S)))
+	HOST_EXE := .exe
 else
-	BIN2H =	../bin2h/bin2h
+	HOST_EXE :=
 endif
+BIN2H = ../bin2h/bin2h$(HOST_EXE)
 
 SFILES		:=	$(wildcard *.S)
 DFILES		:=	$(SFILES:.S=.d)
