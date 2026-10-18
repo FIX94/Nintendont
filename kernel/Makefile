@@ -22,11 +22,10 @@ OBJCOPY	:= $(PREFIX)objcopy
 # "cannot execute binary file". Fall back to uname so detection works either way.
 UNAME_S := $(shell uname -s 2>/dev/null)
 ifneq (,$(filter Windows_NT,$(OS))$(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S))$(findstring CYGWIN,$(UNAME_S)))
-	HOST_EXE := .exe
+	ZIP := zip/zip.exe
 else
-	HOST_EXE :=
+	ZIP := zip
 endif
-ZIP = zip/zip$(HOST_EXE)
 
 CFLAGS	:= -mbig-endian -O3 -std=gnu89 -g -I. -Wall \
 	   -mcpu=arm926ej-s -msoft-float -mfloat-abi=soft \

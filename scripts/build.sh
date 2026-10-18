@@ -39,6 +39,7 @@ export DEVKITPRO
 # warning on the pinned gcc 8.3 and a hard error on gcc 14+.
 # Set NINTENDONT_DEVKITPPC / NINTENDONT_DEVKITARM to override on purpose.
 DEVKITPPC="${NINTENDONT_DEVKITPPC:-$DEVKITPRO/devkitPPC-r35-2}"
+[ -d "$DEVKITPPC" ] || DEVKITPPC="$DEVKITPRO/devkitPPC-r35-1"	# Linux/macOS
 DEVKITARM="${NINTENDONT_DEVKITARM:-$DEVKITPRO/devkitARM-r53-1}"
 [ -d "$DEVKITPPC" ] || DEVKITPPC="$DEVKITPRO/devkitPPC"
 [ -d "$DEVKITARM" ] || DEVKITARM="$DEVKITPRO/devkitARM"

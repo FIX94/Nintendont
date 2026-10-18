@@ -52,7 +52,7 @@ you already have, so it will not disturb other projects:
 | Component | Version | Installed as |
 |---|---|---|
 | devkitARM | r53-1 (gcc 9.1.0) | `$DEVKITPRO/devkitARM-r53-1` |
-| devkitPPC | r35-2 (gcc 8.3.0) | `$DEVKITPRO/devkitPPC-r35-2` |
+| devkitPPC | r35-2 (gcc 8.3.0; r35-1 on Linux/macOS) | `$DEVKITPRO/devkitPPC-r35-2` (`-r35-1`) |
 | libOGC | 1.8.23-1 | `$DEVKITPRO/libogc-1.8.23` |
 
 These are not arbitrary. Nintendont has not been updated for the modern

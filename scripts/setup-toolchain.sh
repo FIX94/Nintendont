@@ -6,7 +6,8 @@
 # devkitPro you already have, so this does NOT disturb other projects:
 #
 #     $DEVKITPRO/devkitARM-r53-1
-#     $DEVKITPRO/devkitPPC-r35-2
+#     $DEVKITPRO/devkitPPC-r35-2   (r35-1 on Linux/macOS: r35-2 was a
+#                                   Windows-only rebuild, same gcc 8.3.0)
 #     $DEVKITPRO/libogc-1.8.23
 #
 # Why pinned versions, and why they are not simply "pacman install":
@@ -58,6 +59,11 @@ Set DEVKITPRO if you installed it somewhere non-standard.
 EOF
 	exit 1
 fi
+
+# r35-2 exists only as a Windows package.
+PPC_REL=r35-1
+[ "$HOST" = windows ] && PPC_REL=r35-2
+PPC_DIR="$DEVKITPRO/devkitPPC-$PPC_REL"
 
 log()  { printf '\n==> %s\n' "$1"; }
 warn() { printf '\n!!! %s\n' "$1" >&2; }
@@ -130,8 +136,8 @@ Refusing to install. Do not use this download."
 install_pkg "$DEVKITPRO/devkitARM-r53-1" devkitARM \
 	"devkitARM/r53%20%282019-06%29/devkitARM-r53-1-$HOST.pkg.tar.xz"
 
-install_pkg "$DEVKITPRO/devkitPPC-r35-2" devkitPPC \
-	"devkitPPC/r35/devkitPPC-r35-2-$HOST.pkg.tar.xz"
+install_pkg "$PPC_DIR" devkitPPC \
+	"devkitPPC/r35/devkitPPC-$PPC_REL-$HOST.pkg.tar.xz"
 
 install_pkg "$DEVKITPRO/libogc-1.8.23" libogc \
 	"libogc/libogc_1.8.23%20%282019-10-02%29/libogc-1.8.23-1-any.pkg.tar.xz"
@@ -139,17 +145,17 @@ install_pkg "$DEVKITPRO/libogc-1.8.23" libogc \
 # ---------------------------------------------------------------------------
 # devkitPPC make rules
 #
-# The r35-2 package contains only the compiler -- no base_rules/wii_rules
+# The r35 package contains only the compiler -- no base_rules/wii_rules
 # (in that era they shipped in a separate devkitppc-rules package). The build
 # needs them, and wii_rules is also where LIBOGC_INC/LIBOGC_LIB are set, so we
 # write a minimal set here pointing at the pinned libogc. Self-contained, and
 # it cannot be disturbed by whatever the system devkitPPC does.
 # ---------------------------------------------------------------------------
-RULES_DIR="$DEVKITPRO/devkitPPC-r35-2"
+RULES_DIR="$PPC_DIR"
 if [ -f "$RULES_DIR/wii_rules" ] && grep -q "libogc-1.8.23" "$RULES_DIR/wii_rules"; then
-	log "devkitPPC-r35-2 make rules already in place"
+	log "devkitPPC-$PPC_REL make rules already in place"
 else
-	log "Writing devkitPPC-r35-2 make rules (pointing at the pinned libogc)"
+	log "Writing devkitPPC-$PPC_REL make rules (pointing at the pinned libogc)"
 
 	cat > "$RULES_DIR/base_tools" <<'EOF'
 ifeq ($(strip $(DEVKITPPC)),)
@@ -230,11 +236,11 @@ fail=0
 check() { if [ -e "$2" ]; then printf '  %-42s ok\n' "$1"; else printf '  %-42s MISSING\n' "$1"; fail=1; fi; }
 
 EXE=""; [ "$HOST" = windows ] && EXE=".exe"
-check "devkitPPC r35-2 compiler"  "$DEVKITPRO/devkitPPC-r35-2/bin/powerpc-eabi-gcc$EXE"
+check "devkitPPC $PPC_REL compiler"  "$PPC_DIR/bin/powerpc-eabi-gcc$EXE"
 check "devkitARM r53-1 compiler"  "$DEVKITPRO/devkitARM-r53-1/bin/arm-none-eabi-gcc$EXE"
 check "libOGC 1.8.23 headers"     "$DEVKITPRO/libogc-1.8.23/include/ogc/lwp_threads.h"
 check "libOGC 1.8.23 library"     "$DEVKITPRO/libogc-1.8.23/lib/wii/libogc.a"
-check "devkitPPC r35-2 wii_rules" "$DEVKITPRO/devkitPPC-r35-2/wii_rules"
+check "devkitPPC $PPC_REL wii_rules" "$PPC_DIR/wii_rules"
 check "elf2dol (devkitPro tools)" "$DEVKITPRO/tools/bin/elf2dol$EXE"
 
 # The three libogc internals Nintendont depends on, which newer libogc removed.
