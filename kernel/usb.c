@@ -125,6 +125,14 @@ s32 USB_Initialize()
 	return IPC_OK;
 }
 
+/* Kernel USB storage owns the only /dev/usb/ven handle IOS58 will hand out;
+ * a second IOS_Open on it returns IPC_EINVAL while this one is held. XInput
+ * pads are vendor-class, so they have to share it. */
+s32 USB_GetVenHandle()
+{
+	return ven_fd;
+}
+
 s32 USB_Deinitialize()
 {
 	if (ven_fd >= 0) {
