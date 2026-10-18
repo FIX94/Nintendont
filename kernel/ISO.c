@@ -35,7 +35,10 @@ u32 ISOFileOpen = 0;
 
 #define CACHE_MAX		0x400
 #define CACHE_START		(u8*)0x11000000
-#define CACHE_SIZE		0x1E80000
+#define CACHE_SIZE		0x300000
+
+
+
 
 typedef struct
 {
@@ -43,6 +46,7 @@ typedef struct
 	u32 Size;
 	u8 *Data;
 } DataCache;
+
 
 static u32 CacheInited = 0;
 static u32 TempCacheCount = 0;
@@ -393,11 +397,11 @@ void ISOSetupCache()
 	/* Setup Caching */
 	if(TRIGame)
 	{
-		//AMBB buffer is before cache
+      		//AMBB buffer is before cache
 		DCCache += 0x10000;
 		DCacheLimit -= 0x10000;
 		//triforce buffer is after cache
-		DCacheLimit -= 0x300000;
+		//DCacheLimit -= 0x300000;
 	}
 	else
 	{

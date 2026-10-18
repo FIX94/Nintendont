@@ -70,6 +70,7 @@ u32 drcAddress = 0;
 u32 drcAddressAligned = 0;
 bool isWiiVC = false;
 bool wiiVCInternal = false;
+bool isWidescreen = false;
 int _main( int argc, char *argv[] )
 {
 	//BSS is in DATA section so IOS doesnt touch it, we need to manually clear it
@@ -91,6 +92,8 @@ int _main( int argc, char *argv[] )
 		drcAddress = read32(0x12FFFFC4); //used in PADReadGC.c
 		drcAddressAligned = ALIGN_BACKWARD(drcAddress,0x20);
 	}
+
+	isWidescreen = read32(0x132C0498);
 
 	s32 ret = 0;
 	u32 DI_Thread = 0;
@@ -315,16 +318,17 @@ int _main( int argc, char *argv[] )
 			break;
 	}
 
-	// Set the Wii U widescreen setting.
+	// Set the Wii U widescreen setting
 	u32 ori_widesetting = 0;
 	if (IsWiiU())
 	{
 		ori_widesetting = read32(0xd8006a0);
-		if( ConfigGetConfig(NIN_CFG_WIIU_WIDE) )
-			write32(0xd8006a0, 0x30000004);
-		else
-			write32(0xd8006a0, 0x30000002);
-		mask32(0xd8006a8, 0, 2);
+		// Widescreen setting enabled and consoles aspect ratio set to 4:3
+		if (ConfigGetConfig(NIN_CFG_WIIU_WIDE) && !isWidescreen)
+			write32(0xd8006a0, 0x30000004), mask32(0xd8006a8, 0, 2);
+		// Widescreen setting disabled and consoles aspect ratio set to 16:9
+		else if (!ConfigGetConfig(NIN_CFG_WIIU_WIDE) && isWidescreen)
+			write32(0xd8006a0, 0x30000002), mask32(0xd8006a8, 0, 2);
 	}
 
 	while (1)

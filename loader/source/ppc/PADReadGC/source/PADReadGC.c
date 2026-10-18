@@ -47,6 +47,13 @@ static s8 OffsetY[NIN_CFG_MAXPAD] = {0};
 static s8 OffsetCX[NIN_CFG_MAXPAD] = {0};
 static s8 OffsetCY[NIN_CFG_MAXPAD] = {0};
 
+// --- Dance Mat Globals ---
+// Track dance mat enable and previous input state.
+// Needed because Wii U GC Adapter DPAD is hat-style and reports
+// impossible combos that otherwise ghost on release.
+static int isDanceMat = 0;   // Global/Static flag per device if you want per-port you’d need an array
+static u8 lastDanceMatPacket = 0x00;
+
 #define DRC_SWAP (1<<16)
 
 const s8 DEADZONE = 0x1A;
@@ -469,20 +476,94 @@ u32 PADRead(u32 calledByGame)
 			if( HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->Up.Mask )
 				button |= PAD_BUTTON_UP;
 		}
-		else
+		else  // DPAD == 1
 		{
-			if(((HID_Packet[HID_CTRL->Up.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Up.Mask)		 || ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask)			|| ((HID_Packet[HID_CTRL->RightUp.Offset]	& HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
+			// --- Dance Mat Handling ---
+			// NOTE: Wii U GC Adapter reports DPAD as a single HAT value, not 4 separate bits.
+			//       Nintendont does hat logic filtering that I cannot code around
+			//       that makes it impossible to distinguish "still holding Left" while
+			//       releasing Right. Nintendont sees that as a new step. This only happens on the
+			//       "impossible" opposite direction combos. To avoid ghost steps,
+			//       this handler only reacts to new button down events, ignoring held frames.
+			//		 This functionality means arrows will not register being held.
+			//       This is fine for DDR Mario Mix, which has no freeze arrows.
+			//       Menu scrolling however can only move 1 item per arrow press.
+			//       This is unfortunately a limitation that is difficult to code around.
+			
+			// --- Dance Mat Detection / Overrides ---
+			// Check that device is Wii U USB Gamecube Adapter
+			if ((HID_CTRL->VID == 0x057E) && (HID_CTRL->PID == 0x0337)) {
+			
+			// Detect impossible DPAD combos (to enable dance mat mode)
+			if (HID_Packet[2] == 0x30 || HID_Packet[2] == 0xC0)
+				isDanceMat = 1;
+			}
+
+			if (isDanceMat) {
+				u8 cur  = HID_Packet[2];			// Store current input
+				u8 prev = lastDanceMatPacket;	 	// Store previous input
+
+				if (cur) {
+					// Find what changed
+					u8 added   = cur & ~prev;   // new buttons pressed
+					u8 removed = prev & ~cur; // buttons released
+
+					if (added) {
+						// --- Single button presses ---
+						if (added & 0x10) button |= PAD_BUTTON_LEFT;
+						if (added & 0x40) button |= PAD_BUTTON_DOWN;
+						if (added & 0x80) button |= PAD_BUTTON_UP;
+						if (added & 0x20) button |= PAD_BUTTON_RIGHT;
+
+						// --- Combo overrides ---
+						// Only trigger if the WHOLE combo is "new" (appears in one shot) parse only new button press
+						if (cur == 0x30 && prev != 0x10 && prev != 0x20)
+							button |= (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT);
+
+						if (cur == 0xC0 && prev != 0x40 && prev != 0x80)
+							button |= (PAD_BUTTON_UP   | PAD_BUTTON_DOWN);
+
+						if (cur == 0x90 && prev != 0x80 && prev != 0x10)
+							button |= (PAD_BUTTON_UP   | PAD_BUTTON_LEFT);
+
+						if (cur == 0xA0 && prev != 0x80 && prev != 0x20)
+							button |= (PAD_BUTTON_UP   | PAD_BUTTON_RIGHT);
+
+						if (cur == 0x50 && prev != 0x40 && prev != 0x10)
+							button |= (PAD_BUTTON_DOWN | PAD_BUTTON_LEFT);
+
+						if (cur == 0x60 && prev != 0x40 && prev != 0x20)
+							button |= (PAD_BUTTON_DOWN | PAD_BUTTON_RIGHT);
+					}
+				}
+
+				// Update last input history to use in next frame comparison
+				lastDanceMatPacket = cur;
+			}
+			else	// Normal DPAD Logic
+			{
+			if(((HID_Packet[HID_CTRL->Up.Offset]   & HID_CTRL->DPADMask) == HID_CTRL->Up.Mask)   ||
+			((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask) ||
+			((HID_Packet[HID_CTRL->RightUp.Offset] & HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
 				button |= PAD_BUTTON_UP;
 
-			if(((HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Right.Mask) || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->RightUp.Offset] & HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
+			if(((HID_Packet[HID_CTRL->Right.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Right.Mask) ||
+			((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask) ||
+			((HID_Packet[HID_CTRL->RightUp.Offset] & HID_CTRL->DPADMask) == HID_CTRL->RightUp.Mask))
 				button |= PAD_BUTTON_RIGHT;
 
-			if(((HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Down.Mask)	 || ((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask)	|| ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask))
+			if(((HID_Packet[HID_CTRL->Down.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Down.Mask) ||
+			((HID_Packet[HID_CTRL->DownRight.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownRight.Mask) ||
+			((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask))
 				button |= PAD_BUTTON_DOWN;
 
-			if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask)	 || ((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask)		|| ((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
+			if(((HID_Packet[HID_CTRL->Left.Offset] & HID_CTRL->DPADMask) == HID_CTRL->Left.Mask) ||
+			((HID_Packet[HID_CTRL->DownLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->DownLeft.Mask) ||
+			((HID_Packet[HID_CTRL->UpLeft.Offset] & HID_CTRL->DPADMask) == HID_CTRL->UpLeft.Mask))
 				button |= PAD_BUTTON_LEFT;
+			}
 		}
+		
 		if(HID_Packet[HID_CTRL->A.Offset] & HID_CTRL->A.Mask)
 			button |= PAD_BUTTON_A;
 		if(HID_Packet[HID_CTRL->B.Offset] & HID_CTRL->B.Mask)

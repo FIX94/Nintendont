@@ -40,6 +40,11 @@ void CheckForGecko( void )
 		GeckoFound = usb_isgeckoalive( 1 );
 }
 
+bool HaveGecko( void )
+{
+	return GeckoFound != 0;
+}
+
 void EXISendByte( char byte )
 {
 

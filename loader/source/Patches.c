@@ -138,6 +138,13 @@ void PatchKernel()
 				gprintf("Found Unused SWI at %08X\r\n", i );
 #endif
 				memcpy( buf+i, EXISendBuffer, sizeof( EXISendBuffer ) );
+				// EXISendBuffer sends IOS's debug prints to a USB Gecko in Slot B and
+				// resends each byte until the Gecko acknowledges it. Anything else in
+				// Slot B, such as a GameCube Microphone, never does, and IOS hangs in
+				// its first print ("Loading IOS58 Kernel..."). Without a Gecko, make
+				// the handler return at once: "bne exit" becomes "b exit".
+				if (!HaveGecko())
+					buf[i+16] = 0xEA;
 				PatchCount |= 1;
 			}
 
