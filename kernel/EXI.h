@@ -43,6 +43,7 @@ enum
 #define EXI_READWRITE	2 
 
 void EXIInit();
+bool EXIHybridEnabled(void);
 
 /**
  * Set EXI timings based on the game ID.

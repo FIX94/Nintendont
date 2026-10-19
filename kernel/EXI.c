@@ -114,6 +114,11 @@ static u32 EXI2IRQStatus	= 0;
 
 static u8 *ambbBackupMem;
 
+bool EXIHybridEnabled(void)
+{
+	return NIN_CFG_HYBRID_EXI_ACTIVE(ncfg->Config, IsWiiU(), TRIGame);
+}
+
 void EXIInit(void)
 {
 	dbgprintf("EXIInit Start\r\n");
@@ -141,7 +146,9 @@ void EXIInit(void)
 		GCNCard_Load(0);
 
 		// Load Slot B.
-		if (TRIGame == 0)
+		if (EXIHybridEnabled())
+			dbgprintf("EXI: Hybrid EXI mode: virtual Slot A, physical Slot B.\r\n");
+		else if (TRIGame == 0)
 			GCNCard_Load(1);
 	}
 }
