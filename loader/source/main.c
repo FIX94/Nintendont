@@ -21,7 +21,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <gccore.h>
 #include <sys/param.h>
 #include <ogc/lwp_watchdog.h>
-#include <ogc/lwp_threads.h>
+#include <ogc/machine/processor.h>
+#include <stdlib.h>
 #include <wiiuse/wpad.h>
 #include <wiidrc/wiidrc.h>
 #include <wupc/wupc.h>
@@ -119,7 +120,29 @@ extern FATFS *devices[2];
 vu32 KernelLoaded = 0;
 u32 entrypoint = 0;
 char launch_dir[MAXPATHLEN] = {0};
-extern void __exception_closeall();
+
+/**
+ * Interrupts off, FP and RI on, and an rfi at every exception vector.
+ * This is what libogc 1.x __exception_closeall() did; libogc 3 has no
+ * equivalent, so do it here for both.
+ */
+static void ExceptionsOff(void)
+{
+	static const u16 vec[] = { 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0x700,
+		0x800, 0x900, 0xC00, 0xD00, 0xF00, 0x1300, 0x1400, 0x1700 };
+	u32 i, msr;
+	asm volatile("mfmsr %0" : "=r"(msr));
+	msr = (msr & ~0x8000) | 0x2002;	// clear EE, set FP and RI
+	asm volatile("mtmsr %0; isync" : : "r"(msr));
+	asm volatile("mtspr 1010,%0; mtspr 1013,%0" : : "r"(0));	// IABR, DABR: no breakpoints
+	for (i = 0; i < sizeof(vec) / sizeof(vec[0]); i++)
+	{
+		vu32 *v = (vu32*)(0x80000000 | vec[i]);
+		*v = 0x4C000064;	// rfi
+		DCFlushRange((void*)v, 0x20);
+		ICInvalidateRange((void*)v, 0x20);
+	}
+}
 static u8 loader_stub[0x1C00]; //save internally to prevent overwriting
 static ioctlv IOCTL_Buf[2] ALIGNED(32);
 static const char ARGSBOOT_STR[9] ALIGNED(0x10) = {'a','r','g','s','b','o','o','t','\0'}; //makes it easier to go through the file
@@ -1641,8 +1664,10 @@ int main(int argc, char **argv)
 
 	write16(0xD8B420A, 0); //disable MEMPROT again after reload
 	//u32 level = IRQ_Disable();
-	__exception_closeall();
-	__lwp_thread_closeall();
+	IRQ_Disable();	// no more thread switches; the game takes over from here
+	ExceptionsOff();
+	memset((void*)0x80003000, 0, 0x80);	// the game gets clean OS globals
+	DCFlushRange((void*)0x80003000, 0x80);
 
 	DVDStartCache(); //waits for kernel start
 	DCInvalidateRange((void*)0x90000000, 0x1000000);

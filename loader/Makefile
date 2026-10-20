@@ -27,9 +27,11 @@ INCLUDES	:= include ../fatfs
 # options for code generation
 #---------------------------------------------------------------------------------
 
-ASFLAGS := $(MACHDEP) -mregnames -D_LANGUAGE_ASSEMBLY
+# libogc 3 (tuxedo kernel) dropped the thread/exception internals used at game start.
+OGC3	:= $(if $(wildcard $(LIBOGC_INC)/tuxedo),-DLIBOGC3)
+ASFLAGS := $(MACHDEP) -mregnames -D_LANGUAGE_ASSEMBLY $(OGC3)
 CFLAGS	:= -O3 -g -std=gnu89 -Wno-format-truncation \
-	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN
+	   -Wall $(MACHDEP) $(INCLUDE) -DDEBUG -DDEBUG_MODULE_PATCH -DARCH_IS_BIG_ENDIAN $(OGC3)
 CXXFLAGS := $(CFLAGS)
 
 # NOTE: Do NOT change to := - needed for proper expansion of $(CURDIR) later.
