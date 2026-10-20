@@ -239,7 +239,7 @@ raw_irq_handler_t BeforeIOSReload()
 	__STM_Close();
 
 	write32(0x80003140, 0);
-	__MaskIrq(IRQ_PI_ACR);
+	__MaskIrq(IM_PI_ACR);
 	return IRQ_Free(IRQ_PI_ACR);
 }
 extern void udelay(u32 us);
@@ -248,15 +248,19 @@ void AfterIOSReload(raw_irq_handler_t handle, u32 rev)
 	while((read32(0x80003140)) != rev)
 		udelay(1000);
 
+	// Wait for the new IOS to start IPC as libogc's own __IOS_LaunchNewIOS
+	// does: sleep first, then accept a message or a control ack. Read at once,
+	// HW_IPC_PPCCTRL can still hold the old IOS's bits; with libogc 3 the next
+	// request (IOS_Open in __STM_Init) then never got its reply.
 	u32 counter;
-	for (counter = 0; !(read32(0x0d000004) & 2); counter++)
+	for (counter = 0; counter <= 40000; counter++)
 	{
 		udelay(1000);
-		if (counter >= 40000)
+		if (read32(0x0d000004) & 6)
 			break;
 	}
 	IRQ_Request(IRQ_PI_ACR, handle, NULL);
-	__UnmaskIrq(IRQ_PI_ACR);
+	__UnmaskIrq(IM_PI_ACR);
 	__IPC_Reinitialize();
 
 	__STM_Init();
