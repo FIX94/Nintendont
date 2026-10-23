@@ -32,6 +32,44 @@ A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
 ### What Nintendont will never support:
 * Game Boy Player
 
+### Experimental microphone support with memory card emulation
+On an original Wii with GameCube memory-card ports, enable both **Memcard
+Emulation** and **hybrid EXI** in the settings menu
+to use a virtual memory card in Slot A and physical peripherals, such as the
+GameCube microphone, in slot 2 (Slot B).
+
+The hybrid option defaults to off, including for settings saved by older
+versions. It has no effect unless memory card emulation is also enabled, and
+does nothing on Wii U/vWii or for Triforce games.
+While active, it does not load or expose a virtual Slot B memory card; existing
+Slot B save images are left untouched. Turn it off to restore the existing
+virtual Slot B behavior.
+
+Leave **Debugger** and **Debugger Wait** off when using a Slot B peripheral:
+the USB Gecko debugger uses the same physical slot. With **Log** enabled, the
+startup log reports `EXI: Hybrid EXI mode: virtual Slot A, physical Slot B.`
+
+Slot B uses the game's own EXI routines on the real hardware, while Slot A and
+EXI channel 2 stay emulated. The hardware interrupts of the emulated channels
+stay masked, and the virtual Slot A interrupt status is only dispatched while a
+virtual EXI interrupt is pending, so physical Slot B interrupts reach the game.
+
+CPU-level regression checks are available after building. With Python and the
+`unicorn` package installed, run:
+
+```text
+python scripts\test_hybrid_exi.py --devkitarm C:\path\to\devkitARM -v
+```
+
+These checks exercise the compiled ARM patch helpers, the settings upgrade, and
+PowerPC routing and interrupt handlers in emulation, including all activation
+flag combinations. They do not emulate the microphone or replace hardware
+testing. Optionally add `--game-image D:\games\GP7E01\game.iso` to exercise
+the USA Mario Party 7 interrupt-dispatch patch, native immediate-transfer
+routine, and interrupt handlers against a local disc image. These game tests
+are skipped when the image is omitted, missing, or not GP7E01. This test does not
+save or distribute game code.
+
 ### Quick Installation:
 1. Get the [loader.dol](loader/loader.dol?raw=true), rename it to boot.dol and put it in /apps/Nintendont/ along with the files [meta.xml](nintendont/meta.xml?raw=true) and [icon.png](nintendont/icon.png?raw=true).
 2. Copy your GameCube games to the /games/ directory. Subdirectories are optional for 1-disc games in ISO/GCM and CISO format.

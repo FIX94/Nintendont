@@ -463,6 +463,11 @@ void UpdateNinCFG()
 		ncfg->Version = 10;
 	}
 	if (ncfg->Version == 10)
+	{	// Hybrid EXI, disabled by default
+		ncfg->Config &= ~NIN_CFG_HYBRID_EXI;
+		ncfg->Version = 11;
+	}
+	if (ncfg->Version == 11)
 	{
 		// NIN_CFG with version 10 may have loaded
 		// garbage bytes into WiiUGamepadSlot so sanitize

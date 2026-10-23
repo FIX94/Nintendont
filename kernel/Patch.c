@@ -520,9 +520,152 @@ static void Patch31A0( void )
 
 u32 PatchCopy(const u8 *PatchPtr, const u32 PatchSize)
 {
+	if (EXIHybridEnabled() && POffset < 0x1800 + PatchSize)
+	{
+		dbgprintf("EXI: Hybrid patch area exhausted.\r\n");
+		Shutdown();
+	}
 	POffset -= PatchSize;
 	memcpy( (void*)POffset, PatchPtr, PatchSize );
+	if (EXIHybridEnabled() &&
+		(PatchPtr == FakeInterrupt || PatchPtr == FakeInterrupt_DBG || PatchPtr == FakeInterrupt_Datel))
+	{
+		u32 off;
+		for (off = 0; off < PatchSize; off += 4)
+		{
+			u32 op = read32(POffset + off);
+			if ((op & 0xFFFF) == 0x06F6 && (op >> 26) == 20)
+			{
+				// Preserve a simultaneous physical EXI interrupt when injecting a virtual one.
+				u32 reg = (op >> 16) & 31;
+				write32(POffset + off, 0x7C000378 | (reg << 21) | (reg << 16));
+			}
+		}
+	}
 	return POffset;
+}
+
+static u32 HybridEXIPatchSize(const FuncPattern *pattern)
+{
+	if (!EXIHybridEnabled())
+		return 0;
+
+	switch (pattern->Group)
+	{
+		case FGROUP_EXIImm:
+		case FGROUP_EXISync:
+		case FGROUP___EXIProbe:
+		case FGROUP_EXISelect:
+		case FGROUP_EXIDeselect:
+		case FGROUP_EXILock:
+			return pattern->PatchLength;
+		case FGROUP_EXIDMA:
+			return EXIDMA_size;
+		case FGROUP_EXIUnlock:
+			return EXILock_size;
+		default:
+			return 0;
+	}
+}
+
+static void PatchHybridEXI(u32 address, const u8 *original, u32 length, u32 emulatedSize)
+{
+	const u32 dispatch[] = {
+		0x2C030001, // cmpwi r3,1
+		0x4082000C, // bne emulated
+		0,          // displaced native instruction
+		0,          // b native+4
+		0           // emulated: b emulated copy
+	};
+	u32 first = *(const u32*)original;
+	// Only one displaced instruction is executed; the rest of the native function stays in place.
+	if ((first >> 26) == 16 || (first >> 26) == 18 || (first >> 26) == 19)
+	{
+		dbgprintf("EXI: Unsupported hybrid entry at %08X: %08X\r\n", address, first);
+		Shutdown();
+	}
+	// Channel 1 (Slot B) runs the native SDK routine; channels 0 and 2 stay emulated.
+	u32 emulated = PatchCopy((const u8*)address, emulatedSize);
+	memcpy((void*)address, original, length);
+	u32 wrapper = PatchCopy((const u8*)dispatch, sizeof(dispatch));
+	write32(wrapper + 8, first);
+	PatchB(address + 4, wrapper + 12);
+	PatchB(emulated, wrapper + 16);
+	PatchB(wrapper, address);
+	dbgprintf("EXI: Hybrid Slot B routine at %08X (emulated copy %08X).\r\n", address, emulated);
+}
+
+static void PatchHybridEXIMask(u32 address)
+{
+	const u32 stub[] = {
+		0x64840071, // oris r4,r4,0x0071: EXI 0 EXI/TC/EXT and EXI 2 EXI
+		0x60848000, // ori r4,r4,0x8000: EXI 2 TC
+		0, 0
+	};
+	u32 first = read32(address);
+	if ((first >> 26) == 16 || (first >> 26) == 18 || (first >> 26) == 19)
+	{
+		dbgprintf("EXI: Hybrid interrupt mask hook skipped at %08X: %08X\r\n", address, first);
+		return;
+	}
+	// EXI 0 and 2 are emulated, so their hardware interrupt masks always stay closed.
+	u32 hook = PatchCopy((const u8*)stub, sizeof(stub));
+	write32(hook + 8, first);
+	PatchB(address + 4, hook + 12);
+	PatchB(hook, address);
+	dbgprintf("EXI: Hybrid EXI 0/2 hardware interrupts masked at %08X.\r\n", address);
+}
+
+static void PatchHybridEXIDispatch(u32 address, bool debug)
+{
+	u32 slotA = address + (debug ? 0x138 : 0x114);
+	u32 originalBase = read32(slotA);
+	u32 originalLoad = read32(slotA + 4);
+	if ((originalBase != 0x3C60CC00 && originalBase != 0x3C60CD80) ||
+		originalLoad != (debug ? 0x83C36800 : 0x80836800))
+	{
+		dbgprintf("EXI: Hybrid IRQ dispatcher mismatch %08X: %08X %08X.\r\n",
+			slotA, originalBase, originalLoad);
+		Shutdown();
+	}
+	if (!debug)
+	{
+		u32 slotB = address + 0x14C;
+		u32 baseB = read32(slotB);
+		if ((baseB != 0x3C60CC00 && baseB != 0x3C60CD80) ||
+			read32(slotB + 4) != 0x38636800 || read32(slotB + 8) != 0x80830014)
+		{
+			dbgprintf("EXI: Hybrid Slot B IRQ dispatcher mismatch at %08X.\r\n", slotB);
+			Shutdown();
+		}
+		write32(slotB, 0x3C60CD80);
+		// EXI 2 is emulated; never dispatch its hardware status.
+		u32 channel2 = address + 0x188;
+		u32 base2 = read32(channel2);
+		if ((base2 == 0x3C60CC00 || base2 == 0x3C60CD80) &&
+			read32(channel2 + 4) == 0x38636800 && read32(channel2 + 8) == 0x80830028)
+			write32(channel2 + 8, 0x38800000); // li r4,0
+		else
+			dbgprintf("EXI: Hybrid EXI 2 IRQ dispatcher mismatch at %08X.\r\n", channel2);
+	}
+	if (debug)
+	{
+		PatchBL(PatchCopy(HybridEXIGate_DBG, HybridEXIGate_DBG_size), slotA);
+		write32(slotA + 4, 0x60000000);
+	}
+	else if ((read32(slotA + 8) & 0xFFFF0000) == 0x54830000 && read32(slotA + 12) == 0x28030000)
+	{
+		// The gate changes cr0; the next instructions recompute it.
+		PatchBL(PatchCopy(HybridEXIGate, HybridEXIGate_size), slotA);
+		write32(slotA + 4, 0x60000000);
+	}
+	else
+	{
+		dbgprintf("EXI: Hybrid Slot A IRQ gate skipped at %08X.\r\n", slotA);
+		write32(slotA, 0x3C60C000);
+		write32(slotA + 4, 0x80830010);
+	}
+	dbgprintf("EXI: Hybrid IRQ dispatcher verified at %08X (debug=%u).\r\n", address, debug);
 }
 
 void PatchJmpToMEM2( u32 dst, u32 src )
@@ -609,7 +752,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if( src == LISReg )
 			{
-				if( DisableEXIPatch )
+				if( DisableEXIPatch || EXIHybridEnabled() )
 				{
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
@@ -681,7 +824,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 			u32 src = (op >> 16) & 0x1F;
 			if (src == LISReg)
 			{
-				if ( DisableEXIPatch )
+				if ( DisableEXIPatch || EXIHybridEnabled() )
 				{
 					write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 					//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32((u32)LISOff), LISReg);
@@ -743,7 +886,7 @@ void PatchFuncInterface( char *dst, u32 Length )
 				}
 				else if((val & 0xFF00) == 0x6800) // case with 0x68XY(rZ) (exi)
 				{
-					if( DisableEXIPatch )
+					if( DisableEXIPatch || EXIHybridEnabled() )
 					{
 						write32((u32)LISOff, LISOp | 0x0000CD80);	// Patch to: lis rX, 0xCD80
 						//dbgprintf("EXI:[%08X] %08X: lis r%u, 0xCD80\r\n", (u32)LISOff, read32( (u32)LISOff), LISReg );
@@ -1797,6 +1940,8 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 						printpatchfound("SetInterruptMask", "DBG", (u32)Buffer + i - 0x30);
 
 					write32( (u32)Buffer + i + 12, (read32( (u32)Buffer + i + 12 ) & 0xFFFF0000) | 0x4004 );
+					if (EXIHybridEnabled())
+						PatchHybridEXIMask((u32)Buffer + GotoFuncStart(i, (u32)Buffer));
 
 					PatchCount |= FPATCH_SetInterruptMask;
 					i = GotoFuncEnd(i, (u32)Buffer);
@@ -1832,19 +1977,24 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					PatchBL( PatchCopy(FakeInterrupt, FakeInterrupt_size), (u32)Buffer + i + 4 );
 					if(DisableEXIPatch == 0)
 					{
-						// EXI Device 0 Control Register
-						write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
-						write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
-						// EXI Device 1 Control Register
-						write32A( (u32)Buffer+i+0x14C, 0x3C60C000, 0x3C60CC00, 1 );
-						write32A( (u32)Buffer+i+0x150, 0x38630014, 0x38636800, 1 );
-						write32A( (u32)Buffer+i+0x154, 0x80830000, 0x80830014, 1 );
-						if(TRIGame)
+						if (EXIHybridEnabled())
+							PatchHybridEXIDispatch((u32)Buffer + i, false);
+						else
 						{
-							// EXI Device 2 Control Register (Trifroce)
-							write32A( (u32)Buffer+i+0x188, 0x3C60C000, 0x3C60CC00, 1 );
-							write32A( (u32)Buffer+i+0x18C, 0x38630018, 0x38636800, 1 );
-							write32A( (u32)Buffer+i+0x190, 0x80830000, 0x80830028, 1 );
+							// EXI Device 0 Control Register
+							write32A( (u32)Buffer+i+0x114, 0x3C60C000, 0x3C60CC00, 1 );
+							write32A( (u32)Buffer+i+0x118, 0x80830010, 0x80836800, 1 );
+							// EXI Device 1 Control Register
+							write32A( (u32)Buffer+i+0x14C, 0x3C60C000, 0x3C60CC00, 1 );
+							write32A( (u32)Buffer+i+0x150, 0x38630014, 0x38636800, 1 );
+							write32A( (u32)Buffer+i+0x154, 0x80830000, 0x80830014, 1 );
+							if(TRIGame)
+							{
+								// EXI Device 2 Control Register (Trifroce)
+								write32A( (u32)Buffer+i+0x188, 0x3C60C000, 0x3C60CC00, 1 );
+								write32A( (u32)Buffer+i+0x18C, 0x38630018, 0x38636800, 1 );
+								write32A( (u32)Buffer+i+0x190, 0x80830000, 0x80830028, 1 );
+							}
 						}
 					}
 					if (!Datel) // Multiples in Datel discs
@@ -1858,9 +2008,14 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					PatchBL( PatchCopy(FakeInterrupt_DBG, FakeInterrupt_DBG_size), (u32)Buffer + i + 4 );
 					if(DisableEXIPatch == 0)
 					{
-						// EXI Device 0 Control Register
-						write32A( (u32)Buffer+i+0x138, 0x3C60C000, 0x3C60CC00, 1 );
-						write32A( (u32)Buffer+i+0x13C, 0x83C30010, 0x83C36800, 1 );
+						if (EXIHybridEnabled())
+							PatchHybridEXIDispatch((u32)Buffer + i, true);
+						else
+						{
+							// EXI Device 0 Control Register
+							write32A( (u32)Buffer+i+0x138, 0x3C60C000, 0x3C60CC00, 1 );
+							write32A( (u32)Buffer+i+0x13C, 0x83C30010, 0x83C36800, 1 );
+						}
 					}
 					PatchCount |= FPATCH_OSDispatchIntr;
 					i = GotoFuncEnd(i, (u32)Buffer);
@@ -2405,6 +2560,18 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 					u32 FOffset = (u32)Buffer + i;
 
 					CurPatterns[j].Found = FOffset;
+					u32 hybridSize = HybridEXIPatchSize(&CurPatterns[j]);
+					u8 *nativeEXI = NULL;
+					if (hybridSize)
+					{
+						nativeEXI = malloc(CurPatterns[j].Length);
+						if (nativeEXI == NULL)
+						{
+							dbgprintf("EXI: Cannot preserve native Slot B function.\r\n");
+							Shutdown();
+						}
+						memcpy(nativeEXI, (void*)FOffset, CurPatterns[j].Length);
+					}
 					//dbgprintf("Patch:[%s] found (0x%08X)\r\n", CurPatterns[j].Name, FOffset );
 
 					switch( CurPatterns[j].PatchLength )
@@ -2626,7 +2793,10 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								CurPatterns[j].Found = 0; // False hit
 								break;
 							}
-							PatchBL( PatchCopy(TCIntrruptHandler, TCIntrruptHandler_size), (FOffset + PatchOffset) );
+							u32 handler = EXIHybridEnabled() ?
+								PatchCopy(TCIntrruptHandlerHybrid, TCIntrruptHandlerHybrid_size) :
+								PatchCopy(TCIntrruptHandler, TCIntrruptHandler_size);
+							PatchBL(handler, FOffset + PatchOffset);
 							printpatchfound(CurPatterns[j].Name, CurPatterns[j].Type, FOffset + PatchOffset);
 						} break;
 						case FCODE_EXIDMA:	// EXIDMA
@@ -3687,6 +3857,12 @@ void DoPatches( char *Buffer, u32 Length, u32 DiscOffset )
 								memcpy( (void*)(FOffset), CurPatterns[j].Patch, CurPatterns[j].PatchLength );
 							}
 						} break;
+					}
+					if (nativeEXI != NULL)
+					{
+						if (CurPatterns[j].Found)
+							PatchHybridEXI(FOffset, nativeEXI, CurPatterns[j].Length, hybridSize);
+						free(nativeEXI);
 					}
 					// If this is a patch group set all others of this group as found aswell
 					if( CurPatterns[j].Group && CurPatterns[j].Found )
