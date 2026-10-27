@@ -1,0 +1,8 @@
+__pycache__/
+*.json
+*.o
+m21-cktest/
+m21-save-test/
+m21-exit-abi.c
+kernel-entry-regression/
+patch-fixture/
