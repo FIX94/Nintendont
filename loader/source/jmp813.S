@@ -1,18 +1,10 @@
 
-	.extern __InitBATS
-	.extern __InitPS
-	.extern __InitFPRS
-	.extern __InitCache
-	.extern __InitSystem
+	.extern PPCEarlyInit
 
 	.globl _jmp813
 _jmp813:
-	bl		__InitBATS			# Initialize BATs to a clear and known state
+	bl		PPCEarlyInit
 	bl		__initRegisters		# Initialize the General Purpose Registers
-	bl		__InitPS 			# Initialize Paired Singles
-	bl		__InitFPRS		 	# Initialize the FPR's
-	bl		__InitCache 		# Initialize the system caches
-	bl		__InitSystem		# Initialize more cache aspects, clear a few SPR's, and disable interrupts.
 	lis		r3, 0x8130
 	mtlr	r3
 	blr
