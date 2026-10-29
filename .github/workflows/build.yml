@@ -1,0 +1,22 @@
+name: C/C++ CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: ubuntu-latest
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitppc:20220821
+ 
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build
+      run: |
+        make -j2
+        cp ./loader/loader.dol ./nintendont/boot.dol
+        
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        path: ./nintendont
