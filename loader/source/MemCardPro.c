@@ -111,7 +111,7 @@ u32 MCP_GetEligibleSlots(u32 config, bool isWiiU, bool isTriforce, bool hasGecko
 {
 	u32 slots;
 
-	if (isWiiU || isTriforce)
+	if (!(config & NIN_CFG_GAME_ID) || isWiiU || isTriforce)
 		return 0;
 
 	if (!(config & NIN_CFG_MEMCARDEMU))

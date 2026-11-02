@@ -1111,6 +1111,20 @@ static const char *const *GetSettingsDescription(const MenuCtx *ctx)
 				return desc_hybrid_exi;
 			}
 
+			case 10: {
+				static const char *desc_game_id[] = {
+					"Send the game ID to a real",
+					"MemCard PRO GC or FlipperMCE",
+					"so it selects the card for",
+					"that game. Needs Memcard",
+					"Emulation off, or hybrid",
+					"EXI for slot 2 (Slot B).",
+					"Does nothing on Wii U.",
+					NULL
+				};
+				return desc_game_id;
+			}
+
 			default:
 				break;
 		}
@@ -1167,7 +1181,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 
 		// Check for wraparound.
 		if ((ctx->settings.settingPart == 0 && ctx->settings.posX >= NIN_SETTINGS_LAST) ||
-		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 10))
+		    (ctx->settings.settingPart == 1 && ctx->settings.posX >= 11))
 		{
 			ctx->settings.posX = 0;
 			ctx->settings.settingPart ^= 1;
@@ -1194,7 +1208,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 			if (ctx->settings.settingPart == 0) {
 				ctx->settings.posX = NIN_SETTINGS_LAST - 1;
 			} else {
-				ctx->settings.posX = 9;
+				ctx->settings.posX = 10;
 			}
 		}
 
@@ -1457,6 +1471,13 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 					ctx->redraw = true;
 					break;
 
+				case 10:
+					// Memcard Game ID
+					ctx->saveSettings = true;
+					ncfg->Config ^= NIN_CFG_GAME_ID;
+					ctx->redraw = true;
+					break;
+
 				default:
 					break;
 			}
@@ -1656,6 +1677,15 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				(ncfg->Config & NIN_CFG_HYBRID_EXI) ? "On" : "Off");
 		ListLoopIndex++;
 
+		// Memcard Game ID. Grayed out if there's no physical card slot in use.
+		const bool gameIDUsable = !IsWiiU() &&
+			(!(ncfg->Config & NIN_CFG_MEMCARDEMU) || (ncfg->Config & NIN_CFG_HYBRID_EXI));
+		PrintFormat(MENU_SIZE, gameIDUsable ? BLACK : DARK_GRAY,
+				MENU_POS_X + 320, SettingY(ListLoopIndex),
+				"%-18s:%-4s", "Memcard Game ID",
+				(ncfg->Config & NIN_CFG_GAME_ID) ? "On" : "Off");
+		ListLoopIndex++;
+
 		// Draw the cursor.
 		u32 cursor_color = BLACK;
 		if (ctx->settings.settingPart == 0) {
@@ -1672,6 +1702,8 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 				cursor_color = DARK_GRAY;
 			if((IsWiiU() || !(ncfg->Config & NIN_CFG_MEMCARDEMU)) && ctx->settings.posX == 9)
 				cursor_color = DARK_GRAY;
+			if(!gameIDUsable && ctx->settings.posX == 10)
+				cursor_color = DARK_GRAY;
 			PrintFormat(MENU_SIZE, cursor_color, MENU_POS_X + 300, SettingY(ctx->settings.posX), ARROW_RIGHT);
 		}
 
@@ -1681,7 +1713,7 @@ static bool UpdateSettingsMenu(MenuCtx *ctx)
 		const char *const *desc = GetSettingsDescription(ctx);
 		if (desc != NULL)
 		{
-			int line_num = 10;
+			int line_num = 11;
 			do {
 				if (**desc != 0)
 				{

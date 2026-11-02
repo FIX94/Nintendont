@@ -4,12 +4,16 @@ The host tests in this directory cover packet contents, slot selection, retry
 limits and EXI cleanup with a mocked bus. Everything below needs real hardware.
 
 Setup: an original Wii with GameCube ports, a FlipperMCE/GCMCE in Slot A with
-Game ID enabled, and **Memcard Emulation** off. **Back up the card's SD first.**
+Game ID enabled, **Memcard Emulation** off, and Nintendont's **Memcard Game ID**
+option on unless a scenario says otherwise. **Back up the card's SD first.**
 A USB Gecko in Slot B shows the `MemCardPro:` log lines, but it disables the
 Slot B tests.
 
 | Scenario | Expected behavior |
 |---|---|
+| Fresh install or older nincfg.bin | Memcard Game ID shows Off, and the device doesn't switch |
+| Memcard Game ID turned on, Nintendont restarted | Still On, and the device switches |
+| Settings menu | Cursor reaches the option in both directions, and every description fits on screen |
 | Direct launch of game A | The device selects game A's card before the game reads it |
 | Direct launch of game B | The device switches to game B's card |
 | Relaunch game A | Game A's card and saves are back |

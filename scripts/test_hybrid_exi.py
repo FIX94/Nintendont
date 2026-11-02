@@ -180,21 +180,31 @@ u32 patch_offset(void) { return POffset; }
 
     def test_config_upgrade_defaults_hybrid_exi_off(self):
         hybrid, others = 1 << 20, (1 << 3) | (1 << 19)  # Memcard Emulation, BBA Emulation
-        self.assertEqual(self.call("current_config_version"), 11)
+        self.assertEqual(self.call("current_config_version"), 12)
         # A stale bit 20 in an older nincfg.bin or loader argument is cleared once.
         for version in (9, 10):
             with self.subTest(version=version):
                 self.assertEqual(self.call("upgrade_config", version, others | hybrid, 0), others)
-                self.assertEqual(self.call("config_version"), 11)
+                self.assertEqual(self.call("config_version"), 12)
         # The user's saved choice persists in a current config.
-        for config in (others, others | hybrid):
-            with self.subTest(config=hex(config)):
-                self.assertEqual(self.call("upgrade_config", 11, config, 0), config)
-                self.assertEqual(self.call("config_version"), 11)
-        for version in (10, 11):
+        for version in (11, 12):
+            for config in (others, others | hybrid):
+                with self.subTest(version=version, config=hex(config)):
+                    self.assertEqual(self.call("upgrade_config", version, config, 0), config)
+                    self.assertEqual(self.call("config_version"), 12)
+        for version in (10, 11, 12):
             with self.subTest(version=version, slot="garbage"):
                 self.call("upgrade_config", version, 0, 99)
                 self.assertEqual(self.call("config_slot"), 0)
+
+    def test_config_upgrade_defaults_game_id_off(self):
+        game_id, others = 1 << 21, (1 << 3) | (1 << 19)  # Memcard Emulation, BBA Emulation
+        # A stale bit 21 in an older nincfg.bin or loader argument is cleared once.
+        for version in (9, 10, 11):
+            with self.subTest(version=version):
+                self.assertEqual(self.call("upgrade_config", version, others | game_id, 0), others)
+        # The user's saved choice persists in a current config.
+        self.assertEqual(self.call("upgrade_config", 12, others | game_id, 0), others | game_id)
 
     def test_menu_label_and_experimental_description(self):
         menu = (REPO / "loader" / "source" / "menu.c").read_text()

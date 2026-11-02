@@ -79,11 +79,15 @@ save or distribute game code.
 4. Select Nintendont.
 
 ### MemCard PRO GC and FlipperMCE support (Wii only)
-When a game starts on real memory cards, Nintendont sends its game ID, company
-code, disc number, revision and title to any MemCard PRO GC or FlipperMCE-based
-device (such as the Bitfunx GCMCE) so it can select that game's virtual memory
-card. No setting is needed, and other devices are left alone apart from the
-device ID query used to detect them.
+With **Memcard Game ID** enabled in the settings menu, Nintendont sends a game's
+ID, company code, disc number, revision and title to any MemCard PRO GC or
+FlipperMCE-based device (such as the Bitfunx GCMCE) when it starts, so the device
+can select that game's virtual memory card. Other devices are left alone apart
+from the device ID query used to detect them.
+
+The option defaults to off, including for settings saved by older versions and
+for launchers that pass older settings. Launchers such as USB Loader GX that
+send the game ID themselves don't need it.
 
 With **Memcard Emulation** on, nothing is sent unless **hybrid EXI** makes
 Slot B physical, in which case only Slot B is used. Slot B is skipped when a

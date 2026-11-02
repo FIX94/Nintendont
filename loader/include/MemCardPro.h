@@ -57,7 +57,8 @@ bool MCP_BuildGameIDCmd(const u8 *hdr, u32 hdrLen, u8 cmd[MCP_GAMEID_CMD_SIZE]);
 bool MCP_BuildTitle(const u8 *hdr, u32 hdrLen, char title[MCP_TITLE_SIZE]);
 
 /**
- * Get the slots that the game will access as physical memory cards.
+ * Get the slots to send the game ID to: physical memory card slots that the
+ * game will access, if NIN_CFG_GAME_ID is enabled.
  * @param config	[in] NIN_CFG.Config.
  * @param isWiiU	[in] True on Wii U/vWii/Wii VC, which have no card slots.
  * @param isTriforce	[in] True for Triforce games.

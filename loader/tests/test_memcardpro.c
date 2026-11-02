@@ -310,31 +310,41 @@ static void title_rejects_short_header(void)
 	assert(!MCP_BuildTitle(hdr, 0x20, title));
 }
 
+// The setting is off by default, and overrides everything else.
+static void slots_setting_off(void)
+{
+	assert(MCP_GetEligibleSlots(0, false, false, false) == 0);
+	assert(MCP_GetEligibleSlots(NIN_CFG_MEMCARDEMU | NIN_CFG_HYBRID_EXI, false, false, false) == 0);
+}
+
 static void slots_real_cards(void)
 {
-	assert(MCP_GetEligibleSlots(0, false, false, false) == (MCP_SLOT_A | MCP_SLOT_B));
+	assert(MCP_GetEligibleSlots(NIN_CFG_GAME_ID, false, false, false) == (MCP_SLOT_A | MCP_SLOT_B));
 }
 
 static void slots_emulation_and_hybrid(void)
 {
-	assert(MCP_GetEligibleSlots(NIN_CFG_MEMCARDEMU, false, false, false) == 0);
-	assert(MCP_GetEligibleSlots(NIN_CFG_MEMCARDEMU | NIN_CFG_HYBRID_EXI, false, false, false) == MCP_SLOT_B);
+	const u32 on = NIN_CFG_GAME_ID;
+	assert(MCP_GetEligibleSlots(on | NIN_CFG_MEMCARDEMU, false, false, false) == 0);
+	assert(MCP_GetEligibleSlots(on | NIN_CFG_MEMCARDEMU | NIN_CFG_HYBRID_EXI, false, false, false) == MCP_SLOT_B);
 	// Hybrid has no effect without memory card emulation.
-	assert(MCP_GetEligibleSlots(NIN_CFG_HYBRID_EXI, false, false, false) == (MCP_SLOT_A | MCP_SLOT_B));
+	assert(MCP_GetEligibleSlots(on | NIN_CFG_HYBRID_EXI, false, false, false) == (MCP_SLOT_A | MCP_SLOT_B));
 }
 
 static void slots_wiiu_and_triforce(void)
 {
-	assert(MCP_GetEligibleSlots(0, true, false, false) == 0);
-	assert(MCP_GetEligibleSlots(0, false, true, false) == 0);
-	assert(MCP_GetEligibleSlots(NIN_CFG_MEMCARDEMU | NIN_CFG_HYBRID_EXI, true, false, false) == 0);
+	const u32 on = NIN_CFG_GAME_ID;
+	assert(MCP_GetEligibleSlots(on, true, false, false) == 0);
+	assert(MCP_GetEligibleSlots(on, false, true, false) == 0);
+	assert(MCP_GetEligibleSlots(on | NIN_CFG_MEMCARDEMU | NIN_CFG_HYBRID_EXI, true, false, false) == 0);
 }
 
 static void slots_gecko_and_debugger(void)
 {
-	assert(MCP_GetEligibleSlots(0, false, false, true) == MCP_SLOT_A);
-	assert(MCP_GetEligibleSlots(NIN_CFG_DEBUGGER, false, false, false) == MCP_SLOT_A);
-	assert(MCP_GetEligibleSlots(NIN_CFG_MEMCARDEMU | NIN_CFG_HYBRID_EXI, false, false, true) == 0);
+	const u32 on = NIN_CFG_GAME_ID;
+	assert(MCP_GetEligibleSlots(on, false, false, true) == MCP_SLOT_A);
+	assert(MCP_GetEligibleSlots(on | NIN_CFG_DEBUGGER, false, false, false) == MCP_SLOT_A);
+	assert(MCP_GetEligibleSlots(on | NIN_CFG_MEMCARDEMU | NIN_CFG_HYBRID_EXI, false, false, true) == 0);
 }
 
 static void flow_compatible_device(void)
@@ -584,6 +594,7 @@ int main(void)
 	RUN(title_unterminated_is_truncated);
 	RUN(title_non_ascii_is_preserved);
 	RUN(title_rejects_short_header);
+	RUN(slots_setting_off);
 	RUN(slots_real_cards);
 	RUN(slots_emulation_and_hybrid);
 	RUN(slots_wiiu_and_triforce);
