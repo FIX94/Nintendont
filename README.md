@@ -78,6 +78,21 @@ save or distribute game code.
 3. Connect your storage device to your Wii or Wii U and start The Homebrew Channel.
 4. Select Nintendont.
 
+### MemCard PRO GC and FlipperMCE support (Wii only)
+When a game starts on real memory cards, Nintendont sends its game ID, company
+code, disc number, revision and title to any MemCard PRO GC or FlipperMCE-based
+device (such as the Bitfunx GCMCE) so it can select that game's virtual memory
+card. No setting is needed, and other devices are left alone apart from the
+device ID query used to detect them.
+
+With **Memcard Emulation** on, nothing is sent unless **hybrid EXI** makes
+Slot B physical, in which case only Slot B is used. Slot B is skipped when a
+USB Gecko is present or the **Debugger** is enabled. This does nothing on
+Wii U/vWii or for Triforce games.
+
+The host-side tests can be run with a native `gcc` using `make -C loader/tests`.
+See [the hardware test plan](loader/tests/MemCardPro_hardware_tests.md).
+
 ### Compiling:
 For compile Nintendont yourself, get the following versions of the toolchain compiling PPC tools:
 * **devkitARM r53-1**
