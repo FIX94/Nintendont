@@ -36,6 +36,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "FPad.h"
 #include "menu.h"
 #include "MemCard.h"
+#include "MemCardPro.h"
 #include "Patches.h"
 #include "kernel_zip.h"
 #include "kernelboot_bin.h"
@@ -220,9 +221,10 @@ void changeToDefaultDrive()
  * @param CurDICMD	[in] DI command. (0 == disc image, DIP_CMD_NORMAL == GameCube disc, DIP_CMD_DVDR == DVD-R)
  * @param ISOShift	[out,opt] ISO Shift. (34-bit rshifted byte offset)
  * @param BI2region	[out,opt] bi2.bin region code.
+ * @param DiscHdr	[out,opt] Selected game's disc header. (MCP_DISC_HDR_SIZE bytes; not touched if it can't be read)
  * @return 0 on success; non-zero on error.
  */
-static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 *BI2region)
+static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 *BI2region, u8 *DiscHdr)
 {
 	char GamePath[260];
 
@@ -285,6 +287,16 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 			int ret = 0;
 			if (ISOShift)
 				*ISOShift = 0;
+			// The disc image starts after the 0x8000-byte CISO header.
+			// NOTE: DiscHdr is only used on real memory cards, so Wii VC doesn't need it.
+			if (DiscHdr && !wiiVCInternal)
+			{
+				u8 CISOHdr[MCP_DISC_HDR_SIZE];
+				f_lseek(&f, 0x8000);
+				f_read(&f, CISOHdr, sizeof(CISOHdr), &read);
+				if (read == sizeof(CISOHdr))
+					memcpy(DiscHdr, CISOHdr, sizeof(CISOHdr));
+			}
 			if (BI2region)
 			{
 				if(wiiVCInternal)
@@ -318,6 +330,18 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 		// Multi-game isn't supported.
 		if (ISOShift)
 			*ISOShift = 0;
+		if (DiscHdr)
+		{
+			// Get the disc header. (boot.bin is the start of the disc.)
+			snprintf(GamePath, sizeof(GamePath), "%s:%ssys/boot.bin", GetRootDevice(), ncfg->GamePath);
+			if (f_open_char(&f, GamePath, FA_READ|FA_OPEN_EXISTING) == FR_OK)
+			{
+				f_read(&f, MultiHdr, MCP_DISC_HDR_SIZE, &read);
+				f_close(&f);
+				if (read == MCP_DISC_HDR_SIZE)
+					memcpy(DiscHdr, MultiHdr, MCP_DISC_HDR_SIZE);
+			}
+		}
 		if (!BI2region)
 		{
 			free(MultiHdr);
@@ -371,6 +395,9 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 			*BI2region = *(u32*)(&MultiHdr[0x458]);
 		}
 
+		if (DiscHdr)
+			memcpy(DiscHdr, MultiHdr, MCP_DISC_HDR_SIZE);
+
 		free(MultiHdr);
 		return 0;
 	}
@@ -383,6 +410,7 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 	u32 gamecount = 0;
 	u32 Offsets[15]; // 34-bit, rshifted by 2
 	u32 BI2region_codes[15];
+	u8 GameHdrs[15][MCP_DISC_HDR_SIZE];
 	gameinfo gi[15];
 
 	// Games must be aligned to 4-byte boundaries, since
@@ -432,6 +460,8 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 					f_read(&f, GameHdr, 0x800, &read);
 				}
 			}
+
+			memcpy(GameHdrs[gamecount], GameHdr, MCP_DISC_HDR_SIZE);
 
 			// Make sure the title in the header is NULL terminated.
 			GameHdr[0x20+65] = 0;
@@ -543,6 +573,10 @@ static u32 CheckForMultiGameAndRegion(unsigned int CurDICMD, u32 *ISOShift, u32 
 	if (BI2region)
 	{
 		*BI2region = BI2region_codes[PosX];
+	}
+	if (DiscHdr)
+	{
+		memcpy(DiscHdr, GameHdrs[PosX], MCP_DISC_HDR_SIZE);
 	}
 
 	// Save the Game ID.
@@ -968,7 +1002,9 @@ int main(int argc, char **argv)
 	// Get multi-game and region code information.
 	u32 ISOShift = 0;	// NOTE: This is a 34-bit shifted offset.
 	u32 BI2region = 0;	// bi2.bin region code [TODO: Validate?]
-	int ret = CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region);
+	u8 DiscHdr[MCP_DISC_HDR_SIZE];	// Selected game's disc header. (zeroed if it can't be read)
+	memset(DiscHdr, 0, sizeof(DiscHdr));
+	int ret = CheckForMultiGameAndRegion(CurDICMD, &ISOShift, &BI2region, DiscHdr);
 	if (ret != 0) {
 		ClearScreen();
 		PrintInfo();
@@ -1139,6 +1175,12 @@ int main(int argc, char **argv)
 		snprintf(BasePath, sizeof(BasePath), "%s:/saves", GetRootDevice());
 		f_mkdir_char(BasePath);
 	}
+
+	// Let MemCard PRO and FlipperMCE devices select the game's virtual memory
+	// card. The game is final here, and the kernel doesn't use EXI until it's
+	// told to start the game below.
+	MCP_SendGameInfo(DiscHdr, sizeof(DiscHdr),
+		MCP_GetEligibleSlots(ncfg->Config, IsWiiU(), IsTRIGame != 0, HaveGecko()));
 
 	#define GCN_IPL_SIZE 2097152
 	#define TRI_IPL_SIZE 1048576
