@@ -258,6 +258,30 @@ int _main( int argc, char *argv[] )
 	PatchInit();
 
 	SOCKInit();
+
+	/*
+	 * XInput pads live on /dev/usb/ven, whose single handle kernel USB storage
+	 * owns, so this has to wait until storage is up and the loader has dropped
+	 * its own ven client. Returns immediately when a /dev/usb/hid controller
+	 * was already found, or when no pad is attached - in that case the
+	 * device-change request just stays pending and a later plug-in still works.
+	 */
+	XInputInit();
+	{
+		/*
+		 * Give the pad a moment to enumerate so its mapping is read from FAT
+		 * here rather than once the game is streaming from the same device.
+		 * Only the XInput state machine is driven: calling the whole of
+		 * HIDUpdateRegisters at this point would also run the /dev/usb/hid
+		 * state machine somewhere stock Nintendont never does.
+		 */
+		u32 wait;
+		for(wait = 0; wait < 1200 && !XInputIsActive(); ++wait)
+		{
+			XInputUpdate();
+			mdelay(1);
+		}
+	}
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);

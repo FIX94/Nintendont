@@ -101,6 +101,12 @@ void HIDInit();
 s32 HIDOpen();
 void HIDClose();
 void HIDUpdateRegisters(u32 LoaderRequest);
+/* XInput (Xbox 360 style) pads, which only ever appear on /dev/usb/ven.
+ * XInputInit() must be called after USB storage is up, since it shares
+ * storage's ven handle - IOS58 will not hand out a second one. */
+void XInputInit(void);
+void XInputUpdate(void);
+u32 XInputIsActive(void);
 void HIDGCInit( void );
 void HIDPS3Init( void );
 void HIDPS3Read( void );
