@@ -34,9 +34,9 @@ struct BTPadCont {
 	u32 button;
 	u8 triggerL;
 	u8 triggerR;
-	s16 xAccel;
-	s16 yAccel;
-	s16 zAccel;
+	s16 xAccel[2];
+	s16 yAccel[2];
+	s16 zAccel[2];
 } __attribute__((aligned(32)));
 
 void FPAD_Init( void );
