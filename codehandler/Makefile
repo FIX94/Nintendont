@@ -7,11 +7,15 @@ include $(DEVKITPPC)/wii_rules
 #---------------------------------------------------------------------------------
 TARGET	:= codehandler.h codehandleronly.h
 #---------------------------------------------------------------------------------
-ifeq ($(OS),Windows_NT)
-	BIN2H =	../kernel/bin2h/bin2h.exe
+# Pick the bundled Windows or Linux helper. See kernel/Makefile for why $(OS)
+# alone is not enough here.
+UNAME_S := $(shell uname -s 2>/dev/null)
+ifneq (,$(filter Windows_NT,$(OS))$(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S))$(findstring CYGWIN,$(UNAME_S)))
+	HOST_EXE := .exe
 else
-	BIN2H =	../kernel/bin2h/bin2h
+	HOST_EXE :=
 endif
+BIN2H = ../kernel/bin2h/bin2h$(HOST_EXE)
 STRIP = $(DEVKITPPC)/bin/powerpc-eabi-strip
 #---------------------------------------------------------------------------------
 CFLAGS		:= -nostartfiles -nodefaultlibs -Wl,-Ttext,0x80001000
