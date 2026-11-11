@@ -411,6 +411,15 @@ void ISOSetupCache()
 			// Get the total card size from GCNCard.c.
 			MemCardSize = GCNCard_GetTotalSize();
 		}
+		if (MemCardSize >= CACHE_SIZE)
+		{
+			// The emulated cards fill the whole cache region: no read cache.
+			// (DCacheLimit is unsigned: subtracting would wrap it round to
+			// about 4 GB, and the cache would grow past its region into the
+			// memory after it.) ISORead then reads straight into
+			// DI_READ_BUFFER, as it does before the cache is set up.
+			return;
+		}
 		DCCache += MemCardSize; //memcard is before cache
 		DCacheLimit -= MemCardSize;
 	}
@@ -484,6 +493,16 @@ const u8 *ISORead(u32* Length, u32 Offset)
 	{	//pre-load data, guessing
 		u32 OriLength = *Length;
 		while((*Length += OriLength) < 0x10000) ;
+	}
+
+	// case the read is longer than the whole cache: read it directly,
+	// so it can never run past the cache's region
+	if( *Length >= DCacheLimit )
+	{
+		if (*Length > DI_READ_BUFFER_LENGTH)
+			*Length = DI_READ_BUFFER_LENGTH;
+		ISOReadDirect(DI_READ_BUFFER, *Length, Offset64);
+		return DI_READ_BUFFER;
 	}
 
 	// case we ran out of positions
