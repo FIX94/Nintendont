@@ -161,6 +161,12 @@ struct _usb_msg {
 
 static s32 __usbv5_devicechangeCB(s32 result, void *p);
 
+// Set while USB_OGC_Deinitialize() runs. SHUTDOWN completes the pending
+// device-change request with a success code; re-arming from the callback
+// then queues new requests (from IRQ context) while the shutdown waits,
+// and with libogc 3 the blocking SHUTDOWN never returns.
+static volatile bool usb_closing = false;
+
 static s32 __usbv5_attachfinishCB(s32 result, void *p)
 {
 	_usb_cb_list *list;
@@ -180,7 +186,7 @@ static s32 __usbv5_attachfinishCB(s32 result, void *p)
 		list = next;
 	}
 
-	if (result==0)
+	if (result==0 && !usb_closing)
 		IOS_IoctlAsync(host->fd, USBV5_IOCTL_GETDEVICECHANGE, NULL, 0, host->attached_devices, 0x180, __usbv5_devicechangeCB, host);
 
 	return IPC_OK;
@@ -212,7 +218,8 @@ static s32 __usbv5_devicechangeCB(s32 result, void *p)
 		// wipe unused device entries
 		memset(host->attached_devices+result, 0, sizeof(usb_device_entry)*(32-result));
 
-		IOS_IoctlAsync(host->fd, USBV5_IOCTL_ATTACHFINISH, NULL, 0, NULL, 0, __usbv5_attachfinishCB, host);
+		if (!usb_closing)
+			IOS_IoctlAsync(host->fd, USBV5_IOCTL_ATTACHFINISH, NULL, 0, NULL, 0, __usbv5_attachfinishCB, host);
 	}
 
 	return IPC_OK;
@@ -650,6 +657,7 @@ mem_error:
 
 s32 USB_OGC_Deinitialize()
 {
+	usb_closing = true;
 	if (hid_host) {
 		if (hid_host->fd>=0) {
 			//before we close, copy over the device info for the kernel
@@ -671,6 +679,7 @@ s32 USB_OGC_Deinitialize()
 		ven_host = NULL;
 	}
 
+	usb_closing = false;
 	return IPC_OK;
 }
 

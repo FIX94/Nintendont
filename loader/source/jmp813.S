@@ -1,18 +1,23 @@
 
+	.globl _jmp813
+_jmp813:
+#ifdef LIBOGC3
+	.extern PPCEarlyInit
+	bl		PPCEarlyInit		# BATs, caches, L2, HID and FPSCR to a known state
+	bl		__initRegisters		# Initialize the General Purpose Registers
+#else
 	.extern __InitBATS
 	.extern __InitPS
 	.extern __InitFPRS
 	.extern __InitCache
 	.extern __InitSystem
-
-	.globl _jmp813
-_jmp813:
 	bl		__InitBATS			# Initialize BATs to a clear and known state
 	bl		__initRegisters		# Initialize the General Purpose Registers
 	bl		__InitPS 			# Initialize Paired Singles
 	bl		__InitFPRS		 	# Initialize the FPR's
 	bl		__InitCache 		# Initialize the system caches
 	bl		__InitSystem		# Initialize more cache aspects, clear a few SPR's, and disable interrupts.
+#endif
 	lis		r3, 0x8130
 	mtlr	r3
 	blr
