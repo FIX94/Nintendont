@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <ogc/dsp.h>
 #include <ogc/es.h>
 #include <ogc/gx_struct.h>
-#include <ogc/lwp_threads.h>
+#include <ogc/machine/processor.h>
 #include <ogc/system.h>
 #include <ogc/video.h>
 #include <ogc/wiilaunch.h>
@@ -78,7 +78,9 @@ void RAMInit(void)
 	__asm("mtfsb1    4*cr7+gt");
 
 	memset( (void*)0x80000000, 0, 0x100 );
-	memset( (void*)0x80003000, 0, 0x100 );
+	// 0x80003000-0x8000307F is libogc 3's exception table while the
+	// loader runs; it is cleared at game start instead (main.c).
+	memset( (void*)0x80003080, 0, 0x80 );
 	//memset( (void*)0x80003F00, 0, 0x11FC100 );
 	memset( (void*)0x81340000, 0, 0x3C );
 
@@ -239,7 +241,7 @@ raw_irq_handler_t BeforeIOSReload()
 	__STM_Close();
 
 	write32(0x80003140, 0);
-	__MaskIrq(IRQ_PI_ACR);
+	__MaskIrq(IM_PI_ACR);
 	return IRQ_Free(IRQ_PI_ACR);
 }
 extern void udelay(u32 us);
@@ -248,15 +250,19 @@ void AfterIOSReload(raw_irq_handler_t handle, u32 rev)
 	while((read32(0x80003140)) != rev)
 		udelay(1000);
 
+	// Wait for the new IOS to start IPC as libogc's own __IOS_LaunchNewIOS
+	// does: sleep first, then accept a message or a control ack. Read at once,
+	// HW_IPC_PPCCTRL can still hold the old IOS's bits; with libogc 3 the next
+	// request (IOS_Open in __STM_Init) then never got its reply.
 	u32 counter;
-	for (counter = 0; !(read32(0x0d000004) & 2); counter++)
+	for (counter = 0; counter <= 40000; counter++)
 	{
 		udelay(1000);
-		if (counter >= 40000)
+		if (read32(0x0d000004) & 6)
 			break;
 	}
 	IRQ_Request(IRQ_PI_ACR, handle, NULL);
-	__UnmaskIrq(IRQ_PI_ACR);
+	__UnmaskIrq(IM_PI_ACR);
 	__IPC_Reinitialize();
 
 	__STM_Init();
@@ -292,10 +298,13 @@ void ExitToLoader(int ret)
 	VIDEO_WaitVSync();
 	//This whole exit routine is basically equal to the game exit stub
 	if(*(vu32*)0x80001804 == 0x53545542 && *(vu32*)0x80001808 == 0x48415858) //stubhaxx
-		__lwp_thread_stopmultitasking(stub);
+	{
+		IRQ_Disable();	// the stub never returns
+		stub();
+	}
 	__ES_Init(); //make sure this is back open
 	u32 numviews;
-	STACK_ALIGN(tikview,views,4,32);
+	tikview views[4] ATTRIBUTE_ALIGN(32);
 	ES_GetNumTicketViews(SYSTEM_MENU, &numviews);
 	ES_GetTicketViews(SYSTEM_MENU, views, numviews);
 	ES_LaunchTitle(SYSTEM_MENU, &views[0]);
