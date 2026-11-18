@@ -1037,7 +1037,6 @@ static void threadHandleNew(myCtx *ctx)
 						u32 cb = threadReqDat[type][pool].cb;
 						u32 sock = threadReqDat[type][pool].sock;
 						if(type == T_SEND) {
-							threadInUse[type][pool] = 0;
 							((send_cb)cb)(0, sock);
 						}
 						else if(type == T_RECV)
@@ -1303,7 +1302,7 @@ int tcp_accept(short sock, u32 cb, u32 bufmaybe)
 	test_debug("tcp_accept",0,0,0,0);
 	if(cb)
 	{
-		if (test_socket(T_ACPT,sock)==0) return -1;	//already something pending
+		if (test_socket(T_ACPT,sock)==0) return 0;	//already something pending
 		if(!lockThread(T_ACPT)) return -1;
 		int fd = getFreeFD();
 		threadInUse[T_ACPT][fd] = 1;	//reserve it
@@ -1312,7 +1311,7 @@ int tcp_accept(short sock, u32 cb, u32 bufmaybe)
 		threadInUse[T_ACPT][fd] = 3; //ready to run
 		OSWakeupThread(&so_queue[SO_THREAD_FD|so_accept]);
 		unlockThread(T_ACPT);
-		return -1;
+		return 0;
 	}
 	//nothing uses bufmaybe, so not sure how to emulate,
 	//just ignore and return socket fd alone for now
@@ -1353,7 +1352,7 @@ int tcp_receive(int sock, u32 cb, u32 len, char *buf)
 	
 	if(cb)
 	{
-		if (test_socket(T_RECV,sock)==0) return -1;	//already something pending
+		if (test_socket(T_RECV,sock)==0) return 0;	//already something pending
 		if(!lockThread(T_RECV)) return -1;
 		int fd = getFreeFD();
 		threadInUse[T_RECV][fd] = 1;
@@ -1364,7 +1363,7 @@ int tcp_receive(int sock, u32 cb, u32 len, char *buf)
 		threadInUse[T_RECV][fd] = 3;
 		OSWakeupThread(&so_queue[SO_THREAD_FD|so_recvfrom]);
 		unlockThread(T_RECV);
-		return -1;
+		return 0;
 	}
 	int ret = SORecvFrom(sock, buf, len, 0, 0);
 
