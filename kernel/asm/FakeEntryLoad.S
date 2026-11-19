@@ -35,6 +35,17 @@ InvalidateRange2:
 	addi	r4,	r4,	0x20
 	bdnz	InvalidateRange2
 
+	# ARM installs the reserved menu blob before game boot. Drop old cache lines.
+	lis r4, 0x9318
+	# Include the shared-state page: a dirty loader cache line must not later
+	# overwrite the uncached PPC/ARM state installed at game handoff.
+	li r5, 0x800
+	mtctr r5
+InvalidateOverlay:
+	dcbi 0, r4
+	icbi 0, r4
+	addi r4, r4, 32
+	bdnz InvalidateOverlay
 	sync
 	isync
 

@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "GCAM.h"
 #include "TRI.h"
 #include "Patch.h"
+#include "../common/include/Overlay.h"
 
 #include "diskio.h"
 #include "usbstorage.h"
@@ -227,6 +228,11 @@ int _main( int argc, char *argv[] )
 
 	memset32((void*)RESET_STATUS, 0, 0x20);
 	sync_after_write((void*)RESET_STATUS, 0x20);
+	/* M14 reserved diagnostics, separate from Triforce IN_TESTMENU. */
+	memset32((void*)0x130030A0, 0, 0x40);
+	sync_after_write((void*)0x130030A0, 0x40);
+
+	OverlayInit();
 
 	memset32((void*)0x13003100, 0, 0x30);
 	sync_after_write((void*)0x13003100, 0x30);
@@ -258,6 +264,7 @@ int _main( int argc, char *argv[] )
 	PatchInit();
 
 	SOCKInit();
+
 //Tell PPC side we are ready!
 	cc_ahbMemFlush(1);
 	mdelay(1000);
@@ -541,6 +548,41 @@ int _main( int argc, char *argv[] )
 
 	if( ConfigGetConfig(NIN_CFG_MEMCARDEMU) )
 		EXIShutdown();
+
+    /* DI is closed/cancelled and card saves finished; FAT and USB are
+     * STILL mounted. Menu-only WaitForExit deliberately bypasses this. */
+    {
+        extern u32 VIRetraceAddr, VIRetraceLen, VIHookStub;
+        FIL cf; UINT cw; char cb[768]; u32 cn;
+        OverlayState *os=(OverlayState*)OVL_STATE_ARM;
+        u32 dirtyBefore;
+        int saveResult;
+        sync_before_read(os,sizeof(*os));
+        dirtyBefore=os->dirty;
+        saveResult=OverlaySave();
+        sync_before_read((void*)0x130030A0, 0x40);
+        cn = _sprintf(cb,
+            "build=M21-audit\r\nhandler=%08X\r\nreturn_site=%08X\r\nstub=%08X\r\n"
+            "vi_hook_entries=%u\r\nfield_draws=%u\r\nrejected=%u\r\n"
+            "tfbl_raw=%08X\r\nbfbl_raw=%08X\r\nfield_stride=%u\r\n"
+            "top_decoded=%08X\r\nbottom_decoded=%08X\r\nvtr_dcr_raw=%08X\r\n"
+            "menu_input_calls=%u\r\nmenu_draw_calls=%u\r\napplies=%u\r\ncancels=%u\r\nmapping_save=%d\r\n"
+            "mapping_dirty_before=%u\r\nmapping_generation=%u\r\noverlay_magic=%08X\r\noverlay_enabled=%u\r\n",
+            VIRetraceAddr, VIRetraceAddr ? VIRetraceAddr + VIRetraceLen : 0, VIHookStub,
+            read32(0x130030A0), read32(0x130030A4), read32(0x130030A8),
+            read32(0x130030AC), read32(0x130030B0), read32(0x130030B4),
+            read32(0x130030B8), read32(0x130030BC), read32(0x130030C0),
+            os->inputCalls,os->drawCalls,os->applies,os->cancels,saveResult,
+            dirtyBefore,os->generation,os->magic,os->enabled);
+        if(f_open_char(&cf, "/vi_m21.log", FA_WRITE|FA_CREATE_ALWAYS) == FR_OK)
+        {
+            FRESULT wr = f_write(&cf, cb, cn, &cw);
+            FRESULT sy = f_sync(&cf);
+            FRESULT cl = f_close(&cf);
+            if(wr != FR_OK || cw != cn || sy != FR_OK || cl != FR_OK)
+                dbgprintf("M14 report write incomplete\n");
+        }
+    }
 
 	if (ConfigGetConfig(NIN_CFG_LOG))
 		closeLog();

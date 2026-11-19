@@ -39,9 +39,10 @@ SECTIONS
 {
 	.init (0x12F00000) : AT( 0x12F00000 )
 	{
-		*(.init)
+		KEEP(*(.init))
 		. = ALIGN(4);
 	} >code :code
+	ASSERT(_start == ORIGIN(code), "Nintendont raw kernel must start at 0x12F00000")
 
 	.text (0x12F00000 + SIZEOF(.init)) : AT( 0x12F00000 + SIZEOF(.init) )
 	{

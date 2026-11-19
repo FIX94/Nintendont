@@ -1,3 +1,5 @@
+/* kernelboot jumps to the raw image base, not the ELF entry field. */
+.section .init,"ax",%progbits
 .global _start
 .type   _start STT_FUNC
 .extern __phy_stack_addr

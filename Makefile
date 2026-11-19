@@ -11,7 +11,7 @@ ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
-SUBPROJECTS := multidol kernel/asm resetstub \
+SUBPROJECTS := overlay multidol kernel/asm resetstub \
 	fatfs/libfat-arm.a fatfs/libfat-ppc.a \
 	codehandler kernel kernelboot \
 	loader/source/ppc/PADReadGC loader/source/ppc/IOSInterface loader
@@ -56,7 +56,10 @@ codehandler:
 	@echo " "
 	$(MAKE) -C codehandler
 
-kernel: kernel/asm fatfs/libfat-arm.a codehandler
+overlay:
+	$(MAKE) -C overlay
+
+kernel: overlay kernel/asm fatfs/libfat-arm.a codehandler
 	@echo " "
 	@echo "Building Nintendont kernel"
 	@echo " "
@@ -90,6 +93,7 @@ clean:
 	@echo " "
 	@echo "Cleaning all subprojects..."
 	@echo " "
+	$(MAKE) -C overlay clean
 	$(MAKE) -C multidol clean
 	$(MAKE) -C kernel/asm clean
 	$(MAKE) -C resetstub clean
