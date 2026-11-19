@@ -468,6 +468,11 @@ void UpdateNinCFG()
 		ncfg->Version = 11;
 	}
 	if (ncfg->Version == 11)
+	{	// Memcard Game ID, disabled by default
+		ncfg->Config &= ~NIN_CFG_GAME_ID;
+		ncfg->Version = 12;
+	}
+	if (ncfg->Version == 12)
 	{
 		// NIN_CFG with version 10 may have loaded
 		// garbage bytes into WiiUGamepadSlot so sanitize

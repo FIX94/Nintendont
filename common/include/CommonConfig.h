@@ -5,7 +5,7 @@
 #include "NintendontVersion.h"
 #include "Metadata.h"
 
-#define NIN_CFG_VERSION		0x0000000B
+#define NIN_CFG_VERSION		0x0000000C
 
 #define NIN_CFG_MAXPAD 4
 
@@ -53,6 +53,7 @@ enum ninconfigbitpos
 	NIN_CFG_BIT_SKIP_IPL	= (18),
 	NIN_CFG_BIT_BBA_EMU		= (19),
 	NIN_CFG_BIT_HYBRID_EXI	= (20),
+	NIN_CFG_BIT_GAME_ID	= (21),
 
 	// Internal kernel settings.
 	NIN_CFG_BIT_MC_SLOTB	= (31),	// Slot B image is loaded
@@ -83,6 +84,7 @@ enum ninconfig
 	NIN_CFG_SKIP_IPL	= (1<<NIN_CFG_BIT_SKIP_IPL),
 	NIN_CFG_BBA_EMU		= (1<<NIN_CFG_BIT_BBA_EMU),
 	NIN_CFG_HYBRID_EXI	= (1<<NIN_CFG_BIT_HYBRID_EXI),
+	NIN_CFG_GAME_ID		= (1<<NIN_CFG_BIT_GAME_ID),	// Only for Wii Version
 
 	NIN_CFG_MC_SLOTB	= (1<<NIN_CFG_BIT_MC_SLOTB),
 };
