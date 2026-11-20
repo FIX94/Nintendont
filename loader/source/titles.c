@@ -121,6 +121,11 @@ int LoadTitles(void)
 				// Valid title.
 				*cur_title = 0;
 				title_count++;
+				if (title_count >= MAX_TITLES) {
+					// titles.txt holds more entries than we have room for.
+					// Keep what we have rather than running off the array.
+					break;
+				}
 				cur_title = &__title_list[title_count][0];
 				pos = 0;
 			}
