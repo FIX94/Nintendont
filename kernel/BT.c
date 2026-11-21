@@ -78,7 +78,8 @@ static const u8 LEDState[] = { 0x10, 0x20, 0x40, 0x80, 0xF0 };
 #define C_NSWAP2	(1<<6)
 #define C_NSWAP3	(1<<7)
 #define C_ISWAP		(1<<8)
-#define C_TestSWAP	(1<<9)
+#define C_ZSWAP		(1<<9)
+#define C_TestSWAP	(1<<10)
 
 static const s8 DEADZONE = 0x1A;
 
@@ -119,7 +120,15 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
 		{
 			//dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
-			stat->controller = (stat->controller & C_SWAP) ? (stat->controller & ~C_SWAP) : (stat->controller | C_SWAP);
+			stat->controller ^= C_SWAP;
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
+		if((prevButton & BT_TRIGGER_L) && (prevButton & BT_TRIGGER_R) &&
+			(BTPad[chan].button & BT_TRIGGER_L) && (BTPad[chan].button & BT_TRIGGER_R) &&
+			(BTPad[chan].button & BT_DPAD_DOWN))
+		{
+			stat->controller ^= C_ZSWAP;
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
 		}
@@ -167,14 +176,21 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		if((!(prevButton & BT_BUTTON_SELECT)) && BTPad[chan].button & BT_BUTTON_SELECT)
 		{
 			//dbgprintf("Using %s control scheme\n", (stat->controller & C_SWAP) ? "orginal" : "swapped");
-			stat->controller = (stat->controller & C_SWAP) ? (stat->controller & ~C_SWAP) : (stat->controller | C_SWAP);
+			stat->controller ^= C_SWAP;
+			sync_after_write(arg, sizeof(struct BTPadStat));
+			sync_before_read(arg, sizeof(struct BTPadStat));
+		}
+		if((prevButton & BT_TRIGGER_L) && (prevButton & BT_TRIGGER_R) && (BTPad[chan].button & BT_TRIGGER_L) && (BTPad[chan].button & BT_TRIGGER_R)
+			&& (BTPad[chan].button & BT_DPAD_DOWN))
+		{
+			stat->controller ^= C_ZSWAP;
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
 		}
 		if((!(prevButton & (WM_BUTTON_MINUS << 4))) && BTPad[chan].button & (WM_BUTTON_MINUS << 4))	//wiimote button minus pressed leading edge
 		{
 			//dbgprintf("%s rumble for wiimote\n", (stat->controller & C_RUMBLE_WM) ? "Disabling" : "Enabling");
-			stat->controller = (stat->controller & C_RUMBLE_WM) ? (stat->controller & ~C_RUMBLE_WM) : (stat->controller | C_RUMBLE_WM);
+			stat->controller ^= C_RUMBLE_WM;
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
 		}
@@ -274,15 +290,15 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 					break;
 				case NUN_BUTTON_C:
 					if(!(prevButton & NUN_BUTTON_C))
-						stat->controller = (stat->controller & C_SWAP) ? (stat->controller & ~C_SWAP) : (stat->controller | C_SWAP);
+						stat->controller ^= C_SWAP;
 					break;
 				case NUN_BUTTON_Z:
 					if(!(prevButton & NUN_BUTTON_Z))
-						stat->controller = (stat->controller & C_ISWAP) ? (stat->controller & ~C_ISWAP) : (stat->controller | C_ISWAP);
+						stat->controller ^= C_ISWAP;
 					break;
 				case WM_BUTTON_A:
 					if(!(prevButton & WM_BUTTON_A))
-						stat->controller = (stat->controller & C_TestSWAP) ? (stat->controller & ~C_TestSWAP) : (stat->controller | C_TestSWAP);
+						stat->controller ^= C_TestSWAP;
 					break;
 				default: { }
 			}
@@ -291,7 +307,7 @@ static s32 BTHandleData(void *arg,void *buffer,u16 len)
 		}
 		if((!(prevButton & WM_BUTTON_TWO)) && BTPad[chan].button & WM_BUTTON_TWO)	//wiimote button TWO pressed leading edge
 		{
-			stat->controller = stat->controller & ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3 | C_SWAP | C_ISWAP | C_TestSWAP);
+			stat->controller &= ~(C_NSWAP1 | C_NSWAP2 | C_NSWAP3 | C_SWAP | C_ISWAP | C_ZSWAP | C_TestSWAP);
 			sync_after_write(arg, sizeof(struct BTPadStat));
 			sync_before_read(arg, sizeof(struct BTPadStat));
 		}
