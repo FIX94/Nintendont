@@ -432,13 +432,6 @@ void GCNCard_Write(int slot, const void *data, u32 length)
 		}
 	}
 
-	// FIXME: Verify that this doesn't go out of bounds.
-        if (ctx->BlockOff + length > ctx->size)
-        {
-            memset(data, 0xFF, length);
-            sync_after_write(data, length);
-            return;
-        }
 	sync_before_read((void*)data, length);
 	memcpy(&ctx->base[ctx->BlockOff], data, length);
 	sync_after_write(&ctx->base[ctx->BlockOff], length);
@@ -456,7 +449,13 @@ void GCNCard_Read(int slot, void *data, u32 length)
 		return;
 	GCNCard_ctx *const ctx = &memCard[slot];
 
-	// FIXME: Verify that this doesn't go out of bounds.
+	// Past the end of the card: return erased flash (0xFF), as real hardware does.
+	if (ctx->BlockOff + length > ctx->size)
+	{
+		memset(data, 0xFF, length);
+		sync_after_write(data, length);
+		return;
+	}
 	sync_before_read(&ctx->base[ctx->BlockOff], length);
 	memcpy(data, &ctx->base[ctx->BlockOff], length);
 	sync_after_write(data, length);
