@@ -57,6 +57,8 @@ static u8 lastDanceMatPacket = 0x00;
 #define DRC_SWAP (1<<16)
 
 const s8 DEADZONE = 0x1A;
+// This is the threshold for where an analog trigger is considered fully pressed.
+const u8 ANALOG_LR_FULL_PRESS = 0xDF;
 
 #define HID_PAD_NONE	4
 #define HID_PAD_NOT_SET	0xFF
@@ -596,9 +598,9 @@ u32 PADRead(u32 calledByGame)
 			}
 			else	//standard no digital trigger button
 			{
-				if(HID_Packet[HID_CTRL->L.Offset] >= HID_CTRL->L.Mask)
+				if (HID_Packet[HID_CTRL->LAnalog] >= ANALOG_LR_FULL_PRESS)
 					button |= PAD_TRIGGER_L;
-				if(HID_Packet[HID_CTRL->R.Offset] >= HID_CTRL->R.Mask)
+				if (HID_Packet[HID_CTRL->RAnalog] >= ANALOG_LR_FULL_PRESS)
 					button |= PAD_TRIGGER_R;
 			}
 		}
