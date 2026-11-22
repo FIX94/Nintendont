@@ -393,6 +393,7 @@ int _main( int argc, char *argv[] )
 		}
 		else /* No device I/O so make sure this stays updated */
 			GetCurrentTime();
+		LogFlush();
 		udelay(20); //wait for other threads
 
 		if( WaitForRealDisc == 1 )

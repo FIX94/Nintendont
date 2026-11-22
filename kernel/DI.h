@@ -60,6 +60,7 @@ void DIInterrupt();
 void DIRegister(void);
 void DIUnregister(void);
 void DIFinishAsync(void);
+bool DIReadPending(void);
 u32 DIReadThread(void *arg);
 bool DiscCheckAsync( void );
 void DiscReadSync(u32 Buffer, u32 Offset, u32 Length, u32 Mode);
