@@ -25,6 +25,9 @@ typedef struct NIN_CFG
 	signed char			VideoOffset;
 	unsigned char		NetworkProfile;
 	unsigned int		WiiUGamepadSlot;
+	unsigned int		GameMakerCode;
+	unsigned int		GameRevision;
+	unsigned int		GameDiscNumber;
 } NIN_CFG;
 
 enum ninconfigbitpos
